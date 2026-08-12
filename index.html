@@ -5724,7 +5724,7 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 // una fecha concreta — es un LOG (se agrega, nunca se sobrescribe); el
 // estado "actual" de una actividad en una fecha es el de su fila más
 // reciente (ver obtenerRegistrosCronogramaFecha()).
-const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora'];
+const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion'];
 const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
 const INVENTARIO_EQUIPOS_BASE_COLS = ['Codificacion','Equipo','Marca','DescripcionEspecifica','Ubicacion'];
@@ -10501,7 +10501,7 @@ async function _leerTodosRegistrosCronogramaAgrupados() {
   filas.forEach(f => {
     if (!f.Fecha || !f.ActividadId) return;
     if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
-    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '' };
+    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '', horaRealizada: f.HoraRealizada || '', observacion: f.Observacion || '' };
   });
   return porFecha;
 }
@@ -10511,18 +10511,71 @@ async function obtenerRegistrosCronogramaFecha(fecha) {
   return todos[fecha] || {};
 }
 
-/** Marca (o desmarca) una actividad del turno activo — la comprobación de
- *  que el turno sigue activo se repite AQUÍ (no solo al pintar la
- *  pantalla): si el checkbox quedó abierto y mientras tanto cambió de
- *  turno, el intento de guardar se rechaza igual. */
-async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha) {
+/** Se dispara al hacer clic en el checkbox de una actividad. Al MARCARLA
+ *  (check) se abre un modal para capturar la hora real en que se hizo y
+ *  una observación opcional, antes de guardar — al DESMARCARLA (uncheck)
+ *  se guarda directo, sin pedir esos datos. */
+function onCambioActividadCronograma(checkboxEl, actividadId, turnoId, fecha) {
+  if (checkboxEl.checked) {
+    abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha);
+  } else {
+    marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, false, '', '');
+  }
+}
+
+/** Modal para capturar la hora real de ejecución y una observación
+ *  opcional antes de guardar una actividad como realizada. */
+function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
+  if (document.getElementById('modalMarcarCronograma')) return;
+  const ahora = new Date();
+  const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+
+  const cerrar = (guardar) => {
+    document.getElementById('modalMarcarCronograma')?.remove();
+    if (!guardar) checkboxEl.checked = false; // canceló — no queda marcada
+  };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'modalMarcarCronograma';
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:5000;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:400px;width:100%;padding:26px 24px;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="font-weight:800;font-size:16px;color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como realizada</div>
+      <div class="field" style="margin-bottom:12px">
+        <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
+        <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
+      </div>
+      <div class="field" style="margin-bottom:18px">
+        <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
+        <textarea id="cronModalObservacion" rows="3" placeholder="Algo que valga la pena anotar sobre esta actividad..." style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" id="cronModalCancelar">Cancelar</button>
+        <button class="btn btn-primary" id="cronModalGuardar">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('cronModalCancelar').onclick = () => cerrar(false);
+  document.getElementById('cronModalGuardar').onclick = () => {
+    const hora = document.getElementById('cronModalHora').value || horaDefault;
+    const observacion = document.getElementById('cronModalObservacion').value.trim();
+    cerrar(true);
+    marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, true, hora, observacion);
+  };
+}
+
+/** Guarda (marca o desmarca) una actividad del turno activo — la
+ *  comprobación de que el turno sigue activo se repite AQUÍ (no solo al
+ *  pintar la pantalla): si el checkbox quedó abierto y mientras tanto
+ *  cambió de turno, el intento de guardar se rechaza igual. */
+async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, realizado, horaRealizada, observacion) {
   const ctx = _contextoCronogramaAhora(operacionActual);
   if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
-    checkboxEl.checked = !checkboxEl.checked; // revertir el click
+    checkboxEl.checked = !realizado; // revertir el click
     alert('Ese turno ya no está activo — no se puede modificar. Actualiza la página para ver el turno actual.');
     return;
   }
-  const realizado = checkboxEl.checked;
   checkboxEl.disabled = true;
   try {
     await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
@@ -10530,12 +10583,16 @@ async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha
       fecha, turnoId, actividadId, realizado ? 'SI' : 'NO',
       currentUser?.name || currentUser?.email || 'Sistema',
       new Date().toISOString(),
+      realizado ? (horaRealizada || '') : '',
+      realizado ? (observacion || '') : '',
     ]]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
     if (marcaEl) {
       const quien = currentUser?.name || currentUser?.email || '';
-      marcaEl.textContent = realizado ? ('✓ ' + quien + ' · ' + new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})) : '';
+      marcaEl.innerHTML = realizado
+        ? `✓ ${esc(quien)} · ${esc(horaRealizada || '')}${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
+        : '';
     }
   } catch (e) {
     checkboxEl.checked = !realizado; // revertir si falló guardar
@@ -10554,11 +10611,13 @@ function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, t
       const reg = registros[b.id];
       const marcado = reg?.realizado ? 'checked' : '';
       const quien = reg?.realizadoPor ? esc(reg.realizadoPor) : '';
-      const hora = reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '';
-      const marcaTxt = reg?.realizado ? ('✓ ' + quien + ' · ' + hora) : '';
+      const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '');
+      const marcaTxt = reg?.realizado
+        ? `✓ ${quien} · ${esc(hora)}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`
+        : '';
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
         <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${editable?'pointer':'not-allowed'}"
-          onchange="marcarActividadCronograma(this,'${b.id}','${turnoId}','${fecha}')">
+          onchange="onCambioActividadCronograma(this,'${b.id}','${turnoId}','${fecha}')">
         <div style="flex:1">
           <div style="font-size:13px;line-height:1.5">${esc(b.actividad[diaSemana])}</div>
           <div id="cronMarca_${b.id}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
@@ -10684,12 +10743,14 @@ async function descargarInformeCronograma() {
           .map(b => {
             const reg = registros[b.id];
             const estado = reg?.realizado ? '✅ Realizado' : '❌ No marcado';
-            const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${new Date(reg.fechaHora).toLocaleString('es-CO')}` : '—';
-            return `<tr><td style="width:55%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td></tr>`;
+            const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
+            const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : '—';
+            const obs = reg?.realizado && reg.observacion ? esc(reg.observacion) : '';
+            return `<tr><td style="width:45%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`;
           }));
         if (!filas.length) continue;
         seccionesHtml += `<div class="section-title">${esc(turno.nombre)} — ${esc(DIAS_SEMANA_LABEL[diaSemana])} ${esc(fmtFecha(fecha))}</div>
-          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
+          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
       }
     }
 
