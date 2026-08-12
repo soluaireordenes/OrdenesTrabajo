@@ -1655,8 +1655,26 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
-    <!-- Lista -->
+    <!-- Comparación de tiempos: Novedad vs Energía (respeta filtros de arriba) -->
     <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Tiempo Promedio de Recuperación: Informe por Novedad vs Informe por Energía</div>
+      <div class="card-body" style="padding:14px"><div style="position:relative;height:230px"><canvas id="chartNovComparacionTiempos"></canvas></div><div id="novLeyendaComparacionTiempos"></div></div>
+    </div>
+
+    <!-- Tiempo de recuperación individual, separado por tipo de informe -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación — Informes por Novedad (min)</div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionN"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación — Informes por Energía (min)</div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionE"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div class="card">
       <div class="card-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="display:flex;align-items:center;gap:8px;flex:1"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informes Registrados</span>
         <select id="novFiltroTipo" onchange="filtrarNovedadesUI()" style="min-width:190px">
@@ -1667,24 +1685,6 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <div id="novTablaWrap"></div>
-      </div>
-    </div>
-
-    <!-- Comparación de tiempos: Novedad vs Energía (respeta filtros de arriba) -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparación de Tiempos: Informe por Novedad vs Informe por Energía</div>
-      <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovComparacionTiempos"></canvas></div></div>
-    </div>
-
-    <!-- Tiempo de recuperación individual, separado por tipo de informe -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación — Informes por Novedad (min)</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionN"></canvas></div></div>
-      </div>
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación — Informes por Energía (min)</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionE"></canvas></div></div>
       </div>
     </div>
   </div>
@@ -10371,22 +10371,40 @@ function renderGraficasNovedades() {
     </div>`;
   }
 
-  // Comparación de tiempos de recuperación: Informe por Novedad vs Informe por Energía
+  // Comparación de tiempos de recuperación: Informe por Novedad vs Informe por Energía —
+  // una sola barra por tipo (el promedio, que es el número que realmente se compara),
+  // con el detalle de mínimo/máximo como texto debajo para no saturar la gráfica.
   const tiemposN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).map(n => Number(n.TiempoTotalMin) || 0);
   const tiemposE = novedadesFiltradasActual.filter(n => n.Codigo.startsWith('INF-E')).map(n => Number(n.TiempoTotalMin) || 0);
   const _prom = arr => arr.length ? Math.round(arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
   const _min  = arr => arr.length ? Math.min(...arr) : 0;
   const _max  = arr => arr.length ? Math.max(...arr) : 0;
+  const promN = _prom(tiemposN), promE = _prom(tiemposE);
   makeChart('chartNovComparacionTiempos', '_chartNovComparacionTiempos', {
     type: 'bar',
-    data: { labels: ['Promedio (min)', 'Mínimo (min)', 'Máximo (min)'],
-      datasets: [
-        { label: 'Informe por Novedad', data: [_prom(tiemposN), _min(tiemposN), _max(tiemposN)], backgroundColor: coloresTipo[0], borderRadius: 5 },
-        { label: 'Informe por Energía', data: [_prom(tiemposE), _min(tiemposE), _max(tiemposE)], backgroundColor: coloresTipo[1], borderRadius: 5 },
-      ] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } },
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    data: { labels: ['Informe por Novedad', 'Informe por Energía'],
+      datasets: [{ label: 'Tiempo promedio (min)', data: [promN, promE], backgroundColor: coloresTipo, borderRadius: 5 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => ctx.parsed.x + ' min en promedio' } } },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
+  const leyendaCompDiv = document.getElementById('novLeyendaComparacionTiempos');
+  if (leyendaCompDiv) {
+    leyendaCompDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
+      <div style="border:1px solid #eee;border-radius:6px;padding:10px 12px;background:#fafafa">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:12.5px;color:#333;margin-bottom:6px">
+          <span style="width:12px;height:12px;border-radius:3px;background:${coloresTipo[0]};display:inline-block"></span> Informe por Novedad
+        </div>
+        <div style="font-size:12px;color:#555">Promedio: <b>${promN} min</b> &nbsp;·&nbsp; Mínimo: ${_min(tiemposN)} min &nbsp;·&nbsp; Máximo: ${_max(tiemposN)} min</div>
+      </div>
+      <div style="border:1px solid #eee;border-radius:6px;padding:10px 12px;background:#fafafa">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:12.5px;color:#333;margin-bottom:6px">
+          <span style="width:12px;height:12px;border-radius:3px;background:${coloresTipo[1]};display:inline-block"></span> Informe por Energía
+        </div>
+        <div style="font-size:12px;color:#555">Promedio: <b>${promE} min</b> &nbsp;·&nbsp; Mínimo: ${_min(tiemposE)} min &nbsp;·&nbsp; Máximo: ${_max(tiemposE)} min</div>
+      </div>
+    </div>`;
+  }
 
   // Tiempo de recuperación individual, cada tipo en su propia gráfica (mismo orden y colores por rango que chartNovTiemposBarras)
   const ordenadasN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).sort((a,b)=>(a.FechaEvento||'').localeCompare(b.FechaEvento||''));
@@ -10643,8 +10661,9 @@ async function generarInformeConsolidado() {
     </div>
     ${document.getElementById('novLeyendaTipo')?.innerHTML || ''}
 
-    <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparación de Tiempos: Novedad vs Energía</h2>
+    <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Tiempo Promedio de Recuperación: Novedad vs Energía</h2>
     <div style="max-width:520px;margin:0 auto 6px"><img src="${imgComparacionTiempos}" style="width:100%;height:auto"></div>
+    ${document.getElementById('novLeyendaComparacionTiempos')?.innerHTML || ''}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;margin-top:14px">
       <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo de Recuperación — Informes por Novedad</div><img src="${imgTiempoRecN}" style="width:100%;height:auto"></div>
