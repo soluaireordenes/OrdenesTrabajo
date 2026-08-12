@@ -1656,11 +1656,24 @@ body.inv-activo .container { max-width: 1800px; }
     </div>
 
     <!-- Lista -->
-    <div class="card">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informes Registrados</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:8px;flex:1"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informes Registrados</span>
+        <select id="novFiltroTipo" onchange="filtrarNovedadesUI()" style="min-width:190px">
+          <option value="">Todos los tipos</option>
+          <option value="INF-N">Informe por Novedad</option>
+          <option value="INF-E">Informe por Energía</option>
+        </select>
+      </div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <div id="novTablaWrap"></div>
       </div>
+    </div>
+
+    <!-- Comparación de tiempos: Novedad vs Energía (respeta filtros de arriba) -->
+    <div class="card">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparación de Tiempos: Informe por Novedad vs Informe por Energía</div>
+      <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovComparacionTiempos"></canvas></div></div>
     </div>
   </div>
 
@@ -9853,10 +9866,12 @@ function filtrarNovedadesUI() {
   const texto = (document.getElementById('novBuscar').value || '').toLowerCase().trim();
   const mes   = document.getElementById('novFiltroMes').value;
   const anio  = document.getElementById('novFiltroAnio').value;
+  const tipo  = document.getElementById('novFiltroTipo').value;
 
   let lista = allNovedades.slice();
   if (anio) lista = lista.filter(n => (n.FechaEvento || '').slice(0, 4) === anio);
   if (mes)  lista = lista.filter(n => (n.FechaEvento || '').slice(5, 7) === mes);
+  if (tipo) lista = lista.filter(n => (tipo === 'INF-E') === n.Codigo.startsWith('INF-E'));
   if (texto) lista = lista.filter(n =>
     (n.Codigo||'').toLowerCase().includes(texto) ||
     (n.Titulo||'').toLowerCase().includes(texto) ||
@@ -10344,6 +10359,23 @@ function renderGraficasNovedades() {
     </div>`;
   }
 
+  // Comparación de tiempos de recuperación: Informe por Novedad vs Informe por Energía
+  const tiemposN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).map(n => Number(n.TiempoTotalMin) || 0);
+  const tiemposE = novedadesFiltradasActual.filter(n => n.Codigo.startsWith('INF-E')).map(n => Number(n.TiempoTotalMin) || 0);
+  const _prom = arr => arr.length ? Math.round(arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
+  const _min  = arr => arr.length ? Math.min(...arr) : 0;
+  const _max  = arr => arr.length ? Math.max(...arr) : 0;
+  makeChart('chartNovComparacionTiempos', '_chartNovComparacionTiempos', {
+    type: 'bar',
+    data: { labels: ['Promedio (min)', 'Mínimo (min)', 'Máximo (min)'],
+      datasets: [
+        { label: 'Informe por Novedad', data: [_prom(tiemposN), _min(tiemposN), _max(tiemposN)], backgroundColor: coloresTipo[0], borderRadius: 5 },
+        { label: 'Informe por Energía', data: [_prom(tiemposE), _min(tiemposE), _max(tiemposE)], backgroundColor: coloresTipo[1], borderRadius: 5 },
+      ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
   // Dona: distribución de novedades por rango de tiempo de recuperación
   const conteoRangos = RANGOS_NOVEDAD.map(r => 0);
   novedadesFiltradasActual.forEach(n => {
@@ -10557,6 +10589,7 @@ async function generarInformeConsolidado() {
   const imgBarras  = document.getElementById('chartNovTiemposBarras')?.toDataURL('image/png') || '';
   const imgTipoBarras = document.getElementById('chartNovTipoBarras')?.toDataURL('image/png') || '';
   const imgTipoDona   = document.getElementById('chartNovTipoDona')?.toDataURL('image/png') || '';
+  const imgComparacionTiempos = document.getElementById('chartNovComparacionTiempos')?.toDataURL('image/png') || '';
 
   const mesNombres = { '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
     '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre' };
@@ -10575,6 +10608,9 @@ async function generarInformeConsolidado() {
       <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Porcentaje por Tipo</div><img src="${imgTipoDona}" style="width:100%;height:auto"></div>
     </div>
     ${document.getElementById('novLeyendaTipo')?.innerHTML || ''}
+
+    <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparación de Tiempos: Novedad vs Energía</h2>
+    <div style="max-width:520px;margin:0 auto 6px"><img src="${imgComparacionTiempos}" style="width:100%;height:auto"></div>
     <div style="page-break-after:always"></div>
 
     <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Dashboard de Tiempos</h2>
