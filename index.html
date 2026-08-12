@@ -10961,12 +10961,20 @@ async function descargarInformeCronograma() {
           // las fotos y firmas de descargarOrdenPDF).
           const fotosActividad = fotosFecha[b.id] || [];
           const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
-          const fotosHtml = fotosDataUrls.filter(Boolean).map(url =>
-            `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ddd;margin:2px">`).join('');
-          filas.push(`<tr><td style="width:38%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td><td>${fotosHtml}</td></tr>`);
+          filas.push(`<tr><td style="width:42%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`);
+          // Las fotos van en su propia fila debajo de la actividad (no en
+          // una columna angosta al lado) para que se vean grandes.
+          const fotosOk = fotosDataUrls.filter(Boolean);
+          if (fotosOk.length) {
+            filas.push(`<tr><td colspan="4" style="padding-top:0;border-bottom:1px solid #eee">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px 0">
+                ${fotosOk.map(url => `<img src="${url}" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`).join('')}
+              </div>
+            </td></tr>`);
+          }
         }
         seccionesHtml += `<div class="section-title">${esc(turno.nombre)} — ${esc(DIAS_SEMANA_LABEL[diaSemana])} ${esc(fmtFecha(fecha))}</div>
-          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th><th>Fotos</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
+          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
       }
     }
 
