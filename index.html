@@ -10729,7 +10729,11 @@ async function manejarSubidaFotoCronograma(inputEl, actividadId, turnoId, fecha)
     if (zona) {
       const subiendoEl = zona.querySelector('.foto-subiendo');
       if (subiendoEl) subiendoEl.remove();
-      zona.insertAdjacentHTML('beforeend', _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, true));
+      const botonCamara = zona.querySelector('label'); // insertar ANTES del botón de cámara, no después
+      const htmlMini = _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, true);
+      if (botonCamara) botonCamara.insertAdjacentHTML('beforebegin', htmlMini);
+      else zona.insertAdjacentHTML('beforeend', htmlMini);
+      _cargarMiniaturasFotosCronograma([foto]);
     }
   } catch (e) {
     alert('❌ No se pudo subir la foto: ' + e.message);
@@ -10762,14 +10766,30 @@ async function eliminarFotoCronograma(driveFileId, actividadId, fecha, elEl) {
 }
 
 /** Miniatura clicable (abre la foto completa) con botón de borrar opcional. */
+/** El link de Drive (urlVer) no sirve directo como src de <img> (Drive no
+ *  lo entrega como imagen cruda) — igual que en renderFotosOrden, se pinta
+ *  un <img> vacío y luego _cargarFotoEnImg() le pide la foto en base64 al
+ *  Apps Script y arma un data:URL. Ver _cargarMiniaturasFotosCronograma(). */
 function _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, conBorrar) {
+  const imgId = 'cronFotoImg_' + foto.driveFileId;
+  const aId   = 'cronFotoA_' + foto.driveFileId;
   return `<span class="cron-foto-mini" style="position:relative;display:inline-block;width:52px;height:52px">
-    <a href="${esc(foto.urlVer)}" target="_blank" rel="noopener">
-      <img src="${esc(foto.urlVer)}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" alt="Foto">
+    <a id="${esc(aId)}" href="#" target="_blank" rel="noopener" onclick="return this.href!=='#'">
+      <img id="${esc(imgId)}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:#f2f2f2" alt="Foto">
     </a>
     ${conBorrar ? `<button type="button" onclick="eliminarFotoCronograma('${esc(foto.driveFileId)}','${esc(actividadId)}','${esc(fecha)}',this)"
         style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#b91c1c;color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">✕</button>` : ''}
   </span>`;
+}
+
+/** Dispara la carga real (data:URL vía Apps Script) de cada miniatura ya
+ *  insertada en el DOM — llamar después de pintar el HTML que las contiene. */
+function _cargarMiniaturasFotosCronograma(fotos) {
+  fotos.forEach(f => {
+    const imgEl = document.getElementById('cronFotoImg_' + f.driveFileId);
+    const aEl   = document.getElementById('cronFotoA_' + f.driveFileId);
+    if (imgEl) _cargarFotoEnImg(f.driveFileId, imgEl, aEl);
+  });
 }
 
 /** Arma el HTML de un checkpoint (encabezado "Reporte de datos..." + sus
@@ -10860,6 +10880,7 @@ async function inicializarPanelCronograma() {
       ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true, fotos)}
       ${cfg.nota ? `<div class="card" style="margin-bottom:14px"><div class="card-body" style="padding:12px 16px;font-size:12px;color:var(--text3);font-style:italic">📌 ${esc(cfg.nota)}</div></div>` : ''}
     `;
+    _cargarMiniaturasFotosCronograma(Object.values(fotos).flat());
   } catch (e) {
     cont.innerHTML = `<div class="card"><div class="card-body" style="padding:20px;text-align:center;color:#b00">Error cargando el cronograma: ${esc(e.message)}</div></div>`;
   }
@@ -10882,6 +10903,7 @@ async function consultarCronogramaFecha() {
       obtenerFotosCronogramaFecha(fecha),
     ]);
     cont.innerHTML = cfg.turnos.map(t => _htmlTurnoCronograma(t, diaSemana, fecha, registros, false, fotos)).join('');
+    _cargarMiniaturasFotosCronograma(Object.values(fotos).flat());
   } catch (e) {
     cont.innerHTML = `<div style="padding:14px;color:#b00">Error: ${esc(e.message)}</div>`;
   }
