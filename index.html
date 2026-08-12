@@ -5735,6 +5735,7 @@ const SH = {
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
   cronogramaFotos: 'CronogramaFotos',
+  cronogramaAdicionales: 'CronogramaActividadesAdicionales',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -5748,6 +5749,10 @@ const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
 const CRONOGRAMA_FOTOS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'DriveFileId', 'UrlVer', 'SubidoPor', 'FechaHora'];
+// Actividades que el operario agrega a mano, además de las fijas del
+// cronograma — se marcan/adjuntan fotos con las mismas funciones que las
+// demás (su ActividadId es único y no colisiona con los ids fijos "zpq_...").
+const CRONOGRAMA_ADICIONALES_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Descripcion', 'AgregadoPor', 'FechaHora'];
 const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
 // Tipo: 'operacion' (por defecto) o 'seguridad' (extintores, arneses,
@@ -5936,7 +5941,7 @@ async function repararHoja() {
     }
 
     window._sheetsHeaders = SHEETS_COLS;
-    // Crear también las hojas de Tareas, Repuestos, Insumos, Fotos, Novedades, FotosNovedades, CronogramaRegistros y CronogramaFotos
+    // Crear también las hojas de Tareas, Repuestos, Insumos, Fotos, Novedades, FotosNovedades, CronogramaRegistros, CronogramaFotos y CronogramaActividadesAdicionales
     await asegurarHoja(SH.tareas,    TAREAS_COLS);
     await asegurarHoja(SH.repuestos, REPUESTOS_COLS);
     await asegurarHoja(SH.insumos,   INSUMOS_COLS);
@@ -5945,7 +5950,8 @@ async function repararHoja() {
     await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
     await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
     await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
-    alert('Hojas creadas correctamente:\n- Ordenes\n- Tareas\n- Repuestos\n- Insumos\n- Fotos\n- Novedades\n- FotosNovedades\n- CronogramaRegistros\n- CronogramaFotos\n\nYa puedes guardar órdenes y novedades con todos los campos.');
+    await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
+    alert('Hojas creadas correctamente:\n- Ordenes\n- Tareas\n- Repuestos\n- Insumos\n- Fotos\n- Novedades\n- FotosNovedades\n- CronogramaRegistros\n- CronogramaFotos\n- CronogramaActividadesAdicionales\n\nYa puedes guardar órdenes y novedades con todos los campos.');
     await cargarOrdenes();
   } catch(e) {
     alert('Error de red: ' + e.message);
@@ -10687,6 +10693,66 @@ async function obtenerFotosCronogramaFecha(fecha) {
   return todas[fecha] || {};
 }
 
+/** Igual que _leerTodosRegistrosCronogramaAgrupados, pero para las
+ *  actividades adicionales — agrupadas por Fecha → TurnoId → lista de
+ *  {id, descripcion}. */
+async function _leerTodasAdicionalesCronogramaAgrupadas() {
+  await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
+  const filas = await leerHojaGenericaCacheada(SH.cronogramaAdicionales);
+  const porFecha = {};
+  filas.forEach(f => {
+    if (!f.Fecha || !f.TurnoId || !f.ActividadId) return;
+    if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
+    if (!porFecha[f.Fecha][f.TurnoId]) porFecha[f.Fecha][f.TurnoId] = [];
+    porFecha[f.Fecha][f.TurnoId].push({ id: f.ActividadId, descripcion: f.Descripcion || '' });
+  });
+  return porFecha;
+}
+
+async function obtenerAdicionalesCronogramaFecha(fecha) {
+  const todas = await _leerTodasAdicionalesCronogramaAgrupadas();
+  return todas[fecha] || {};
+}
+
+/** Agrega una actividad adicional (a mano) al turno activo — solo mientras
+ *  ese turno sigue siendo el activo en este instante, mismo control que
+ *  marcar/desmarcar y subir fotos. */
+async function agregarActividadAdicionalCronograma(turnoId, fecha) {
+  const input = document.getElementById('cronNuevaAdicional_' + turnoId);
+  const descripcion = input?.value.trim();
+  if (!descripcion) { alert('Escribe una descripción para la actividad adicional.'); return; }
+
+  const ctx = _contextoCronogramaAhora(operacionActual);
+  if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
+    alert('Ese turno ya no está activo — no se puede agregar. Actualiza la página para ver el turno actual.');
+    return;
+  }
+
+  const actividadId = 'adic_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  input.disabled = true;
+  try {
+    await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
+    await appendHoja(SH.cronogramaAdicionales, [[
+      fecha, turnoId, actividadId, descripcion,
+      currentUser?.name || currentUser?.email || 'Sistema',
+      new Date().toISOString(),
+    ]]);
+    _invalidarCacheHoja(SH.cronogramaAdicionales);
+
+    const cont = document.getElementById('cronAdicionales_' + turnoId);
+    if (cont) {
+      const vacio = cont.querySelector('div'); // el aviso "Sin actividades adicionales." si estaba solo
+      if (cont.children.length === 0 || (vacio && vacio.textContent.includes('Sin actividades adicionales'))) cont.innerHTML = '';
+      cont.insertAdjacentHTML('beforeend', _htmlFilaActividadCronograma(actividadId, descripcion, turnoId, fecha, null, [], true));
+    }
+    input.value = '';
+  } catch (e) {
+    alert('No se pudo agregar la actividad: ' + e.message);
+  } finally {
+    input.disabled = false;
+  }
+}
+
 /** Sube una foto de una actividad del Cronograma — mismo Apps Script/Drive
  *  por sede que ya usan las fotos de órdenes (ver subirFotoOrden), solo
  *  que la referencia se guarda en la hoja CronogramaFotos en vez de Fotos. */
@@ -10814,33 +10880,37 @@ function _cargarMiniaturasFotosCronograma(fotos) {
 
 /** Arma el HTML de un checkpoint (encabezado "Reporte de datos..." + sus
  *  actividades del día); omite bloques sin texto para ese día. */
+/** Fila de UNA actividad — checkbox + descripción + marca (✓ nombre·hora +
+ *  observación) + fotos. La usan tanto las actividades fijas del cronograma
+ *  como las adicionales que se agreguen a mano, para que se vean IGUAL. */
+function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, fotosActividad, editable) {
+  const marcado = reg?.realizado ? 'checked' : '';
+  const quien = reg?.realizadoPor ? esc(reg.realizadoPor) : '';
+  const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '');
+  const marcaTxt = reg?.realizado
+    ? `✓ ${quien} · ${esc(hora)}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`
+    : '';
+  const fotosHtml = (fotosActividad || []).map(f => _htmlMiniaturaFotoCronograma(f, actividadId, fecha, editable)).join('');
+  const botonCamara = editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px dashed var(--border);border-radius:6px;color:var(--text3)" title="Adjuntar foto">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+      <input type="file" accept="image/*" capture="environment" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
+    </label>` : '';
+  return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
+    <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${editable?'pointer':'not-allowed'}"
+      onchange="onCambioActividadCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
+    <div style="flex:1">
+      <div style="font-size:13px;line-height:1.5">${esc(texto)}</div>
+      <div id="cronMarca_${actividadId}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
+      <div id="cronFotos_${actividadId}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHtml}${botonCamara}</div>
+    </div>
+  </div>`;
+}
+
 function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha, fotos) {
   const filas = checkpoint.bloques
     .filter(b => (b.actividad[diaSemana] || '').trim())
-    .map(b => {
-      const reg = registros[b.id];
-      const marcado = reg?.realizado ? 'checked' : '';
-      const quien = reg?.realizadoPor ? esc(reg.realizadoPor) : '';
-      const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '');
-      const marcaTxt = reg?.realizado
-        ? `✓ ${quien} · ${esc(hora)}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`
-        : '';
-      const fotosActividad = (fotos && fotos[b.id]) || [];
-      const fotosHtml = fotosActividad.map(f => _htmlMiniaturaFotoCronograma(f, b.id, fecha, editable)).join('');
-      const botonCamara = editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px dashed var(--border);border-radius:6px;color:var(--text3)" title="Adjuntar foto">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${b.id}','${turnoId}','${fecha}')">
-        </label>` : '';
-      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
-        <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${editable?'pointer':'not-allowed'}"
-          onchange="onCambioActividadCronograma(this,'${b.id}','${turnoId}','${fecha}')">
-        <div style="flex:1">
-          <div style="font-size:13px;line-height:1.5">${esc(b.actividad[diaSemana])}</div>
-          <div id="cronMarca_${b.id}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
-          <div id="cronFotos_${b.id}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHtml}${botonCamara}</div>
-        </div>
-      </div>`;
-    }).join('');
+    .map(b => _htmlFilaActividadCronograma(b.id, b.actividad[diaSemana], turnoId, fecha, registros[b.id], (fotos && fotos[b.id]) || [], editable))
+    .join('');
   if (!filas) return '';
   return `<div style="margin-bottom:12px">
     <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px">Reporte de datos de los equipos ${esc(checkpoint.hora)}</div>
@@ -10848,15 +10918,35 @@ function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, t
   </div>`;
 }
 
+/** Sección de "Actividades adicionales" al final del turno — las que se
+ *  agregan a mano (no vienen del cronograma fijo), con la misma estructura
+ *  de checkbox/marca/fotos que las demás. Solo se puede agregar mientras el
+ *  turno sigue siendo el activo (editable=true). */
+function _htmlAdicionalesCronograma(turnoId, fecha, adicionales, registros, fotos, editable) {
+  const filas = (adicionales || [])
+    .map(a => _htmlFilaActividadCronograma(a.id, a.descripcion, turnoId, fecha, registros[a.id], (fotos && fotos[a.id]) || [], editable))
+    .join('');
+  const formAgregar = editable ? `<div style="display:flex;gap:8px;padding:10px 14px">
+      <input type="text" id="cronNuevaAdicional_${esc(turnoId)}" placeholder="Describe la actividad adicional..." style="flex:1;margin:0" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarActividadAdicionalCronograma('${esc(turnoId)}','${esc(fecha)}');}">
+      <button type="button" class="btn btn-primary" style="white-space:nowrap" onclick="agregarActividadAdicionalCronograma('${esc(turnoId)}','${esc(fecha)}')">+ Agregar</button>
+    </div>` : '';
+  return `<div style="margin-bottom:12px">
+    <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px">Actividades adicionales</div>
+    <div id="cronAdicionales_${esc(turnoId)}">${filas || (editable ? '' : '<div style="padding:10px 14px;color:var(--text3);font-size:12px;font-style:italic">Sin actividades adicionales.</div>')}</div>
+    ${formAgregar}
+  </div>`;
+}
+
 /** Arma el HTML completo de un turno para un día/fecha dados. */
-function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, fotos) {
+function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, fotos, adicionales) {
   const checkpointsHtml = turno.checkpoints.map(cp => _htmlCheckpointCronograma(cp, diaSemana, registros, editable, turno.id, fecha, fotos)).join('');
+  const adicionalesHtml = _htmlAdicionalesCronograma(turno.id, fecha, adicionales, registros, fotos, editable);
   return `<div class="card" style="margin-bottom:14px">
     <div class="card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span>${esc(turno.nombre)} <span style="font-weight:400;color:var(--text3);font-size:12px">(${esc(turno.horaInicio)} – ${esc(turno.horaFin)})</span></span>
       ${editable ? '<span class="badge" style="background:#dff6dd;color:#1a6b1a">Turno activo ahora</span>' : ''}
     </div>
-    <div class="card-body" style="padding:0">${checkpointsHtml || '<div style="padding:14px;color:var(--text3);font-size:13px">Sin actividades para este día.</div>'}</div>
+    <div class="card-body" style="padding:0">${checkpointsHtml || '<div style="padding:14px;color:var(--text3);font-size:13px">Sin actividades para este día.</div>'}${adicionalesHtml}</div>
   </div>`;
 }
 
@@ -10888,16 +10978,17 @@ async function inicializarPanelCronograma() {
   }
 
   try {
-    const [registros, fotos] = await Promise.all([
+    const [registros, fotos, adicionalesFecha] = await Promise.all([
       obtenerRegistrosCronogramaFecha(ctx.fecha),
       obtenerFotosCronogramaFecha(ctx.fecha),
+      obtenerAdicionalesCronogramaFecha(ctx.fecha),
     ]);
     cont.innerHTML = `
       <div style="margin-bottom:14px;padding:14px 18px;background:linear-gradient(135deg,var(--brand) 0%,#1a4a8a 100%);border-radius:12px;color:#fff">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Tu turno ahora</div>
         <div style="font-size:20px;font-weight:800">${esc(ctx.turno.nombre)} · ${esc(DIAS_SEMANA_LABEL[ctx.diaSemana])} ${esc(fmtFecha(ctx.fecha))}</div>
       </div>
-      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true, fotos)}
+      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true, fotos, adicionalesFecha[ctx.turno.id])}
       ${cfg.nota ? `<div class="card" style="margin-bottom:14px"><div class="card-body" style="padding:12px 16px;font-size:12px;color:var(--text3);font-style:italic">📌 ${esc(cfg.nota)}</div></div>` : ''}
     `;
     _cargarMiniaturasFotosCronograma(Object.values(fotos).flat());
@@ -10918,11 +11009,12 @@ async function consultarCronogramaFecha() {
   cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3)">Cargando…</div>';
   try {
     const diaSemana = _diaSemanaDe(fecha);
-    const [registros, fotos] = await Promise.all([
+    const [registros, fotos, adicionalesFecha] = await Promise.all([
       obtenerRegistrosCronogramaFecha(fecha),
       obtenerFotosCronogramaFecha(fecha),
+      obtenerAdicionalesCronogramaFecha(fecha),
     ]);
-    cont.innerHTML = cfg.turnos.map(t => _htmlTurnoCronograma(t, diaSemana, fecha, registros, false, fotos)).join('');
+    cont.innerHTML = cfg.turnos.map(t => _htmlTurnoCronograma(t, diaSemana, fecha, registros, false, fotos, adicionalesFecha[t.id])).join('');
     _cargarMiniaturasFotosCronograma(Object.values(fotos).flat());
   } catch (e) {
     cont.innerHTML = `<div style="padding:14px;color:#b00">Error: ${esc(e.message)}</div>`;
@@ -10956,43 +11048,53 @@ async function descargarInformeCronograma() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const [todosLosRegistros, todasLasFotos] = await Promise.all([
+    const [todosLosRegistros, todasLasFotos, todasLasAdicionales] = await Promise.all([
       _leerTodosRegistrosCronogramaAgrupados(),
       _leerTodasFotosCronogramaAgrupadas(),
+      _leerTodasAdicionalesCronogramaAgrupadas(),
     ]);
+
+    // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
+    // debajo las fotos si tiene) para UNA actividad — la usan tanto las
+    // fijas del cronograma como las adicionales agregadas a mano.
+    async function filasDeActividad(id, texto, registros, fotosFecha) {
+      const reg = registros[id];
+      const estado = reg?.realizado ? '✅ Realizado' : '❌ No marcado';
+      const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
+      const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : '—';
+      const obs = reg?.realizado && reg.observacion ? esc(reg.observacion) : '';
+      // Traer cada foto como data:URL para que quede embebida en el PDF
+      // descargado y se vea aunque luego se abra sin internet (igual que
+      // las fotos y firmas de descargarOrdenPDF).
+      const fotosActividad = fotosFecha[id] || [];
+      const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+      const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`];
+      // Las fotos van en su propia fila debajo de la actividad (no en una
+      // columna angosta al lado) para que se vean grandes.
+      const fotosOk = fotosDataUrls.filter(Boolean);
+      if (fotosOk.length) {
+        filas.push(`<tr><td colspan="4" style="padding-top:0;border-bottom:1px solid #eee">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px 0">
+            ${fotosOk.map(url => `<img src="${url}" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`).join('')}
+          </div>
+        </td></tr>`);
+      }
+      return filas;
+    }
 
     let seccionesHtml = '';
     for (const fecha of fechas) {
       const diaSemana = _diaSemanaDe(fecha);
       const registros = todosLosRegistros[fecha] || {};
       const fotosFecha = todasLasFotos[fecha] || {};
+      const adicionalesFecha = todasLasAdicionales[fecha] || {};
       for (const turno of turnosAIncluir) {
         const bloques = turno.checkpoints.flatMap(cp => cp.bloques).filter(b => (b.actividad[diaSemana] || '').trim());
-        if (!bloques.length) continue;
+        const adicionales = adicionalesFecha[turno.id] || [];
+        if (!bloques.length && !adicionales.length) continue;
         const filas = [];
-        for (const b of bloques) {
-          const reg = registros[b.id];
-          const estado = reg?.realizado ? '✅ Realizado' : '❌ No marcado';
-          const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
-          const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : '—';
-          const obs = reg?.realizado && reg.observacion ? esc(reg.observacion) : '';
-          // Traer cada foto como data:URL para que quede embebida en el PDF
-          // descargado y se vea aunque luego se abra sin internet (igual que
-          // las fotos y firmas de descargarOrdenPDF).
-          const fotosActividad = fotosFecha[b.id] || [];
-          const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
-          filas.push(`<tr><td style="width:42%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`);
-          // Las fotos van en su propia fila debajo de la actividad (no en
-          // una columna angosta al lado) para que se vean grandes.
-          const fotosOk = fotosDataUrls.filter(Boolean);
-          if (fotosOk.length) {
-            filas.push(`<tr><td colspan="4" style="padding-top:0;border-bottom:1px solid #eee">
-              <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px 0">
-                ${fotosOk.map(url => `<img src="${url}" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`).join('')}
-              </div>
-            </td></tr>`);
-          }
-        }
+        for (const b of bloques) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
+        for (const a of adicionales) filas.push(...await filasDeActividad(a.id, a.descripcion, registros, fotosFecha));
         seccionesHtml += `<div class="section-title">${esc(turno.nombre)} — ${esc(DIAS_SEMANA_LABEL[diaSemana])} ${esc(fmtFecha(fecha))}</div>
           <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
       }
