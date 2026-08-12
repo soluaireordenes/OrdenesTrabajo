@@ -1812,6 +1812,12 @@ body.inv-activo .container { max-width: 1800px; }
           <label style="margin-bottom:4px;display:block">Hasta</label>
           <input type="date" id="cronInformeHasta" style="margin:0">
         </div>
+        <div class="field" style="margin:0;min-width:160px">
+          <label style="margin-bottom:4px;display:block">Turno</label>
+          <select id="cronInformeTurno" style="margin:0">
+            <option value="">Todos los turnos</option>
+          </select>
+        </div>
         <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
       </div>
     </div>
@@ -10591,6 +10597,12 @@ async function inicializarPanelCronograma() {
   }
   cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
 
+  const selTurno = document.getElementById('cronInformeTurno');
+  if (selTurno) {
+    selTurno.innerHTML = '<option value="">Todos los turnos</option>' +
+      cfg.turnos.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
+  }
+
   const ctx = _contextoCronogramaAhora(operacionActual);
   if (!ctx) {
     cont.innerHTML = `<div class="card"><div class="card-body" style="padding:20px;text-align:center;color:var(--text3)">
@@ -10638,10 +10650,13 @@ async function consultarCronogramaFecha() {
 async function descargarInformeCronograma() {
   const desde = document.getElementById('cronInformeDesde')?.value;
   const hasta = document.getElementById('cronInformeHasta')?.value;
+  const turnoIdFiltro = document.getElementById('cronInformeTurno')?.value || '';
   if (!desde || !hasta) { alert('Selecciona la fecha inicial y final del informe.'); return; }
   if (desde > hasta) { alert('La fecha inicial no puede ser posterior a la final.'); return; }
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   if (!cfg) { alert('Esta sede no tiene cronograma configurado.'); return; }
+  const turnosAIncluir = turnoIdFiltro ? cfg.turnos.filter(t => t.id === turnoIdFiltro) : cfg.turnos;
+  if (!turnosAIncluir.length) { alert('Turno no válido.'); return; }
 
   // Abrir la pestaña YA (antes de cualquier await) para que el navegador
   // no la bloquee como pop-up no solicitado.
@@ -10663,7 +10678,7 @@ async function descargarInformeCronograma() {
     for (const fecha of fechas) {
       const diaSemana = _diaSemanaDe(fecha);
       const registros = todosLosRegistros[fecha] || {};
-      for (const turno of cfg.turnos) {
+      for (const turno of turnosAIncluir) {
         const filas = turno.checkpoints.flatMap(cp => cp.bloques
           .filter(b => (b.actividad[diaSemana] || '').trim())
           .map(b => {
@@ -10691,7 +10706,7 @@ async function descargarInformeCronograma() {
   @media print{body{padding:0}}
 </style></head><body>
 <h1>⚙ Cronograma de Actividades Diarias</h1>
-<div class="sub">${esc(fmtFecha(desde))} a ${esc(fmtFecha(hasta))} · Generado el ${new Date().toLocaleString('es-CO')}</div>
+<div class="sub">${esc(fmtFecha(desde))} a ${esc(fmtFecha(hasta))}${turnoIdFiltro ? ' · ' + esc(turnosAIncluir[0].nombre) : ''} · Generado el ${new Date().toLocaleString('es-CO')}</div>
 ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
