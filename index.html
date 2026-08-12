@@ -1713,11 +1713,18 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Equipo <span style="font-weight:400;text-transform:none;opacity:.85">— solo una vez por equipo</span></div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
+            <div class="field"><label>Tipo de equipo *</label>
+              <select id="ie_tipo" onchange="ieActualizarVisibilidadSerial()">
+                <option value="operacion">Equipos Operación</option>
+                <option value="seguridad">Equipos Seguridad</option>
+              </select>
+            </div>
             <div class="field"><label>Codificación *</label><input id="ie_codificacion" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Ej: CA1"></div>
             <div class="field"><label>Equipo *</label><input id="ie_equipo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del equipo"></div>
             <div class="field"><label>Marca</label><input id="ie_marca" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
             <div class="field"><label>Descripción Específica</label><input id="ie_descripcion" placeholder="Descripción del equipo"></div>
             <div class="field"><label>Ubicación</label><input id="ie_ubicacion" placeholder="Ej: Sala de compresores primer piso"></div>
+            <div class="field" id="ie_serial_wrap" style="display:none"><label>Serial</label><input id="ie_serial" placeholder="Serial del fabricante"></div>
           </div>
           <button class="btn btn-primary" onclick="registrarInventarioEquipo()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Registrar Equipo</button>
           <div id="ieMsg" style="margin-top:10px;font-size:13px"></div>
@@ -1743,7 +1750,12 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
           <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Equipos Registrados</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <select id="ieFiltroAnio" onchange="ieFiltrarPorAnio()" style="font-size:12px;padding:4px 8px;min-width:130px">
+            <select id="ieFiltroTipo" onchange="ieAplicarFiltros()" style="font-size:12px;padding:4px 8px;min-width:150px">
+              <option value="">Todos los tipos</option>
+              <option value="operacion">Equipos Operación</option>
+              <option value="seguridad">Equipos Seguridad</option>
+            </select>
+            <select id="ieFiltroAnio" onchange="ieAplicarFiltros()" style="font-size:12px;padding:4px 8px;min-width:130px">
               <option value="">Todos los años</option>
             </select>
             <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="cargarInventarioEquipos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
@@ -1760,7 +1772,13 @@ body.inv-activo .container { max-width: 1800px; }
       <div class="grid-lista-detalle" style="--lista-w:220px">
         <!-- Lista de equipos -->
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Equipos</div>
+          <div class="card-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:8px;flex:1"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Equipos</span>
+          </div>
+          <div style="display:flex;border-bottom:1px solid var(--border)">
+            <button id="hvdTabOperacion" onclick="hvdCambiarModo('operacion')" class="btn btn-ghost" style="flex:1;border-radius:0;font-size:12px;padding:8px 4px">Equipos Operación</button>
+            <button id="hvdTabSeguridad" onclick="hvdCambiarModo('seguridad')" class="btn btn-ghost" style="flex:1;border-radius:0;font-size:12px;padding:8px 4px">Equipos Seguridad</button>
+          </div>
           <div class="card-body" style="padding:0;max-height:720px;overflow-y:auto">
             <div id="hvdListaEquipos"></div>
           </div>
@@ -5732,7 +5750,9 @@ const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado
 const CRONOGRAMA_FOTOS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'DriveFileId', 'UrlVer', 'SubidoPor', 'FechaHora'];
 const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
-const INVENTARIO_EQUIPOS_BASE_COLS = ['Codificacion','Equipo','Marca','DescripcionEspecifica','Ubicacion'];
+// Tipo: 'operacion' (por defecto) o 'seguridad' (extintores, arneses,
+// escaleras, etc.) — Serial solo aplica a equipos de seguridad.
+const INVENTARIO_EQUIPOS_BASE_COLS = ['Codificacion','Equipo','Marca','DescripcionEspecifica','Ubicacion','Tipo','Serial'];
 const INVENTARIO_EQUIPOS_OBS_COLS  = ['Codificacion','Anio','Observaciones'];
 // Guarda, por equipo, en qué horas se generó por última vez la orden del
 // Informe Cada Trimestral — así verificarInformeTrimestralYGenerar() sabe
@@ -11105,6 +11125,13 @@ function _invalidarCacheHoja(nombre) {
   delete _cacheLecturasHojas[nombre];
 }
 
+/** El campo Serial solo aplica a equipos de seguridad (extintores,
+ *  arneses, escaleras...) — se muestra/oculta según el tipo elegido. */
+function ieActualizarVisibilidadSerial() {
+  const tipo = document.getElementById('ie_tipo').value;
+  document.getElementById('ie_serial_wrap').style.display = tipo === 'seguridad' ? '' : 'none';
+}
+
 /** Registra los datos FIJOS de un equipo — una sola vez. Si la
  *  codificación ya existía, actualiza esa misma fila en vez de duplicarla
  *  (así uno puede corregir un dato sin crear un equipo repetido). */
@@ -11116,14 +11143,19 @@ async function registrarInventarioEquipo() {
 
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
   try {
+    const tipo = document.getElementById('ie_tipo').value || 'operacion';
     await _actualizarFilaPorClave(SH.inventarioEquiposBase, INVENTARIO_EQUIPOS_BASE_COLS, 'Codificacion', codificacion, {
       Equipo: equipo,
       Marca: document.getElementById('ie_marca').value.trim(),
       DescripcionEspecifica: document.getElementById('ie_descripcion').value.trim(),
       Ubicacion: document.getElementById('ie_ubicacion').value.trim(),
+      Tipo: tipo,
+      Serial: tipo === 'seguridad' ? document.getElementById('ie_serial').value.trim() : '',
     });
     msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Equipo registrado correctamente.';
-    ['ie_codificacion','ie_equipo','ie_marca','ie_descripcion','ie_ubicacion'].forEach(id => document.getElementById(id).value = '');
+    ['ie_codificacion','ie_equipo','ie_marca','ie_descripcion','ie_ubicacion','ie_serial'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ie_tipo').value = 'operacion';
+    ieActualizarVisibilidadSerial();
     cargarInventarioEquipos();
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
@@ -11192,17 +11224,20 @@ async function cargarInventarioEquipos() {
     selAnio.innerHTML = '<option value="">Todos los años</option>' + anios.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
     if (anios.includes(anioActual)) selAnio.value = anioActual;
 
-    ieFiltrarPorAnio();
+    ieAplicarFiltros();
   } catch (e) {
     cont.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px;display:flex;align-items:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ${esc(e.message)}</div>`;
   }
 }
 
-/** Filtra la tabla de equipos ya cargada por el año elegido, sin volver a
+/** Filtra la tabla de equipos ya cargada por tipo y/o año, sin volver a
  *  pedirle nada a Google Sheets — instantáneo. */
-function ieFiltrarPorAnio() {
+function ieAplicarFiltros() {
+  const tipo = document.getElementById('ieFiltroTipo').value;
   const anio = document.getElementById('ieFiltroAnio').value;
-  const filas = anio ? _ieFilasCache.filter(f => f.Anio === anio) : _ieFilasCache;
+  let filas = _ieFilasCache;
+  if (tipo) filas = filas.filter(f => (f.Tipo || 'operacion') === tipo);
+  if (anio) filas = filas.filter(f => f.Anio === anio);
   _ieRenderTabla(filas);
 }
 
@@ -11211,21 +11246,23 @@ function _ieRenderTabla(filas) {
   if (!filas.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">No hay equipos registrados para este filtro.</div>'; return; }
   cont.innerHTML = `<table class="ie-table" style="table-layout:fixed;width:100%;min-width:0">
     <colgroup>
-      <col style="width:13%"><col style="width:10%"><col style="width:16%">
-      <col style="width:10%"><col style="width:12%"><col style="width:7%">
-      <col style="width:32%">
+      <col style="width:10%"><col style="width:9%"><col style="width:8%"><col style="width:14%">
+      <col style="width:9%"><col style="width:11%"><col style="width:9%"><col style="width:6%">
+      <col style="width:24%">
     </colgroup>
     <thead><tr>
-      <th style="white-space:normal">Equipo</th><th style="white-space:normal">Marca</th><th style="white-space:normal">Descripción Específica</th>
-      <th style="white-space:normal">Codificación</th><th style="white-space:normal">Ubicación</th><th style="white-space:normal">Año</th>
+      <th style="white-space:normal">Equipo</th><th style="white-space:normal">Tipo</th><th style="white-space:normal">Marca</th><th style="white-space:normal">Descripción Específica</th>
+      <th style="white-space:normal">Codificación</th><th style="white-space:normal">Ubicación</th><th style="white-space:normal">Serial</th><th style="white-space:normal">Año</th>
       <th style="white-space:normal">Observaciones</th>
     </tr></thead><tbody>` +
     filas.map(f => `<tr>
       <td><strong>${esc(f.Equipo)}</strong></td>
+      <td>${(f.Tipo || 'operacion') === 'seguridad' ? '<span class="badge" style="background:#fef3c7;color:#92400e">Seguridad</span>' : '<span class="badge" style="background:#dbeafe;color:#1e40af">Operación</span>'}</td>
       <td>${esc(f.Marca)}</td>
       <td>${esc(f.DescripcionEspecifica)}</td>
       <td>${esc(f.Codificacion)}</td>
       <td>${esc(f.Ubicacion)}</td>
+      <td>${esc(f.Serial)}</td>
       <td>${esc(f.Anio) || '<span style="color:var(--text3)">— sin observaciones aún —</span>'}</td>
       <td style="white-space:pre-wrap;word-break:break-word">${esc(f.Observaciones)}</td>
     </tr>`).join('') + `</tbody></table>`;
@@ -11239,10 +11276,14 @@ function _ieRenderTabla(filas) {
 ══════════════════════════════════════════════════════════════ */
 const HVD_EQUIPOS_COLS = ['Equipo','Descripcion','Marca','Modelo','Serie','Fabricante','Voltaje','Potencia','RPM','RangosTrabajo','FechaPuestaMarcha','DatosInteres','FotoDriveFileId'];
 let hvdEquipoActual = null;
+// 'operacion' → lista de EQUIPOS_POR_SEDE, historial = órdenes cerradas (como
+// siempre). 'seguridad' → lista de Inventario de Equipos con Tipo=seguridad,
+// historial = las observaciones anuales de ese equipo (no hay OT de por medio).
+let hvdModoActual = 'operacion';
 
 /** Junta todos los nombres de equipo de la sede activa en una sola lista
  *  plana (sin importar en qué grupo estén), para mostrarlos en el panel
- *  izquierdo de HVD. */
+ *  izquierdo de HVD — equipos de OPERACIÓN. */
 function _listaEquiposPlanaSede() {
   const grupos = EQUIPOS_POR_SEDE[operacionActual] || EQUIPOS_LISTADO_GENERAL;
   const nombres = [];
@@ -11252,20 +11293,63 @@ function _listaEquiposPlanaSede() {
   return nombres;
 }
 
-function hvdRenderListaEquipos() {
+/** Equipos de SEGURIDAD: vienen del Inventario de Equipos (Codificacion +
+ *  Tipo=seguridad), no de EQUIPOS_POR_SEDE — se identifican por su
+ *  Codificación (puede haber varios "Extintor" con codificaciones distintas). */
+async function _listaEquiposSeguridad() {
+  await asegurarHoja(SH.inventarioEquiposBase, INVENTARIO_EQUIPOS_BASE_COLS);
+  const base = await leerHojaGenericaCacheada(SH.inventarioEquiposBase);
+  return base.filter(b => b.Tipo === 'seguridad');
+}
+
+function hvdCambiarModo(modo) {
+  if (modo === hvdModoActual) return;
+  hvdModoActual = modo;
+  hvdEquipoActual = null;
+  document.getElementById('hvdTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Selecciona un equipo';
+  document.getElementById('hvdContenido').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:30px">Elige un equipo de la lista para ver su hoja de vida.</div>';
+  hvdRenderListaEquipos();
+}
+
+async function hvdRenderListaEquipos() {
   const cont = document.getElementById('hvdListaEquipos');
-  const equipos = _listaEquiposPlanaSede();
-  if (!equipos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Esta sede aún no tiene una lista de equipos configurada.</div>'; return; }
-  cont.innerHTML = equipos.map(eq => `
-    <div onclick="hvdSeleccionarEquipo('${esc(eq).replace(/'/g,"\\'")}')"
+  const tabOp  = document.getElementById('hvdTabOperacion');
+  const tabSeg = document.getElementById('hvdTabSeguridad');
+  if (tabOp && tabSeg) {
+    const activoStyle = 'background:var(--brand-light);color:var(--brand);font-weight:700;border-bottom:2px solid var(--accent)';
+    tabOp.style.cssText  = hvdModoActual === 'operacion' ? activoStyle : '';
+    tabSeg.style.cssText = hvdModoActual === 'seguridad' ? activoStyle : '';
+  }
+
+  if (hvdModoActual === 'operacion') {
+    const equipos = _listaEquiposPlanaSede();
+    if (!equipos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Esta sede aún no tiene una lista de equipos configurada.</div>'; return; }
+    cont.innerHTML = equipos.map(eq => _htmlItemListaHVD(eq, esc(eq))).join('');
+    return;
+  }
+
+  // Seguridad — hay que traerlos de Sheets primero
+  cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
+  try {
+    const equipos = await _listaEquiposSeguridad();
+    if (!equipos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Todavía no hay equipos de seguridad registrados en Inventario de Equipos.</div>'; return; }
+    cont.innerHTML = equipos.map(eq => _htmlItemListaHVD(eq.Codificacion, `${esc(eq.Codificacion)} — ${esc(eq.Equipo)}`)).join('');
+  } catch (e) {
+    cont.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+  }
+}
+
+function _htmlItemListaHVD(clave, etiquetaHtml) {
+  const activo = clave === hvdEquipoActual;
+  return `<div onclick="hvdSeleccionarEquipo('${esc(clave).replace(/'/g,"\\'")}')"
       style="padding:11px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);
-             font-weight:${eq === hvdEquipoActual ? '700' : '400'};
-             background:${eq === hvdEquipoActual ? 'var(--surface2)' : 'transparent'};
-             color:${eq === hvdEquipoActual ? 'var(--brand)' : 'inherit'}"
+             font-weight:${activo ? '700' : '400'};
+             background:${activo ? 'var(--surface2)' : 'transparent'};
+             color:${activo ? 'var(--brand)' : 'inherit'}"
       onmouseover="this.style.background='var(--surface2)'"
-      onmouseout="this.style.background='${eq === hvdEquipoActual ? 'var(--surface2)' : 'transparent'}'">
-      ${esc(eq)}
-    </div>`).join('');
+      onmouseout="this.style.background='${activo ? 'var(--surface2)' : 'transparent'}'">
+      ${etiquetaHtml}
+    </div>`;
 }
 
 /** Lee, dentro de la hoja HVD, la fila con specs de un equipo puntual
@@ -11324,7 +11408,7 @@ async function hvdSeleccionarEquipo(equipo) {
     <div id="hvdSpecsMsg" style="margin-top:8px;font-size:13px"></div>
 
     <div style="margin-top:28px">
-      <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Historial de mantenimientos (se agrega solo al cerrar una orden)</div>
+      <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${hvdModoActual === 'seguridad' ? 'Comentarios (los que se agreguen desde Inventario de Equipos de Seguridad)' : 'Historial de mantenimientos (se agrega solo al cerrar una orden)'}</div>
       <div id="hvdHistorial" style="overflow-x:auto"></div>
     </div>`;
 
@@ -11335,7 +11419,11 @@ async function hvdSeleccionarEquipo(equipo) {
     });
   }
 
-  _renderHistorialOrdenesEquipo(equipo);
+  if (hvdModoActual === 'seguridad') {
+    _renderComentariosEquipoSeguridad(equipo); // aquí "equipo" es la Codificación
+  } else {
+    _renderHistorialOrdenesEquipo(equipo);
+  }
 }
 
 async function hvdSubirFoto(input) {
@@ -11985,6 +12073,33 @@ function _renderHistorialOrdenesEquipo(equipo) {
         <td><button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
       </tr>`;
     }).join('') + `</tbody></table>`;
+}
+
+/** HVD de equipos de SEGURIDAD: en vez del historial de órdenes, muestra
+ *  las observaciones anuales que se le hayan agregado desde "Agregar
+ *  Observación Anual" en Inventario de Equipos (mismo dato, misma hoja
+ *  InventarioEquiposObs — aquí solo se filtra por esta codificación). */
+async function _renderComentariosEquipoSeguridad(codificacion) {
+  const cont = document.getElementById('hvdHistorial');
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0">Cargando comentarios…</div>';
+  try {
+    await asegurarHoja(SH.inventarioEquiposObs, INVENTARIO_EQUIPOS_OBS_COLS);
+    const obs = await leerHojaGenericaCacheada(SH.inventarioEquiposObs);
+    const comentarios = obs.filter(o => o.Codificacion === codificacion)
+      .sort((a, b) => (b.Anio || '').localeCompare(a.Anio || ''));
+
+    if (!comentarios.length) { cont.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0">Este equipo todavía no tiene comentarios registrados.</div>'; return; }
+
+    cont.innerHTML = `<table class="ie-table"><thead><tr>
+        <th style="width:15%">Año</th><th>Comentario</th>
+      </tr></thead><tbody>` +
+      comentarios.map(c => `<tr>
+        <td>${esc(c.Anio) || '—'}</td>
+        <td style="white-space:pre-wrap;word-break:break-word">${esc(c.Observaciones) || '—'}</td>
+      </tr>`).join('') + `</tbody></table>`;
+  } catch (e) {
+    cont.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:12px 0">${esc(e.message)}</div>`;
+  }
 }
 
 /** Saca la lista de equipos únicos que tienen al menos una orden registrada */
