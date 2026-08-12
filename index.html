@@ -5716,6 +5716,7 @@ const SH = {
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
+  cronogramaFotos: 'CronogramaFotos',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -5725,6 +5726,10 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 // estado "actual" de una actividad en una fecha es el de su fila más
 // reciente (ver obtenerRegistrosCronogramaFecha()).
 const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion'];
+// Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
+// concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
+// de la sede (mismo Drive), y aquí solo se guarda la referencia.
+const CRONOGRAMA_FOTOS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'DriveFileId', 'UrlVer', 'SubidoPor', 'FechaHora'];
 const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
 const INVENTARIO_EQUIPOS_BASE_COLS = ['Codificacion','Equipo','Marca','DescripcionEspecifica','Ubicacion'];
@@ -5911,7 +5916,7 @@ async function repararHoja() {
     }
 
     window._sheetsHeaders = SHEETS_COLS;
-    // Crear también las hojas de Tareas, Repuestos, Insumos, Fotos, Novedades, FotosNovedades y CronogramaRegistros
+    // Crear también las hojas de Tareas, Repuestos, Insumos, Fotos, Novedades, FotosNovedades, CronogramaRegistros y CronogramaFotos
     await asegurarHoja(SH.tareas,    TAREAS_COLS);
     await asegurarHoja(SH.repuestos, REPUESTOS_COLS);
     await asegurarHoja(SH.insumos,   INSUMOS_COLS);
@@ -5919,7 +5924,8 @@ async function repararHoja() {
     await asegurarHoja(SH.novedades, NOVEDADES_COLS);
     await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
     await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
-    alert('Hojas creadas correctamente:\n- Ordenes\n- Tareas\n- Repuestos\n- Insumos\n- Fotos\n- Novedades\n- FotosNovedades\n- CronogramaRegistros\n\nYa puedes guardar órdenes y novedades con todos los campos.');
+    await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
+    alert('Hojas creadas correctamente:\n- Ordenes\n- Tareas\n- Repuestos\n- Insumos\n- Fotos\n- Novedades\n- FotosNovedades\n- CronogramaRegistros\n- CronogramaFotos\n\nYa puedes guardar órdenes y novedades con todos los campos.');
     await cargarOrdenes();
   } catch(e) {
     alert('Error de red: ' + e.message);
@@ -10602,9 +10608,173 @@ async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha
   }
 }
 
+/** Borra TODAS las filas de una hoja donde la columna dada (por nombre de
+ *  encabezado) sea igual al valor dado — recorre de abajo hacia arriba
+ *  para no desplazar índices mientras borra (mismo patrón que el borrado
+ *  de filas viejas en reemplazarFilasOrden, pero genérico por nombre de
+ *  columna en vez de por NumeroOrden en la columna A). */
+async function _eliminarFilasPorValorColumna(sheetName, nombreColumna, valor) {
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+  const r = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:Z'), { headers: hdrs });
+  if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!r.ok) throw new Error('No se pudo leer ' + sheetName + ' para borrar filas (HTTP ' + r.status + ')');
+  const d = await r.json();
+  const values = d.values || [];
+  if (!values.length) return;
+  const colIdx = values[0].indexOf(nombreColumna);
+  if (colIdx < 0) return;
+
+  const filasABorrar = [];
+  for (let i = 1; i < values.length; i++) {
+    if (values[i] && values[i][colIdx] === valor) filasABorrar.push(i + 1); // número de fila real en la hoja (1-based)
+  }
+  if (!filasABorrar.length) return;
+
+  const metaResp = await fetch(base + '?fields=sheets.properties', { headers: hdrs });
+  const meta = await metaResp.json();
+  const sheetId = (meta.sheets || []).find(s => s.properties.title === sheetName)?.properties.sheetId;
+  if (sheetId === undefined) return;
+
+  for (let k = filasABorrar.length - 1; k >= 0; k--) {
+    await fetch(base + ':batchUpdate', {
+      method: 'POST', headers: hdrs,
+      body: JSON.stringify({ requests: [{ deleteDimension: {
+        range: { sheetId, dimension: 'ROWS', startIndex: filasABorrar[k] - 1, endIndex: filasABorrar[k] }
+      }}]})
+    });
+  }
+}
+
+/** Lee (con la misma caché corta de leerHojaGenericaCacheada) TODAS las
+ *  fotos del Cronograma y las agrupa por Fecha → ActividadId → lista de
+ *  fotos, igual que _leerTodosRegistrosCronogramaAgrupados. */
+async function _leerTodasFotosCronogramaAgrupadas() {
+  await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
+  const filas = await leerHojaGenericaCacheada(SH.cronogramaFotos);
+  const porFecha = {};
+  filas.forEach(f => {
+    if (!f.Fecha || !f.ActividadId || !f.DriveFileId) return;
+    if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
+    if (!porFecha[f.Fecha][f.ActividadId]) porFecha[f.Fecha][f.ActividadId] = [];
+    porFecha[f.Fecha][f.ActividadId].push({ driveFileId: f.DriveFileId, urlVer: f.UrlVer || '', subidoPor: f.SubidoPor || '', fechaHora: f.FechaHora || '' });
+  });
+  return porFecha;
+}
+
+async function obtenerFotosCronogramaFecha(fecha) {
+  const todas = await _leerTodasFotosCronogramaAgrupadas();
+  return todas[fecha] || {};
+}
+
+/** Sube una foto de una actividad del Cronograma — mismo Apps Script/Drive
+ *  por sede que ya usan las fotos de órdenes (ver subirFotoOrden), solo
+ *  que la referencia se guarda en la hoja CronogramaFotos en vez de Fotos. */
+async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
+  if (!file.type.startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen');
+
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const subidoPor = currentUser?.name || currentUser?.email || '';
+  const fechaHora  = new Date().toISOString();
+  const codigo = fecha + '_' + actividadId;
+
+  const resp = await fetch(_fotosUrlSede(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      accion: 'subirFoto',
+      tipo: 'cronograma',
+      codigo,
+      nombreArchivo: `${codigo}_${Date.now()}.jpg`,
+      mimeType: file.type || 'image/jpeg',
+      base64,
+      tareaDescripcion: actividadId,
+      subidoPor,
+      correo: currentUser?.email || ''
+    })
+  });
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
+
+  await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
+  await appendHoja(SH.cronogramaFotos, [[fecha, turnoId, actividadId, data.driveFileId, data.urlVer, subidoPor, fechaHora]]);
+  _invalidarCacheHoja(SH.cronogramaFotos);
+
+  return { driveFileId: data.driveFileId, urlVer: data.urlVer, subidoPor, fechaHora };
+}
+
+/** Maneja el input de archivo del botón de cámara de una actividad. */
+async function manejarSubidaFotoCronograma(inputEl, actividadId, turnoId, fecha) {
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+
+  const ctx = _contextoCronogramaAhora(operacionActual);
+  if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
+    alert('Ese turno ya no está activo — no se puede adjuntar la foto. Actualiza la página para ver el turno actual.');
+    inputEl.value = '';
+    return;
+  }
+
+  const zona = document.getElementById('cronFotos_' + actividadId);
+  if (zona) zona.insertAdjacentHTML('beforeend', `<span class="foto-subiendo" style="font-size:11px;color:var(--text3)">Subiendo...</span>`);
+
+  try {
+    const foto = await subirFotoCronograma(file, fecha, turnoId, actividadId);
+    if (zona) {
+      const subiendoEl = zona.querySelector('.foto-subiendo');
+      if (subiendoEl) subiendoEl.remove();
+      zona.insertAdjacentHTML('beforeend', _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, true));
+    }
+  } catch (e) {
+    alert('❌ No se pudo subir la foto: ' + e.message);
+    if (zona) { const s = zona.querySelector('.foto-subiendo'); if (s) s.remove(); }
+  } finally {
+    inputEl.value = '';
+  }
+}
+
+/** Borra una foto de una actividad — de Drive (best-effort) y de la hoja
+ *  CronogramaFotos (a diferencia de las fotos de órdenes, aquí sí se borra
+ *  también la fila, para que no reaparezca al volver a cargar la fecha). */
+async function eliminarFotoCronograma(driveFileId, actividadId, fecha, elEl) {
+  if (!confirm('¿Eliminar esta foto del registro?')) return;
+  try {
+    await fetch(_fotosUrlSede(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' })
+    });
+  } catch (e) { console.warn('No se pudo borrar la foto de Drive:', e.message); }
+
+  try {
+    await _eliminarFilasPorValorColumna(SH.cronogramaFotos, 'DriveFileId', driveFileId);
+    _invalidarCacheHoja(SH.cronogramaFotos);
+  } catch (e) {
+    alert('La foto se borró de Drive pero no se pudo actualizar el registro: ' + e.message);
+  }
+  elEl?.closest('.cron-foto-mini')?.remove();
+}
+
+/** Miniatura clicable (abre la foto completa) con botón de borrar opcional. */
+function _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, conBorrar) {
+  return `<span class="cron-foto-mini" style="position:relative;display:inline-block;width:52px;height:52px">
+    <a href="${esc(foto.urlVer)}" target="_blank" rel="noopener">
+      <img src="${esc(foto.urlVer)}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" alt="Foto">
+    </a>
+    ${conBorrar ? `<button type="button" onclick="eliminarFotoCronograma('${esc(foto.driveFileId)}','${esc(actividadId)}','${esc(fecha)}',this)"
+        style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#b91c1c;color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">✕</button>` : ''}
+  </span>`;
+}
+
 /** Arma el HTML de un checkpoint (encabezado "Reporte de datos..." + sus
  *  actividades del día); omite bloques sin texto para ese día. */
-function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha) {
+function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha, fotos) {
   const filas = checkpoint.bloques
     .filter(b => (b.actividad[diaSemana] || '').trim())
     .map(b => {
@@ -10615,12 +10785,19 @@ function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, t
       const marcaTxt = reg?.realizado
         ? `✓ ${quien} · ${esc(hora)}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`
         : '';
+      const fotosActividad = (fotos && fotos[b.id]) || [];
+      const fotosHtml = fotosActividad.map(f => _htmlMiniaturaFotoCronograma(f, b.id, fecha, editable)).join('');
+      const botonCamara = editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px dashed var(--border);border-radius:6px;color:var(--text3)" title="Adjuntar foto">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${b.id}','${turnoId}','${fecha}')">
+        </label>` : '';
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
         <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${editable?'pointer':'not-allowed'}"
           onchange="onCambioActividadCronograma(this,'${b.id}','${turnoId}','${fecha}')">
         <div style="flex:1">
           <div style="font-size:13px;line-height:1.5">${esc(b.actividad[diaSemana])}</div>
           <div id="cronMarca_${b.id}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
+          <div id="cronFotos_${b.id}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHtml}${botonCamara}</div>
         </div>
       </div>`;
     }).join('');
@@ -10632,8 +10809,8 @@ function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, t
 }
 
 /** Arma el HTML completo de un turno para un día/fecha dados. */
-function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable) {
-  const checkpointsHtml = turno.checkpoints.map(cp => _htmlCheckpointCronograma(cp, diaSemana, registros, editable, turno.id, fecha)).join('');
+function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, fotos) {
+  const checkpointsHtml = turno.checkpoints.map(cp => _htmlCheckpointCronograma(cp, diaSemana, registros, editable, turno.id, fecha, fotos)).join('');
   return `<div class="card" style="margin-bottom:14px">
     <div class="card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span>${esc(turno.nombre)} <span style="font-weight:400;color:var(--text3);font-size:12px">(${esc(turno.horaInicio)} – ${esc(turno.horaFin)})</span></span>
@@ -10671,13 +10848,16 @@ async function inicializarPanelCronograma() {
   }
 
   try {
-    const registros = await obtenerRegistrosCronogramaFecha(ctx.fecha);
+    const [registros, fotos] = await Promise.all([
+      obtenerRegistrosCronogramaFecha(ctx.fecha),
+      obtenerFotosCronogramaFecha(ctx.fecha),
+    ]);
     cont.innerHTML = `
       <div style="margin-bottom:14px;padding:14px 18px;background:linear-gradient(135deg,var(--brand) 0%,#1a4a8a 100%);border-radius:12px;color:#fff">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Tu turno ahora</div>
         <div style="font-size:20px;font-weight:800">${esc(ctx.turno.nombre)} · ${esc(DIAS_SEMANA_LABEL[ctx.diaSemana])} ${esc(fmtFecha(ctx.fecha))}</div>
       </div>
-      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true)}
+      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true, fotos)}
       ${cfg.nota ? `<div class="card" style="margin-bottom:14px"><div class="card-body" style="padding:12px 16px;font-size:12px;color:var(--text3);font-style:italic">📌 ${esc(cfg.nota)}</div></div>` : ''}
     `;
   } catch (e) {
@@ -10697,8 +10877,11 @@ async function consultarCronogramaFecha() {
   cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3)">Cargando…</div>';
   try {
     const diaSemana = _diaSemanaDe(fecha);
-    const registros = await obtenerRegistrosCronogramaFecha(fecha);
-    cont.innerHTML = cfg.turnos.map(t => _htmlTurnoCronograma(t, diaSemana, fecha, registros, false)).join('');
+    const [registros, fotos] = await Promise.all([
+      obtenerRegistrosCronogramaFecha(fecha),
+      obtenerFotosCronogramaFecha(fecha),
+    ]);
+    cont.innerHTML = cfg.turnos.map(t => _htmlTurnoCronograma(t, diaSemana, fecha, registros, false, fotos)).join('');
   } catch (e) {
     cont.innerHTML = `<div style="padding:14px;color:#b00">Error: ${esc(e.message)}</div>`;
   }
