@@ -919,8 +919,7 @@ body.inv-activo .container { max-width: 1800px; }
       <div class="card-body">
         <table class="dyn-table">
           <thead><tr>
-            <th style="width:46%">Descripción de la tarea</th>
-            <th style="width:14%">T. Estimado</th>
+            <th style="width:60%">Descripción de la tarea</th>
             <th style="width:14%">T. Real</th>
             <th style="width:10%">OK</th>
             <th style="width:16%">Responsable</th>
@@ -1208,8 +1207,7 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="card-body">
           <table class="dyn-table">
             <thead><tr>
-              <th style="width:38%">Descripción de la tarea</th>
-              <th style="width:12%">T. Estimado</th>
+              <th style="width:50%">Descripción de la tarea</th>
               <th style="width:12%">T. Real</th>
               <th style="width:9%">OK</th>
               <th style="width:14%">Responsable</th>
@@ -4059,13 +4057,12 @@ function abrirModalCompletar(id) {
   // ── 3. Tareas
   const eTareas = document.getElementById('e_tbody_tareas');
   eTareas.innerHTML = '';
-  const tareas = o.tareas && o.tareas.length ? o.tareas : [{descripcion:'',tiempoEstimado:'',tiempoReal:'',ok:false,responsable:''},{descripcion:'',tiempoEstimado:'',tiempoReal:'',ok:false,responsable:''},{descripcion:'',tiempoEstimado:'',tiempoReal:'',ok:false,responsable:''}];
+  const tareas = o.tareas && o.tareas.length ? o.tareas : [{descripcion:'',tiempoReal:'',ok:false,responsable:''},{descripcion:'',tiempoReal:'',ok:false,responsable:''},{descripcion:'',tiempoReal:'',ok:false,responsable:''}];
   tareas.forEach(t => {
     const tr = document.createElement('tr');
     tr.className = 'tr-tarea-principal';
     tr.innerHTML = `
       <td><input type="text" placeholder="Descripción de la tarea" value="${esc(t.descripcion||'')}"></td>
-      <td><input type="text" placeholder="2h" value="${esc(t.tiempoEstimado||'')}"></td>
       <td><input type="text" placeholder="" value="${esc(t.tiempoReal||'')}"></td>
       <td style="text-align:center"><input type="checkbox" style="width:auto;transform:scale(1.3)" ${t.ok?'checked':''} onchange="actualizarEstadoPorTareasEditor()"></td>
       <td><input type="text" placeholder="Técnico" value="${esc(t.responsable||'')}"></td>
@@ -4254,9 +4251,9 @@ function leerEditorDatos() {
     const ins = tr.querySelectorAll('input,select');
     const filaObs = tr.nextElementSibling; // la fila de observación fantasma, siempre justo debajo
     const obsInput = filaObs && filaObs.classList.contains('tr-tarea-obs') ? filaObs.querySelector('.input-obs-fantasma') : null;
-    return { descripcion: ins[0]?.value||'', tiempoEstimado: ins[1]?.value||'',
-             tiempoReal: ins[2]?.value||'', ok: ins[3]?.checked||false,
-             responsable: ins[4]?.value||'', observacionFantasma: obsInput?.value||'' };
+    return { descripcion: ins[0]?.value||'',
+             tiempoReal: ins[1]?.value||'', ok: ins[2]?.checked||false,
+             responsable: ins[3]?.value||'', observacionFantasma: obsInput?.value||'' };
   }).filter(t => t.descripcion);
 
   const repuestos = Array.from(document.getElementById('e_tbody_repuestos').querySelectorAll('tr')).map(tr => {
@@ -4381,7 +4378,7 @@ function autocalcularCierre() {
   let minutosTotal = 0;
   filasTarea.forEach(tr => {
     const ins = tr.querySelectorAll('input,select');
-    minutosTotal += _parsearTiempoAMinutos(ins[2]?.value); // [2] = Tiempo Real de la tarea
+    minutosTotal += _parsearTiempoAMinutos(ins[1]?.value); // [1] = Tiempo Real de la tarea
   });
   const campoTiempo = document.getElementById('mTiempoReal');
   if (campoTiempo) campoTiempo.value = _formatearMinutosATiempo(minutosTotal);
@@ -4705,7 +4702,7 @@ function _crearFilaObservacionFantasma(valor) {
   const tr = document.createElement('tr');
   tr.className = 'tr-tarea-obs';
   tr.innerHTML = `
-    <td colspan="7" style="padding:2px 8px 10px 8px;background:#fffbea">
+    <td colspan="6" style="padding:2px 8px 10px 8px;background:#fffbea">
       <input type="text" class="input-obs-fantasma" placeholder="👻 Observación (solo interna — por qué no se ha ejecutado esta tarea, ej: repuesto no ha llegado)"
         value="${esc(valor||'')}" style="width:100%;font-size:12px;font-style:italic;border:1px dashed #d4a72c;background:#fffbea">
     </td>`;
@@ -4719,7 +4716,6 @@ function addRow(tbodyId, tipo) {
     tr.className = 'tr-tarea-principal';
     tr.innerHTML = `
       <td><input type="text" placeholder="Descripción de la tarea"></td>
-      <td><input type="text" placeholder="2h"></td>
       <td><input type="text" placeholder=""></td>
       <td style="text-align:center"><input type="checkbox" style="width:auto;transform:scale(1.3)" ${tbodyId==='e_tbody_tareas' ? 'onchange="actualizarEstadoPorTareasEditor()"' : ''}></td>
       <td><input type="text" placeholder="Técnico"></td>
@@ -4926,9 +4922,9 @@ function readTable(tbodyId, tipo) {
   return Array.from(rows).map(tr => {
     const inputs = tr.querySelectorAll('input, select');
     if (tipo === 'tarea') {
-      return { descripcion: inputs[0]?.value||'', tiempoEstimado: inputs[1]?.value||'',
-               tiempoReal: inputs[2]?.value||'', ok: inputs[3]?.checked||false,
-               responsable: inputs[4]?.value||'' };
+      return { descripcion: inputs[0]?.value||'',
+               tiempoReal: inputs[1]?.value||'', ok: inputs[2]?.checked||false,
+               responsable: inputs[3]?.value||'' };
     } else {
       return { codigo: inputs[0]?.value||'', nombre: inputs[1]?.value||'',
                cantidad: inputs[2]?.value||'', unidades: inputs[3]?.value||'und',
@@ -5010,7 +5006,7 @@ const SHEETS_COLS = [
   'CostoReal','ObsCierre','FechaCreacion','FirmaCreador','FirmaCierre','HorasEquipo',
   'CreadaAutomaticamente','PlanId'
 ];
-const TAREAS_COLS    = ['NumeroOrden','#','Descripcion','TiempoEstimado','TiempoReal','OK','Responsable','ObservacionCierre'];
+const TAREAS_COLS    = ['NumeroOrden','#','Descripcion','TiempoReal','OK','Responsable','ObservacionCierre'];
 const REPUESTOS_COLS = ['NumeroOrden','#','Codigo','Nombre','Cantidad','Unidades','CostoUnitario','Subtotal'];
 const INSUMOS_COLS   = ['NumeroOrden','#','Codigo','Nombre','Cantidad','Unidades','CostoUnitario','Subtotal'];
 const SERVICIOS_COLS = ['NumeroOrden','#','Codigo','Nombre','Cantidad','Unidades','CostoUnitario','Subtotal'];
@@ -6054,7 +6050,6 @@ async function guardarOrdenEnSheets(datos) {
         if (c === 'NumeroOrden') return num;
         if (c === '#') return i + 1;
         if (c === 'Descripcion') return t.descripcion || t.Descripcion || '';
-        if (c === 'TiempoEstimado') return t.tiempoEstimado || '';
         if (c === 'TiempoReal') return t.tiempoReal || '';
         if (c === 'OK') return t.ok ? 'SI' : 'NO';
         if (c === 'Responsable') return t.responsable || '';
@@ -6169,8 +6164,7 @@ async function guardarOrdenesEnSheetsEnLote(ordenes) {
           if (c === 'NumeroOrden') return num;
           if (c === '#') return i + 1;
           if (c === 'Descripcion') return t.descripcion || t.Descripcion || '';
-          if (c === 'TiempoEstimado') return t.tiempoEstimado || '';
-          if (c === 'TiempoReal') return t.tiempoReal || '';
+            if (c === 'TiempoReal') return t.tiempoReal || '';
           if (c === 'OK') return t.ok ? 'SI' : 'NO';
           if (c === 'Responsable') return t.responsable || '';
           if (c === 'ObservacionCierre') return t.observacionFantasma || '';
@@ -6320,7 +6314,6 @@ async function cargarOrdenesDeSheets() {
     if (r.NumeroOrden && idx[r.NumeroOrden]) {
       idx[r.NumeroOrden].tareas.push({
         descripcion:    r.Descripcion || '',
-        tiempoEstimado: r.TiempoEstimado || '',
         tiempoReal:     r.TiempoReal || '',
         ok:             r.OK === 'SI',
         responsable:    r.Responsable || '',
@@ -6431,8 +6424,15 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
     // ── 2. Hojas auxiliares: borrar filas anteriores de esta orden y re-insertar ──
     // Esto evita duplicación al editar/guardar varias veces la misma orden.
 
-    async function reemplazarFilasOrden(sheetName, colsDef, filas) {
-      await asegurarHoja(sheetName, colsDef);
+    async function reemplazarFilasOrden(sheetName, colsDef, filasOFn) {
+      // Usa el orden REAL de columnas de la hoja (no colsDef): si la hoja
+      // ya existía con columnas viejas (ej. hojas creadas antes de quitar
+      // "TiempoEstimado" de TAREAS_COLS), armar las filas por posición fija
+      // desalinearía los datos silenciosamente — por eso, cuando el llamador
+      // pasa una función en vez de un array ya armado, se le entregan las
+      // columnas reales para que arme cada fila por nombre de columna.
+      const colsReales = await asegurarHoja(sheetName, colsDef);
+      const filas = typeof filasOFn === 'function' ? filasOFn(colsReales) : filasOFn;
       // Leer hoja completa para encontrar filas de esta orden
       const rAll = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:A'), { headers: hdrs });
       // Si esta lectura falla, NO se puede asumir que la orden no tiene
@@ -6477,10 +6477,17 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
     }
 
     if (campos.tareas && Array.isArray(campos.tareas)) {
-      const filas = campos.tareas
-        .filter(t => (t.descripcion||'').trim())
-        .map((t, i) => [numeroOrden, i+1, t.descripcion||'', t.tiempoEstimado||'', t.tiempoReal||'', t.ok?'SI':'NO', t.responsable||'', t.observacionFantasma||'']);
-      await reemplazarFilasOrden(SH.tareas, TAREAS_COLS, filas);
+      const tareasFiltradas = campos.tareas.filter(t => (t.descripcion||'').trim());
+      await reemplazarFilasOrden(SH.tareas, TAREAS_COLS, (colsReales) => tareasFiltradas.map((t, i) => colsReales.map(c => {
+        if (c === 'NumeroOrden') return numeroOrden;
+        if (c === '#') return i + 1;
+        if (c === 'Descripcion') return t.descripcion || '';
+        if (c === 'TiempoReal') return t.tiempoReal || '';
+        if (c === 'OK') return t.ok ? 'SI' : 'NO';
+        if (c === 'Responsable') return t.responsable || '';
+        if (c === 'ObservacionCierre') return t.observacionFantasma || '';
+        return '';
+      })));
     }
 
     if (campos.repuestos && Array.isArray(campos.repuestos)) {
@@ -7052,7 +7059,6 @@ async function verDetalle(id) {
     html += '<div style="padding:12px 18px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<thead><tr style="background:linear-gradient(90deg, var(--brand) 0%, #1a4a8a 100%)">';
     html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Descripción</th>';
-    html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">T. Estimado</th>';
     html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">T. Real</th>';
     html += '<th style="padding:8px 10px;text-align:center;color:#fff;font-size:11px;letter-spacing:.4px">OK</th>';
     html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Responsable</th>';
@@ -7062,7 +7068,6 @@ async function verDetalle(id) {
       const rowStyle = t.ok ? 'background:#f0fff4;' : '';
       html += `<tr style="border-bottom:1px solid var(--border);${rowStyle}" id="tarea-row-${idx}">`;
       html += '<td style="padding:6px 10px">' + esc(t.descripcion||'—') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(t.tiempoEstimado||'—') + '</td>';
       html += '<td style="padding:6px 10px">' + esc(t.tiempoReal||'—') + '</td>';
       html += `<td style="padding:6px 10px;text-align:center">
         <input type="checkbox" ${checked} disabled
