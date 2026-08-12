@@ -1631,6 +1631,18 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
+    <!-- Dashboard: comparativo de informes por tipo -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparativo por Tipo de Informe</div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTipoBarras"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Porcentaje por Tipo de Informe</div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTipoDona"></canvas></div><div id="novLeyendaTipo"></div></div>
+      </div>
+    </div>
+
     <!-- Dashboard de tiempos -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
       <div class="card">
@@ -9554,7 +9566,7 @@ const NOVEDADES_COLS = [
   'Codigo','Titulo','FechaEvento','HoraEvento','HoraInicio','HoraEstabilizacion','TiempoTotalMin',
   'DescripcionProblema','AnalisisEvento','Consecuencias','AccionesEjecutadas','AccionesCorrectivas','AccionesMejora',
   'ElaboradoNombre','ElaboradoCargo','ElaboradoTel','RevisadoNombre','RevisadoCargo','RevisadoTel',
-  'Correo','FechaRegistro','Estado'
+  'Correo','FechaRegistro','Estado','HoraFin','TiempoInicioFinMin','TiempoFinEstabilizacionMin'
 ];
 
 // Fecha por defecto desde la que se cuentan los "Días sin Novedades" —
@@ -9913,6 +9925,37 @@ function _viñetasHtml(texto) {
   return '<ul style="margin:0;padding-left:20px">' + lineas.map(l => `<li style="margin-bottom:4px">${esc(l)}</li>`).join('') + '</ul>';
 }
 
+/** Construye el bloque de campos de fecha/horas + tiempos auto-calculados,
+ *  según el tipo de informe: INF-N (2 horas) o INF-E (3 horas). */
+function _htmlCamposTiempoNovedad(tipo, existente) {
+  const fecha = esc(existente?.FechaEvento || new Date().toISOString().slice(0,10));
+  const horaInicio = esc(existente?.HoraInicio || '');
+  const horaFin = esc(existente?.HoraFin || '');
+  if (tipo === 'INF-E') {
+    const horaEstab = esc(existente?.HoraEstabilizacion || '');
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="field"><label>Fecha del evento *</label><input id="nov_fechaEvento" type="date" value="${fecha}"></div>
+        <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label>Hora de finalización *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label>Hora de estabilización *</label><input id="nov_horaEstabilizacion" type="time" value="${horaEstab}" onchange="actualizarTiemposNovedad()"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="field"><label>Tiempo inicio → finalización (min)</label><input id="nov_tiempoIF" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoInicioFinMin||'')}"></div>
+        <div class="field"><label>Tiempo finalización → estabilización (min)</label><input id="nov_tiempoFE" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoFinEstabilizacionMin||'')}"></div>
+        <div class="field"><label>Tiempo total de recuperación (min)</label><input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>
+      </div>`;
+  }
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="field"><label>Fecha del evento *</label><input id="nov_fechaEvento" type="date" value="${fecha}"></div>
+      <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label>Hora final del evento *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
+    </div>
+    <div class="field" style="margin-bottom:14px;max-width:220px"><label>Tiempo total (min)</label>
+      <input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>`;
+}
+
 /** Abre el modal de Nuevo Informe, o edición si se pasa un código existente */
 function abrirModalNovedad(codigo) {
   const existente = codigo ? allNovedades.find(n => n.Codigo === codigo) : null;
@@ -9945,14 +9988,7 @@ function abrirModalNovedad(codigo) {
         <div class="field" style="margin-bottom:12px"><label>Título del informe *</label>
           <input id="nov_titulo" placeholder="Ej: Caída de presión sistema de alta presión" value="${esc(existente?.Titulo||'')}"></div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-          <div class="field"><label>Fecha del evento *</label><input id="nov_fechaEvento" type="date" value="${esc(existente?.FechaEvento || new Date().toISOString().slice(0,10))}"></div>
-          <div class="field"><label>Hora del evento *</label><input id="nov_horaEvento" type="time" value="${esc(existente?.HoraEvento||'')}"></div>
-          <div class="field"><label>Hora de inicio</label><input id="nov_horaInicio" type="time" value="${esc(existente?.HoraInicio||'')}" onchange="actualizarTiempoTotalNovedad()"></div>
-          <div class="field"><label>Hora de estabilización</label><input id="nov_horaEstabilizacion" type="time" value="${esc(existente?.HoraEstabilizacion||'')}" onchange="actualizarTiempoTotalNovedad()"></div>
-        </div>
-        <div class="field" style="margin-bottom:14px;max-width:220px"><label>Tiempo total de recuperación (min) *</label>
-          <input id="nov_tiempoTotal" type="number" min="0" value="${esc(existente?.TiempoTotalMin||'')}"></div>
+        <div id="nov_camposTiempoWrap">${_htmlCamposTiempoNovedad(tipoInicial, existente)}</div>
 
         <div class="field" style="margin-bottom:12px"><label>Descripción del problema *</label>
           <textarea id="nov_descripcionProblema" rows="3" placeholder="Describe qué pasó, cuándo y cómo se originó...">${esc(existente?.DescripcionProblema||'')}</textarea></div>
@@ -10006,25 +10042,42 @@ function abrirModalNovedad(codigo) {
     </div>`;
   document.body.appendChild(overlay);
   overlay._codigoActual = codigoNuevo;
+  overlay._tipoActual = tipoInicial;
   overlay._esEdicion = !!existente;
   overlay._fotosLocal = existente ? [...(existente.fotos || [])] : [];
   renderGaleriaFotosNovedadLocal(overlay._fotosLocal);
 }
 
-/** Al cambiar el Tipo de Informe (Novedad/Energía), recalcula el código correlativo */
+/** Al cambiar el Tipo de Informe (Novedad/Energía), recalcula el código correlativo
+ *  y reconstruye el bloque de campos de hora (2 horas para INF-N, 3 para INF-E) */
 function actualizarCodigoPorTipo() {
   const overlay = document.getElementById('modalNovedadOverlay');
   const tipo = document.getElementById('nov_tipoInforme').value;
   const nuevoCodigo = _siguienteCodigo(tipo);
   overlay._codigoActual = nuevoCodigo;
+  overlay._tipoActual = tipo;
   document.getElementById('nov_codigoDisplay').textContent = nuevoCodigo;
+  document.getElementById('nov_camposTiempoWrap').innerHTML = _htmlCamposTiempoNovedad(tipo, null);
 }
 
-function actualizarTiempoTotalNovedad() {
-  const ini = document.getElementById('nov_horaInicio').value;
-  const fin = document.getElementById('nov_horaEstabilizacion').value;
-  const calc = _minutosEntre(ini, fin);
-  if (calc !== '') document.getElementById('nov_tiempoTotal').value = calc;
+/** Recalcula los tiempos auto-calculados (siempre de solo lectura) según el
+ *  tipo de informe: INF-N → 1 total; INF-E → 2 intervalos + el total. */
+function actualizarTiemposNovedad() {
+  const overlay = document.getElementById('modalNovedadOverlay');
+  const tipo = overlay?._tipoActual || 'INF-N';
+  const ini = document.getElementById('nov_horaInicio')?.value || '';
+  const fin = document.getElementById('nov_horaFin')?.value || '';
+  if (tipo === 'INF-E') {
+    const estab = document.getElementById('nov_horaEstabilizacion')?.value || '';
+    const tIF = _minutosEntre(ini, fin);
+    const tFE = _minutosEntre(fin, estab);
+    const total = _minutosEntre(ini, estab);
+    document.getElementById('nov_tiempoIF').value = tIF;
+    document.getElementById('nov_tiempoFE').value = tFE;
+    document.getElementById('nov_tiempoTotal').value = total;
+  } else {
+    document.getElementById('nov_tiempoTotal').value = _minutosEntre(ini, fin);
+  }
 }
 
 async function guardarNovedad() {
@@ -10032,12 +10085,15 @@ async function guardarNovedad() {
   const codigo = overlay._codigoActual;
   const esEdicion = overlay._esEdicion;
 
+  const tipo = overlay._tipoActual || (codigo.startsWith('INF-E') ? 'INF-E' : 'INF-N');
   const titulo = document.getElementById('nov_titulo').value.trim();
   const fechaEvento = document.getElementById('nov_fechaEvento').value;
-  const horaEvento = document.getElementById('nov_horaEvento').value;
   const horaInicio = document.getElementById('nov_horaInicio').value;
-  const horaEstabilizacion = document.getElementById('nov_horaEstabilizacion').value;
+  const horaFin = document.getElementById('nov_horaFin').value;
+  const horaEstabilizacion = tipo === 'INF-E' ? document.getElementById('nov_horaEstabilizacion').value : '';
   const tiempoTotal = document.getElementById('nov_tiempoTotal').value;
+  const tiempoIF = tipo === 'INF-E' ? document.getElementById('nov_tiempoIF').value : '';
+  const tiempoFE = tipo === 'INF-E' ? document.getElementById('nov_tiempoFE').value : '';
   const descripcionProblema = document.getElementById('nov_descripcionProblema').value.trim();
   const analisisEvento = document.getElementById('nov_analisisEvento').value.trim();
   const consecuencias = document.getElementById('nov_consecuencias').value.trim();
@@ -10052,8 +10108,8 @@ async function guardarNovedad() {
   const revisadoTel = document.getElementById('nov_revisadoTel').value.trim();
   const msg = document.getElementById('nov_msg');
 
-  if (!titulo || !fechaEvento || !horaEvento || !descripcionProblema || tiempoTotal === '') {
-    msg.textContent = 'Completa al menos: título, fecha/hora del evento, descripción y tiempo total (*).';
+  if (!titulo || !fechaEvento || !horaInicio || !horaFin || (tipo === 'INF-E' && !horaEstabilizacion) || !descripcionProblema || tiempoTotal === '') {
+    msg.textContent = 'Completa al menos: título, fecha, las horas del evento y la descripción (*).';
     return;
   }
 
@@ -10064,18 +10120,18 @@ async function guardarNovedad() {
 
     if (esEdicion) {
       const fila = allNovedades.find(n => n.Codigo === codigo);
-      const valores = [codigo, titulo, fechaEvento, horaEvento, horaInicio, horaEstabilizacion, tiempoTotal,
+      const valores = [codigo, titulo, fechaEvento, fila.HoraEvento || '', horaInicio, horaEstabilizacion, tiempoTotal,
         descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
         elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        fila.Correo, fila.FechaRegistro, 'Activa'];
+        fila.Correo, fila.FechaRegistro, 'Activa', horaFin, tiempoIF, tiempoFE];
       const colFin = numToCol(NOVEDADES_COLS.length - 1);
       const rango = SH.novedades + '!A' + fila._row + ':' + colFin + fila._row;
       await sheetsRequest('UPDATE', rango, [valores]);
     } else {
-      const valores = [codigo, titulo, fechaEvento, horaEvento, horaInicio, horaEstabilizacion, tiempoTotal,
+      const valores = [codigo, titulo, fechaEvento, '', horaInicio, horaEstabilizacion, tiempoTotal,
         descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
         elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        currentUser?.email || '', new Date().toISOString(), 'Activa'];
+        currentUser?.email || '', new Date().toISOString(), 'Activa', horaFin, tiempoIF, tiempoFE];
       await appendHoja(SH.novedades, [valores]);
     }
 
@@ -10225,6 +10281,44 @@ function renderGraficasNovedades() {
     window[key] = new Chart(ctx.getContext('2d'), cfg);
   }
 
+  // Comparativo por tipo de informe: cuántos INF-N vs INF-E, en barras y dona (con %)
+  const totalTipo = novedadesFiltradasActual.length;
+  const countINFN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).length;
+  const countINFE = novedadesFiltradasActual.filter(n => n.Codigo.startsWith('INF-E')).length;
+  const coloresTipo = ['#2563eb', '#f97316'];
+  makeChart('chartNovTipoBarras', '_chartNovTipoBarras', {
+    type: 'bar',
+    data: { labels: ['Informe por Novedad (INF-N)', 'Informe por Energía (INF-E)'],
+      datasets: [{ label: 'Cantidad', data: [countINFN, countINFE], backgroundColor: coloresTipo, borderRadius: 5 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+  makeChart('chartNovTipoDona', '_chartNovTipoDona', {
+    type: 'doughnut',
+    data: { labels: ['Informe por Novedad (INF-N)', 'Informe por Energía (INF-E)'],
+      datasets: [{ data: [countINFN, countINFE], backgroundColor: coloresTipo }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => {
+        const pct = totalTipo ? Math.round(ctx.parsed / totalTipo * 100) : 0;
+        return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+      } } } } }
+  });
+  const leyendaTipoDiv = document.getElementById('novLeyendaTipo');
+  if (leyendaTipoDiv) {
+    const pctN = totalTipo ? Math.round(countINFN / totalTipo * 100) : 0;
+    const pctE = totalTipo ? Math.round(countINFE / totalTipo * 100) : 0;
+    leyendaTipoDiv.innerHTML = `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
+        <span style="width:16px;height:10px;background:${coloresTipo[0]};border-radius:2px;display:inline-block"></span>
+        <span>Informe por Novedad: ${countINFN} (${pctN}%)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
+        <span style="width:16px;height:10px;background:${coloresTipo[1]};border-radius:2px;display:inline-block"></span>
+        <span>Informe por Energía: ${countINFE} (${pctE}%)</span>
+      </div>
+    </div>`;
+  }
+
   // Dona: distribución de novedades por rango de tiempo de recuperación
   const conteoRangos = RANGOS_NOVEDAD.map(r => 0);
   novedadesFiltradasActual.forEach(n => {
@@ -10261,11 +10355,17 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
   html += `
     <h1 style="color:var(--brand);font-size:19px;text-align:center;margin-bottom:18px">${esc(n.Titulo)}</h1>
     <div style="margin-bottom:14px;font-size:13px;text-align:center">
-      <b>Fecha del evento:</b> ${esc(n.FechaEvento)} &nbsp;·&nbsp;
-      <b>Hora de evento:</b> ${esc(n.HoraEvento)}
-      ${n.HoraInicio ? ` &nbsp;·&nbsp; <b>Hora de inicio:</b> ${esc(n.HoraInicio)}` : ''}
-      ${n.HoraEstabilizacion ? ` &nbsp;·&nbsp; <b>Hora de estabilización:</b> ${esc(n.HoraEstabilizacion)}` : ''}
-      <br><b>Tiempo total de recuperación:</b> ${esc(n.TiempoTotalMin)} minutos
+      <b>Fecha del evento:</b> ${esc(n.FechaEvento)}
+      ${n.Codigo.startsWith('INF-E') ? `
+      &nbsp;·&nbsp; <b>Hora inicio de evento:</b> ${esc(n.HoraInicio)}
+      &nbsp;·&nbsp; <b>Hora de finalización:</b> ${esc(n.HoraFin)}
+      &nbsp;·&nbsp; <b>Hora de estabilización:</b> ${esc(n.HoraEstabilizacion)}
+      <br><b>Tiempo inicio → finalización:</b> ${esc(n.TiempoInicioFinMin)} min
+      &nbsp;·&nbsp; <b>Tiempo finalización → estabilización:</b> ${esc(n.TiempoFinEstabilizacionMin)} min
+      &nbsp;·&nbsp; <b>Tiempo total:</b> ${esc(n.TiempoTotalMin)} min` : `
+      &nbsp;·&nbsp; <b>Hora inicio de evento:</b> ${esc(n.HoraInicio)}
+      &nbsp;·&nbsp; <b>Hora final del evento:</b> ${esc(n.HoraFin)}
+      <br><b>Tiempo total:</b> ${esc(n.TiempoTotalMin)} min`}
     </div>
 
     <h3 class="novedad-section-title">Descripción del problema</h3>
@@ -10434,6 +10534,8 @@ async function generarInformeConsolidado() {
   const cont = document.getElementById('novedadesInformeImprimible');
   const imgDona    = document.getElementById('chartNovTiemposDona')?.toDataURL('image/png') || '';
   const imgBarras  = document.getElementById('chartNovTiemposBarras')?.toDataURL('image/png') || '';
+  const imgTipoBarras = document.getElementById('chartNovTipoBarras')?.toDataURL('image/png') || '';
+  const imgTipoDona   = document.getElementById('chartNovTipoDona')?.toDataURL('image/png') || '';
 
   const mesNombres = { '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
     '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre' };
@@ -10445,6 +10547,14 @@ async function generarInformeConsolidado() {
     ${_encabezadoPdfHtml('Informes de Novedades Operativas de Planta',
       OPERACIONES[operacionActual].nombre + ' · Generado el ' + new Date().toLocaleDateString('es-CO') +
       ' · Periodo: ' + etiquetaFiltro + ' · ' + novedadesFiltradasActual.length + ' informe(s)')}
+
+    <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparativo por Tipo de Informe</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Cantidad por Tipo</div><img src="${imgTipoBarras}" style="width:100%;height:auto"></div>
+      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Porcentaje por Tipo</div><img src="${imgTipoDona}" style="width:100%;height:auto"></div>
+    </div>
+    ${document.getElementById('novLeyendaTipo')?.innerHTML || ''}
+    <div style="page-break-after:always"></div>
 
     <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Dashboard de Tiempos</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
