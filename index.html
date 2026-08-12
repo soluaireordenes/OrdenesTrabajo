@@ -10936,26 +10936,37 @@ async function descargarInformeCronograma() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const todosLosRegistros = await _leerTodosRegistrosCronogramaAgrupados();
+    const [todosLosRegistros, todasLasFotos] = await Promise.all([
+      _leerTodosRegistrosCronogramaAgrupados(),
+      _leerTodasFotosCronogramaAgrupadas(),
+    ]);
 
     let seccionesHtml = '';
     for (const fecha of fechas) {
       const diaSemana = _diaSemanaDe(fecha);
       const registros = todosLosRegistros[fecha] || {};
+      const fotosFecha = todasLasFotos[fecha] || {};
       for (const turno of turnosAIncluir) {
-        const filas = turno.checkpoints.flatMap(cp => cp.bloques
-          .filter(b => (b.actividad[diaSemana] || '').trim())
-          .map(b => {
-            const reg = registros[b.id];
-            const estado = reg?.realizado ? '✅ Realizado' : '❌ No marcado';
-            const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
-            const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : '—';
-            const obs = reg?.realizado && reg.observacion ? esc(reg.observacion) : '';
-            return `<tr><td style="width:45%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`;
-          }));
-        if (!filas.length) continue;
+        const bloques = turno.checkpoints.flatMap(cp => cp.bloques).filter(b => (b.actividad[diaSemana] || '').trim());
+        if (!bloques.length) continue;
+        const filas = [];
+        for (const b of bloques) {
+          const reg = registros[b.id];
+          const estado = reg?.realizado ? '✅ Realizado' : '❌ No marcado';
+          const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
+          const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : '—';
+          const obs = reg?.realizado && reg.observacion ? esc(reg.observacion) : '';
+          // Traer cada foto como data:URL para que quede embebida en el PDF
+          // descargado y se vea aunque luego se abra sin internet (igual que
+          // las fotos y firmas de descargarOrdenPDF).
+          const fotosActividad = fotosFecha[b.id] || [];
+          const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+          const fotosHtml = fotosDataUrls.filter(Boolean).map(url =>
+            `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ddd;margin:2px">`).join('');
+          filas.push(`<tr><td style="width:38%">${esc(b.actividad[diaSemana])}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td><td>${fotosHtml}</td></tr>`);
+        }
         seccionesHtml += `<div class="section-title">${esc(turno.nombre)} — ${esc(DIAS_SEMANA_LABEL[diaSemana])} ${esc(fmtFecha(fecha))}</div>
-          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
+          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th><th>Fotos</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
       }
     }
 
