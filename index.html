@@ -10433,12 +10433,9 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
  *  tiempo de detección (evento→inicio), tiempo de resolución (inicio→estabilización) y total. */
 /** Rangos de tiempo de recuperación, con nombre y color (de mejor a peor). */
 const RANGOS_NOVEDAD = [
-  { max: 5,        nombre: 'Restablecimiento Rápido',        color: '#22c55e' }, // verde vivo
-  { max: 15,       nombre: 'Restablecimiento Medio Rápido',  color: '#84cc16' }, // verde-amarillo vivo
-  { max: 30,       nombre: 'Restablecimiento Medio',         color: '#eab308' }, // amarillo vivo
-  { max: 60,       nombre: 'Restablecimiento Lento',         color: '#f97316' }, // naranja vivo
-  { max: 119,      nombre: 'Restablecimiento Muy Lento',     color: '#ef4444' }, // rojo-naranja vivo
-  { max: Infinity, nombre: 'Crítico',                        color: '#dc2626' }, // rojo vivo
+  { max: 12,       nombre: 'Restablecimiento Rápido', color: '#22c55e' }, // verde
+  { max: 30,       nombre: 'Restablecimiento Medio',  color: '#eab308' }, // amarillo
+  { max: Infinity, nombre: 'Crítico',                 color: '#dc2626' }, // rojo
 ];
 
 /** Devuelve el rango (nombre + color) al que pertenece una cantidad de minutos */
@@ -10455,10 +10452,10 @@ function _colorPorMinutos(min) {
 /** Genera la fila de leyenda HTML con todos los rangos (igual al estilo solicitado) */
 function _leyendaRangosHtml() {
   return `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px">
-    ${RANGOS_NOVEDAD.map(r => `
+    ${RANGOS_NOVEDAD.map((r, i) => `
       <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
         <span style="width:16px;height:10px;background:${r.color};border-radius:2px;display:inline-block"></span>
-        <span>${esc(r.nombre)} ${r.max === Infinity ? '(≥ 2 h)' : `(≤ ${r.max} min)`}</span>
+        <span>${esc(r.nombre)} ${r.max === Infinity ? `(mayor de ${RANGOS_NOVEDAD[i-1].max} min)` : `(≤ ${r.max} min)`}</span>
       </div>`).join('')}
   </div>`;
 }
@@ -10466,11 +10463,11 @@ function _leyendaRangosHtml() {
 /** Misma leyenda de rangos, pero en lista vertical elegante (para el informe individual) */
 function _leyendaRangosVerticalHtml() {
   return `<div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto">
-    ${RANGOS_NOVEDAD.map(r => `
+    ${RANGOS_NOVEDAD.map((r, i) => `
       <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:#333;padding:6px 10px;background:#fafafa;border-radius:6px;border:1px solid #eee">
         <span style="width:22px;height:14px;background:${r.color};border-radius:3px;display:inline-block;flex-shrink:0"></span>
         <span style="flex:1">${esc(r.nombre)}</span>
-        <span style="color:#888;font-size:11px">${r.max === Infinity ? '≥ 2 h' : `≤ ${r.max} min`}</span>
+        <span style="color:#888;font-size:11px">${r.max === Infinity ? `> ${RANGOS_NOVEDAD[i-1].max} min` : `≤ ${r.max} min`}</span>
       </div>`).join('')}
   </div>`;
 }
