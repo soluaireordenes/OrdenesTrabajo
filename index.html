@@ -6496,7 +6496,7 @@ async function cargarOrdenesDeSheets() {
   // tiene un catch que cae a localStorage si esto falla, así que dejar que
   // el error se propague es más seguro que devolver datos a medias.
   async function leerHoja(nombre) {
-    const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:Z'), { headers: hdrs });
+    const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:AZ'), { headers: hdrs });
     if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
     if (!r.ok) {
       const t = await r.text();
@@ -8384,7 +8384,7 @@ async function guardarHorasEquiposGrid() {
 async function eliminarFilasDondeCumple(hoja, predicado) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:Z'), { headers: hdrs });
+  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:AZ'), { headers: hdrs });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
   if (!resp.ok) {
     const txt = await resp.text();
@@ -9566,7 +9566,8 @@ const NOVEDADES_COLS = [
   'Codigo','Titulo','FechaEvento','HoraEvento','HoraInicio','HoraEstabilizacion','TiempoTotalMin',
   'DescripcionProblema','AnalisisEvento','Consecuencias','AccionesEjecutadas','AccionesCorrectivas','AccionesMejora',
   'ElaboradoNombre','ElaboradoCargo','ElaboradoTel','RevisadoNombre','RevisadoCargo','RevisadoTel',
-  'Correo','FechaRegistro','Estado','HoraFin','TiempoInicioFinMin','TiempoFinEstabilizacionMin'
+  'Correo','FechaRegistro','Estado','HoraFin','TiempoInicioFinMin','TiempoFinEstabilizacionMin',
+  'FechaFin','FechaEstabilizacion'
 ];
 
 // Fecha por defecto desde la que se cuentan los "Días sin Novedades" —
@@ -9751,7 +9752,7 @@ let allNovedades = [];
  *  error en pantalla en vez de una lista vacía silenciosa. */
 async function _leerHojaGenerica(nombre) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:Z'),
+  const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:AZ'),
     { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!r.ok) {
@@ -9907,9 +9908,18 @@ function filtrarNovedadesUI() {
   renderGraficasNovedades();
 }
 
-/** Calcula minutos de diferencia entre dos horas "HH:MM" */
-function _minutosEntre(horaInicio, horaFin) {
+/** Calcula minutos de diferencia entre dos momentos. Si se pasan las fechas
+ *  ("YYYY-MM-DD") de cada hora, calcula sobre la fecha+hora completa (así
+ *  soporta novedades que duran más de un día). Si no hay fechas, asume que
+ *  ambas horas son del mismo día y solo cruza la medianoche una vez. */
+function _minutosEntre(horaInicio, horaFin, fechaInicio, fechaFin) {
   if (!horaInicio || !horaFin) return '';
+  if (fechaInicio && fechaFin) {
+    const d1 = new Date(fechaInicio + 'T' + horaInicio);
+    const d2 = new Date(fechaFin + 'T' + horaFin);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return '';
+    return Math.round((d2 - d1) / 60000);
+  }
   const [h1,m1] = horaInicio.split(':').map(Number);
   const [h2,m2] = horaFin.split(':').map(Number);
   if (isNaN(h1)||isNaN(m1)||isNaN(h2)||isNaN(m2)) return '';
@@ -9926,18 +9936,25 @@ function _viñetasHtml(texto) {
 }
 
 /** Construye el bloque de campos de fecha/horas + tiempos auto-calculados,
- *  según el tipo de informe: INF-N (2 horas) o INF-E (3 horas). */
+ *  según el tipo de informe: INF-N (2 momentos) o INF-E (3 momentos).
+ *  Cada momento lleva su propia fecha además de la hora, para que una
+ *  novedad que dura más de un día calcule bien el tiempo transcurrido. */
 function _htmlCamposTiempoNovedad(tipo, existente) {
-  const fecha = esc(existente?.FechaEvento || new Date().toISOString().slice(0,10));
-  const horaInicio = esc(existente?.HoraInicio || '');
-  const horaFin = esc(existente?.HoraFin || '');
+  const hoy = new Date().toISOString().slice(0,10);
+  const fechaInicio = esc(existente?.FechaEvento || hoy);
+  const horaInicio  = esc(existente?.HoraInicio || '');
+  const fechaFin    = esc(existente?.FechaFin || existente?.FechaEvento || hoy);
+  const horaFin     = esc(existente?.HoraFin || '');
   if (tipo === 'INF-E') {
-    const horaEstab = esc(existente?.HoraEstabilizacion || '');
+    const fechaEstab = esc(existente?.FechaEstabilizacion || existente?.FechaEvento || hoy);
+    const horaEstab  = esc(existente?.HoraEstabilizacion || '');
     return `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="field"><label>Fecha del evento *</label><input id="nov_fechaEvento" type="date" value="${fecha}"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px">
+        <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
         <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label>Fecha de finalización *</label><input id="nov_fechaFin" type="date" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
         <div class="field"><label>Hora de finalización *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label>Fecha de estabilización *</label><input id="nov_fechaEstabilizacion" type="date" value="${fechaEstab}" onchange="actualizarTiemposNovedad()"></div>
         <div class="field"><label>Hora de estabilización *</label><input id="nov_horaEstabilizacion" type="time" value="${horaEstab}" onchange="actualizarTiemposNovedad()"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
@@ -9947,9 +9964,10 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
       </div>`;
   }
   return `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="field"><label>Fecha del evento *</label><input id="nov_fechaEvento" type="date" value="${fecha}"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px">
+      <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
       <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label>Fecha final del evento *</label><input id="nov_fechaFin" type="date" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
       <div class="field"><label>Hora final del evento *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
     </div>
     <div class="field" style="margin-bottom:14px;max-width:220px"><label>Tiempo total (min)</label>
@@ -10065,18 +10083,21 @@ function actualizarCodigoPorTipo() {
 function actualizarTiemposNovedad() {
   const overlay = document.getElementById('modalNovedadOverlay');
   const tipo = overlay?._tipoActual || 'INF-N';
+  const fechaIni = document.getElementById('nov_fechaEvento')?.value || '';
   const ini = document.getElementById('nov_horaInicio')?.value || '';
+  const fechaFin = document.getElementById('nov_fechaFin')?.value || '';
   const fin = document.getElementById('nov_horaFin')?.value || '';
   if (tipo === 'INF-E') {
+    const fechaEstab = document.getElementById('nov_fechaEstabilizacion')?.value || '';
     const estab = document.getElementById('nov_horaEstabilizacion')?.value || '';
-    const tIF = _minutosEntre(ini, fin);
-    const tFE = _minutosEntre(fin, estab);
-    const total = _minutosEntre(ini, estab);
+    const tIF = _minutosEntre(ini, fin, fechaIni, fechaFin);
+    const tFE = _minutosEntre(fin, estab, fechaFin, fechaEstab);
+    const total = _minutosEntre(ini, estab, fechaIni, fechaEstab);
     document.getElementById('nov_tiempoIF').value = tIF;
     document.getElementById('nov_tiempoFE').value = tFE;
     document.getElementById('nov_tiempoTotal').value = total;
   } else {
-    document.getElementById('nov_tiempoTotal').value = _minutosEntre(ini, fin);
+    document.getElementById('nov_tiempoTotal').value = _minutosEntre(ini, fin, fechaIni, fechaFin);
   }
 }
 
@@ -10089,7 +10110,9 @@ async function guardarNovedad() {
   const titulo = document.getElementById('nov_titulo').value.trim();
   const fechaEvento = document.getElementById('nov_fechaEvento').value;
   const horaInicio = document.getElementById('nov_horaInicio').value;
+  const fechaFin = document.getElementById('nov_fechaFin').value;
   const horaFin = document.getElementById('nov_horaFin').value;
+  const fechaEstabilizacion = tipo === 'INF-E' ? document.getElementById('nov_fechaEstabilizacion').value : '';
   const horaEstabilizacion = tipo === 'INF-E' ? document.getElementById('nov_horaEstabilizacion').value : '';
   const tiempoTotal = document.getElementById('nov_tiempoTotal').value;
   const tiempoIF = tipo === 'INF-E' ? document.getElementById('nov_tiempoIF').value : '';
@@ -10108,8 +10131,10 @@ async function guardarNovedad() {
   const revisadoTel = document.getElementById('nov_revisadoTel').value.trim();
   const msg = document.getElementById('nov_msg');
 
-  if (!titulo || !fechaEvento || !horaInicio || !horaFin || (tipo === 'INF-E' && !horaEstabilizacion) || !descripcionProblema || tiempoTotal === '') {
-    msg.textContent = 'Completa al menos: título, fecha, las horas del evento y la descripción (*).';
+  if (!titulo || !fechaEvento || !horaInicio || !fechaFin || !horaFin ||
+      (tipo === 'INF-E' && (!fechaEstabilizacion || !horaEstabilizacion)) ||
+      !descripcionProblema || tiempoTotal === '') {
+    msg.textContent = 'Completa al menos: título, fechas/horas del evento y la descripción (*).';
     return;
   }
 
@@ -10123,7 +10148,7 @@ async function guardarNovedad() {
       const valores = [codigo, titulo, fechaEvento, fila.HoraEvento || '', horaInicio, horaEstabilizacion, tiempoTotal,
         descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
         elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        fila.Correo, fila.FechaRegistro, 'Activa', horaFin, tiempoIF, tiempoFE];
+        fila.Correo, fila.FechaRegistro, 'Activa', horaFin, tiempoIF, tiempoFE, fechaFin, fechaEstabilizacion];
       const colFin = numToCol(NOVEDADES_COLS.length - 1);
       const rango = SH.novedades + '!A' + fila._row + ':' + colFin + fila._row;
       await sheetsRequest('UPDATE', rango, [valores]);
@@ -10131,7 +10156,7 @@ async function guardarNovedad() {
       const valores = [codigo, titulo, fechaEvento, '', horaInicio, horaEstabilizacion, tiempoTotal,
         descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
         elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        currentUser?.email || '', new Date().toISOString(), 'Activa', horaFin, tiempoIF, tiempoFE];
+        currentUser?.email || '', new Date().toISOString(), 'Activa', horaFin, tiempoIF, tiempoFE, fechaFin, fechaEstabilizacion];
       await appendHoja(SH.novedades, [valores]);
     }
 
@@ -10355,16 +10380,15 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
   html += `
     <h1 style="color:var(--brand);font-size:19px;text-align:center;margin-bottom:18px">${esc(n.Titulo)}</h1>
     <div style="margin-bottom:14px;font-size:13px;text-align:center">
-      <b>Fecha del evento:</b> ${esc(n.FechaEvento)}
       ${n.Codigo.startsWith('INF-E') ? `
-      &nbsp;·&nbsp; <b>Hora inicio de evento:</b> ${esc(n.HoraInicio)}
-      &nbsp;·&nbsp; <b>Hora de finalización:</b> ${esc(n.HoraFin)}
-      &nbsp;·&nbsp; <b>Hora de estabilización:</b> ${esc(n.HoraEstabilizacion)}
+      <b>Inicio de evento:</b> ${esc(n.FechaEvento)} ${esc(n.HoraInicio)}
+      &nbsp;·&nbsp; <b>Finalización:</b> ${esc(n.FechaFin || n.FechaEvento)} ${esc(n.HoraFin)}
+      &nbsp;·&nbsp; <b>Estabilización:</b> ${esc(n.FechaEstabilizacion || n.FechaEvento)} ${esc(n.HoraEstabilizacion)}
       <br><b>Tiempo inicio → finalización:</b> ${esc(n.TiempoInicioFinMin)} min
       &nbsp;·&nbsp; <b>Tiempo finalización → estabilización:</b> ${esc(n.TiempoFinEstabilizacionMin)} min
       &nbsp;·&nbsp; <b>Tiempo total:</b> ${esc(n.TiempoTotalMin)} min` : `
-      &nbsp;·&nbsp; <b>Hora inicio de evento:</b> ${esc(n.HoraInicio)}
-      &nbsp;·&nbsp; <b>Hora final del evento:</b> ${esc(n.HoraFin)}
+      <b>Inicio de evento:</b> ${esc(n.FechaEvento)} ${esc(n.HoraInicio)}
+      &nbsp;·&nbsp; <b>Final del evento:</b> ${esc(n.FechaFin || n.FechaEvento)} ${esc(n.HoraFin)}
       <br><b>Tiempo total:</b> ${esc(n.TiempoTotalMin)} min`}
     </div>
 
@@ -10433,12 +10457,9 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
  *  tiempo de detección (evento→inicio), tiempo de resolución (inicio→estabilización) y total. */
 /** Rangos de tiempo de recuperación, con nombre y color (de mejor a peor). */
 const RANGOS_NOVEDAD = [
-  { max: 5,        nombre: 'Restablecimiento Rápido',        color: '#22c55e' }, // verde vivo
-  { max: 15,       nombre: 'Restablecimiento Medio Rápido',  color: '#84cc16' }, // verde-amarillo vivo
-  { max: 30,       nombre: 'Restablecimiento Medio',         color: '#eab308' }, // amarillo vivo
-  { max: 60,       nombre: 'Restablecimiento Lento',         color: '#f97316' }, // naranja vivo
-  { max: 119,      nombre: 'Restablecimiento Muy Lento',     color: '#ef4444' }, // rojo-naranja vivo
-  { max: Infinity, nombre: 'Crítico',                        color: '#dc2626' }, // rojo vivo
+  { max: 12,       nombre: 'Restablecimiento Rápido', color: '#22c55e' }, // verde
+  { max: 30,       nombre: 'Restablecimiento Medio',  color: '#eab308' }, // amarillo
+  { max: Infinity, nombre: 'Crítico',                 color: '#dc2626' }, // rojo
 ];
 
 /** Devuelve el rango (nombre + color) al que pertenece una cantidad de minutos */
@@ -10455,10 +10476,10 @@ function _colorPorMinutos(min) {
 /** Genera la fila de leyenda HTML con todos los rangos (igual al estilo solicitado) */
 function _leyendaRangosHtml() {
   return `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px">
-    ${RANGOS_NOVEDAD.map(r => `
+    ${RANGOS_NOVEDAD.map((r, i) => `
       <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
         <span style="width:16px;height:10px;background:${r.color};border-radius:2px;display:inline-block"></span>
-        <span>${esc(r.nombre)} ${r.max === Infinity ? '(≥ 2 h)' : `(≤ ${r.max} min)`}</span>
+        <span>${esc(r.nombre)} ${r.max === Infinity ? `(mayor de ${RANGOS_NOVEDAD[i-1].max} min)` : `(≤ ${r.max} min)`}</span>
       </div>`).join('')}
   </div>`;
 }
@@ -10466,11 +10487,11 @@ function _leyendaRangosHtml() {
 /** Misma leyenda de rangos, pero en lista vertical elegante (para el informe individual) */
 function _leyendaRangosVerticalHtml() {
   return `<div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto">
-    ${RANGOS_NOVEDAD.map(r => `
+    ${RANGOS_NOVEDAD.map((r, i) => `
       <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:#333;padding:6px 10px;background:#fafafa;border-radius:6px;border:1px solid #eee">
         <span style="width:22px;height:14px;background:${r.color};border-radius:3px;display:inline-block;flex-shrink:0"></span>
         <span style="flex:1">${esc(r.nombre)}</span>
-        <span style="color:#888;font-size:11px">${r.max === Infinity ? '≥ 2 h' : `≤ ${r.max} min`}</span>
+        <span style="color:#888;font-size:11px">${r.max === Infinity ? `> ${RANGOS_NOVEDAD[i-1].max} min` : `≤ ${r.max} min`}</span>
       </div>`).join('')}
   </div>`;
 }
@@ -10752,7 +10773,7 @@ async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha
 async function _eliminarFilasPorValorColumna(sheetName, nombreColumna, valor) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  const r = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:Z'), { headers: hdrs });
+  const r = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:AZ'), { headers: hdrs });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!r.ok) throw new Error('No se pudo leer ' + sheetName + ' para borrar filas (HTTP ' + r.status + ')');
   const d = await r.json();
@@ -11291,7 +11312,7 @@ function _poblarSelectAnioInventarioEquipos() {
  *  devuelve como una lista de objetos (clave = nombre de columna). */
 async function leerHojaGenerica(nombre) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const resp = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:Z'), {
+  const resp = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:AZ'), {
     headers: { Authorization: 'Bearer ' + googleAccessToken }
   });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
@@ -11692,7 +11713,7 @@ async function _actualizarFilaPorClave(hoja, cols, colClave, valorClave, datosPa
   const colsReales = await asegurarHoja(hoja, cols);
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
-  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:Z'), { headers: hdrs });
+  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:AZ'), { headers: hdrs });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
   // Si esta lectura falla por cualquier otro motivo (permisos, rate limit,
   // etc.) NO se puede seguir: antes, un error aquí se interpretaba
@@ -11747,7 +11768,7 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
   const colsReales = await asegurarHoja(hoja, cols);
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:Z'), { headers: { Authorization: hdrs.Authorization } });
+  const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:AZ'), { headers: { Authorization: hdrs.Authorization } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
   if (!resp.ok) {
     const txt = await resp.text();
