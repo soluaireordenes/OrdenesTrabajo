@@ -10869,10 +10869,8 @@ function abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha
  *  opcional antes de guardar una actividad como realizada. */
 function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   if (document.getElementById('modalMarcarCronograma')) return;
-  const _horaAhora = () => {
-    const d = new Date();
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  };
+  const ahora = new Date();
+  const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
 
   const cerrar = (guardar) => {
     document.getElementById('modalMarcarCronograma')?.remove();
@@ -10887,9 +10885,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
       <div style="font-weight:800;font-size:16px;color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como realizada</div>
       <div class="field" style="margin-bottom:12px">
         <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
-        <div style="padding:9px 12px;background:var(--surface2);border-radius:6px;font-weight:700;color:var(--brand)">
-          <span id="cronModalHoraTexto">${_horaAhora()}</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(la hora en que guardes, no se puede editar)</span>
-        </div>
+        <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
       </div>
       <div class="field" style="margin-bottom:18px">
         <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
@@ -10902,17 +10898,10 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     </div>`;
   document.body.appendChild(overlay);
 
-  // Mantiene la hora mostrada al minuto, mientras el modal siga abierto.
-  const intervaloHora = setInterval(() => {
-    const el = document.getElementById('cronModalHoraTexto');
-    if (el) el.textContent = _horaAhora(); else clearInterval(intervaloHora);
-  }, 15000);
-
-  document.getElementById('cronModalCancelar').onclick = () => { clearInterval(intervaloHora); cerrar(false); };
+  document.getElementById('cronModalCancelar').onclick = () => cerrar(false);
   document.getElementById('cronModalGuardar').onclick = () => {
-    const hora = _horaAhora(); // siempre la hora real del clic en Guardar, nunca editable
+    const hora = document.getElementById('cronModalHora').value || horaDefault;
     const observacion = document.getElementById('cronModalObservacion').value.trim();
-    clearInterval(intervaloHora);
     cerrar(true);
     marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, true, hora, observacion);
   };
@@ -11230,14 +11219,48 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   </div>`;
 }
 
+/** Id estable para el "reporte" de un checkpoint completo (no de una
+ *  actividad individual) — se guarda en la misma hoja CronogramaRegistros
+ *  como si fuera una actividad más, así se reutiliza toda la lógica de
+ *  marcar/desmarcar, el modal de motivo obligatorio y el PDF. */
+function _idReporteCheckpoint(turnoId, hora) {
+  return turnoId + '_cp_' + hora.replace(':', '');
+}
+
+/** Checkbox compacto "Reporte realizado" al frente del encabezado de cada
+ *  checkpoint — usa el mismo flujo de marcar/desmarcar que las actividades
+ *  (onCambioActividadCronograma), así que al desmarcarlo también pide el
+ *  motivo obligatorio. */
+function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable) {
+  const marcado = reg?.realizado ? 'checked' : '';
+  let marcaTxt = '';
+  if (reg?.realizado) {
+    marcaTxt = `<span style="color:#15803d">✓ ${esc(reg.realizadoPor || '')} · ${esc(reg.horaRealizada || '')}</span>`;
+  } else if (reg) {
+    marcaTxt = `<span style="color:var(--danger)">✗ No realizado${reg.observacion ? ' — ' + esc(reg.observacion) : ''}</span>`;
+  }
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:none;cursor:${editable ? 'pointer' : 'not-allowed'}">
+      <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:15px;height:15px;cursor:inherit"
+        onchange="onCambioActividadCronograma(this,'${checkpointId}','${turnoId}','${fecha}')">
+      Reporte realizado
+    </label>
+    <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
+  </div>`;
+}
+
 function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha, fotos) {
   const filas = checkpoint.bloques
     .filter(b => (b.actividad[diaSemana] || '').trim())
     .map(b => _htmlFilaActividadCronograma(b.id, b.actividad[diaSemana], turnoId, fecha, registros[b.id], (fotos && fotos[b.id]) || [], editable))
     .join('');
   if (!filas) return '';
+  const checkpointId = _idReporteCheckpoint(turnoId, checkpoint.hora);
   return `<div style="margin-bottom:12px">
-    <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px">Reporte de datos de los equipos ${esc(checkpoint.hora)}</div>
+    <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <span>Reporte de datos de los equipos ${esc(checkpoint.hora)}</span>
+      ${_htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, registros[checkpointId], editable)}
+    </div>
     ${filas}
   </div>`;
 }
@@ -11433,7 +11456,13 @@ async function descargarInformeCronograma() {
         const entregas = entregasFecha[turno.id] || [];
         if (!bloques.length && !adicionales.length && !entregas.length) continue;
         const filas = [];
-        for (const b of bloques) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
+        for (const cp of turno.checkpoints) {
+          const bloquesCp = cp.bloques.filter(b => (b.actividad[diaSemana] || '').trim());
+          if (!bloquesCp.length) continue;
+          const checkpointId = _idReporteCheckpoint(turno.id, cp.hora);
+          filas.push(...await filasDeActividad(checkpointId, 'Reporte de datos de equipos ' + cp.hora, registros, fotosFecha));
+          for (const b of bloquesCp) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
+        }
         for (const a of adicionales) filas.push(...await filasDeActividad(a.id, a.descripcion, registros, fotosFecha));
         // La entrega de turno va primero (arriba), y después las actividades —
         // quien entrega el turno es quien marca lo realizado.
