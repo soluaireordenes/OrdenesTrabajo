@@ -5838,6 +5838,10 @@ const ENTREGA_TURNO_COLS = [
   'PresionDryCooler', 'TemperaturaCA1', 'ConsumoAgua',
   'BypassPosicion', 'PresionesBypass',
   'NovedadesTurno', 'FechaRegistro', 'Estado',
+  // Los 4 manómetros de bypass (antes era un solo campo "PresionesBypass" —
+  // se deja esa columna vieja sin usar y se agregan estas 4 al final, sin
+  // reordenar nada, para no romper entregas ya guardadas).
+  'PresionBypassArribaIzq', 'PresionBypassArribaDer', 'PresionBypassAbajoIzq', 'PresionBypassAbajoDer',
 ];
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
 // columnas de arriba — maneja tanto el formulario (id = 'et_' + campo.id)
@@ -5862,7 +5866,11 @@ const ENTREGA_TURNO_CAMPOS = [
   { grupo: 'Dry Cooler', id: 'temperaturaCA1', label: 'Temperatura con respecto a CA1', col: 'TemperaturaCA1' },
   { grupo: 'Dry Cooler', id: 'consumoAgua', label: 'Consumo de agua', col: 'ConsumoAgua' },
   { grupo: 'Bypass', id: 'bypassPosicion', label: 'Bypass (posición / pin)', col: 'BypassPosicion' },
-  { grupo: 'Bypass', id: 'presionesBypass', label: 'Presiones de bypass', col: 'PresionesBypass' },
+  // 4 manómetros de bypass, uno por cada esquina del tablero.
+  { grupo: 'Bypass', id: 'presionBypassArribaIzq', label: 'Presión arriba izquierda', col: 'PresionBypassArribaIzq' },
+  { grupo: 'Bypass', id: 'presionBypassArribaDer', label: 'Presión arriba derecha', col: 'PresionBypassArribaDer' },
+  { grupo: 'Bypass', id: 'presionBypassAbajoIzq', label: 'Presión abajo izquierda', col: 'PresionBypassAbajoIzq' },
+  { grupo: 'Bypass', id: 'presionBypassAbajoDer', label: 'Presión abajo derecha', col: 'PresionBypassAbajoDer' },
 ];
 const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
@@ -11693,12 +11701,16 @@ async function guardarEntregaTurno() {
     await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
     const turno = cfg.turnos.find(t => t.id === turnoId);
     const codigo = _siguienteCodigoEntregaTurno();
-    const camposValores = ENTREGA_TURNO_CAMPOS.map(c => document.getElementById('et_' + c.id).value.trim());
-    const valores = [
-      codigo, fecha, turnoId, turno?.nombre || '', entregadoPor, recibidoPor,
-      ...camposValores,
-      novedadesTurno, new Date().toISOString(), 'Activa',
-    ];
+    // Se arma por nombre de columna (no por posición) para que agregar
+    // campos nuevos en el futuro no dependa de que queden contiguos con
+    // los que ya existían en ENTREGA_TURNO_CAMPOS.
+    const porColumna = {
+      Codigo: codigo, Fecha: fecha, TurnoId: turnoId, TurnoNombre: turno?.nombre || '',
+      EntregadoPor: entregadoPor, RecibidoPor: recibidoPor,
+      NovedadesTurno: novedadesTurno, FechaRegistro: new Date().toISOString(), Estado: 'Activa',
+    };
+    ENTREGA_TURNO_CAMPOS.forEach(c => { porColumna[c.col] = document.getElementById('et_' + c.id).value.trim(); });
+    const valores = ENTREGA_TURNO_COLS.map(col => porColumna[col] ?? '');
     await appendHoja(SH.entregaTurno, [valores]);
     _invalidarCacheHoja(SH.entregaTurno);
 
@@ -11738,12 +11750,20 @@ function _construirHtmlEntregaTurno(e, conTitulo) {
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
   });
+  // Cada grupo se ve como una tarjeta con divisiones — un recuadro por
+  // campo (etiqueta arriba, valor abajo) — igual que el formulario en el
+  // sistema, en vez de una sola línea de texto corrida.
   const gruposHtml = grupos.map(g => {
     const filas = g.campos.filter(c => (e[c.col] || '').trim());
     if (!filas.length) return '';
-    return `<div style="margin-bottom:12px">
-      <div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:4px">${esc(g.nombre)}</div>
-      <div style="font-size:12.5px;line-height:1.7">${filas.map(c => `<b>${esc(c.label)}:</b> ${esc(e[c.col])}`).join(' &nbsp;·&nbsp; ')}</div>
+    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        ${filas.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(c.label)}</div>
+          <div style="font-weight:700;color:#222">${esc(e[c.col])}</div>
+        </div>`).join('')}
+      </div>
     </div>`;
   }).join('');
 
