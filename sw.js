@@ -7,18 +7,23 @@
    los cambios en localStorage y los sincroniza solo
    cuando vuelva la señal.
 
-   La interfaz (index.html y el resto del app shell) usa
-   "caché primero, actualiza en segundo plano": la app abre
-   al instante con lo último guardado, y de una vez se pide
-   la versión más nueva por red para que la SIGUIENTE apertura
-   ya quede al día — así en celulares con datos lentos no toca
-   esperar la descarga completa (~1 MB) cada vez que se abre.
+   La interfaz (index.html y el resto del app shell) usa "red con tope
+   de tiempo, caché como respaldo": si la red responde rápido (lo normal
+   con cualquier señal decente), se usa esa versión — así nunca se ve
+   una versión vieja del sistema aunque haya cambiado hace un minuto.
+   Si la red tarda más del tope, se muestra de una vez lo que haya en
+   caché para que la app no se sienta "colgada" en datos móviles lentos,
+   mientras la descarga real sigue en curso por detrás y deja el caché
+   listo para la próxima vez.
 ═══════════════════════════════════════════════ */
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
+
+// Cuánto se espera a la red antes de resignarse a mostrar el caché.
+const TOPE_RED_MS = 2500;
 
 const APP_SHELL = [
   './',
@@ -75,24 +80,24 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    // Caché primero (respuesta instantánea); en paralelo se pide la red
-    // para refrescar el caché de cara a la próxima apertura. Si no hay
-    // nada en caché (primera visita), sí se espera la red.
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.match(event.request).then((cacheada) => {
-        const actualizarDesdeRed = fetch(event.request)
-          .then((respuesta) => {
-            cache.put(event.request, respuesta.clone());
-            return respuesta;
-          })
-          .catch(() => null);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // La red SIEMPRE se pide y SIEMPRE actualiza el caché al responder,
+      // así la próxima vez que toque usar el caché ya está al día.
+      const peticionRed = fetch(event.request)
+        .then((respuesta) => { cache.put(event.request, respuesta.clone()); return respuesta; })
+        .catch(() => null);
 
-        if (cacheada) {
-          actualizarDesdeRed; // en segundo plano, no bloquea la respuesta
-          return cacheada;
-        }
-        return actualizarDesdeRed.then((respuesta) => respuesta || caches.match('./index.html'));
-      })
-    )
+      // Si la red responde antes del tope, se usa esa (siempre la versión
+      // más reciente). Si no, se muestra el caché sin seguir esperando.
+      const tope = new Promise((resolve) => setTimeout(() => resolve(undefined), TOPE_RED_MS));
+      const primeraEnResponder = await Promise.race([peticionRed, tope]);
+      if (primeraEnResponder) return primeraEnResponder;
+
+      const cacheada = await cache.match(event.request);
+      if (cacheada) return cacheada;
+
+      // Sin caché tampoco (primera visita con red lenta): esperar la red.
+      return (await peticionRed) || caches.match('./index.html');
+    })
   );
 });
