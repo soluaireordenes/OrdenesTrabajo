@@ -11474,16 +11474,25 @@ function _htmlCamposEquiposEntregaTurno(existente) {
 /** Se llama al abrir la sub-pestaña "Entrega de Turno" */
 async function inicializarEntregaTurno() {
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const ctx = _contextoCronogramaAhora(operacionActual);
+
+  // El formulario siempre se sincroniza con el turno real de AHORA (igual
+  // que el checklist de actividades) — así, si ya pasó a otro turno desde
+  // la última vez que se abrió, no quedan mezclados fecha/turno/campos del
+  // turno anterior con el nuevo.
   const selTurno = document.getElementById('et_turno');
   if (selTurno && cfg) {
     selTurno.innerHTML = cfg.turnos.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
-    const ctx = _contextoCronogramaAhora(operacionActual);
     if (ctx) selTurno.value = ctx.turno.id;
   }
   const fechaEl = document.getElementById('et_fecha');
-  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().slice(0, 10);
+  if (fechaEl) fechaEl.value = ctx ? ctx.fecha : new Date().toISOString().slice(0, 10);
   const entregadoPorEl = document.getElementById('et_entregadoPor');
-  if (entregadoPorEl && !entregadoPorEl.value) entregadoPorEl.value = currentUser?.name || '';
+  if (entregadoPorEl) entregadoPorEl.value = currentUser?.name || '';
+  const recibidoPorEl = document.getElementById('et_recibidoPor');
+  if (recibidoPorEl) recibidoPorEl.value = '';
+  const novedadesEl = document.getElementById('et_novedadesTurno');
+  if (novedadesEl) novedadesEl.value = '';
 
   document.getElementById('et_camposEquipos').innerHTML = _htmlCamposEquiposEntregaTurno(null);
 
