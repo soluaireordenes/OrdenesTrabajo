@@ -1840,7 +1840,9 @@ body.inv-activo .container { max-width: 1800px; }
       <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma de Actividades Diarias</div>
     </div>
 
-    <!-- Entrega de Turno: va primero, arriba de las actividades (solo Zipaquirá) -->
+    <!-- Entrega de Turno: el formulario va primero, arriba de las actividades
+         (solo Zipaquirá); el historial de "Entregas Registradas" va al
+         final de todo (ver más abajo), no aquí arriba. -->
     <div id="cronEntregaTurnoWrap" style="display:none">
       <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
@@ -1858,13 +1860,6 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
           <div id="et_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarEntregaTurno()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <div id="et_tablaWrap"></div>
         </div>
       </div>
     </div>
@@ -1903,6 +1898,17 @@ body.inv-activo .container { max-width: 1800px; }
           </select>
         </div>
         <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
+      </div>
+    </div>
+
+    <!-- Historial de "Entregas Registradas": va al final de todo, no arriba
+         junto al formulario (solo Zipaquirá). -->
+    <div id="cronEntregasHistorialWrap" style="display:none">
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="et_tablaWrap"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -10869,10 +10875,8 @@ function abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha
  *  opcional antes de guardar una actividad como realizada. */
 function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   if (document.getElementById('modalMarcarCronograma')) return;
-  const _horaAhora = () => {
-    const d = new Date();
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  };
+  const ahora = new Date();
+  const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
 
   const cerrar = (guardar) => {
     document.getElementById('modalMarcarCronograma')?.remove();
@@ -10887,9 +10891,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
       <div style="font-weight:800;font-size:16px;color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como realizada</div>
       <div class="field" style="margin-bottom:12px">
         <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
-        <div style="padding:9px 12px;background:var(--surface2);border-radius:6px;font-weight:700;color:var(--brand)">
-          <span id="cronModalHoraTexto">${_horaAhora()}</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(la hora en que guardes, no se puede editar)</span>
-        </div>
+        <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
       </div>
       <div class="field" style="margin-bottom:18px">
         <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
@@ -10902,17 +10904,10 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     </div>`;
   document.body.appendChild(overlay);
 
-  // Mantiene la hora mostrada al minuto, mientras el modal siga abierto.
-  const intervaloHora = setInterval(() => {
-    const el = document.getElementById('cronModalHoraTexto');
-    if (el) el.textContent = _horaAhora(); else clearInterval(intervaloHora);
-  }, 15000);
-
-  document.getElementById('cronModalCancelar').onclick = () => { clearInterval(intervaloHora); cerrar(false); };
+  document.getElementById('cronModalCancelar').onclick = () => cerrar(false);
   document.getElementById('cronModalGuardar').onclick = () => {
-    const hora = _horaAhora(); // siempre la hora real del clic en Guardar, nunca editable
+    const hora = document.getElementById('cronModalHora').value || horaDefault;
     const observacion = document.getElementById('cronModalObservacion').value.trim();
-    clearInterval(intervaloHora);
     cerrar(true);
     marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, true, hora, observacion);
   };
@@ -11230,14 +11225,48 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   </div>`;
 }
 
+/** Id estable para el "reporte" de un checkpoint completo (no de una
+ *  actividad individual) — se guarda en la misma hoja CronogramaRegistros
+ *  como si fuera una actividad más, así se reutiliza toda la lógica de
+ *  marcar/desmarcar, el modal de motivo obligatorio y el PDF. */
+function _idReporteCheckpoint(turnoId, hora) {
+  return turnoId + '_cp_' + hora.replace(':', '');
+}
+
+/** Checkbox compacto "Reporte realizado" al frente del encabezado de cada
+ *  checkpoint — usa el mismo flujo de marcar/desmarcar que las actividades
+ *  (onCambioActividadCronograma), así que al desmarcarlo también pide el
+ *  motivo obligatorio. */
+function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable) {
+  const marcado = reg?.realizado ? 'checked' : '';
+  let marcaTxt = '';
+  if (reg?.realizado) {
+    marcaTxt = `<span style="color:#15803d">✓ ${esc(reg.realizadoPor || '')} · ${esc(reg.horaRealizada || '')}</span>`;
+  } else if (reg) {
+    marcaTxt = `<span style="color:var(--danger)">✗ No realizado${reg.observacion ? ' — ' + esc(reg.observacion) : ''}</span>`;
+  }
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:none;cursor:${editable ? 'pointer' : 'not-allowed'}">
+      <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:15px;height:15px;cursor:inherit"
+        onchange="onCambioActividadCronograma(this,'${checkpointId}','${turnoId}','${fecha}')">
+      Reporte realizado
+    </label>
+    <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
+  </div>`;
+}
+
 function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha, fotos) {
   const filas = checkpoint.bloques
     .filter(b => (b.actividad[diaSemana] || '').trim())
     .map(b => _htmlFilaActividadCronograma(b.id, b.actividad[diaSemana], turnoId, fecha, registros[b.id], (fotos && fotos[b.id]) || [], editable))
     .join('');
   if (!filas) return '';
+  const checkpointId = _idReporteCheckpoint(turnoId, checkpoint.hora);
   return `<div style="margin-bottom:12px">
-    <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px">Reporte de datos de los equipos ${esc(checkpoint.hora)}</div>
+    <div style="background:#eef3f9;color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <span>Reporte de datos de los equipos ${esc(checkpoint.hora)}</span>
+      ${_htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, registros[checkpointId], editable)}
+    </div>
     ${filas}
   </div>`;
 }
@@ -11280,14 +11309,11 @@ async function inicializarPanelCronograma() {
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación).
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
-  if (wrapEntrega) {
-    if (operacionActual === 'zipaquira') {
-      wrapEntrega.style.display = '';
-      inicializarEntregaTurno();
-    } else {
-      wrapEntrega.style.display = 'none';
-    }
-  }
+  const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
+  const mostrarEntrega = operacionActual === 'zipaquira';
+  if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
+  if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
+  if (mostrarEntrega) inicializarEntregaTurno();
 
   const cont = document.getElementById('cronogramaContenido');
   if (!cont) return;
@@ -11433,7 +11459,13 @@ async function descargarInformeCronograma() {
         const entregas = entregasFecha[turno.id] || [];
         if (!bloques.length && !adicionales.length && !entregas.length) continue;
         const filas = [];
-        for (const b of bloques) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
+        for (const cp of turno.checkpoints) {
+          const bloquesCp = cp.bloques.filter(b => (b.actividad[diaSemana] || '').trim());
+          if (!bloquesCp.length) continue;
+          const checkpointId = _idReporteCheckpoint(turno.id, cp.hora);
+          filas.push(...await filasDeActividad(checkpointId, 'Reporte de datos de equipos ' + cp.hora, registros, fotosFecha));
+          for (const b of bloquesCp) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
+        }
         for (const a of adicionales) filas.push(...await filasDeActividad(a.id, a.descripcion, registros, fotosFecha));
         // La entrega de turno va primero (arriba), y después las actividades —
         // quien entrega el turno es quien marca lo realizado.
