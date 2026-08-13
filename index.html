@@ -10869,8 +10869,10 @@ function abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha
  *  opcional antes de guardar una actividad como realizada. */
 function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   if (document.getElementById('modalMarcarCronograma')) return;
-  const ahora = new Date();
-  const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+  const _horaAhora = () => {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
 
   const cerrar = (guardar) => {
     document.getElementById('modalMarcarCronograma')?.remove();
@@ -10885,7 +10887,9 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
       <div style="font-weight:800;font-size:16px;color:var(--brand);margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como realizada</div>
       <div class="field" style="margin-bottom:12px">
         <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
-        <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
+        <div style="padding:9px 12px;background:var(--surface2);border-radius:6px;font-weight:700;color:var(--brand)">
+          <span id="cronModalHoraTexto">${_horaAhora()}</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(la hora en que guardes, no se puede editar)</span>
+        </div>
       </div>
       <div class="field" style="margin-bottom:18px">
         <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
@@ -10898,10 +10902,17 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     </div>`;
   document.body.appendChild(overlay);
 
-  document.getElementById('cronModalCancelar').onclick = () => cerrar(false);
+  // Mantiene la hora mostrada al minuto, mientras el modal siga abierto.
+  const intervaloHora = setInterval(() => {
+    const el = document.getElementById('cronModalHoraTexto');
+    if (el) el.textContent = _horaAhora(); else clearInterval(intervaloHora);
+  }, 15000);
+
+  document.getElementById('cronModalCancelar').onclick = () => { clearInterval(intervaloHora); cerrar(false); };
   document.getElementById('cronModalGuardar').onclick = () => {
-    const hora = document.getElementById('cronModalHora').value || horaDefault;
+    const hora = _horaAhora(); // siempre la hora real del clic en Guardar, nunca editable
     const observacion = document.getElementById('cronModalObservacion').value.trim();
+    clearInterval(intervaloHora);
     cerrar(true);
     marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, true, hora, observacion);
   };
