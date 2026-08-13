@@ -11233,26 +11233,63 @@ function _idReporteCheckpoint(turnoId, hora) {
   return turnoId + '_cp_' + hora.replace(':', '');
 }
 
-/** Checkbox compacto "Reporte realizado" al frente del encabezado de cada
- *  checkpoint — usa el mismo flujo de marcar/desmarcar que las actividades
- *  (onCambioActividadCronograma), así que al desmarcarlo también pide el
- *  motivo obligatorio. */
+/** Botones "Realizado" / "No realizado" al frente del encabezado de cada
+ *  checkpoint. "Realizado" guarda directo con la hora real del clic (no es
+ *  editable). "No realizado" abre un espacio de texto EN LA MISMA PÁGINA
+ *  (no un modal) para explicar el motivo, obligatorio para guardar. */
 function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable) {
-  const marcado = reg?.realizado ? 'checked' : '';
   let marcaTxt = '';
   if (reg?.realizado) {
-    marcaTxt = `<span style="color:#15803d">✓ ${esc(reg.realizadoPor || '')} · ${esc(reg.horaRealizada || '')}</span>`;
+    marcaTxt = `<span style="color:#15803d">✓ Realizado — ${esc(reg.realizadoPor || '')} · ${esc(reg.horaRealizada || '')}</span>`;
   } else if (reg) {
     marcaTxt = `<span style="color:var(--danger)">✗ No realizado${reg.observacion ? ' — ' + esc(reg.observacion) : ''}</span>`;
   }
-  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:none;cursor:${editable ? 'pointer' : 'not-allowed'}">
-      <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:15px;height:15px;cursor:inherit"
-        onchange="onCambioActividadCronograma(this,'${checkpointId}','${turnoId}','${fecha}')">
-      Reporte realizado
-    </label>
-    <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
+  const estiloBtn = 'font-size:11px;font-weight:700;text-transform:none;padding:4px 10px;border-radius:5px;border:1px solid;background:#fff';
+  const deshabilitado = editable ? '' : 'disabled';
+  return `<div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <button type="button" ${deshabilitado} style="${estiloBtn};border-color:#15803d;color:#15803d;cursor:${editable ? 'pointer' : 'not-allowed'}"
+        onclick="onClickRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}')">✓ Realizado</button>
+      <button type="button" ${deshabilitado} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${editable ? 'pointer' : 'not-allowed'}"
+        onclick="onClickNoRealizadoCheckpoint('${checkpointId}')">✗ No realizado</button>
+      <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
+    </div>
+    <div id="cronMotivoWrap_${checkpointId}" style="display:none;margin-top:8px;padding:10px;background:#fff;border:1px solid var(--border);border-radius:6px;text-transform:none">
+      <label style="display:block;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--danger)">¿Por qué no se realizó? *</label>
+      <textarea id="cronMotivo_${checkpointId}" rows="2" style="width:100%;resize:vertical;font-size:12.5px" placeholder="Explica brevemente el motivo..."></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('cronMotivoWrap_${checkpointId}').style.display='none'">Cancelar</button>
+        <button type="button" class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="guardarNoRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}')">Guardar</button>
+      </div>
+    </div>
   </div>`;
+}
+
+/** Click en "Realizado" del checkpoint — guarda directo, sin modal, con la
+ *  hora real del momento del clic (no editable). */
+function onClickRealizadoCheckpoint(checkpointId, turnoId, fecha) {
+  document.getElementById('cronMotivoWrap_' + checkpointId).style.display = 'none';
+  const d = new Date();
+  const hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  marcarActividadCronograma({ checked: true }, checkpointId, turnoId, fecha, true, hora, '');
+}
+
+/** Click en "No realizado" del checkpoint — muestra/oculta el espacio para
+ *  explicar el motivo, en la misma página (sin modal). */
+function onClickNoRealizadoCheckpoint(checkpointId) {
+  const wrap = document.getElementById('cronMotivoWrap_' + checkpointId);
+  if (!wrap) return;
+  wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+  if (wrap.style.display !== 'none') document.getElementById('cronMotivo_' + checkpointId)?.focus();
+}
+
+async function guardarNoRealizadoCheckpoint(checkpointId, turnoId, fecha) {
+  const ta = document.getElementById('cronMotivo_' + checkpointId);
+  const motivo = ta.value.trim();
+  if (!motivo) { alert('Escribe el motivo por el que no se realizó.'); return; }
+  await marcarActividadCronograma({ checked: false }, checkpointId, turnoId, fecha, false, '', motivo);
+  document.getElementById('cronMotivoWrap_' + checkpointId).style.display = 'none';
+  ta.value = '';
 }
 
 function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, turnoId, fecha, fotos) {
