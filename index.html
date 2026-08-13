@@ -1661,11 +1661,15 @@ body.inv-activo .container { max-width: 1800px; }
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo Informes por Novedad</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionN"></canvas></div></div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionN"></canvas></div>
+          <div id="novTotalTiempoN" style="text-align:center;font-size:13px;font-weight:700;color:var(--brand);margin-top:8px"></div>
+        </div>
       </div>
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo Informes por Energía</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionE"></canvas></div></div>
+        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionE"></canvas></div>
+          <div id="novTotalTiempoE" style="text-align:center;font-size:13px;font-weight:700;color:var(--brand);margin-top:8px"></div>
+        </div>
       </div>
     </div>
 
@@ -10460,6 +10464,12 @@ function renderGraficasNovedades() {
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
       scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
+  const totalMinN = ordenadasN.reduce((s, n) => s + (Number(n.TiempoTotalMin) || 0), 0);
+  const totalMinE = ordenadasE.reduce((s, n) => s + (Number(n.TiempoTotalMin) || 0), 0);
+  const totalTiempoNDiv = document.getElementById('novTotalTiempoN');
+  const totalTiempoEDiv = document.getElementById('novTotalTiempoE');
+  if (totalTiempoNDiv) totalTiempoNDiv.textContent = 'Tiempo total: ' + totalMinN + ' min';
+  if (totalTiempoEDiv) totalTiempoEDiv.textContent = 'Tiempo total: ' + totalMinE + ' min';
 
   // Dona: distribución de novedades por rango de tiempo de recuperación
   const conteoRangos = RANGOS_NOVEDAD.map(r => 0);
@@ -10697,8 +10707,10 @@ async function generarInformeConsolidado() {
 
     <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación por Tipo de Informe</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
-      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Novedad</div><img src="${imgTiempoRecN}" style="width:100%;height:auto"></div>
-      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Energía</div><img src="${imgTiempoRecE}" style="width:100%;height:auto"></div>
+      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Novedad</div><img src="${imgTiempoRecN}" style="width:100%;height:auto">
+        <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">${document.getElementById('novTotalTiempoN')?.textContent || ''}</div></div>
+      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Energía</div><img src="${imgTiempoRecE}" style="width:100%;height:auto">
+        <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">${document.getElementById('novTotalTiempoE')?.textContent || ''}</div></div>
     </div>
     <div style="page-break-after:always"></div>
 
