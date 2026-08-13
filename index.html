@@ -9794,8 +9794,10 @@ async function renderGraficaRachaDiasSinNovedades() {
   const leyenda = document.getElementById('rachaLeyendaEventos');
   if (!canvas || typeof Chart === 'undefined') return;
 
+  // Solo eventos de tipo "Informe por Novedad" (INF-N) — los de "Informe
+  // por Energía" (INF-E) son otro tipo de reporte, no una novedad.
   const eventos = allNovedades
-    .filter(n => n.FechaEvento)
+    .filter(n => n.FechaEvento && !n.Codigo.startsWith('INF-E'))
     .slice()
     .sort((a, b) => (a.FechaEvento + (a.HoraInicio || '')).localeCompare(b.FechaEvento + (b.HoraInicio || '')));
 
@@ -9811,16 +9813,19 @@ async function renderGraficaRachaDiasSinNovedades() {
   eventos.forEach(n => {
     const fecha = _fechaLocalDesdeString(n.FechaEvento);
     const gap = Math.max(0, Math.round((fecha - anterior) / 86400000));
-    labels.push(n.Codigo);
+    labels.push(fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }));
     dias.push(gap);
     anterior = fecha;
   });
 
   window._chartRachaDiasSinNovedades = new Chart(canvas.getContext('2d'), {
-    type: 'bar',
+    type: 'line',
     data: { labels, datasets: [{
       label: 'Días desde el evento anterior', data: dias,
-      backgroundColor: '#15803d', borderRadius: 5,
+      borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,.18)',
+      fill: true, tension: 0.35, borderWidth: 2.5,
+      pointRadius: 4, pointHoverRadius: 6,
+      pointBackgroundColor: '#15803d', pointBorderColor: '#fff', pointBorderWidth: 1.5,
     }] },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -9830,7 +9835,7 @@ async function renderGraficaRachaDiasSinNovedades() {
       },
       scales: {
         y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Días' } },
-        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
       },
     },
   });
@@ -9838,7 +9843,7 @@ async function renderGraficaRachaDiasSinNovedades() {
   if (leyenda) {
     leyenda.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">' +
       eventos.map((n, i) => `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
-        ${esc(n.Codigo)} (${esc(fmtFecha(n.FechaEvento))}): <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
+        ${esc(fmtFecha(n.FechaEvento))}: <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
       </span>`).join('') + '</div>';
   }
 }
