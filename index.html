@@ -1840,54 +1840,10 @@ body.inv-activo .container { max-width: 1800px; }
       <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma de Actividades Diarias</div>
     </div>
 
-    <!-- Sub-navegación: Cronograma / Entrega de Turno -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:2px">
-      <button class="inv-subtab active" data-crontab="cronograma" onclick="cronMostrarSubTab('cronograma')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma</button>
-      <button class="inv-subtab" data-crontab="entrega" id="cronTabEntregaBtn" onclick="cronMostrarSubTab('entrega')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</button>
-    </div>
-
-    <div id="cronSub-cronograma" class="inv-subpanel active">
-      <!-- Checklist del turno activo en este momento -->
-      <div id="cronogramaContenido"></div>
-
-      <!-- Consultar otro día (solo lectura) -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
-        <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:180px">
-            <label style="margin-bottom:4px;display:block">Fecha</label>
-            <input type="date" id="cronConsultaFecha" onchange="consultarCronogramaFecha()" style="margin:0">
-          </div>
-        </div>
-        <div id="cronogramaConsultaResultado" style="padding:0 18px 14px"></div>
-      </div>
-
-      <!-- Descargar informe PDF de un rango de fechas -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
-        <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Desde</label>
-            <input type="date" id="cronInformeDesde" style="margin:0">
-          </div>
-          <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Hasta</label>
-            <input type="date" id="cronInformeHasta" style="margin:0">
-          </div>
-          <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Turno</label>
-            <select id="cronInformeTurno" style="margin:0">
-              <option value="">Todos los turnos</option>
-            </select>
-          </div>
-          <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="cronSub-entrega" class="inv-subpanel">
+    <!-- Entrega de Turno: va primero, arriba de las actividades (solo Zipaquirá) -->
+    <div id="cronEntregaTurnoWrap" style="display:none">
       <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Nueva Entrega de Turno</div>
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
             <div class="field"><label>Fecha *</label><input type="date" id="et_fecha"></div>
@@ -1905,11 +1861,48 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="et_tablaWrap"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Checklist del turno activo en este momento -->
+    <div id="cronogramaContenido"></div>
+
+    <!-- Consultar otro día (solo lectura) -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
+      <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0;min-width:180px">
+          <label style="margin-bottom:4px;display:block">Fecha</label>
+          <input type="date" id="cronConsultaFecha" onchange="consultarCronogramaFecha()" style="margin:0">
+        </div>
+      </div>
+      <div id="cronogramaConsultaResultado" style="padding:0 18px 14px"></div>
+    </div>
+
+    <!-- Descargar informe PDF de un rango de fechas -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
+      <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0;min-width:160px">
+          <label style="margin-bottom:4px;display:block">Desde</label>
+          <input type="date" id="cronInformeDesde" style="margin:0">
+        </div>
+        <div class="field" style="margin:0;min-width:160px">
+          <label style="margin-bottom:4px;display:block">Hasta</label>
+          <input type="date" id="cronInformeHasta" style="margin:0">
+        </div>
+        <div class="field" style="margin:0;min-width:160px">
+          <label style="margin-bottom:4px;display:block">Turno</label>
+          <select id="cronInformeTurno" style="margin:0">
+            <option value="">Todos los turnos</option>
+          </select>
+        </div>
+        <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
       </div>
     </div>
   </div>
@@ -11227,24 +11220,18 @@ function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, foto
 }
 
 /** Punto de entrada — se llama al abrir la pestaña Cronograma. */
-/** Cambia entre las sub-pestañas "Cronograma" y "Entrega de Turno" dentro
- *  del panel de Cronograma (mismo patrón que pmMostrarSubTab/invMostrarSubTab). */
-function cronMostrarSubTab(nombre) {
-  const panel = document.getElementById('panel-cronograma');
-  panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
-  panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
-  document.getElementById('cronSub-' + nombre).classList.add('active');
-  panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`).classList.add('active');
-  if (nombre === 'entrega') inicializarEntregaTurno();
-}
-
 async function inicializarPanelCronograma() {
-  // La Entrega de Turno, por ahora, solo aplica a Zipaquirá (los equipos del
-  // reporte — CA, CB, NX220, IR160, etc. — son específicos de esa operación).
-  const btnEntrega = document.getElementById('cronTabEntregaBtn');
-  if (btnEntrega) {
-    btnEntrega.style.display = operacionActual === 'zipaquira' ? '' : 'none';
-    if (operacionActual !== 'zipaquira') cronMostrarSubTab('cronograma');
+  // La Entrega de Turno va arriba de las actividades, dentro de la misma
+  // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
+  // —CA, CB, NX220, IR160, etc.— son específicos de esa operación).
+  const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
+  if (wrapEntrega) {
+    if (operacionActual === 'zipaquira') {
+      wrapEntrega.style.display = '';
+      inicializarEntregaTurno();
+    } else {
+      wrapEntrega.style.display = 'none';
+    }
   }
 
   const cont = document.getElementById('cronogramaContenido');
@@ -11343,10 +11330,11 @@ async function descargarInformeCronograma() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const [todosLosRegistros, todasLasFotos, todasLasAdicionales] = await Promise.all([
+    const [todosLosRegistros, todasLasFotos, todasLasAdicionales, todasLasEntregas] = await Promise.all([
       _leerTodosRegistrosCronogramaAgrupados(),
       _leerTodasFotosCronogramaAgrupadas(),
       _leerTodasAdicionalesCronogramaAgrupadas(),
+      operacionActual === 'zipaquira' ? _leerTodasEntregasTurnoAgrupadas() : Promise.resolve({}),
     ]);
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
@@ -11383,15 +11371,21 @@ async function descargarInformeCronograma() {
       const registros = todosLosRegistros[fecha] || {};
       const fotosFecha = todasLasFotos[fecha] || {};
       const adicionalesFecha = todasLasAdicionales[fecha] || {};
+      const entregasFecha = todasLasEntregas[fecha] || {};
       for (const turno of turnosAIncluir) {
         const bloques = turno.checkpoints.flatMap(cp => cp.bloques).filter(b => (b.actividad[diaSemana] || '').trim());
         const adicionales = adicionalesFecha[turno.id] || [];
-        if (!bloques.length && !adicionales.length) continue;
+        const entregas = entregasFecha[turno.id] || [];
+        if (!bloques.length && !adicionales.length && !entregas.length) continue;
         const filas = [];
         for (const b of bloques) filas.push(...await filasDeActividad(b.id, b.actividad[diaSemana], registros, fotosFecha));
         for (const a of adicionales) filas.push(...await filasDeActividad(a.id, a.descripcion, registros, fotosFecha));
+        // La entrega de turno va primero (arriba), y después las actividades —
+        // quien entrega el turno es quien marca lo realizado.
+        const entregaHtml = entregas.map(ent => `<div style="margin-bottom:14px;padding:12px 14px;background:#f7f9fc;border-radius:6px;border:1px solid #e0e6f0">${_construirHtmlEntregaTurno(ent, false)}</div>`).join('');
         seccionesHtml += `<div class="section-title">${esc(turno.nombre)} — ${esc(DIAS_SEMANA_LABEL[diaSemana])} ${esc(fmtFecha(fecha))}</div>
-          <table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
+          ${entregaHtml}
+          ${(bloques.length || adicionales.length) ? `<table><thead><tr><th>Actividad</th><th>Estado</th><th>Detalle</th><th>Observaciones</th></tr></thead><tbody>${filas.join('')}</tbody></table>` : ''}`;
       }
     }
 
@@ -11431,6 +11425,23 @@ ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
    de "borrado lógico" (Estado='Eliminada') que Novedades.
 ══════════════════════════════════════════════ */
 let allEntregasTurno = [];
+
+/** Agrupa todas las entregas de turno por fecha y luego por turno (puede
+ *  haber más de una entrega para el mismo turno/fecha) — la usa el informe
+ *  PDF del Cronograma para mostrar la entrega junto con las actividades
+ *  de ese turno/fecha, ya que quien entrega el turno es quien marca las
+ *  actividades realizadas. */
+async function _leerTodasEntregasTurnoAgrupadas() {
+  await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
+  const filas = await leerHojaGenericaCacheada(SH.entregaTurno);
+  const porFecha = {};
+  filas.filter(f => f.Estado !== 'Eliminada' && f.Fecha && f.TurnoId).forEach(f => {
+    if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
+    if (!porFecha[f.Fecha][f.TurnoId]) porFecha[f.Fecha][f.TurnoId] = [];
+    porFecha[f.Fecha][f.TurnoId].push(f);
+  });
+  return porFecha;
+}
 
 function _siguienteCodigoEntregaTurno() {
   let max = 0;
@@ -11556,6 +11567,7 @@ async function guardarEntregaTurno() {
       novedadesTurno, new Date().toISOString(), 'Activa',
     ];
     await appendHoja(SH.entregaTurno, [valores]);
+    _invalidarCacheHoja(SH.entregaTurno);
 
     msg.style.color = '#15803d'; msg.textContent = 'Entrega guardada correctamente.';
     document.getElementById('et_recibidoPor').value = '';
@@ -11575,6 +11587,7 @@ async function eliminarEntregaTurno(codigo) {
   try {
     const colEstado = numToCol(ENTREGA_TURNO_COLS.indexOf('Estado'));
     await sheetsRequest('UPDATE', SH.entregaTurno + '!' + colEstado + fila._row, [['Eliminada']]);
+    _invalidarCacheHoja(SH.entregaTurno);
     await inicializarEntregaTurno();
   } catch (e) {
     alert('Error al eliminar: ' + e.message);
@@ -11582,7 +11595,8 @@ async function eliminarEntregaTurno(codigo) {
 }
 
 /** HTML de una entrega (misma estructura para la vista en pantalla y el PDF) */
-function _construirHtmlEntregaTurno(e) {
+function _construirHtmlEntregaTurno(e, conTitulo) {
+  if (conTitulo === undefined) conTitulo = true;
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   const turno = cfg?.turnos.find(t => t.id === e.TurnoId);
   const grupos = [];
@@ -11601,8 +11615,8 @@ function _construirHtmlEntregaTurno(e) {
   }).join('');
 
   return `
-    <h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Entrega de Turno — ${esc(e.Codigo)}</h1>
-    <div style="text-align:center;font-size:12.5px;color:#555;margin-bottom:16px">
+    ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Entrega de Turno — ${esc(e.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Entrega de Turno — ${esc(e.Codigo)}</div>`}
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
       ${esc(fmtFecha(e.Fecha))} · ${esc(turno?.nombre || e.TurnoNombre)} &nbsp;·&nbsp;
       <b>Entregado por:</b> ${esc(e.EntregadoPor)}${e.RecibidoPor ? ` &nbsp;·&nbsp; <b>Recibido por:</b> ${esc(e.RecibidoPor)}` : ''}
     </div>
