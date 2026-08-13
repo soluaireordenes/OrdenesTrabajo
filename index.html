@@ -1604,10 +1604,12 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
-    <!-- Gráfica: la racha subiendo día a día, con un punto marcado en cada novedad registrada -->
+    <!-- Gráfica: un punto/barra por cada evento de novedad registrado, mostrando
+         cuántos días pasaron desde el evento anterior (los que se vayan
+         registrando a futuro aparecen solos, es la misma lista en vivo) -->
     <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Racha de Días sin Novedades</div>
-      <div class="card-body" style="padding:14px"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div></div>
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Días entre Eventos de Novedad</div>
+      <div class="card-body" style="padding:14px"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div><div id="rachaLeyendaEventos" style="margin-top:10px"></div></div>
     </div>
 
     <!-- Filtro de mes/año (arriba del dashboard) -->
@@ -9777,62 +9779,61 @@ async function renderDiasSinNovedades() {
   sub.textContent = 'Desde el ' + fmtFecha(base);
 }
 
-/** Pinta la gráfica de línea que sube un día a la vez desde la primera
- *  fecha registrada hasta hoy — y en cada fecha de "RachaNovedades" marca
- *  un punto (la novedad) donde la racha vuelve a 0 y empieza de nuevo,
- *  formando un patrón de dientes de sierra con todo el historial. */
+/** Pinta una barra por cada evento de novedad registrado (no un punto por
+ *  cada día del calendario) — la altura de cada barra es cuántos días
+ *  pasaron desde el evento anterior, sin importar de qué evento se trate.
+ *  El primer evento se mide contra NOVEDADES_DIAS_SIN_BASE_DEFAULT, que es
+ *  el mismo punto de partida que usa el contador de "Días sin Novedades". */
 async function renderGraficaRachaDiasSinNovedades() {
   const canvas = document.getElementById('chartRachaDiasSinNovedades');
+  const leyenda = document.getElementById('rachaLeyendaEventos');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  let eventos = [NOVEDADES_DIAS_SIN_BASE_DEFAULT];
-  try {
-    const racha = await obtenerRachaNovedades();
-    if (racha.length) eventos = racha.map(r => r.fecha);
-  } catch (e) { /* si falla la lectura, se usa la fecha por defecto */ }
+  let racha = [];
+  try { racha = await obtenerRachaNovedades(); } catch (e) { /* se muestra vacío si falla */ }
 
-  const inicio = _fechaLocalDesdeString(eventos[0]);
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  if (isNaN(inicio) || inicio > hoy) return;
+  if (window._chartRachaDiasSinNovedades) { window._chartRachaDiasSinNovedades.destroy(); window._chartRachaDiasSinNovedades = null; }
 
-  const eventosSet = new Set(eventos);
-  const labels = [], datos = [], radios = [], colores = [];
-  let ultimoReinicio = inicio;
-  for (let d = new Date(inicio); d <= hoy; d.setDate(d.getDate() + 1)) {
-    const iso = _isoLocal(d);
-    const esReinicio = eventosSet.has(iso);
-    if (esReinicio && d.getTime() !== inicio.getTime()) ultimoReinicio = new Date(d);
-    const dias = Math.round((d - ultimoReinicio) / 86400000);
-    labels.push(d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }));
-    datos.push(dias);
-    radios.push(esReinicio ? 5 : 0);
-    colores.push(esReinicio ? '#d9663f' : '#15803d');
+  if (!racha.length) {
+    if (leyenda) leyenda.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px">Aún no hay eventos de novedad registrados.</div>';
+    return;
   }
 
-  if (window._chartRachaDiasSinNovedades) window._chartRachaDiasSinNovedades.destroy();
+  const labels = [], dias = [];
+  let anterior = _fechaLocalDesdeString(NOVEDADES_DIAS_SIN_BASE_DEFAULT);
+  racha.forEach(r => {
+    const fecha = _fechaLocalDesdeString(r.fecha);
+    const gap = Math.max(0, Math.round((fecha - anterior) / 86400000));
+    labels.push(fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' }));
+    dias.push(gap);
+    anterior = fecha;
+  });
+
   window._chartRachaDiasSinNovedades = new Chart(canvas.getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: { labels, datasets: [{
-      label: 'Días sin novedades', data: datos,
-      borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,.15)',
-      fill: true, tension: 0, borderWidth: 2.5,
-      pointRadius: radios, pointHoverRadius: radios.map(r => r ? 7 : 4),
-      pointBackgroundColor: colores, pointBorderColor: colores,
+      label: 'Días desde el evento anterior', data: dias,
+      backgroundColor: '#15803d', borderRadius: 5,
     }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => radios[ctx.dataIndex]
-          ? ' Novedad registrada — contador reiniciado'
-          : ' ' + ctx.raw + ' día(s) sin novedades' } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + ' día(s) desde el evento anterior' } },
       },
       scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Días' } },
         x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
       },
     },
   });
+
+  if (leyenda) {
+    leyenda.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">' +
+      racha.map((r, i) => `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
+        ${esc(fmtFecha(r.fecha))}: <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
+      </span>`).join('') + '</div>';
+  }
 }
 const FOTOS_NOVEDADES_COLS = ['Codigo','#','DriveFileId','UrlVer','UrlDescarga','Titulo','Descripcion','SubidoPor','Fecha'];
 
