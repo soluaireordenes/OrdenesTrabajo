@@ -9783,32 +9783,35 @@ async function renderDiasSinNovedades() {
   sub.textContent = 'Desde el ' + fmtFecha(base);
 }
 
-/** Pinta una barra por cada evento de novedad registrado (no un punto por
- *  cada día del calendario) — la altura de cada barra es cuántos días
- *  pasaron desde el evento anterior, sin importar de qué evento se trate.
- *  El primer evento se mide contra NOVEDADES_DIAS_SIN_BASE_DEFAULT, que es
- *  el mismo punto de partida que usa el contador de "Días sin Novedades". */
+/** Pinta una barra por cada informe de novedad registrado (INF-N o INF-E,
+ *  usa allNovedades — la lista completa, sin filtros de mes/año/tipo) —
+ *  la altura de cada barra es cuántos días pasaron desde el evento
+ *  anterior, sin importar de qué evento se trate. El primer evento se mide
+ *  contra NOVEDADES_DIAS_SIN_BASE_DEFAULT, el mismo punto de partida que
+ *  usa el contador de "Días sin Novedades". */
 async function renderGraficaRachaDiasSinNovedades() {
   const canvas = document.getElementById('chartRachaDiasSinNovedades');
   const leyenda = document.getElementById('rachaLeyendaEventos');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  let racha = [];
-  try { racha = await obtenerRachaNovedades(); } catch (e) { /* se muestra vacío si falla */ }
+  const eventos = allNovedades
+    .filter(n => n.FechaEvento)
+    .slice()
+    .sort((a, b) => (a.FechaEvento + (a.HoraInicio || '')).localeCompare(b.FechaEvento + (b.HoraInicio || '')));
 
   if (window._chartRachaDiasSinNovedades) { window._chartRachaDiasSinNovedades.destroy(); window._chartRachaDiasSinNovedades = null; }
 
-  if (!racha.length) {
+  if (!eventos.length) {
     if (leyenda) leyenda.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px">Aún no hay eventos de novedad registrados.</div>';
     return;
   }
 
   const labels = [], dias = [];
   let anterior = _fechaLocalDesdeString(NOVEDADES_DIAS_SIN_BASE_DEFAULT);
-  racha.forEach(r => {
-    const fecha = _fechaLocalDesdeString(r.fecha);
+  eventos.forEach(n => {
+    const fecha = _fechaLocalDesdeString(n.FechaEvento);
     const gap = Math.max(0, Math.round((fecha - anterior) / 86400000));
-    labels.push(fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' }));
+    labels.push(n.Codigo);
     dias.push(gap);
     anterior = fecha;
   });
@@ -9834,8 +9837,8 @@ async function renderGraficaRachaDiasSinNovedades() {
 
   if (leyenda) {
     leyenda.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">' +
-      racha.map((r, i) => `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
-        ${esc(fmtFecha(r.fecha))}: <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
+      eventos.map((n, i) => `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
+        ${esc(n.Codigo)} (${esc(fmtFecha(n.FechaEvento))}): <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
       </span>`).join('') + '</div>';
   }
 }
@@ -9933,11 +9936,11 @@ function _siguienteCodigo(prefijo) {
 /** Se llama cada vez que se entra a la pestaña Novedades */
 async function inicializarPanelNovedades() {
   renderDiasSinNovedades().catch(() => {});
-  renderGraficaRachaDiasSinNovedades().catch(() => {});
   const wrap = document.getElementById('novTablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando informes...</div>';
   try {
     await cargarNovedadesDeSheets();
+    renderGraficaRachaDiasSinNovedades().catch(() => {});
   } catch (e) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--danger);display:flex;align-items:center;justify-content:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ' + esc(e.message) + '</div>';
     return;
