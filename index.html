@@ -1840,7 +1840,9 @@ body.inv-activo .container { max-width: 1800px; }
       <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma de Actividades Diarias</div>
     </div>
 
-    <!-- Entrega de Turno: va primero, arriba de las actividades (solo Zipaquirá) -->
+    <!-- Entrega de Turno: el formulario va primero, arriba de las actividades
+         (solo Zipaquirá); el historial de "Entregas Registradas" va al
+         final de todo (ver más abajo), no aquí arriba. -->
     <div id="cronEntregaTurnoWrap" style="display:none">
       <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
@@ -1858,13 +1860,6 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
           <div id="et_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarEntregaTurno()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <div id="et_tablaWrap"></div>
         </div>
       </div>
     </div>
@@ -1903,6 +1898,17 @@ body.inv-activo .container { max-width: 1800px; }
           </select>
         </div>
         <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
+      </div>
+    </div>
+
+    <!-- Historial de "Entregas Registradas": va al final de todo, no arriba
+         junto al formulario (solo Zipaquirá). -->
+    <div id="cronEntregasHistorialWrap" style="display:none">
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="et_tablaWrap"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -11303,14 +11309,11 @@ async function inicializarPanelCronograma() {
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación).
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
-  if (wrapEntrega) {
-    if (operacionActual === 'zipaquira') {
-      wrapEntrega.style.display = '';
-      inicializarEntregaTurno();
-    } else {
-      wrapEntrega.style.display = 'none';
-    }
-  }
+  const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
+  const mostrarEntrega = operacionActual === 'zipaquira';
+  if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
+  if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
+  if (mostrarEntrega) inicializarEntregaTurno();
 
   const cont = document.getElementById('cronogramaContenido');
   if (!cont) return;
