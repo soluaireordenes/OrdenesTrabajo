@@ -1107,43 +1107,6 @@ body.inv-activo .container { max-width: 1800px; }
               <label>Equipo / Activo *</label>
               <select id="e_equipo">
               <option value="">Seleccionar equipo...</option>
-              <optgroup label="Compresores de Aire">
-                <option>CA1</option><option>CA2</option><option>CA3</option>
-                <option>CB1</option><option>CB2</option><option>CB3</option><option>CB4</option>
-              </optgroup>
-              <optgroup label="Arrancadores">
-                <option>ARRANCADOR CA1</option><option>ARRANCADOR CA2</option><option>ARRANCADOR CA3</option>
-                <option>ARRANCADOR CB1</option><option>ARRANCADOR CB2</option><option>ARRANCADOR CB3</option><option>ARRANCADOR CB4</option>
-              </optgroup>
-              <optgroup label="Secadores">
-                <option>SCA1</option><option>SCA2</option><option>SCA3</option>
-                <option>SCB1</option><option>SCB2</option><option>SCB3</option><option>SCB4</option>
-              </optgroup>
-              <optgroup label="Compresor Pistón">
-                <option>COMPRESOR PISTON</option><option>SCPISTON</option>
-              </optgroup>
-              <optgroup label="Compresor Portátil">
-                <option>COMPRESOR PORTATIL</option>
-              </optgroup>
-              <optgroup label="Bombas y Enfriamiento">
-                <option>BOMBA AGUA 1</option><option>BOMBA AGUA 2</option>
-                <option>DRYCOOLER 1</option><option>DRYCOOLER 2</option><option>DRYCOOLER 3</option><option>DRYCOOLER 4</option>
-              </optgroup>
-              <optgroup label="Infraestructura">
-                <option>INFRAESTRUCTURA PRIMER PISO</option>
-                <option>INFRAESTRUCTURA SEGUNDO PISO</option>
-                <option>INFRAESTRUCTURA 3 PISO</option>
-              </optgroup>
-              <optgroup label="Compresores de Emergencia">
-                <option>COMPRESOR DE EMERGENCIA NX200</option>
-                <option>COMPRESOR EMERGENCIA IR160</option>
-                <option>SCEMERGENCIA</option>
-              </optgroup>
-              <optgroup label="Compresores Decorado">
-                <option>COMPRESOR DECORADO NX55</option>
-                <option>COMPRESOR DECORADO NX18</option>
-                <option>SCDECORADO</option>
-              </optgroup>
               </select>
             </div>
             <div class="field">
@@ -4179,6 +4142,8 @@ function abrirModalCompletar(id) {
 
   // ── 1. Identificación
   document.getElementById('e_descripcion').value   = o.Title || '';
+  const gruposEditEquipo = EQUIPOS_POR_SEDE[operacionActual] || EQUIPOS_LISTADO_GENERAL;
+  document.getElementById('e_equipo').innerHTML = '<option value="">Seleccionar equipo...</option>' + _renderOptionsGrupo(gruposEditEquipo);
   document.getElementById('e_equipo').value         = o.Equipo || '';
   document.getElementById('e_tipo').value           = o.TipoMantenimiento || '';
   document.getElementById('e_prioridad').value      = o.Prioridad || 'Media';
