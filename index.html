@@ -10791,28 +10791,26 @@ async function obtenerRegistrosCronogramaFecha(fecha) {
   return todos[fecha] || {};
 }
 
-/** Se dispara al hacer clic en el checkbox de una actividad. Al MARCARLA
- *  (check) se abre un modal para capturar la hora real en que se hizo y
- *  una observación opcional. Al DESMARCARLA (uncheck) — es decir, decir
- *  explícitamente que NO se realizó — se abre otro modal pidiendo el
- *  motivo, que es obligatorio. */
+/** Se dispara al hacer clic en el checkbox de una actividad — el checkbox
+ *  SOLO sirve para marcarla como realizada (se deshabilita apenas se
+ *  guarda, no se puede desmarcar). Para reportar que NO se realizó existe
+ *  un botón aparte ("✗ No realizado"), ver abrirModalNoRealizadaCronograma. */
 function onCambioActividadCronograma(checkboxEl, actividadId, turnoId, fecha) {
   if (checkboxEl.checked) {
     abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha);
   } else {
-    abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha);
+    checkboxEl.checked = false; // no debería poder desmarcarse una vez guardada
   }
 }
 
 /** Modal para capturar el motivo (obligatorio) por el que una actividad
- *  NO se realizó, antes de guardarla como no realizada. */
-function abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha) {
+ *  NO se realizó, antes de guardarla como no realizada. Se abre desde el
+ *  botón "✗ No realizado" de la actividad — una vez guardado, tanto el
+ *  checkbox como este botón quedan bloqueados de forma permanente. */
+function abrirModalNoRealizadaCronograma(actividadId, turnoId, fecha) {
   if (document.getElementById('modalMarcarCronograma')) return;
 
-  const cerrar = (guardar) => {
-    document.getElementById('modalMarcarCronograma')?.remove();
-    if (!guardar) checkboxEl.checked = true; // canceló — vuelve a quedar marcada como realizada
-  };
+  const cerrar = () => document.getElementById('modalMarcarCronograma')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'modalMarcarCronograma';
@@ -10832,15 +10830,15 @@ function abrirModalNoRealizadaCronograma(checkboxEl, actividadId, turnoId, fecha
     </div>`;
   document.body.appendChild(overlay);
 
-  document.getElementById('cronModalCancelar').onclick = () => cerrar(false);
+  document.getElementById('cronModalCancelar').onclick = () => cerrar();
   document.getElementById('cronModalGuardar').onclick = () => {
     const motivo = document.getElementById('cronModalMotivo').value.trim();
     if (!motivo) {
       document.getElementById('cronModalMotivoError').textContent = 'Este campo es obligatorio.';
       return;
     }
-    cerrar(true);
-    marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, false, '', motivo);
+    cerrar();
+    marcarActividadCronograma(actividadId, turnoId, fecha, false, '', motivo);
   };
 }
 
@@ -10882,22 +10880,26 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     const hora = document.getElementById('cronModalHora').value || horaDefault;
     const observacion = document.getElementById('cronModalObservacion').value.trim();
     cerrar(true);
-    marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, true, hora, observacion);
+    marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, observacion);
   };
 }
 
-/** Guarda (marca o desmarca) una actividad del turno activo — la
- *  comprobación de que el turno sigue activo se repite AQUÍ (no solo al
- *  pintar la pantalla): si el checkbox quedó abierto y mientras tanto
- *  cambió de turno, el intento de guardar se rechaza igual. */
-async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha, realizado, horaRealizada, observacion) {
+/** Guarda el estado (realizado / no realizado) de una actividad o de un
+ *  checkpoint del turno activo — la comprobación de que el turno sigue
+ *  activo se repite AQUÍ (no solo al pintar la pantalla): si el modal
+ *  quedó abierto y mientras tanto cambió de turno, el intento de guardar
+ *  se rechaza igual. Una vez guardado, el checkbox y los botones
+ *  "Realizado"/"No realizado" de ese id quedan deshabilitados de forma
+ *  PERMANENTE (no hay opción de desmarcar ni de cambiar la decisión). */
+async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado, horaRealizada, observacion) {
   const ctx = _contextoCronogramaAhora(operacionActual);
   if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
-    checkboxEl.checked = !realizado; // revertir el click
     alert('Ese turno ya no está activo — no se puede modificar. Actualiza la página para ver el turno actual.');
     return;
   }
-  checkboxEl.disabled = true;
+  const controles = ['cronCheck_' + actividadId, 'cronBtnReal_' + actividadId, 'cronBtnNoReal_' + actividadId]
+    .map(id => document.getElementById(id)).filter(Boolean);
+  controles.forEach(el => { el.disabled = true; });
   try {
     await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
     await appendHoja(SH.cronogramaRegistros, [[
@@ -10915,11 +10917,16 @@ async function marcarActividadCronograma(checkboxEl, actividadId, turnoId, fecha
         ? `<span style="color:#15803d">✓ ${esc(quien)} · ${esc(horaRealizada || '')}</span>${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
         : `<span style="color:var(--danger)">✗ No realizada — ${esc(quien)}</span>${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 Motivo: ${esc(observacion)}</div>` : ''}`;
     }
+    // El botón "No realizado" ya no aplica una vez que quedó una decisión
+    // guardada (sea cual sea) — se oculta en vez de solo deshabilitarse.
+    const btnNoReal = document.getElementById('cronBtnNoReal_' + actividadId);
+    if (btnNoReal) btnNoReal.style.display = 'none';
   } catch (e) {
-    checkboxEl.checked = !realizado; // revertir si falló guardar
+    // Falló el guardado — se reactivan los controles para reintentar.
+    controles.forEach(el => { el.disabled = false; });
+    const checkboxEl = document.getElementById('cronCheck_' + actividadId);
+    if (checkboxEl) checkboxEl.checked = false;
     alert('No se pudo guardar: ' + e.message);
-  } finally {
-    checkboxEl.disabled = false;
   }
 }
 
@@ -11187,12 +11194,20 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
       <input type="file" accept="image/*" capture="environment" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
     </label>` : '';
+  // Una vez que ya hay una decisión guardada (realizada o no), tanto el
+  // checkbox como el botón "No realizado" quedan bloqueados — no hay forma
+  // de desmarcar ni de cambiar lo ya reportado.
+  const puedeMarcar = editable && !reg;
+  const botonNoRealizado = puedeMarcar ? `<button type="button" id="cronBtnNoReal_${actividadId}"
+      style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--danger);color:var(--danger);background:#fff;cursor:pointer;margin-top:5px"
+      onclick="abrirModalNoRealizadaCronograma('${actividadId}','${turnoId}','${fecha}')">✗ No realizado</button>` : '';
   return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
-    <input type="checkbox" ${marcado} ${editable ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${editable?'pointer':'not-allowed'}"
+    <input type="checkbox" id="cronCheck_${actividadId}" ${marcado} ${puedeMarcar ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${puedeMarcar?'pointer':'not-allowed'}"
       onchange="onCambioActividadCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
     <div style="flex:1">
       <div style="font-size:13px;line-height:1.5">${esc(texto)}</div>
       <div id="cronMarca_${actividadId}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
+      ${botonNoRealizado}
       <div id="cronFotos_${actividadId}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHtml}${botonCamara}</div>
     </div>
   </div>`;
@@ -11218,12 +11233,16 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
     marcaTxt = `<span style="color:var(--danger)">✗ No realizado${reg.observacion ? ' — ' + esc(reg.observacion) : ''}</span>`;
   }
   const estiloBtn = 'font-size:11px;font-weight:700;text-transform:none;padding:4px 10px;border-radius:5px;border:1px solid;background:#fff';
-  const deshabilitado = editable ? '' : 'disabled';
+  // Una vez que ya quedó una decisión guardada (Realizado o No realizado)
+  // ambos botones se bloquean para siempre — no hay forma de desmarcar ni
+  // de cambiar lo ya reportado.
+  const puedeMarcar = editable && !reg;
+  const deshabilitado = puedeMarcar ? '' : 'disabled';
   return `<div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <button type="button" ${deshabilitado} style="${estiloBtn};border-color:#15803d;color:#15803d;cursor:${editable ? 'pointer' : 'not-allowed'}"
+      <button type="button" id="cronBtnReal_${checkpointId}" ${deshabilitado} style="${estiloBtn};border-color:#15803d;color:#15803d;cursor:${puedeMarcar ? 'pointer' : 'not-allowed'}"
         onclick="onClickRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}')">✓ Realizado</button>
-      <button type="button" ${deshabilitado} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${editable ? 'pointer' : 'not-allowed'}"
+      <button type="button" id="cronBtnNoReal_${checkpointId}" ${deshabilitado} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${puedeMarcar ? 'pointer' : 'not-allowed'}"
         onclick="onClickNoRealizadoCheckpoint('${checkpointId}')">✗ No realizado</button>
       <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
     </div>
@@ -11244,7 +11263,7 @@ function onClickRealizadoCheckpoint(checkpointId, turnoId, fecha) {
   document.getElementById('cronMotivoWrap_' + checkpointId).style.display = 'none';
   const d = new Date();
   const hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  marcarActividadCronograma({ checked: true }, checkpointId, turnoId, fecha, true, hora, '');
+  marcarActividadCronograma(checkpointId, turnoId, fecha, true, hora, '');
 }
 
 /** Click en "No realizado" del checkpoint — muestra/oculta el espacio para
@@ -11260,7 +11279,7 @@ async function guardarNoRealizadoCheckpoint(checkpointId, turnoId, fecha) {
   const ta = document.getElementById('cronMotivo_' + checkpointId);
   const motivo = ta.value.trim();
   if (!motivo) { alert('Escribe el motivo por el que no se realizó.'); return; }
-  await marcarActividadCronograma({ checked: false }, checkpointId, turnoId, fecha, false, '', motivo);
+  await marcarActividadCronograma(checkpointId, turnoId, fecha, false, '', motivo);
   document.getElementById('cronMotivoWrap_' + checkpointId).style.display = 'none';
   ta.value = '';
 }
