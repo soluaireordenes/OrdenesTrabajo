@@ -5904,7 +5904,7 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 // una fecha concreta — es un LOG (se agrega, nunca se sobrescribe); el
 // estado "actual" de una actividad en una fecha es el de su fila más
 // reciente (ver obtenerRegistrosCronogramaFecha()).
-const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion'];
+const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron'];
 // Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
@@ -10907,7 +10907,7 @@ async function _leerTodosRegistrosCronogramaAgrupados() {
   filas.forEach(f => {
     if (!f.Fecha || !f.ActividadId) return;
     if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
-    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '', horaRealizada: f.HoraRealizada || '', observacion: f.Observacion || '' };
+    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '', horaRealizada: f.HoraRealizada || '', observacion: f.Observacion || '', operariosRealizaron: f.OperariosRealizaron || '' };
   });
   return porFecha;
 }
@@ -10993,6 +10993,10 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   if (document.getElementById('modalMarcarCronograma')) return;
   const ahora = new Date();
   const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+  // La lista de operarios solo existe para Zipaquirá por ahora — en otras
+  // sedes el modal se ve igual que antes, sin este campo.
+  const conOperarios = operacionActual === 'zipaquira';
+  _cronModalOperariosPrevios = [];
 
   const cerrar = (guardar) => {
     document.getElementById('modalMarcarCronograma')?.remove();
@@ -11009,6 +11013,14 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
         <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
         <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
       </div>
+      ${conOperarios ? `
+      <div class="field" style="margin-bottom:12px">
+        <label style="margin-bottom:4px;display:block">¿Quién la realizó? <span style="color:var(--text3);font-weight:400">(máximo 3)</span></label>
+        <select id="cronModalOperarios" multiple size="5" style="width:100%" onchange="_limitarSeleccionOperariosCronModal()">
+          ${OPERARIOS_ZIPAQUIRA.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
+        </select>
+        <div id="cronModalOperariosMsg" style="color:var(--danger);font-size:11px;margin-top:3px"></div>
+      </div>` : ''}
       <div class="field" style="margin-bottom:18px">
         <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
         <textarea id="cronModalObservacion" rows="3" placeholder="Algo que valga la pena anotar sobre esta actividad..." style="width:100%;resize:vertical"></textarea>
@@ -11024,9 +11036,29 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   document.getElementById('cronModalGuardar').onclick = () => {
     const hora = document.getElementById('cronModalHora').value || horaDefault;
     const observacion = document.getElementById('cronModalObservacion').value.trim();
+    const selOperarios = document.getElementById('cronModalOperarios');
+    const operariosRealizaron = selOperarios ? Array.from(selOperarios.selectedOptions).map(o => o.value).join(', ') : '';
     cerrar(true);
-    marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, observacion);
+    marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, observacion, operariosRealizaron);
   };
+}
+
+/** El <select multiple> de operarios no tiene límite nativo de opciones
+ *  seleccionadas — si el usuario supera 3, se revierte a la última
+ *  selección válida en vez de dejar guardar una lista más larga. */
+let _cronModalOperariosPrevios = [];
+function _limitarSeleccionOperariosCronModal() {
+  const sel = document.getElementById('cronModalOperarios');
+  const msg = document.getElementById('cronModalOperariosMsg');
+  if (!sel) return;
+  const actuales = Array.from(sel.selectedOptions).map(o => o.value);
+  if (actuales.length > 3) {
+    Array.from(sel.options).forEach(o => { o.selected = _cronModalOperariosPrevios.includes(o.value); });
+    if (msg) msg.textContent = 'Máximo 3 operarios.';
+    return;
+  }
+  _cronModalOperariosPrevios = actuales;
+  if (msg) msg.textContent = '';
 }
 
 /** Guarda el estado (realizado / no realizado) de una actividad o de un
@@ -11036,7 +11068,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
  *  se rechaza igual. Una vez guardado, el checkbox y los botones
  *  "Realizado"/"No realizado" de ese id quedan deshabilitados de forma
  *  PERMANENTE (no hay opción de desmarcar ni de cambiar la decisión). */
-async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado, horaRealizada, observacion) {
+async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado, horaRealizada, observacion, operariosRealizaron) {
   const ctx = _contextoCronogramaAhora(operacionActual);
   if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
     alert('Ese turno ya no está activo — no se puede modificar. Actualiza la página para ver el turno actual.');
@@ -11053,13 +11085,14 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
       new Date().toISOString(),
       realizado ? (horaRealizada || '') : '',
       observacion || '',
+      realizado ? (operariosRealizaron || '') : '',
     ]]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
     if (marcaEl) {
       const quien = currentUser?.name || currentUser?.email || '';
       marcaEl.innerHTML = realizado
-        ? `<span style="color:#15803d">✓ ${esc(quien)} · ${esc(horaRealizada || '')}</span>${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
+        ? `<span style="color:#15803d">✓ ${esc(quien)} · ${esc(horaRealizada || '')}</span>${operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(operariosRealizaron)}</div>` : ''}${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
         : `<span style="color:var(--danger)">✗ No realizada — ${esc(quien)}</span>${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 Motivo: ${esc(observacion)}</div>` : ''}`;
     }
     // El botón "No realizado" ya no aplica una vez que quedó una decisión
@@ -11330,7 +11363,7 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '');
   let marcaTxt = '';
   if (reg?.realizado) {
-    marcaTxt = `<span style="color:#15803d">✓ ${quien} · ${esc(hora)}</span>${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`;
+    marcaTxt = `<span style="color:#15803d">✓ ${quien} · ${esc(hora)}</span>${reg.operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(reg.operariosRealizaron)}</div>` : ''}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`;
   } else if (reg) {
     marcaTxt = `<span style="color:var(--danger)">✗ No realizada — ${quien}</span>${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 Motivo: ${esc(reg.observacion)}</div>` : ''}`;
   }
@@ -11730,7 +11763,9 @@ async function descargarInformeCronograma() {
       const reg = registros[id];
       const estado = reg?.realizado ? '✅ Realizado' : (reg ? '❌ No realizado' : '⬜ No marcado');
       const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO') : '');
-      const detalle = reg?.realizado ? `${esc(reg.realizadoPor)} · ${esc(hora)}` : (reg ? esc(reg.realizadoPor) : '—');
+      const detalle = reg?.realizado
+        ? `${esc(reg.realizadoPor)} · ${esc(hora)}${reg.operariosRealizaron ? ' — Realizado por: ' + esc(reg.operariosRealizaron) : ''}`
+        : (reg ? esc(reg.realizadoPor) : '—');
       const obs = reg?.observacion ? esc(reg.observacion) + (reg.realizado ? '' : ' (motivo)') : '';
       // Traer cada foto como data:URL para que quede embebida en el PDF
       // descargado y se vea aunque luego se abra sin internet (igual que
