@@ -1811,6 +1811,7 @@ body.inv-activo .container { max-width: 1800px; }
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
       <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte Secadores</button>
+      <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte Drycoolers</button>
       <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
     </div>
 
@@ -2026,6 +2027,73 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
     </div><!-- /cronSub-secadores -->
+
+    <!-- Reporte de Drycoolers: formulario técnico calcado del formulario
+         "Seguimiento Drycoolers" — solo Zipaquirá. -->
+    <div id="cronSub-drycoolers" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte de Drycoolers</div>
+        <div class="card-body" style="padding:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+            <div class="field">
+              <label>Técnico que realiza el reporte *</label>
+              <select id="rd_tecnico" onchange="document.getElementById('rd_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field" id="rd_tecnicoOtroWrap" style="display:none">
+              <label>Nombre del técnico</label>
+              <input id="rd_tecnicoOtro" placeholder="Nombre completo">
+            </div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rd_fecha"></div>
+            <div class="field">
+              <label>Hora en la que se realiza el reporte *</label>
+              <select id="rd_hora"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Drycooler a reportar *</label>
+              <select id="rd_drycooler"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Adiabático *</label>
+              <select id="rd_adiabatico">
+                <option value="">Seleccionar...</option>
+                <option value="On">On</option>
+                <option value="Off">Off</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Entálpico *</label>
+              <select id="rd_entalpico">
+                <option value="">Seleccionar...</option>
+                <option value="On">On</option>
+                <option value="Off">Off</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Bomba de recirculación en operación *</label>
+              <select id="rd_bombaRecirculacion">
+                <option value="">Seleccionar...</option>
+                <option value="Bomba N°1">Bomba N°1</option>
+                <option value="Bomba N°2">Bomba N°2</option>
+              </select>
+            </div>
+          </div>
+          <div id="rd_camposMediciones"></div>
+          <div class="field" style="margin-top:6px">
+            <label>Observaciones <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+            <textarea id="rd_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+          </div>
+          <div id="rd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="rd_tablaWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-drycoolers -->
 
     <!-- Observaciones por operario: llamados de atención con hora/fecha,
          operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá,
@@ -6011,6 +6079,7 @@ const SH = {
   observacionesOperarios: 'ObservacionesOperarios',
   reporteCompresores: 'ReporteCompresores',
   reporteSecadores: 'ReporteSecadores',
+  reporteDrycoolers: 'ReporteDrycoolers',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -6163,6 +6232,31 @@ const REPORTE_SECADORES_CAMPOS = [
 // formulario original (no tiene asterisco) — se valida aparte porque puede
 // quedar vacío.
 const REPORTE_SECADORES_CAMPO_OPCIONAL = { grupo: 'Datos generales', id: 'pa', label: 'PA: Presión tanques [bar]', col: 'PA', hint: 'Normal: menor que 6' };
+
+// Reporte de seguimiento de drycoolers (Zipaquirá) — calcado del formulario
+// "Seguimiento Drycoolers". Una fila por reporte, nunca se sobrescribe; el
+// "borrado" es lógico (Estado='Eliminada'), igual que los otros reportes.
+const REPORTE_DRYCOOLERS_COLS = [
+  'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Drycooler',
+  'AmperajeTablero', 'VoltajeTablero', 'EnergiaTablero',
+  'TemperaturaEntrega', 'PresionEntrega', 'TemperaturaRetorno', 'PorcentajeVentiladores',
+  'Adiabatico', 'Entalpico', 'BombaRecirculacion', 'Observaciones',
+  'RegistradoPor', 'FechaRegistro', 'Estado',
+];
+// Mismos técnicos que los otros reportes — este SÍ tiene "Otras" (igual que
+// Reporte de Compresores).
+const TECNICOS_REPORTE_DRYCOOLERS = TECNICOS_REPORTE_COMPRESORES;
+const HORAS_REPORTE_DRYCOOLER = HORAS_REPORTE_COMPRESOR;
+const DRYCOOLERS_LISTA_REPORTE = ['Drycooler #1', 'Drycooler #2', 'Drycooler #3', 'Drycooler #4'];
+const REPORTE_DRYCOOLERS_CAMPOS = [
+  { grupo: 'Mediciones', id: 'amperajeTablero', label: 'Consumo amperaje (tablero 1er piso) [Amp]', col: 'AmperajeTablero' },
+  { grupo: 'Mediciones', id: 'voltajeTablero', label: 'Consumo voltaje (tablero 1er piso) [V]', col: 'VoltajeTablero' },
+  { grupo: 'Mediciones', id: 'energiaTablero', label: 'Consumo de energía (tablero 1er piso) [kWh]', col: 'EnergiaTablero' },
+  { grupo: 'Mediciones', id: 'temperaturaEntrega', label: 'Temperatura de entrega [°C]', col: 'TemperaturaEntrega', hint: 'Normal: 15–40' },
+  { grupo: 'Mediciones', id: 'presionEntrega', label: 'Presión de entrega [bar]', col: 'PresionEntrega', hint: 'Normal: 1.5–4' },
+  { grupo: 'Mediciones', id: 'temperaturaRetorno', label: 'Temperatura de retorno [°C]', col: 'TemperaturaRetorno' },
+  { grupo: 'Mediciones', id: 'porcentajeVentiladores', label: 'Porcentaje ventiladores [%]', col: 'PorcentajeVentiladores', hint: 'Normal: menor o igual que 100' },
+];
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
 // columnas de arriba — maneja tanto el formulario (id = 'et_' + campo.id)
@@ -11754,25 +11848,29 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'secadores') inicializarReporteSecadores();
+  if (nombre === 'drycoolers') inicializarReporteDrycoolers();
 }
 
 async function inicializarPanelCronograma() {
   // La Entrega de Turno va arriba de las actividades, dentro de la misma
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación). Las
-  // pestañas "Reporte Compresores", "Reporte Secadores" y "Observaciones"
-  // son aparte y también solo aplican a Zipaquirá.
+  // pestañas "Reporte Compresores", "Reporte Secadores", "Reporte
+  // Drycoolers" y "Observaciones" son aparte y también solo aplican a
+  // Zipaquirá.
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
   const tabCompresores = document.getElementById('cronTabCompresores');
   const tabSecadores = document.getElementById('cronTabSecadores');
+  const tabDrycoolers = document.getElementById('cronTabDrycoolers');
   const mostrarEntrega = operacionActual === 'zipaquira';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
   if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
+  if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
   cronMostrarSubTab('actividades'); // siempre arranca en Actividades al entrar al Cronograma
 
@@ -12912,6 +13010,258 @@ async function exportarReporteSecadorPDF(codigo) {
   @media print{body{padding:0}}
 </style></head><body>
 ${_construirHtmlReporteSecador(r)}
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+}
+
+/* ══════════════════════════════════════════════
+   REPORTE DE DRYCOOLERS — solo Zipaquirá.
+   Calcado del formulario "Seguimiento Drycoolers".
+══════════════════════════════════════════════ */
+let allReportesDrycoolers = [];
+
+function _htmlCamposReporteDrycooler(existente) {
+  const grupos = [];
+  REPORTE_DRYCOOLERS_CAMPOS.forEach(c => {
+    let g = grupos.find(x => x.nombre === c.grupo);
+    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
+    g.campos.push(c);
+  });
+  return grupos.map(g => `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+      <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+        ${g.campos.map(c => `<div class="field">
+          <label>${esc(c.label)}</label>
+          <input id="rd_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
+          ${c.hint ? `<div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function _siguienteCodigoReporteDrycooler() {
+  let max = 0;
+  allReportesDrycoolers.forEach(r => {
+    const m = (r.Codigo || '').match(/RD-(\d+)/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return 'RD-' + String(max + 1).padStart(4, '0');
+}
+
+async function inicializarReporteDrycoolers() {
+  document.getElementById('rd_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
+    TECNICOS_REPORTE_DRYCOOLERS.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
+    '<option value="Otras">Otras</option>';
+  document.getElementById('rd_hora').innerHTML = '<option value="">Seleccionar...</option>' +
+    HORAS_REPORTE_DRYCOOLER.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  document.getElementById('rd_drycooler').innerHTML = '<option value="">Seleccionar...</option>' +
+    DRYCOOLERS_LISTA_REPORTE.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
+
+  document.getElementById('rd_fecha').value = _isoLocal(new Date());
+  document.getElementById('rd_tecnicoOtroWrap').style.display = 'none';
+  document.getElementById('rd_tecnicoOtro').value = '';
+  document.getElementById('rd_adiabatico').value = '';
+  document.getElementById('rd_entalpico').value = '';
+  document.getElementById('rd_bombaRecirculacion').value = '';
+  document.getElementById('rd_observaciones').value = '';
+  document.getElementById('rd_msg').textContent = '';
+  document.getElementById('rd_camposMediciones').innerHTML = _htmlCamposReporteDrycooler(null);
+
+  const wrap = document.getElementById('rd_tablaWrap');
+  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
+  try {
+    await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
+    const filas = await _leerHojaGenerica(SH.reporteDrycoolers);
+    allReportesDrycoolers = filas
+      .filter(f => f.Estado !== 'Eliminada')
+      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    renderTablaReportesDrycoolers();
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTablaReportesDrycoolers() {
+  const wrap = document.getElementById('rd_tablaWrap');
+  if (!allReportesDrycoolers.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de drycoolers registrados.</div>';
+    return;
+  }
+  const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+  const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Hora</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Drycooler</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
+    </tr></thead><tbody>`;
+  allReportesDrycoolers.forEach(r => {
+    const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
+      <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
+      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(r.Drycooler)}</td>
+      <td style="padding:7px 10px">${esc(tecnico)}</td>
+      <td style="padding:7px 10px;text-align:center;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="verReporteDrycooler('${esc(r.Codigo)}')">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+/** Guarda un reporte — misma validación numérica que los demás reportes
+ *  técnicos (punto decimal, no coma) para los 7 campos de medición; los
+ *  selects (Adiabático, Entálpico, Bomba) y Observaciones se validan aparte. */
+async function guardarReporteDrycooler() {
+  const msg = document.getElementById('rd_msg');
+  const tecnico = document.getElementById('rd_tecnico').value;
+  const tecnicoOtro = document.getElementById('rd_tecnicoOtro').value.trim();
+  const fecha = document.getElementById('rd_fecha').value;
+  const hora = document.getElementById('rd_hora').value;
+  const drycooler = document.getElementById('rd_drycooler').value;
+  const adiabatico = document.getElementById('rd_adiabatico').value;
+  const entalpico = document.getElementById('rd_entalpico').value;
+  const bombaRecirculacion = document.getElementById('rd_bombaRecirculacion').value;
+  const observaciones = document.getElementById('rd_observaciones').value.trim();
+
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !drycooler || !adiabatico || !entalpico || !bombaRecirculacion) {
+    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, drycooler, adiabático, entálpico y bomba de recirculación.';
+    return;
+  }
+
+  const porColumna = {};
+  for (const c of REPORTE_DRYCOOLERS_CAMPOS) {
+    const valor = document.getElementById('rd_' + c.id).value.trim();
+    if (!valor || isNaN(Number(valor))) {
+      msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
+      return;
+    }
+    porColumna[c.col] = valor;
+  }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+
+  try {
+    await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
+    const codigo = _siguienteCodigoReporteDrycooler();
+    Object.assign(porColumna, {
+      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Drycooler: drycooler, Adiabatico: adiabatico, Entalpico: entalpico, BombaRecirculacion: bombaRecirculacion,
+      Observaciones: observaciones,
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaRegistro: new Date().toISOString(), Estado: 'Activo',
+    });
+    const valores = REPORTE_DRYCOOLERS_COLS.map(col => porColumna[col] ?? '');
+    await appendHoja(SH.reporteDrycoolers, [valores]);
+    _invalidarCacheHoja(SH.reporteDrycoolers);
+
+    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    await inicializarReporteDrycoolers();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
+  }
+}
+
+async function eliminarReporteDrycooler(codigo) {
+  if (!confirm('¿Eliminar este reporte de drycooler? Esta acción no se puede deshacer.')) return;
+  const fila = allReportesDrycoolers.find(r => r.Codigo === codigo);
+  if (!fila) return;
+  try {
+    const colEstado = numToCol(REPORTE_DRYCOOLERS_COLS.indexOf('Estado'));
+    await sheetsRequest('UPDATE', SH.reporteDrycoolers + '!' + colEstado + fila._row, [['Eliminada']]);
+    _invalidarCacheHoja(SH.reporteDrycoolers);
+    await inicializarReporteDrycoolers();
+  } catch (e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+}
+
+function _construirHtmlReporteDrycooler(r, conTitulo) {
+  if (conTitulo === undefined) conTitulo = true;
+  const grupos = [];
+  REPORTE_DRYCOOLERS_CAMPOS.forEach(c => {
+    let g = grupos.find(x => x.nombre === c.grupo);
+    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
+    g.campos.push(c);
+  });
+  const grupoEstados = {
+    nombre: 'Estado del equipo',
+    campos: [
+      { label: 'Adiabático', col: 'Adiabatico' },
+      { label: 'Entálpico', col: 'Entalpico' },
+      { label: 'Bomba de recirculación', col: 'BombaRecirculacion' },
+    ],
+  };
+  const gruposHtml = [...grupos, grupoEstados].map(g => {
+    const filas = g.campos.filter(c => (r[c.col] || '').toString().trim());
+    if (!filas.length) return '';
+    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        ${filas.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(c.label)}</div>
+          <div style="font-weight:700;color:#222">${esc(r[c.col])}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+
+  return `
+    ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Reporte de Drycooler — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Reporte de Drycooler — ${esc(r.Codigo)}</div>`}
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
+      ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Drycooler)}</b> &nbsp;·&nbsp; <b>Técnico:</b> ${esc(tecnico)}
+    </div>
+    ${gruposHtml}
+    ${r.Observaciones ? `<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:10px">
+      <div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:4px">Observaciones</div>
+      <div style="font-size:12.5px;line-height:1.6;white-space:pre-wrap">${esc(r.Observaciones)}</div>
+    </div>` : ''}
+  `;
+}
+
+function verReporteDrycooler(codigo) {
+  const r = allReportesDrycoolers.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center">
+        <span>Reporte de Drycooler — ${esc(r.Codigo)}</span>
+        <span onclick="this.closest('div[style*=fixed]').remove()" style="cursor:pointer;font-size:18px">✕</span>
+      </div>
+      <div style="padding:20px">${_construirHtmlReporteDrycooler(r)}</div>
+    </div>`;
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function exportarReporteDrycoolerPDF(codigo) {
+  const r = allReportesDrycoolers.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const ventana = window.open('', '_blank');
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Reporte de Drycooler — ${esc(r.Codigo)}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
+  @media print{body{padding:0}}
+</style></head><body>
+${_construirHtmlReporteDrycooler(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
