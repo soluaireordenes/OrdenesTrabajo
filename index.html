@@ -1864,6 +1864,54 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
+    <!-- Observaciones por operario: llamados de atención con hora/fecha,
+         operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá. -->
+    <div id="cronObservacionesWrap" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</div>
+        <div class="card-body" style="padding:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+            <div class="field"><label>Fecha *</label><input type="date" id="obs_fecha"></div>
+            <div class="field"><label>Hora *</label><input type="time" id="obs_hora"></div>
+            <div class="field">
+              <label>Operario *</label>
+              <select id="obs_operario">
+                <option value="">Seleccionar operario...</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tipo de observación *</label>
+              <select id="obs_tipo">
+                <option value="">Seleccionar...</option>
+                <option value="Amarilla">🟡 Amarilla</option>
+                <option value="Roja">🔴 Roja</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:14px">
+            <label>Observación / llamado de atención *</label>
+            <textarea id="obs_texto" rows="3" placeholder="Describe el llamado de atención..."></textarea>
+          </div>
+          <div id="obs_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="guardarObservacionOperario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Observación</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">Conteo por operario</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="obs_conteoWrap"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">Historial de observaciones</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="obs_historialWrap"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Historial de "Entregas Registradas": va al final de todo, no arriba
          junto al formulario (solo Zipaquirá). -->
     <div id="cronEntregasHistorialWrap" style="display:none">
@@ -4929,6 +4977,15 @@ const EQUIPOS_MEXICO = {
   ],
 };
 
+// Operarios de planta de Zipaquirá — para la lista desplegable de la
+// sección "Observaciones" del Cronograma (llamados de atención por
+// operario). Solo aplica a esta sede.
+const OPERARIOS_ZIPAQUIRA = [
+  'Alex Prieto', 'Juan Pablo', 'Laura Acosta', 'Jefry Gomez', 'Marcos Rubiano',
+  'George Mazuera', 'Daniel Rodriguez', 'Diego Triviño', 'Eduar Triviño',
+  'Cristian Rozo', 'Jhonny Rojas', 'David Avila', 'Sebastian Rodriguez',
+];
+
 // Datos de prueba: Empresa 1 → 123, Empresa 2 → 456, Empresa 3 → 789, etc. (+333 cada vez)
 const EQUIPOS_POR_EMPRESA_ANTIOQUIA = {};
 for (let i = 1; i <= 15; i++) {
@@ -5774,6 +5831,7 @@ const SH = {
   cronogramaFotos: 'CronogramaFotos',
   cronogramaAdicionales: 'CronogramaActividadesAdicionales',
   entregaTurno: 'EntregaTurno',
+  observacionesOperarios: 'ObservacionesOperarios',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -5791,6 +5849,10 @@ const CRONOGRAMA_FOTOS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'DriveFileId',
 // cronograma — se marcan/adjuntan fotos con las mismas funciones que las
 // demás (su ActividadId es único y no colisiona con los ids fijos "zpq_...").
 const CRONOGRAMA_ADICIONALES_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Descripcion', 'AgregadoPor', 'FechaHora'];
+// Observaciones/llamados de atención por operario (solo Zipaquirá) — un LOG,
+// nunca se sobrescribe; el conteo por operario (Amarillas/Rojas) se calcula
+// sumando todas las filas de esa persona.
+const OBSERVACIONES_OPERARIOS_COLS = ['Codigo', 'Fecha', 'Hora', 'Operario', 'Tipo', 'Observacion', 'RegistradoPor', 'FechaRegistro'];
 // Reporte de entrega de turno del operario (estado de la operación al
 // terminar/entregar su turno) — una fila por entrega, nunca se sobrescribe;
 // el "borrado" es lógico (Estado='Eliminada'), igual que en Novedades.
@@ -11339,10 +11401,13 @@ async function inicializarPanelCronograma() {
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación).
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
+  const wrapObservaciones = document.getElementById('cronObservacionesWrap');
   const mostrarEntrega = operacionActual === 'zipaquira';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
+  if (wrapObservaciones) wrapObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
+  if (mostrarEntrega) inicializarObservacionesOperarios();
 
   const cont = document.getElementById('cronogramaContenido');
   if (!cont) return;
@@ -11663,6 +11728,154 @@ function renderTablaEntregasTurno() {
   });
   html += '</tbody></table>';
   wrap.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════
+   OBSERVACIONES POR OPERARIO — solo Zipaquirá.
+   Llamados de atención (Amarilla/Roja) con fecha,
+   hora, operario y observación; se lleva el conteo
+   de cuántas lleva cada uno.
+══════════════════════════════════════════════ */
+let allObservacionesOperarios = [];
+
+function _siguienteCodigoObservacion() {
+  let max = 0;
+  allObservacionesOperarios.forEach(o => {
+    const m = (o.Codigo || '').match(/OBS-(\d+)/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return 'OBS-' + String(max + 1).padStart(3, '0');
+}
+
+async function inicializarObservacionesOperarios() {
+  const selOperario = document.getElementById('obs_operario');
+  if (selOperario) {
+    selOperario.innerHTML = '<option value="">Seleccionar operario...</option>' +
+      OPERARIOS_ZIPAQUIRA.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  }
+  const ahora = new Date();
+  const fechaEl = document.getElementById('obs_fecha');
+  if (fechaEl) fechaEl.value = _isoLocal(ahora);
+  const horaEl = document.getElementById('obs_hora');
+  if (horaEl) horaEl.value = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+  const tipoEl = document.getElementById('obs_tipo');
+  if (tipoEl) tipoEl.value = '';
+  const textoEl = document.getElementById('obs_texto');
+  if (textoEl) textoEl.value = '';
+  const msgEl = document.getElementById('obs_msg');
+  if (msgEl) msgEl.textContent = '';
+
+  const conteoWrap = document.getElementById('obs_conteoWrap');
+  const historialWrap = document.getElementById('obs_historialWrap');
+  if (conteoWrap) conteoWrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando observaciones...</div>';
+  try {
+    await asegurarHoja(SH.observacionesOperarios, OBSERVACIONES_OPERARIOS_COLS);
+    const filas = await _leerHojaGenerica(SH.observacionesOperarios);
+    allObservacionesOperarios = filas
+      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.Hora || '').localeCompare(a.Hora || ''));
+    renderConteoObservaciones();
+    renderHistorialObservaciones();
+  } catch (e) {
+    const err = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+    if (conteoWrap) conteoWrap.innerHTML = err;
+    if (historialWrap) historialWrap.innerHTML = '';
+  }
+}
+
+/** Tabla con el total de Amarillas/Rojas por cada operario del roster fijo
+ *  (aparecen todos, incluso con 0, para ver de un vistazo quién no tiene
+ *  ninguna) — ordenados de más a menos observaciones en total. */
+function renderConteoObservaciones() {
+  const wrap = document.getElementById('obs_conteoWrap');
+  if (!wrap) return;
+  const conteo = OPERARIOS_ZIPAQUIRA.map(nombre => {
+    const propias = allObservacionesOperarios.filter(o => o.Operario === nombre);
+    const amarillas = propias.filter(o => o.Tipo === 'Amarilla').length;
+    const rojas = propias.filter(o => o.Tipo === 'Roja').length;
+    return { nombre, amarillas, rojas, total: amarillas + rojas };
+  }).sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre));
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Operario</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">🟡 Amarillas</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">🔴 Rojas</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Total</th>
+    </tr></thead><tbody>`;
+  conteo.forEach(c => {
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px">${esc(c.nombre)}</td>
+      <td style="padding:7px 10px;text-align:center;color:#a15c00;font-weight:700">${c.amarillas}</td>
+      <td style="padding:7px 10px;text-align:center;color:var(--danger);font-weight:700">${c.rojas}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:800">${c.total}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function renderHistorialObservaciones() {
+  const wrap = document.getElementById('obs_historialWrap');
+  if (!wrap) return;
+  if (!allObservacionesOperarios.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay observaciones registradas.</div>';
+    return;
+  }
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Hora</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Operario</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Tipo</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Observación</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Registrado por</th>
+    </tr></thead><tbody>`;
+  allObservacionesOperarios.forEach(o => {
+    const badge = o.Tipo === 'Roja'
+      ? '<span style="background:#fde2e1;color:var(--danger);font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🔴 Roja</span>'
+      : '<span style="background:#fff2d9;color:#a15c00;font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🟡 Amarilla</span>';
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px">${esc(fmtFecha(o.Fecha))}</td>
+      <td style="padding:7px 10px">${esc(o.Hora)}</td>
+      <td style="padding:7px 10px">${esc(o.Operario)}</td>
+      <td style="padding:7px 10px;text-align:center">${badge}</td>
+      <td style="padding:7px 10px">${esc(o.Observacion)}</td>
+      <td style="padding:7px 10px">${esc(o.RegistradoPor)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+async function guardarObservacionOperario() {
+  const fecha = document.getElementById('obs_fecha').value;
+  const hora = document.getElementById('obs_hora').value;
+  const operario = document.getElementById('obs_operario').value;
+  const tipo = document.getElementById('obs_tipo').value;
+  const texto = document.getElementById('obs_texto').value.trim();
+  const msg = document.getElementById('obs_msg');
+
+  if (!fecha || !hora || !operario || !tipo || !texto) {
+    msg.textContent = 'Completa todos los campos: fecha, hora, operario, tipo y observación.';
+    return;
+  }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+
+  try {
+    await asegurarHoja(SH.observacionesOperarios, OBSERVACIONES_OPERARIOS_COLS);
+    const codigo = _siguienteCodigoObservacion();
+    await appendHoja(SH.observacionesOperarios, [[
+      codigo, fecha, hora, operario, tipo, texto,
+      currentUser?.name || currentUser?.email || 'Sistema',
+      new Date().toISOString(),
+    ]]);
+    _invalidarCacheHoja(SH.observacionesOperarios);
+    msg.style.color = '#15803d'; msg.textContent = 'Observación guardada correctamente.';
+    await inicializarObservacionesOperarios();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo guardar: ' + e.message;
+  }
 }
 
 async function guardarEntregaTurno() {
