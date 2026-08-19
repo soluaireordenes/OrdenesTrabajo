@@ -1920,6 +1920,30 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
+      <!-- Filtro por mes/año: afecta tanto el conteo por operario como el
+           historial de abajo, para ver cuántas lleva cada uno en un
+           periodo concreto (por ejemplo, el mes en curso). -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:160px">
+            <label style="margin-bottom:4px;display:block">Mes</label>
+            <select id="obs_filtroMes" onchange="aplicarFiltroObservaciones()" style="margin:0">
+              <option value="">Todos los meses</option>
+              <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+              <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+              <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+              <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;min-width:140px">
+            <label style="margin-bottom:4px;display:block">Año</label>
+            <select id="obs_filtroAnio" onchange="aplicarFiltroObservaciones()" style="margin:0">
+              <option value="">Todos los años</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">Conteo por operario</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -11798,6 +11822,7 @@ async function inicializarObservacionesOperarios() {
     const filas = await _leerHojaGenerica(SH.observacionesOperarios);
     allObservacionesOperarios = filas
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.Hora || '').localeCompare(a.Hora || ''));
+    _poblarFiltroAnioObservaciones();
     renderConteoObservaciones();
     renderHistorialObservaciones();
   } catch (e) {
@@ -11807,14 +11832,54 @@ async function inicializarObservacionesOperarios() {
   }
 }
 
+/** Llena el desplegable de "Año" con los años que realmente tienen
+ *  observaciones registradas, más el año actual (aunque todavía no tenga
+ *  ninguna, para poder filtrarlo desde ya) — conserva la selección previa
+ *  si sigue siendo una opción válida. */
+function _poblarFiltroAnioObservaciones() {
+  const sel = document.getElementById('obs_filtroAnio');
+  if (!sel) return;
+  const anioActual = String(new Date().getFullYear());
+  const anios = new Set([anioActual]);
+  allObservacionesOperarios.forEach(o => { if (o.Fecha) anios.add(o.Fecha.slice(0, 4)); });
+  const anteriorSeleccion = sel.value;
+  sel.innerHTML = '<option value="">Todos los años</option>' +
+    Array.from(anios).sort((a, b) => b.localeCompare(a)).map(a => `<option value="${a}">${a}</option>`).join('');
+  if (Array.from(sel.options).some(o => o.value === anteriorSeleccion)) sel.value = anteriorSeleccion;
+}
+
+/** Vuelve a pintar el conteo y el historial con el filtro de mes/año
+ *  actualmente seleccionado — se llama al cambiar cualquiera de los dos
+ *  desplegables. */
+function aplicarFiltroObservaciones() {
+  renderConteoObservaciones();
+  renderHistorialObservaciones();
+}
+
+/** Aplica el filtro de mes/año (si hay alguno seleccionado) sobre
+ *  allObservacionesOperarios — la usan tanto el conteo como el historial,
+ *  así los dos siempre muestran el mismo periodo. */
+function _observacionesFiltradas() {
+  const mes = document.getElementById('obs_filtroMes')?.value || '';
+  const anio = document.getElementById('obs_filtroAnio')?.value || '';
+  return allObservacionesOperarios.filter(o => {
+    if (!o.Fecha) return false;
+    if (anio && o.Fecha.slice(0, 4) !== anio) return false;
+    if (mes && o.Fecha.slice(5, 7) !== mes) return false;
+    return true;
+  });
+}
+
 /** Tabla con el total de Amarillas/Rojas por cada operario del roster fijo
  *  (aparecen todos, incluso con 0, para ver de un vistazo quién no tiene
- *  ninguna) — ordenados de más a menos observaciones en total. */
+ *  ninguna) — ordenados de más a menos observaciones en total, dentro del
+ *  periodo filtrado por mes/año. */
 function renderConteoObservaciones() {
   const wrap = document.getElementById('obs_conteoWrap');
   if (!wrap) return;
+  const filtradas = _observacionesFiltradas();
   const conteo = OPERARIOS_ZIPAQUIRA.map(nombre => {
-    const propias = allObservacionesOperarios.filter(o => o.Operario === nombre);
+    const propias = filtradas.filter(o => o.Operario === nombre);
     const amarillas = propias.filter(o => o.Tipo === 'Amarilla').length;
     const rojas = propias.filter(o => o.Tipo === 'Roja').length;
     return { nombre, amarillas, rojas, total: amarillas + rojas };
@@ -11842,8 +11907,9 @@ function renderConteoObservaciones() {
 function renderHistorialObservaciones() {
   const wrap = document.getElementById('obs_historialWrap');
   if (!wrap) return;
-  if (!allObservacionesOperarios.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay observaciones registradas.</div>';
+  const filtradas = _observacionesFiltradas();
+  if (!filtradas.length) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${allObservacionesOperarios.length ? 'No hay observaciones en el periodo seleccionado.' : 'Todavía no hay observaciones registradas.'}</div>`;
     return;
   }
   let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -11855,7 +11921,7 @@ function renderHistorialObservaciones() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Observación</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Registrado por</th>
     </tr></thead><tbody>`;
-  allObservacionesOperarios.forEach(o => {
+  filtradas.forEach(o => {
     const badge = o.Tipo === 'Roja'
       ? '<span style="background:#fde2e1;color:var(--danger);font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🔴 Roja</span>'
       : '<span style="background:#fff2d9;color:#a15c00;font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🟡 Amarilla</span>';
