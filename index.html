@@ -1803,6 +1803,15 @@ body.inv-activo .container { max-width: 1800px; }
       <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma de Actividades Diarias</div>
     </div>
 
+    <!-- Sub-navegación del Cronograma: Actividades / Observaciones (esta
+         última solo se muestra para Zipaquirá, ver cronMostrarSubTab). -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:2px">
+      <button class="inv-subtab active" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades</button>
+      <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
+    </div>
+
+    <div id="cronSub-actividades" class="inv-subpanel active">
+
     <!-- Entrega de Turno: el formulario va primero, arriba de las actividades
          (solo Zipaquirá); el historial de "Entregas Registradas" va al
          final de todo (ver más abajo), no aquí arriba. -->
@@ -1864,9 +1873,23 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
+    <!-- Historial de "Entregas Registradas": va al final de todo, no arriba
+         junto al formulario (solo Zipaquirá). -->
+    <div id="cronEntregasHistorialWrap" style="display:none">
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="et_tablaWrap"></div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /cronSub-actividades -->
+
     <!-- Observaciones por operario: llamados de atención con hora/fecha,
-         operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá. -->
-    <div id="cronObservacionesWrap" style="display:none">
+         operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá,
+         en su propia pestaña dentro de Cronograma. -->
+    <div id="cronSub-observaciones" class="inv-subpanel">
       <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</div>
         <div class="card-body" style="padding:18px">
@@ -1897,6 +1920,30 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
+      <!-- Filtro por mes/año: afecta tanto el conteo por operario como el
+           historial de abajo, para ver cuántas lleva cada uno en un
+           periodo concreto (por ejemplo, el mes en curso). -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:160px">
+            <label style="margin-bottom:4px;display:block">Mes</label>
+            <select id="obs_filtroMes" onchange="aplicarFiltroObservaciones()" style="margin:0">
+              <option value="">Todos los meses</option>
+              <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+              <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+              <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+              <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;min-width:140px">
+            <label style="margin-bottom:4px;display:block">Año</label>
+            <select id="obs_filtroAnio" onchange="aplicarFiltroObservaciones()" style="margin:0">
+              <option value="">Todos los años</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">Conteo por operario</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -1910,18 +1957,7 @@ body.inv-activo .container { max-width: 1800px; }
           <div id="obs_historialWrap"></div>
         </div>
       </div>
-    </div>
-
-    <!-- Historial de "Entregas Registradas": va al final de todo, no arriba
-         junto al formulario (solo Zipaquirá). -->
-    <div id="cronEntregasHistorialWrap" style="display:none">
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <div id="et_tablaWrap"></div>
-        </div>
-      </div>
-    </div>
+    </div><!-- /cronSub-observaciones -->
   </div>
 
   <!-- ════════════ PANEL: DETALLE ════════════ -->
@@ -11395,19 +11431,32 @@ function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, foto
 }
 
 /** Punto de entrada — se llama al abrir la pestaña Cronograma. */
+/** Cambia entre las pestañas "Actividades" y "Observaciones" del
+ *  Cronograma. Observaciones carga sus datos de forma perezosa, solo la
+ *  primera vez que se entra a esa pestaña (no en cada click). */
+function cronMostrarSubTab(nombre) {
+  const panel = document.getElementById('panel-cronograma');
+  panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
+  panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
+  document.getElementById('cronSub-' + nombre).classList.add('active');
+  panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`).classList.add('active');
+  if (nombre === 'observaciones') inicializarObservacionesOperarios();
+}
+
 async function inicializarPanelCronograma() {
   // La Entrega de Turno va arriba de las actividades, dentro de la misma
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
-  // —CA, CB, NX220, IR160, etc.— son específicos de esa operación).
+  // —CA, CB, NX220, IR160, etc.— son específicos de esa operación). La
+  // pestaña "Observaciones" es aparte y también solo aplica a Zipaquirá.
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
-  const wrapObservaciones = document.getElementById('cronObservacionesWrap');
+  const tabObservaciones = document.getElementById('cronTabObservaciones');
   const mostrarEntrega = operacionActual === 'zipaquira';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
-  if (wrapObservaciones) wrapObservaciones.style.display = mostrarEntrega ? '' : 'none';
+  if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
-  if (mostrarEntrega) inicializarObservacionesOperarios();
+  cronMostrarSubTab('actividades'); // siempre arranca en Actividades al entrar al Cronograma
 
   const cont = document.getElementById('cronogramaContenido');
   if (!cont) return;
@@ -11773,6 +11822,7 @@ async function inicializarObservacionesOperarios() {
     const filas = await _leerHojaGenerica(SH.observacionesOperarios);
     allObservacionesOperarios = filas
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.Hora || '').localeCompare(a.Hora || ''));
+    _poblarFiltroAnioObservaciones();
     renderConteoObservaciones();
     renderHistorialObservaciones();
   } catch (e) {
@@ -11782,14 +11832,54 @@ async function inicializarObservacionesOperarios() {
   }
 }
 
+/** Llena el desplegable de "Año" con los años que realmente tienen
+ *  observaciones registradas, más el año actual (aunque todavía no tenga
+ *  ninguna, para poder filtrarlo desde ya) — conserva la selección previa
+ *  si sigue siendo una opción válida. */
+function _poblarFiltroAnioObservaciones() {
+  const sel = document.getElementById('obs_filtroAnio');
+  if (!sel) return;
+  const anioActual = String(new Date().getFullYear());
+  const anios = new Set([anioActual]);
+  allObservacionesOperarios.forEach(o => { if (o.Fecha) anios.add(o.Fecha.slice(0, 4)); });
+  const anteriorSeleccion = sel.value;
+  sel.innerHTML = '<option value="">Todos los años</option>' +
+    Array.from(anios).sort((a, b) => b.localeCompare(a)).map(a => `<option value="${a}">${a}</option>`).join('');
+  if (Array.from(sel.options).some(o => o.value === anteriorSeleccion)) sel.value = anteriorSeleccion;
+}
+
+/** Vuelve a pintar el conteo y el historial con el filtro de mes/año
+ *  actualmente seleccionado — se llama al cambiar cualquiera de los dos
+ *  desplegables. */
+function aplicarFiltroObservaciones() {
+  renderConteoObservaciones();
+  renderHistorialObservaciones();
+}
+
+/** Aplica el filtro de mes/año (si hay alguno seleccionado) sobre
+ *  allObservacionesOperarios — la usan tanto el conteo como el historial,
+ *  así los dos siempre muestran el mismo periodo. */
+function _observacionesFiltradas() {
+  const mes = document.getElementById('obs_filtroMes')?.value || '';
+  const anio = document.getElementById('obs_filtroAnio')?.value || '';
+  return allObservacionesOperarios.filter(o => {
+    if (!o.Fecha) return false;
+    if (anio && o.Fecha.slice(0, 4) !== anio) return false;
+    if (mes && o.Fecha.slice(5, 7) !== mes) return false;
+    return true;
+  });
+}
+
 /** Tabla con el total de Amarillas/Rojas por cada operario del roster fijo
  *  (aparecen todos, incluso con 0, para ver de un vistazo quién no tiene
- *  ninguna) — ordenados de más a menos observaciones en total. */
+ *  ninguna) — ordenados de más a menos observaciones en total, dentro del
+ *  periodo filtrado por mes/año. */
 function renderConteoObservaciones() {
   const wrap = document.getElementById('obs_conteoWrap');
   if (!wrap) return;
+  const filtradas = _observacionesFiltradas();
   const conteo = OPERARIOS_ZIPAQUIRA.map(nombre => {
-    const propias = allObservacionesOperarios.filter(o => o.Operario === nombre);
+    const propias = filtradas.filter(o => o.Operario === nombre);
     const amarillas = propias.filter(o => o.Tipo === 'Amarilla').length;
     const rojas = propias.filter(o => o.Tipo === 'Roja').length;
     return { nombre, amarillas, rojas, total: amarillas + rojas };
@@ -11817,8 +11907,9 @@ function renderConteoObservaciones() {
 function renderHistorialObservaciones() {
   const wrap = document.getElementById('obs_historialWrap');
   if (!wrap) return;
-  if (!allObservacionesOperarios.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay observaciones registradas.</div>';
+  const filtradas = _observacionesFiltradas();
+  if (!filtradas.length) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${allObservacionesOperarios.length ? 'No hay observaciones en el periodo seleccionado.' : 'Todavía no hay observaciones registradas.'}</div>`;
     return;
   }
   let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -11830,7 +11921,7 @@ function renderHistorialObservaciones() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Observación</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Registrado por</th>
     </tr></thead><tbody>`;
-  allObservacionesOperarios.forEach(o => {
+  filtradas.forEach(o => {
     const badge = o.Tipo === 'Roja'
       ? '<span style="background:#fde2e1;color:var(--danger);font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🔴 Roja</span>'
       : '<span style="background:#fff2d9;color:#a15c00;font-weight:700;padding:2px 8px;border-radius:10px;font-size:11px">🟡 Amarilla</span>';
