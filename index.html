@@ -1966,6 +1966,14 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="rc_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRc"></canvas></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -2020,6 +2028,14 @@ body.inv-activo .container { max-width: 1800px; }
 
           <div id="rs_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="rs_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRs"></canvas></div>
         </div>
       </div>
 
@@ -2090,6 +2106,14 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="rd_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRd"></canvas></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -2130,6 +2154,14 @@ body.inv-activo .container { max-width: 1800px; }
           <div id="rdec_camposMediciones"></div>
           <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="rdec_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRdec"></canvas></div>
         </div>
       </div>
 
@@ -2180,6 +2212,14 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="re_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRe"></canvas></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -2204,6 +2244,14 @@ body.inv-activo .container { max-width: 1800px; }
           <div id="rpd_camposMediciones"></div>
           <div id="rpd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarReportePresionDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Reportes</div>
+        <div class="card-body" style="padding:14px">
+          <div id="rpd_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
+          <div style="position:relative;height:200px"><canvas id="chartCumplimientoRpd"></canvas></div>
         </div>
       </div>
 
@@ -12748,6 +12796,104 @@ async function guardarObservacionOperario() {
 }
 
 /* ══════════════════════════════════════════════
+   CUMPLIMIENTO DE CADA FORMULARIO DE REPORTE TÉCNICO
+   (Compresores, Secadores, Drycoolers, Decorado,
+   Emergencia, Presión Drycooler) — mismo estilo que
+   el Dashboard de cumplimiento por turno: "cumplido"
+   apenas se guarda un reporte (no requiere ninguna
+   marca aparte), "no cumplido" si para esa fecha
+   (+hora, en los formularios que la tienen) no hay
+   ningún reporte guardado todavía.
+══════════════════════════════════════════════ */
+// Mapa de las 6 franjas horarias fijas de los reportes técnicos a su
+// hora 24h equivalente, para poder omitir franjas que todavía no han
+// llegado hoy (igual criterio que el Dashboard de turnos).
+const HORA_REPORTE_A_24H = {
+  '6:00 a.m.': '06:00', '10:00 a.m.': '10:00', '2:00 p.m.': '14:00',
+  '6:00 p.m.': '18:00', '10:00 p.m.': '22:00', '2:00 a.m.': '02:00',
+};
+
+/** Gráfica compacta de cumplimiento para un formulario de reporte técnico
+ *  — recibe las filas YA cargadas (allReportesXxx, filtradas sin
+ *  "Eliminada") para no repetir la lectura de la hoja. Si `horas` es un
+ *  array, cada día se abre en sus franjas horarias fijas (como el
+ *  Dashboard de turnos); si es null, es un formulario sin hora (un solo
+ *  punto por día, como Presión Drycooler). Se llama al final de cada
+ *  inicializarReporteXxx(), que a su vez se vuelve a llamar automáticamente
+ *  después de cada guardado exitoso — así el punto de "hoy" pasa a
+ *  cumplido apenas se da clic en "Guardar Reporte", sin ninguna marca
+ *  aparte. */
+function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, dias) {
+  const canvas = document.getElementById(canvasId);
+  const resumenEl = document.getElementById(resumenId);
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (window[chartVar]) { window[chartVar].destroy(); window[chartVar] = null; }
+
+  const claves = new Set((filas || []).map(f => horas ? (f.Fecha + '|' + f.Hora) : f.Fecha));
+  const ahora = new Date();
+  const hoyIso = _isoLocal(ahora);
+  const horaAhora = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+
+  const fechas = [];
+  const cursor = new Date(hoyIso + 'T12:00:00');
+  cursor.setDate(cursor.getDate() - (dias - 1));
+  for (let i = 0; i < dias; i++) { fechas.push(_isoLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
+
+  const labels = [], valores = [], colores = [];
+  let cumplidos = 0, total = 0;
+  fechas.forEach(fecha => {
+    if (fecha > hoyIso) return;
+    if (horas) {
+      horas.forEach(hora => {
+        if (fecha === hoyIso && (HORA_REPORTE_A_24H[hora] || '00:00') > horaAhora) return;
+        const val = claves.has(fecha + '|' + hora) ? 1 : 0;
+        labels.push(hora.replace(':00 ', '') + ' · ' + fmtFecha(fecha).slice(0, 5));
+        valores.push(val); colores.push(val ? '#15803d' : '#b91c1c');
+        total++; if (val) cumplidos++;
+      });
+    } else {
+      const val = claves.has(fecha) ? 1 : 0;
+      labels.push(fmtFecha(fecha).slice(0, 5));
+      valores.push(val); colores.push(val ? '#15803d' : '#b91c1c');
+      total++; if (val) cumplidos++;
+    }
+  });
+
+  if (!valores.length) {
+    if (resumenEl) resumenEl.innerHTML = '<div style="color:var(--text3);font-size:12px">Todavía no hay franjas para mostrar.</div>';
+    return;
+  }
+
+  window[chartVar] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Reporte guardado', data: valores,
+      borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,.15)',
+      fill: true, tension: 0, borderWidth: 2,
+      pointRadius: 3, pointHoverRadius: 5,
+      pointBackgroundColor: colores, pointBorderColor: '#fff', pointBorderWidth: 1,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + (ctx.raw ? '✓ Reporte guardado' : '✗ Sin reporte') } },
+      },
+      scales: {
+        y: { min: -0.1, max: 1.1, ticks: { stepSize: 1, callback: v => (v === 1 ? 'Cumplido' : v === 0 ? 'No cumplido' : '') } },
+        x: { ticks: { maxRotation: 90, minRotation: 90, autoSkip: false, font: { size: 9 } } },
+      },
+    },
+  });
+
+  if (resumenEl) {
+    const pct = total ? Math.round((cumplidos / total) * 100) : 0;
+    const color = pct >= 80 ? '#15803d' : (pct >= 50 ? '#a15c00' : '#b91c1c');
+    resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b> (${cumplidos}/${total})</span>`;
+  }
+}
+
+/* ══════════════════════════════════════════════
    REPORTE DE COMPRESORES — solo Zipaquirá.
    Formulario técnico completo (34 mediciones) por
    compresor y hora, calcado del formulario
@@ -12812,6 +12958,7 @@ async function inicializarReporteCompresores() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesCompresores();
+    _renderCumplimientoReporteTecnico(allReportesCompresores, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', 4);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
@@ -13062,6 +13209,7 @@ async function inicializarReporteSecadores() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesSecadores();
+    _renderCumplimientoReporteTecnico(allReportesSecadores, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', 4);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
@@ -13326,6 +13474,7 @@ async function inicializarReporteDrycoolers() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesDrycoolers();
+    _renderCumplimientoReporteTecnico(allReportesDrycoolers, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', 4);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
@@ -13577,6 +13726,7 @@ async function inicializarReporteDecorado() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesDecorado();
+    _renderCumplimientoReporteTecnico(allReportesDecorado, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', 4);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
@@ -13816,6 +13966,7 @@ async function inicializarReporteEmergencia() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesEmergencia();
+    _renderCumplimientoReporteTecnico(allReportesEmergencia, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', 4);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
@@ -14039,6 +14190,7 @@ async function inicializarReportePresionDrycooler() {
       .filter(f => f.Estado !== 'Eliminada')
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
     renderTablaReportesPresionDrycooler();
+    _renderCumplimientoReporteTecnico(allReportesPresionDrycooler, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', 7);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
   }
