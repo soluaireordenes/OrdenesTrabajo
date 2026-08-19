@@ -1812,6 +1812,7 @@ body.inv-activo .container { max-width: 1800px; }
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
       <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte Secadores</button>
       <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte Drycoolers</button>
+      <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Decorado</button>
       <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
     </div>
 
@@ -2094,6 +2095,49 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
     </div><!-- /cronSub-drycoolers -->
+
+    <!-- Reporte de Equipos de Decorado: formulario técnico calcado del
+         formulario "Seguimiento Equipos de Decorado" — solo Zipaquirá. -->
+    <div id="cronSub-decorado" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Equipos de Decorado</div>
+        <div class="card-body" style="padding:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+            <div class="field">
+              <label>Técnico que realiza el reporte *</label>
+              <select id="rdec_tecnico" onchange="document.getElementById('rdec_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field" id="rdec_tecnicoOtroWrap" style="display:none">
+              <label>Nombre del técnico</label>
+              <input id="rdec_tecnicoOtro" placeholder="Nombre completo">
+            </div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rdec_fecha"></div>
+            <div class="field">
+              <label>Hora en la que se realiza el reporte *</label>
+              <select id="rdec_hora"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Seleccione compresor *</label>
+              <select id="rdec_compresor"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Nivel de aceite *</label>
+              <select id="rdec_nivelAceite"><option value="">Seleccionar...</option></select>
+            </div>
+          </div>
+          <div id="rdec_camposMediciones"></div>
+          <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="rdec_tablaWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-decorado -->
 
     <!-- Observaciones por operario: llamados de atención con hora/fecha,
          operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá,
@@ -6080,6 +6124,7 @@ const SH = {
   reporteCompresores: 'ReporteCompresores',
   reporteSecadores: 'ReporteSecadores',
   reporteDrycoolers: 'ReporteDrycoolers',
+  reporteDecorado: 'ReporteDecorado',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -6256,6 +6301,37 @@ const REPORTE_DRYCOOLERS_CAMPOS = [
   { grupo: 'Mediciones', id: 'presionEntrega', label: 'Presión de entrega [bar]', col: 'PresionEntrega', hint: 'Normal: 1.5–4' },
   { grupo: 'Mediciones', id: 'temperaturaRetorno', label: 'Temperatura de retorno [°C]', col: 'TemperaturaRetorno' },
   { grupo: 'Mediciones', id: 'porcentajeVentiladores', label: 'Porcentaje ventiladores [%]', col: 'PorcentajeVentiladores', hint: 'Normal: menor o igual que 100' },
+];
+
+// Reporte de seguimiento de equipos de decorado (Zipaquirá) — calcado del
+// formulario "Seguimiento Equipos de Decorado" (compresor FS Curtis). Una
+// fila por reporte, nunca se sobrescribe; el "borrado" es lógico
+// (Estado='Eliminada'), igual que los otros reportes técnicos.
+const REPORTE_DECORADO_COLS = [
+  'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor',
+  'PresionRed', 'PresionDescarga', 'Temperatura', 'HorasTotales', 'HorasCarga', 'ArranquesMotor',
+  'NivelAceite', 'PresionTanque',
+  'TiempoMotor', 'TiempoFiltroAceite', 'TiempoAceite', 'TiempoFiltroAire', 'TiempoSeparador', 'TiempoCompresor',
+  'RegistradoPor', 'FechaRegistro', 'Estado',
+];
+const TECNICOS_REPORTE_DECORADO = TECNICOS_REPORTE_COMPRESORES;
+const HORAS_REPORTE_DECORADO = HORAS_REPORTE_COMPRESOR;
+const COMPRESORES_DECORADO_LISTA = ['Compresor NX V55', 'Compresor NX V18'];
+const NIVELES_ACEITE_DECORADO = ['Alto', 'Medio alto', 'Medio', 'Medio bajo', 'Bajo'];
+const REPORTE_DECORADO_CAMPOS = [
+  { grupo: 'Sistema', id: 'presionRed', label: 'Presión de la red [PSI]', col: 'PresionRed', hint: 'Normal: 90–110' },
+  { grupo: 'Sistema', id: 'presionDescarga', label: 'Presión de descarga [PSI]', col: 'PresionDescarga', hint: 'Normal: 10–100' },
+  { grupo: 'Sistema', id: 'temperatura', label: 'Temperatura [°C]', col: 'Temperatura', hint: 'Normal: menor que 100' },
+  { grupo: 'Sistema', id: 'horasTotales', label: 'Horas totales', col: 'HorasTotales', hint: 'Número entero' },
+  { grupo: 'Sistema', id: 'horasCarga', label: 'Horas de carga', col: 'HorasCarga', hint: 'Número entero' },
+  { grupo: 'Sistema', id: 'arranquesMotor', label: 'Arranques motor', col: 'ArranquesMotor' },
+  { grupo: 'Sistema', id: 'presionTanque', label: 'Presión del tanque [PSI]', col: 'PresionTanque', hint: 'Normal: menor o igual que 110' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoMotor', label: 'Motor [h]', col: 'TiempoMotor', hint: 'Normal: mayor a 100' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoFiltroAceite', label: 'Filtro aceite [h]', col: 'TiempoFiltroAceite', hint: 'Normal: mayor a 100' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoAceite', label: 'Aceite [h]', col: 'TiempoAceite', hint: 'Normal: mayor a 100' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoFiltroAire', label: 'Filtro de aire [h]', col: 'TiempoFiltroAire', hint: 'Normal: mayor a 100' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoSeparador', label: 'Separador de aire - aceite [h]', col: 'TiempoSeparador', hint: 'Normal: mayor a 100' },
+  { grupo: 'Tiempo restante del servicio', id: 'tiempoCompresor', label: 'Compresor [h]', col: 'TiempoCompresor', hint: 'Normal: mayor a 100' },
 ];
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
@@ -11849,6 +11925,7 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'secadores') inicializarReporteSecadores();
   if (nombre === 'drycoolers') inicializarReporteDrycoolers();
+  if (nombre === 'decorado') inicializarReporteDecorado();
 }
 
 async function inicializarPanelCronograma() {
@@ -11856,14 +11933,15 @@ async function inicializarPanelCronograma() {
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación). Las
   // pestañas "Reporte Compresores", "Reporte Secadores", "Reporte
-  // Drycoolers" y "Observaciones" son aparte y también solo aplican a
-  // Zipaquirá.
+  // Drycoolers", "Reporte Decorado" y "Observaciones" son aparte y también
+  // solo aplican a Zipaquirá.
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
   const tabCompresores = document.getElementById('cronTabCompresores');
   const tabSecadores = document.getElementById('cronTabSecadores');
   const tabDrycoolers = document.getElementById('cronTabDrycoolers');
+  const tabDecorado = document.getElementById('cronTabDecorado');
   const mostrarEntrega = operacionActual === 'zipaquira';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
@@ -11871,6 +11949,7 @@ async function inicializarPanelCronograma() {
   if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
   if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
   if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
+  if (tabDecorado) tabDecorado.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
   cronMostrarSubTab('actividades'); // siempre arranca en Actividades al entrar al Cronograma
 
@@ -13262,6 +13341,242 @@ async function exportarReporteDrycoolerPDF(codigo) {
   @media print{body{padding:0}}
 </style></head><body>
 ${_construirHtmlReporteDrycooler(r)}
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+}
+
+/* ══════════════════════════════════════════════
+   REPORTE DE EQUIPOS DE DECORADO — solo Zipaquirá.
+   Calcado del formulario "Seguimiento Equipos de
+   Decorado" (compresor FS Curtis).
+══════════════════════════════════════════════ */
+let allReportesDecorado = [];
+
+function _htmlCamposReporteDecorado(existente) {
+  const grupos = [];
+  REPORTE_DECORADO_CAMPOS.forEach(c => {
+    let g = grupos.find(x => x.nombre === c.grupo);
+    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
+    g.campos.push(c);
+  });
+  return grupos.map(g => `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+      <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+        ${g.campos.map(c => `<div class="field">
+          <label>${esc(c.label)}</label>
+          <input id="rdec_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
+          ${c.hint ? `<div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function _siguienteCodigoReporteDecorado() {
+  let max = 0;
+  allReportesDecorado.forEach(r => {
+    const m = (r.Codigo || '').match(/RDEC-(\d+)/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return 'RDEC-' + String(max + 1).padStart(4, '0');
+}
+
+async function inicializarReporteDecorado() {
+  document.getElementById('rdec_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
+    TECNICOS_REPORTE_DECORADO.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
+    '<option value="Otras">Otras</option>';
+  document.getElementById('rdec_hora').innerHTML = '<option value="">Seleccionar...</option>' +
+    HORAS_REPORTE_DECORADO.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  document.getElementById('rdec_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
+    COMPRESORES_DECORADO_LISTA.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  document.getElementById('rdec_nivelAceite').innerHTML = '<option value="">Seleccionar...</option>' +
+    NIVELES_ACEITE_DECORADO.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  document.getElementById('rdec_fecha').value = _isoLocal(new Date());
+  document.getElementById('rdec_tecnicoOtroWrap').style.display = 'none';
+  document.getElementById('rdec_tecnicoOtro').value = '';
+  document.getElementById('rdec_msg').textContent = '';
+  document.getElementById('rdec_camposMediciones').innerHTML = _htmlCamposReporteDecorado(null);
+
+  const wrap = document.getElementById('rdec_tablaWrap');
+  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
+  try {
+    await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
+    const filas = await _leerHojaGenerica(SH.reporteDecorado);
+    allReportesDecorado = filas
+      .filter(f => f.Estado !== 'Eliminada')
+      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    renderTablaReportesDecorado();
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTablaReportesDecorado() {
+  const wrap = document.getElementById('rdec_tablaWrap');
+  if (!allReportesDecorado.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de equipos de decorado registrados.</div>';
+    return;
+  }
+  const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+  const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Hora</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Compresor</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
+    </tr></thead><tbody>`;
+  allReportesDecorado.forEach(r => {
+    const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
+      <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
+      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(r.Compresor)}</td>
+      <td style="padding:7px 10px">${esc(tecnico)}</td>
+      <td style="padding:7px 10px;text-align:center;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="verReporteDecorado('${esc(r.Codigo)}')">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteDecorado('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+/** Guarda un reporte — misma validación numérica que los demás reportes
+ *  técnicos (punto decimal, no coma) para los 13 campos de medición. */
+async function guardarReporteDecorado() {
+  const msg = document.getElementById('rdec_msg');
+  const tecnico = document.getElementById('rdec_tecnico').value;
+  const tecnicoOtro = document.getElementById('rdec_tecnicoOtro').value.trim();
+  const fecha = document.getElementById('rdec_fecha').value;
+  const hora = document.getElementById('rdec_hora').value;
+  const compresor = document.getElementById('rdec_compresor').value;
+  const nivelAceite = document.getElementById('rdec_nivelAceite').value;
+
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !nivelAceite) {
+    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y nivel de aceite.';
+    return;
+  }
+
+  const porColumna = {};
+  for (const c of REPORTE_DECORADO_CAMPOS) {
+    const valor = document.getElementById('rdec_' + c.id).value.trim();
+    if (!valor || isNaN(Number(valor))) {
+      msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
+      return;
+    }
+    porColumna[c.col] = valor;
+  }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+
+  try {
+    await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
+    const codigo = _siguienteCodigoReporteDecorado();
+    Object.assign(porColumna, {
+      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Compresor: compresor, NivelAceite: nivelAceite,
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaRegistro: new Date().toISOString(), Estado: 'Activo',
+    });
+    const valores = REPORTE_DECORADO_COLS.map(col => porColumna[col] ?? '');
+    await appendHoja(SH.reporteDecorado, [valores]);
+    _invalidarCacheHoja(SH.reporteDecorado);
+
+    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    await inicializarReporteDecorado();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
+  }
+}
+
+async function eliminarReporteDecorado(codigo) {
+  if (!confirm('¿Eliminar este reporte de equipo de decorado? Esta acción no se puede deshacer.')) return;
+  const fila = allReportesDecorado.find(r => r.Codigo === codigo);
+  if (!fila) return;
+  try {
+    const colEstado = numToCol(REPORTE_DECORADO_COLS.indexOf('Estado'));
+    await sheetsRequest('UPDATE', SH.reporteDecorado + '!' + colEstado + fila._row, [['Eliminada']]);
+    _invalidarCacheHoja(SH.reporteDecorado);
+    await inicializarReporteDecorado();
+  } catch (e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+}
+
+function _construirHtmlReporteDecorado(r, conTitulo) {
+  if (conTitulo === undefined) conTitulo = true;
+  const grupos = [];
+  REPORTE_DECORADO_CAMPOS.forEach(c => {
+    let g = grupos.find(x => x.nombre === c.grupo);
+    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
+    g.campos.push(c);
+  });
+  // Nivel de aceite se muestra como su propio dato dentro de "Sistema".
+  grupos.find(g => g.nombre === 'Sistema').campos.splice(6, 0, { label: 'Nivel de aceite', col: 'NivelAceite' });
+  const gruposHtml = grupos.map(g => {
+    const filas = g.campos.filter(c => (r[c.col] || '').toString().trim());
+    if (!filas.length) return '';
+    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        ${filas.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(c.label)}</div>
+          <div style="font-weight:700;color:#222">${esc(r[c.col])}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+
+  return `
+    ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Reporte de Equipo de Decorado — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Reporte de Equipo de Decorado — ${esc(r.Codigo)}</div>`}
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
+      ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp; <b>Técnico:</b> ${esc(tecnico)}
+    </div>
+    ${gruposHtml}
+  `;
+}
+
+function verReporteDecorado(codigo) {
+  const r = allReportesDecorado.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center">
+        <span>Reporte de Equipo de Decorado — ${esc(r.Codigo)}</span>
+        <span onclick="this.closest('div[style*=fixed]').remove()" style="cursor:pointer;font-size:18px">✕</span>
+      </div>
+      <div style="padding:20px">${_construirHtmlReporteDecorado(r)}</div>
+    </div>`;
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function exportarReporteDecoradoPDF(codigo) {
+  const r = allReportesDecorado.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const ventana = window.open('', '_blank');
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Reporte de Equipo de Decorado — ${esc(r.Codigo)}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
+  @media print{body{padding:0}}
+</style></head><body>
+${_construirHtmlReporteDecorado(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
