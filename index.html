@@ -2022,6 +2022,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rc_filtroDesde" onchange="renderTablaReportesCompresores()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rc_filtroHasta" onchange="renderTablaReportesCompresores()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="rc_tablaWrap"></div>
         </div>
@@ -2079,6 +2089,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rs_filtroDesde" onchange="renderTablaReportesSecadores()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rs_filtroHasta" onchange="renderTablaReportesSecadores()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="rs_tablaWrap"></div>
         </div>
@@ -2146,6 +2166,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rd_filtroDesde" onchange="renderTablaReportesDrycoolers()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rd_filtroHasta" onchange="renderTablaReportesDrycoolers()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="rd_tablaWrap"></div>
         </div>
@@ -2189,6 +2219,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rdec_filtroDesde" onchange="renderTablaReportesDecorado()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rdec_filtroHasta" onchange="renderTablaReportesDecorado()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="rdec_tablaWrap"></div>
         </div>
@@ -2236,6 +2276,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="re_filtroDesde" onchange="renderTablaReportesEmergencia()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="re_filtroHasta" onchange="renderTablaReportesEmergencia()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="re_tablaWrap"></div>
         </div>
@@ -2263,6 +2313,16 @@ body.inv-activo .container { max-width: 1800px; }
 
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rpd_filtroDesde" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rpd_filtroHasta" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
+          </div>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="rpd_tablaWrap"></div>
         </div>
@@ -10451,6 +10511,36 @@ function _isoLocal(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+/** Filtro Desde/Hasta de las tablas "Reportes Registrados" de cada
+ *  formulario técnico — por defecto (primera vez que se abre la pestaña)
+ *  muestran solo el día de hoy, para no cargar de una vez cientos de filas
+ *  históricas migradas; el usuario puede ampliar el rango o borrar los
+ *  campos para ver todo. */
+function _inicializarFiltroFechaReporte(prefix) {
+  const desdeEl = document.getElementById(prefix + '_filtroDesde');
+  const hastaEl = document.getElementById(prefix + '_filtroHasta');
+  if (desdeEl && !desdeEl.value && !hastaEl.value) {
+    const hoy = _isoLocal(new Date());
+    desdeEl.value = hoy;
+    hastaEl.value = hoy;
+  }
+}
+
+/** Filtra una lista de reportes (cada uno con .Fecha 'YYYY-MM-DD') según
+ *  los inputs {prefix}_filtroDesde / {prefix}_filtroHasta. Si ambos están
+ *  vacíos (el usuario los borró), devuelve la lista completa. */
+function _filtrarReportesPorFecha(lista, prefix) {
+  const desde = document.getElementById(prefix + '_filtroDesde')?.value;
+  const hasta = document.getElementById(prefix + '_filtroHasta')?.value;
+  if (!desde && !hasta) return lista;
+  return lista.filter(r => {
+    const f = r.Fecha || '';
+    if (desde && f < desde) return false;
+    if (hasta && f > hasta) return false;
+    return true;
+  });
+}
+
 /** Lee de Sheets el historial de fechas registradas en "RachaNovedades"
  *  (cada una reinició el contador de días sin novedades), ordenadas de
  *  más antigua a más reciente. Crea la hoja si todavía no existe. */
@@ -13064,6 +13154,7 @@ async function inicializarReporteCompresores() {
   document.getElementById('rc_msg').textContent = '';
   document.getElementById('rc_compresor').value = '';
   _actualizarCamposMedicionesCompresor();
+  _inicializarFiltroFechaReporte('rc');
 
   const wrap = document.getElementById('rc_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
@@ -13085,6 +13176,11 @@ function renderTablaReportesCompresores() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de compresores registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesCompresores, 'rc');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -13098,7 +13194,7 @@ function renderTablaReportesCompresores() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesCompresores.forEach(r => {
+  filas.forEach(r => {
     const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
@@ -13322,6 +13418,7 @@ async function inicializarReporteSecadores() {
   document.getElementById('rs_msg').textContent = '';
   document.getElementById('rs_camposFijos').innerHTML = _htmlCamposFijosReporteSecador(null);
 
+  _inicializarFiltroFechaReporte('rs');
   const wrap = document.getElementById('rs_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -13342,6 +13439,11 @@ function renderTablaReportesSecadores() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de secadores registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesSecadores, 'rs');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -13355,7 +13457,7 @@ function renderTablaReportesSecadores() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesSecadores.forEach(r => {
+  filas.forEach(r => {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
@@ -13586,6 +13688,7 @@ async function inicializarReporteDrycoolers() {
   document.getElementById('rd_msg').textContent = '';
   document.getElementById('rd_camposMediciones').innerHTML = _htmlCamposReporteDrycooler(null);
 
+  _inicializarFiltroFechaReporte('rd');
   const wrap = document.getElementById('rd_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -13606,6 +13709,11 @@ function renderTablaReportesDrycoolers() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de drycoolers registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesDrycoolers, 'rd');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -13619,7 +13727,7 @@ function renderTablaReportesDrycoolers() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesDrycoolers.forEach(r => {
+  filas.forEach(r => {
     const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
@@ -13837,6 +13945,7 @@ async function inicializarReporteDecorado() {
   document.getElementById('rdec_msg').textContent = '';
   document.getElementById('rdec_camposMediciones').innerHTML = _htmlCamposReporteDecorado(null);
 
+  _inicializarFiltroFechaReporte('rdec');
   const wrap = document.getElementById('rdec_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -13857,6 +13966,11 @@ function renderTablaReportesDecorado() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de equipos de decorado registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesDecorado, 'rdec');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -13870,7 +13984,7 @@ function renderTablaReportesDecorado() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesDecorado.forEach(r => {
+  filas.forEach(r => {
     const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
@@ -14076,6 +14190,7 @@ async function inicializarReporteEmergencia() {
   document.getElementById('re_msg').textContent = '';
   document.getElementById('re_camposMediciones').innerHTML = _htmlCamposReporteEmergencia(null);
 
+  _inicializarFiltroFechaReporte('re');
   const wrap = document.getElementById('re_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -14096,6 +14211,11 @@ function renderTablaReportesEmergencia() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de equipos de emergencia registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesEmergencia, 're');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -14109,7 +14229,7 @@ function renderTablaReportesEmergencia() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesEmergencia.forEach(r => {
+  filas.forEach(r => {
     const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
@@ -14299,6 +14419,7 @@ async function inicializarReportePresionDrycooler() {
   document.getElementById('rpd_msg').textContent = '';
   document.getElementById('rpd_camposMediciones').innerHTML = _htmlCamposReportePresionDrycooler(null);
 
+  _inicializarFiltroFechaReporte('rpd');
   const wrap = document.getElementById('rpd_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -14319,6 +14440,11 @@ function renderTablaReportesPresionDrycooler() {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes registrados.</div>';
     return;
   }
+  const filas = _filtrarReportesPorFecha(allReportesPresionDrycooler, 'rpd');
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    return;
+  }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -14330,7 +14456,7 @@ function renderTablaReportesPresionDrycooler() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allReportesPresionDrycooler.forEach(r => {
+  filas.forEach(r => {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
