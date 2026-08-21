@@ -2056,9 +2056,9 @@ body.inv-activo .container { max-width: 1800px; }
             </div>
             <div class="field">
               <label>Secador *</label>
-              <select id="rs_secador"><option value="">Seleccionar...</option></select>
+              <select id="rs_secador" onchange="_actualizarBloqueSecador()"><option value="">Seleccionar...</option></select>
             </div>
-            <div class="field">
+            <div class="field" id="rs_modoCicloWrap" style="display:none">
               <label>Modo del ciclo (Cycle mode) *</label>
               <select id="rs_modoCiclo">
                 <option value="">Seleccionar...</option>
@@ -2068,19 +2068,26 @@ body.inv-activo .container { max-width: 1800px; }
             </div>
           </div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
-            <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Torre derecha</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-              <div class="field">
-                <label>Además de S0, seleccione el otro parámetro (control Smart Line) *</label>
-                <select id="rs_torreDerechaParametro" onchange="document.getElementById('rs_torreDerechaValorSecundarioLabel').textContent=(this.value||'Otro parámetro')+' [min]'"><option value="">Seleccionar...</option></select>
+          <!-- Secadores HOC: control Smart Line (Torre derecha/izquierda,
+               T1-T4, PA, DP). Los Friulair/Emergencia usan un panel
+               totalmente distinto — ver rs_bloqueFriulair más abajo. -->
+          <div id="rs_bloqueHOC" style="display:none">
+            <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+              <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Torre derecha</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+                <div class="field">
+                  <label>Además de S0, seleccione el otro parámetro (control Smart Line) *</label>
+                  <select id="rs_torreDerechaParametro" onchange="document.getElementById('rs_torreDerechaValorSecundarioLabel').textContent=(this.value||'Otro parámetro')+' [min]'"><option value="">Seleccionar...</option></select>
+                </div>
+                <div class="field"><label>S0 Adsorption [min] *</label><input id="rs_s0Adsorption" placeholder="S0 Adsorption [min]"></div>
+                <div class="field"><label id="rs_torreDerechaValorSecundarioLabel">Otro parámetro [min] *</label><input id="rs_torreDerechaValorSecundario" placeholder="Valor"></div>
               </div>
-              <div class="field"><label>S0 Adsorption [min] *</label><input id="rs_s0Adsorption" placeholder="S0 Adsorption [min]"></div>
-              <div class="field"><label id="rs_torreDerechaValorSecundarioLabel">Otro parámetro [min] *</label><input id="rs_torreDerechaValorSecundario" placeholder="Valor"></div>
             </div>
+
+            <div id="rs_camposFijos"></div>
           </div>
 
-          <div id="rs_camposFijos"></div>
+          <div id="rs_bloqueFriulair"></div>
 
           <div id="rs_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
@@ -6499,9 +6506,13 @@ function esCompresorBaja(compresor) {
 // "borrado" es lógico (Estado='Eliminada'), igual que Reporte de Compresores.
 const REPORTE_SECADORES_COLS = [
   'Codigo', 'Fecha', 'Hora', 'Tecnico', 'Secador',
+  // Mediciones de secadores HOC (Smart Line), quedan vacías en filas Friulair:
   'ModoCiclo', 'TorreDerechaParametro', 'S0Adsorption', 'TorreDerechaValorSecundario',
   'S1Parallel', 'S2Heating', 'S4Cooling', 'S6Standby',
   'T1', 'T2', 'T3', 'T4', 'PA', 'DP',
+  // Mediciones de secadores Friulair/Emergencia (prefijo "F"), quedan vacías
+  // en filas HOC — ver REPORTE_SECADORES_CAMPOS_FRIULAIR más arriba.
+  'FAmperajeTablero', 'FVoltajeTablero', 'FT1', 'FT2', 'FT3', 'FT4', 'FHP', 'FHrS', 'FSrv',
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 // Mismos técnicos que Reporte de Compresores, pero este formulario NO tiene
@@ -6534,6 +6545,28 @@ const REPORTE_SECADORES_CAMPOS = [
 // formulario original (no tiene asterisco) — se valida aparte porque puede
 // quedar vacío.
 const REPORTE_SECADORES_CAMPO_OPCIONAL = { grupo: 'Datos generales', id: 'pa', label: 'PA: Presión tanques [bar]', col: 'PA', hint: 'Normal: menor que 6' };
+
+// Los secadores Friulair (y el Secador Emergencia, que usa el mismo panel)
+// tienen un control totalmente distinto al Smart Line de los HOC — nada de
+// Torre derecha/izquierda ni T1-T4/PA/DP, sino un tablero eléctrico con
+// Amperaje/Voltaje y su propio juego de temperaturas, presión y horas.
+// Van en la MISMA hoja/fila que los HOC, con columnas prefijadas "F" para
+// no chocar con T1-T4 (que significan algo distinto en cada esquema).
+const REPORTE_SECADORES_CAMPOS_FRIULAIR = [
+  { grupo: 'Tablero eléctrico', id: 'famperajeTablero', label: 'Consumo amperaje (tablero 1er piso) [Amps]', col: 'FAmperajeTablero' },
+  { grupo: 'Tablero eléctrico', id: 'fvoltajeTablero', label: 'Consumo voltaje (tablero 1er piso) [V]', col: 'FVoltajeTablero' },
+  { grupo: 'Temperaturas y presión', id: 'ft1', label: 'T1: Punto de rocío [°C]', col: 'FT1' },
+  { grupo: 'Temperaturas y presión', id: 'ft2', label: 'T2: Entrada de aire [°C]', col: 'FT2' },
+  { grupo: 'Temperaturas y presión', id: 'ft3', label: 'T3: Succión del compresor [°C]', col: 'FT3' },
+  { grupo: 'Temperaturas y presión', id: 'ft4', label: 'T4: Descarga del compresor [°C]', col: 'FT4' },
+  { grupo: 'Temperaturas y presión', id: 'fhp', label: 'HP: Presión de condensación [PSI]', col: 'FHP' },
+  { grupo: 'Horas', id: 'fhrs', label: 'HrS: Número total de horas', col: 'FHrS' },
+  { grupo: 'Horas', id: 'fsrv', label: 'Srv: Horas hasta mantenimiento', col: 'FSrv' },
+];
+/** true si el secador elegido usa el esquema Friulair (Friulair o Emergencia). */
+function esSecadorFriulair(secador) {
+  return (secador || '').includes('Friulair') || (secador || '').includes('Emergencia');
+}
 
 // Reporte de seguimiento de drycoolers (Zipaquirá) — calcado del formulario
 // "Seguimiento Drycoolers". Una fila por reporte, nunca se sobrescribe; el
@@ -13400,6 +13433,38 @@ function _htmlCamposFijosReporteSecador(existente) {
     </div>`).join('');
 }
 
+/** Arma el HTML de los campos del panel Friulair/Emergencia — mismo patrón
+ *  agrupado que los demás formularios de este módulo. */
+function _htmlCamposReporteSecadorFriulair(existente) {
+  const grupos = [];
+  REPORTE_SECADORES_CAMPOS_FRIULAIR.forEach(c => {
+    let g = grupos.find(x => x.nombre === c.grupo);
+    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
+    g.campos.push(c);
+  });
+  return grupos.map(g => `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+      <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+        ${g.campos.map(c => `<div class="field">
+          <label>${esc(c.label)} *</label>
+          <input id="rs_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+/** Muestra el bloque HOC (Smart Line) o Friulair/Emergencia según el
+ *  secador elegido — cada familia tiene un panel de control y mediciones
+ *  totalmente distintos. */
+function _actualizarBloqueSecador() {
+  const secador = document.getElementById('rs_secador').value;
+  const esFriulair = esSecadorFriulair(secador);
+  document.getElementById('rs_modoCicloWrap').style.display = (secador && !esFriulair) ? '' : 'none';
+  document.getElementById('rs_bloqueHOC').style.display = (secador && !esFriulair) ? '' : 'none';
+  document.getElementById('rs_bloqueFriulair').innerHTML = (secador && esFriulair) ? _htmlCamposReporteSecadorFriulair(null) : '';
+}
+
 async function inicializarReporteSecadores() {
   document.getElementById('rs_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
     TECNICOS_REPORTE_SECADORES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
@@ -13411,12 +13476,14 @@ async function inicializarReporteSecadores() {
     TORRE_DERECHA_PARAMETROS.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
 
   document.getElementById('rs_fecha').value = _isoLocal(new Date());
+  document.getElementById('rs_secador').value = '';
   document.getElementById('rs_modoCiclo').value = '';
   document.getElementById('rs_s0Adsorption').value = '';
   document.getElementById('rs_torreDerechaValorSecundario').value = '';
   document.getElementById('rs_torreDerechaValorSecundarioLabel').textContent = 'Otro parámetro [min] *';
   document.getElementById('rs_msg').textContent = '';
   document.getElementById('rs_camposFijos').innerHTML = _htmlCamposFijosReporteSecador(null);
+  _actualizarBloqueSecador();
 
   _inicializarFiltroFechaReporte('rs');
   const wrap = document.getElementById('rs_tablaWrap');
@@ -13476,48 +13543,73 @@ function renderTablaReportesSecadores() {
 }
 
 /** Guarda un reporte — misma validación numérica que Reporte de Compresores
- *  (número con punto, no coma) para todos los campos obligatorios; PA es el
- *  único que puede quedar vacío. */
+ *  (número con punto, no coma) para todos los campos obligatorios; PA (solo
+ *  en secadores HOC) es el único que puede quedar vacío. Los secadores
+ *  Friulair/Emergencia usan un panel distinto (ver esSecadorFriulair) con
+ *  su propio set de campos, todos obligatorios. */
 async function guardarReporteSecador() {
   const msg = document.getElementById('rs_msg');
   const tecnico = document.getElementById('rs_tecnico').value;
   const fecha = document.getElementById('rs_fecha').value;
   const hora = document.getElementById('rs_hora').value;
   const secador = document.getElementById('rs_secador').value;
-  const modoCiclo = document.getElementById('rs_modoCiclo').value;
-  const torreDerechaParametro = document.getElementById('rs_torreDerechaParametro').value;
-  const s0Adsorption = document.getElementById('rs_s0Adsorption').value.trim();
-  const torreDerechaValorSecundario = document.getElementById('rs_torreDerechaValorSecundario').value.trim();
 
-  if (!tecnico || !fecha || !hora || !secador || !modoCiclo || !torreDerechaParametro) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, secador, modo del ciclo y el parámetro de la torre derecha.';
-    return;
-  }
-  if (!s0Adsorption || isNaN(Number(s0Adsorption))) {
-    msg.textContent = 'El campo "S0 Adsorption [min]" debe tener un número (usa punto para decimales, no coma).';
-    return;
-  }
-  if (!torreDerechaValorSecundario || isNaN(Number(torreDerechaValorSecundario))) {
-    msg.textContent = `El campo "${torreDerechaParametro} [min]" debe tener un número (usa punto para decimales, no coma).`;
+  if (!tecnico || !fecha || !hora || !secador) {
+    msg.textContent = 'Completa todos los campos: técnico, fecha, hora y secador.';
     return;
   }
 
   const porColumna = {};
-  for (const c of REPORTE_SECADORES_CAMPOS) {
-    const valor = document.getElementById('rs_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
-      msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
+  const esFriulair = esSecadorFriulair(secador);
+
+  if (esFriulair) {
+    for (const c of REPORTE_SECADORES_CAMPOS_FRIULAIR) {
+      const valor = document.getElementById('rs_' + c.id).value.trim();
+      if (!valor || isNaN(Number(valor))) {
+        msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
+        return;
+      }
+      porColumna[c.col] = valor;
+    }
+  } else {
+    const modoCiclo = document.getElementById('rs_modoCiclo').value;
+    const torreDerechaParametro = document.getElementById('rs_torreDerechaParametro').value;
+    const s0Adsorption = document.getElementById('rs_s0Adsorption').value.trim();
+    const torreDerechaValorSecundario = document.getElementById('rs_torreDerechaValorSecundario').value.trim();
+
+    if (!modoCiclo || !torreDerechaParametro) {
+      msg.textContent = 'Completa el modo del ciclo y el parámetro de la torre derecha.';
       return;
     }
-    porColumna[c.col] = valor;
+    if (!s0Adsorption || isNaN(Number(s0Adsorption))) {
+      msg.textContent = 'El campo "S0 Adsorption [min]" debe tener un número (usa punto para decimales, no coma).';
+      return;
+    }
+    if (!torreDerechaValorSecundario || isNaN(Number(torreDerechaValorSecundario))) {
+      msg.textContent = `El campo "${torreDerechaParametro} [min]" debe tener un número (usa punto para decimales, no coma).`;
+      return;
+    }
+
+    for (const c of REPORTE_SECADORES_CAMPOS) {
+      const valor = document.getElementById('rs_' + c.id).value.trim();
+      if (!valor || isNaN(Number(valor))) {
+        msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
+        return;
+      }
+      porColumna[c.col] = valor;
+    }
+    // PA es opcional — solo se valida como número SI se llenó.
+    const pa = document.getElementById('rs_pa').value.trim();
+    if (pa && isNaN(Number(pa))) {
+      msg.textContent = 'El campo "PA: Presión tanques [bar]" debe ser un número (usa punto para decimales, no coma).';
+      return;
+    }
+    porColumna.PA = pa;
+    Object.assign(porColumna, {
+      ModoCiclo: modoCiclo, TorreDerechaParametro: torreDerechaParametro,
+      S0Adsorption: s0Adsorption, TorreDerechaValorSecundario: torreDerechaValorSecundario,
+    });
   }
-  // PA es opcional — solo se valida como número SI se llenó.
-  const pa = document.getElementById('rs_pa').value.trim();
-  if (pa && isNaN(Number(pa))) {
-    msg.textContent = 'El campo "PA: Presión tanques [bar]" debe ser un número (usa punto para decimales, no coma).';
-    return;
-  }
-  porColumna.PA = pa;
 
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
@@ -13526,8 +13618,6 @@ async function guardarReporteSecador() {
     const codigo = _siguienteCodigoReporteSecador();
     Object.assign(porColumna, {
       Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, Secador: secador,
-      ModoCiclo: modoCiclo, TorreDerechaParametro: torreDerechaParametro,
-      S0Adsorption: s0Adsorption, TorreDerechaValorSecundario: torreDerechaValorSecundario,
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
       FechaRegistro: new Date().toISOString(), Estado: 'Activo',
     });
@@ -13556,11 +13646,13 @@ async function eliminarReporteSecador(codigo) {
   }
 }
 
-/** HTML de un reporte (misma estructura para la vista en pantalla y el PDF) */
+/** HTML de un reporte (misma estructura para la vista en pantalla y el PDF).
+ *  Usa la lista combinada HOC+Friulair y descarta los grupos sin datos, ya
+ *  que cada fila solo trae lleno el bloque de la familia que se reportó. */
 function _construirHtmlReporteSecador(r, conTitulo) {
   if (conTitulo === undefined) conTitulo = true;
   const grupos = [];
-  REPORTE_SECADORES_CAMPOS.forEach(c => {
+  REPORTE_SECADORES_CAMPOS.concat(REPORTE_SECADORES_CAMPOS_FRIULAIR).forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
@@ -13593,7 +13685,7 @@ function _construirHtmlReporteSecador(r, conTitulo) {
     ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Reporte de Secador — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Reporte de Secador — ${esc(r.Codigo)}</div>`}
     <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
       ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Secador)}</b> &nbsp;·&nbsp;
-      <b>Modo del ciclo:</b> ${esc(r.ModoCiclo)} &nbsp;·&nbsp; <b>Técnico:</b> ${esc(r.Tecnico)}
+      ${r.ModoCiclo ? `<b>Modo del ciclo:</b> ${esc(r.ModoCiclo)} &nbsp;·&nbsp; ` : ''}<b>Técnico:</b> ${esc(r.Tecnico)}
     </div>
     ${gruposHtml}
   `;
