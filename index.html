@@ -2000,7 +2000,7 @@ body.inv-activo .container { max-width: 1800px; }
             </div>
             <div class="field">
               <label>Compresor *</label>
-              <select id="rc_compresor">
+              <select id="rc_compresor" onchange="_actualizarCamposMedicionesCompresor()">
                 <option value="">Seleccionar...</option>
               </select>
             </div>
@@ -2010,6 +2010,7 @@ body.inv-activo .container { max-width: 1800px; }
                 <option value="">Seleccionar...</option>
                 <option value="SI">SI</option>
                 <option value="NO">NO</option>
+                <option value="EN ESPERA">EN ESPERA</option>
               </select>
             </div>
           </div>
@@ -6301,6 +6302,7 @@ const ENTREGA_TURNO_COLS = [
 // Entrega de Turno y Novedades.
 const REPORTE_COMPRESORES_COLS = [
   'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor', 'EstadoHoraFecha',
+  // Mediciones de Alta Presión (quedan vacías en filas de compresores de Baja):
   'AmperajeArrancador', 'VoltajeArrancador', 'FactorPotencia',
   'DPT', 'SPT', 'OPT', 'SAPT',
   'MAT', 'SMT', 'IMT', 'OMT',
@@ -6311,6 +6313,18 @@ const REPORTE_COMPRESORES_COLS = [
   'AguaEntradaCooler1', 'AguaSalidaCooler1', 'AguaEntradaCooler2', 'AguaSalidaCooler2',
   'TempEntradaAgua', 'PresionEntradaAgua', 'TempSalidaAgua', 'PresionSalidaAgua',
   'TempDescarga', 'HorasUso',
+  // Mediciones de Baja Presión (prefijo "B", quedan vacías en filas de Alta) —
+  // panel de control distinto, ver REPORTE_COMPRESORES_CAMPOS_BAJA más abajo.
+  'BPresionSistema', 'BPresionDescarga', 'BPDTFiltroAire', 'BCorrienteMotor',
+  'BValvulaAlivio', 'BValvulaEntrada', 'BTempEntradaEtapa3', 'BTempDescarga',
+  'BVibracionEtapa1', 'BVibracionEtapa2', 'BVibracionEtapa3',
+  'BPresionAceite', 'BTempAceite',
+  'BTempEstatorA', 'BTempEstatorB', 'BTempEstatorC',
+  'BTempRodamientoLA', 'BTempRodamientoLNA',
+  'BAireEntradaE1', 'BAireSalidaE1', 'BAireEntradaE2', 'BAireSalidaE2', 'BAireEntradaE3', 'BAireSalidaE3',
+  'BAguaEntradaCooler1', 'BAguaSalidaCooler1', 'BAguaEntradaCooler2', 'BAguaSalidaCooler2', 'BAguaEntradaCooler3', 'BAguaSalidaCooler3',
+  'BTempEntradaAgua', 'BPresionEntradaAgua', 'BTempSalidaAgua', 'BPresionSalidaAgua',
+  'BTempDescargaAire', 'BHorasUso',
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 // Lista fija de técnicos del formulario original — "Otras" revela un campo
@@ -6367,6 +6381,58 @@ const REPORTE_COMPRESORES_CAMPOS = [
   { grupo: 'Descarga y uso', id: 'tempDescarga', label: 'Temperatura de descarga [°C]', col: 'TempDescarga', hint: 'Normal: menor que 120' },
   { grupo: 'Descarga y uso', id: 'horasUso', label: 'Horas de uso del equipo', col: 'HorasUso', hint: 'Número entero' },
 ];
+
+// Los compresores de Baja Presión tienen un panel de control distinto, con
+// mediciones que no tienen nada que ver con las de Alta (motor Maestro, 3
+// puntos de vibración/temperatura de estator, rodamientos L/A y L/NA, 3
+// water coolers). Van en la MISMA hoja/fila que los de Alta (una sola hoja
+// de Excel, como la del usuario) — por eso sus columnas llevan el prefijo
+// "B" (evita chocar con columnas de Alta que comparten nombre pero miden
+// algo distinto, p. ej. ValvulaEntrada en % vs. en mS) y en cada fila solo
+// se llenan las columnas del tipo de compresor que se seleccionó; las del
+// otro tipo quedan vacías.
+const REPORTE_COMPRESORES_CAMPOS_BAJA = [
+  { grupo: 'Sistema (Baja Presión)', id: 'presionSistema', label: 'Presión del sistema [PSI]', col: 'BPresionSistema' },
+  { grupo: 'Sistema (Baja Presión)', id: 'presionDescargaBaja', label: 'Presión de descarga [PSI]', col: 'BPresionDescarga' },
+  { grupo: 'Sistema (Baja Presión)', id: 'pdtFiltroAire', label: 'PDT: Presión de filtro de aire [inH2O]', col: 'BPDTFiltroAire' },
+  { grupo: 'Sistema (Baja Presión)', id: 'corrienteMotor', label: 'Corriente del motor (control Maestro) [Amps]', col: 'BCorrienteMotor' },
+  { grupo: 'Sistema (Baja Presión)', id: 'valvulaAlivio', label: 'Posición válvula de alivio [%]', col: 'BValvulaAlivio' },
+  { grupo: 'Sistema (Baja Presión)', id: 'valvulaEntradaBaja', label: 'Posición válvula entrada [mS]', col: 'BValvulaEntrada' },
+  { grupo: 'Sistema (Baja Presión)', id: 'tempEntradaEtapa3', label: 'Temperatura de entrada etapa 3 [°C]', col: 'BTempEntradaEtapa3' },
+  { grupo: 'Sistema (Baja Presión)', id: 'tempDescargaBaja', label: 'Temperatura de descarga [°C]', col: 'BTempDescarga' },
+  { grupo: 'Vibración (Baja Presión)', id: 'vibracionEtapa1', label: 'Vibración etapa 1 [Mil]', col: 'BVibracionEtapa1' },
+  { grupo: 'Vibración (Baja Presión)', id: 'vibracionEtapa2', label: 'Vibración etapa 2 [Mil]', col: 'BVibracionEtapa2' },
+  { grupo: 'Vibración (Baja Presión)', id: 'vibracionEtapa3', label: 'Vibración etapa 3 [Mil]', col: 'BVibracionEtapa3' },
+  { grupo: 'Aceite (Baja Presión)', id: 'presionAceite', label: 'Presión de aceite [PSI]', col: 'BPresionAceite' },
+  { grupo: 'Aceite (Baja Presión)', id: 'tempAceite', label: 'Temperatura de aceite [°C]', col: 'BTempAceite' },
+  { grupo: 'Motor (Baja Presión)', id: 'tempEstatorA', label: 'Temperatura estator de motor A [°C]', col: 'BTempEstatorA' },
+  { grupo: 'Motor (Baja Presión)', id: 'tempEstatorB', label: 'Temperatura estator de motor B [°C]', col: 'BTempEstatorB' },
+  { grupo: 'Motor (Baja Presión)', id: 'tempEstatorC', label: 'Temperatura estator de motor C [°C]', col: 'BTempEstatorC' },
+  { grupo: 'Motor (Baja Presión)', id: 'tempRodamientoLA', label: 'Temperatura rodamiento L/A motor [°C]', col: 'BTempRodamientoLA' },
+  { grupo: 'Motor (Baja Presión)', id: 'tempRodamientoLNA', label: 'Temperatura rodamiento L/NA [°C]', col: 'BTempRodamientoLNA' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireEntradaE1Baja', label: 'Temperatura de entrada [°C] - Etapa 1', col: 'BAireEntradaE1' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireSalidaE1Baja', label: 'Temperatura de salida [°C] - Etapa 1', col: 'BAireSalidaE1' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireEntradaE2Baja', label: 'Temperatura de entrada [°C] - Etapa 2', col: 'BAireEntradaE2' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireSalidaE2Baja', label: 'Temperatura de salida [°C] - Etapa 2', col: 'BAireSalidaE2' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireEntradaE3Baja', label: 'Temperatura de entrada [°C] - Etapa 3', col: 'BAireEntradaE3' },
+  { grupo: 'Aire por etapas (Baja Presión)', id: 'aireSalidaE3Baja', label: 'Temperatura de salida [°C] - Etapa 3', col: 'BAireSalidaE3' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaEntradaCooler1Baja', label: 'Temperatura de entrada [°C] - Cooler 1', col: 'BAguaEntradaCooler1' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaSalidaCooler1Baja', label: 'Temperatura de salida [°C] - Cooler 1', col: 'BAguaSalidaCooler1' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaEntradaCooler2Baja', label: 'Temperatura de entrada [°C] - Cooler 2', col: 'BAguaEntradaCooler2' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaSalidaCooler2Baja', label: 'Temperatura de salida [°C] - Cooler 2', col: 'BAguaSalidaCooler2' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaEntradaCooler3', label: 'Temperatura de entrada [°C] - Cooler 3', col: 'BAguaEntradaCooler3' },
+  { grupo: 'Agua por coolers (Baja Presión)', id: 'aguaSalidaCooler3', label: 'Temperatura de salida [°C] - Cooler 3', col: 'BAguaSalidaCooler3' },
+  { grupo: 'Agua general (Baja Presión)', id: 'tempEntradaAguaBaja', label: 'Temperatura entrada agua [°C]', col: 'BTempEntradaAgua' },
+  { grupo: 'Agua general (Baja Presión)', id: 'presionEntradaAguaBaja', label: 'Presión entrada agua [PSI]', col: 'BPresionEntradaAgua' },
+  { grupo: 'Agua general (Baja Presión)', id: 'tempSalidaAguaBaja', label: 'Temperatura salida agua [°C]', col: 'BTempSalidaAgua' },
+  { grupo: 'Agua general (Baja Presión)', id: 'presionSalidaAguaBaja', label: 'Presión salida agua [PSI]', col: 'BPresionSalidaAgua' },
+  { grupo: 'Descarga y uso (Baja Presión)', id: 'tempDescargaAire', label: 'Temperatura descarga aire [°C]', col: 'BTempDescargaAire' },
+  { grupo: 'Descarga y uso (Baja Presión)', id: 'horasUsoBaja', label: 'Horas de uso del equipo', col: 'BHorasUso', hint: 'Número entero' },
+];
+/** true si el nombre de compresor seleccionado es de Baja Presión. */
+function esCompresorBaja(compresor) {
+  return (compresor || '').includes('Baja');
+}
 
 // Reporte de seguimiento de secadores (Zipaquirá) — calcado del formulario
 // "Seguimiento secadores". Una fila por reporte, nunca se sobrescribe; el
@@ -12941,10 +13007,12 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
 let allReportesCompresores = [];
 
 /** Arma el HTML de los campos de medición, agrupados igual que el
- *  formulario original — misma estructura que _htmlCamposEquiposEntregaTurno. */
-function _htmlCamposReporteCompresor(existente) {
+ *  formulario original — misma estructura que _htmlCamposEquiposEntregaTurno.
+ *  `campos` es REPORTE_COMPRESORES_CAMPOS (Alta) o REPORTE_COMPRESORES_CAMPOS_BAJA,
+ *  según el compresor elegido — ver _actualizarCamposMedicionesCompresor. */
+function _htmlCamposReporteCompresor(existente, campos) {
   const grupos = [];
-  REPORTE_COMPRESORES_CAMPOS.forEach(c => {
+  campos.forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
@@ -12960,6 +13028,14 @@ function _htmlCamposReporteCompresor(existente) {
         </div>`).join('')}
       </div>
     </div>`).join('');
+}
+
+/** Re-renderiza el bloque de mediciones según el compresor elegido (Alta o
+ *  Baja Presión tienen paneles de control y mediciones totalmente distintos). */
+function _actualizarCamposMedicionesCompresor() {
+  const compresor = document.getElementById('rc_compresor').value;
+  const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
+  document.getElementById('rc_camposMediciones').innerHTML = compresor ? _htmlCamposReporteCompresor(null, campos) : '';
 }
 
 function _siguienteCodigoReporteCompresor() {
@@ -12986,7 +13062,8 @@ async function inicializarReporteCompresores() {
   document.getElementById('rc_tecnicoOtro').value = '';
   document.getElementById('rc_estadoHoraFecha').value = '';
   document.getElementById('rc_msg').textContent = '';
-  document.getElementById('rc_camposMediciones').innerHTML = _htmlCamposReporteCompresor(null);
+  document.getElementById('rc_compresor').value = '';
+  _actualizarCamposMedicionesCompresor();
 
   const wrap = document.getElementById('rc_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
@@ -13060,14 +13137,15 @@ async function guardarReporteCompresor() {
     return;
   }
 
+  const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
   const porColumna = {};
-  for (const c of REPORTE_COMPRESORES_CAMPOS) {
+  for (const c of campos) {
     const valor = document.getElementById('rc_' + c.id).value.trim();
     if (!valor || isNaN(Number(valor))) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
-    if (c.id === 'horasUso' && !Number.isInteger(Number(valor))) {
+    if (c.id.startsWith('horasUso') && !Number.isInteger(Number(valor))) {
       msg.textContent = 'El campo "Horas de uso del equipo" debe ser un número entero.';
       return;
     }
@@ -13110,25 +13188,31 @@ async function eliminarReporteCompresor(codigo) {
   }
 }
 
-/** HTML de un reporte (misma estructura para la vista en pantalla y el PDF) */
+/** HTML de un reporte (misma estructura para la vista en pantalla y el PDF).
+ *  Usa la lista combinada Alta+Baja y descarta los grupos sin datos, ya que
+ *  cada fila solo trae lleno el bloque del tipo de compresor que se reportó. */
 function _construirHtmlReporteCompresor(r, conTitulo) {
   if (conTitulo === undefined) conTitulo = true;
+  const todosLosCampos = REPORTE_COMPRESORES_CAMPOS.concat(REPORTE_COMPRESORES_CAMPOS_BAJA);
   const grupos = [];
-  REPORTE_COMPRESORES_CAMPOS.forEach(c => {
+  todosLosCampos.forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
   });
-  const gruposHtml = grupos.map(g => `
-    <div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
+  const gruposHtml = grupos.map(g => {
+    const filas = g.campos.filter(c => (r[c.col] || '').toString().trim());
+    if (!filas.length) return '';
+    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
       <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        ${g.campos.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
+        ${filas.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
           <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(c.label)}</div>
           <div style="font-weight:700;color:#222">${esc(r[c.col])}</div>
         </div>`).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
 
   return `
