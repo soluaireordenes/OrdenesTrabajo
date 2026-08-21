@@ -1810,7 +1810,6 @@ body.inv-activo .container { max-width: 1800px; }
       <button class="inv-subtab active" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades</button>
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
-      <button class="inv-subtab" id="cronTabCompresoresBaja" data-crontab="compresoresbaja" onclick="cronMostrarSubTab('compresoresbaja')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Compresores Baja</button>
       <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte Secadores</button>
       <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte Drycoolers</button>
       <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Decorado</button>
@@ -2027,49 +2026,6 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
     </div><!-- /cronSub-compresores -->
-
-    <!-- Reporte de Compresores de Baja Presión: panel de control distinto
-         al de Alta, por eso es un formulario/hoja aparte — solo Zipaquirá. -->
-    <div id="cronSub-compresoresbaja" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Compresores de Baja Presión</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
-            <div class="field">
-              <label>Técnico que realiza el reporte *</label>
-              <select id="rcb_tecnico" onchange="document.getElementById('rcb_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
-            </div>
-            <div class="field" id="rcb_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
-              <input id="rcb_tecnicoOtro" placeholder="Nombre completo">
-            </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rcb_fecha"></div>
-            <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
-              <select id="rcb_hora"><option value="">Seleccionar...</option></select>
-            </div>
-            <div class="field">
-              <label>Compresor *</label>
-              <select id="rcb_compresor"><option value="">Seleccionar...</option></select>
-            </div>
-            <div class="field">
-              <label>¿Hora del compresor está bien? *</label>
-              <select id="rcb_estadoEquipo"><option value="">Seleccionar...</option></select>
-            </div>
-          </div>
-          <div id="rcb_camposMediciones"></div>
-          <div id="rcb_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresorBaja()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <div id="rcb_tablaWrap"></div>
-        </div>
-      </div>
-    </div><!-- /cronSub-compresoresbaja -->
 
     <!-- Reporte de Secadores: formulario técnico calcado del formulario
          "Seguimiento secadores" — solo Zipaquirá. -->
@@ -6299,7 +6255,6 @@ const SH = {
   reporteDrycoolers: 'ReporteDrycoolers',
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
-  reporteCompresoresBaja: 'ReporteCompresoresBaja',
   reportePresionDrycooler: 'ReportePresionDrycooler',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
@@ -6366,12 +6321,9 @@ const TECNICOS_REPORTE_COMPRESORES = [
   'George Alexander Mazuera Vergara', 'Juan Pablo Arellano Núñez', 'Cristian Rozo',
   'Jhonny José Rojas Benítez', 'David Felipe Avila Algarra', 'Sebastian Rodriguez Cortes',
 ];
-// Los compresores de Baja Presión tienen un panel de control distinto, con
-// mediciones que no tienen nada que ver con las de Alta (ver
-// REPORTE_COMPRESORES_BAJA_CAMPOS más abajo) — por eso este formulario
-// (y su hoja) quedan exclusivos para los 3 de Alta Presión.
 const COMPRESORES_LISTA_REPORTE = [
   'Compresor de Alta Presión #1', 'Compresor de Alta Presión #2', 'Compresor de Alta Presión #3',
+  'Compresor de Baja Presión #1', 'Compresor de Baja Presión #2', 'Compresor de Baja Presión #3', 'Compresor de Baja Presión #4',
 ];
 const HORAS_REPORTE_COMPRESOR = ['6:00 a.m.', '10:00 a.m.', '2:00 p.m.', '6:00 p.m.', '10:00 p.m.', '2:00 a.m.'];
 // Los 34 campos numéricos del formulario, agrupados igual que el original.
@@ -6413,70 +6365,6 @@ const REPORTE_COMPRESORES_CAMPOS = [
   { grupo: 'Agua general', id: 'tempSalidaAgua', label: 'Temperatura salida agua [°C]', col: 'TempSalidaAgua', hint: 'Normal: 30–50' },
   { grupo: 'Agua general', id: 'presionSalidaAgua', label: 'Presión salida agua [PSI]', col: 'PresionSalidaAgua', hint: 'Normal: 20–50' },
   { grupo: 'Descarga y uso', id: 'tempDescarga', label: 'Temperatura de descarga [°C]', col: 'TempDescarga', hint: 'Normal: menor que 120' },
-  { grupo: 'Descarga y uso', id: 'horasUso', label: 'Horas de uso del equipo', col: 'HorasUso', hint: 'Número entero' },
-];
-
-// Reporte de compresores de BAJA presión (Zipaquirá) — panel de control
-// distinto al de Alta (Menu P Parm. en el formulario original), con sus
-// propias mediciones (motor Maestro, 3 puntos de vibración/temperatura de
-// estator, rodamientos L/A y L/NA, 3 water coolers). Se guarda en una hoja
-// aparte para no mezclar dos esquemas de campos distintos en una sola.
-const REPORTE_COMPRESORES_BAJA_COLS = [
-  'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor', 'EstadoEquipo',
-  'PresionSistema', 'PresionDescarga', 'PDTFiltroAire', 'CorrienteMotor',
-  'ValvulaAlivio', 'ValvulaEntrada', 'TempEntradaEtapa3', 'TempDescarga',
-  'VibracionEtapa1', 'VibracionEtapa2', 'VibracionEtapa3',
-  'PresionAceite', 'TempAceite',
-  'TempEstatorA', 'TempEstatorB', 'TempEstatorC',
-  'TempRodamientoLA', 'TempRodamientoLNA',
-  'AireEntradaE1', 'AireSalidaE1', 'AireEntradaE2', 'AireSalidaE2', 'AireEntradaE3', 'AireSalidaE3',
-  'AguaEntradaCooler1', 'AguaSalidaCooler1', 'AguaEntradaCooler2', 'AguaSalidaCooler2', 'AguaEntradaCooler3', 'AguaSalidaCooler3',
-  'TempEntradaAgua', 'PresionEntradaAgua', 'TempSalidaAgua', 'PresionSalidaAgua',
-  'TempDescargaAire', 'HorasUso',
-  'RegistradoPor', 'FechaRegistro', 'Estado',
-];
-const TECNICOS_REPORTE_COMPRESORES_BAJA = TECNICOS_REPORTE_COMPRESORES;
-const HORAS_REPORTE_COMPRESOR_BAJA = HORAS_REPORTE_COMPRESOR;
-const COMPRESORES_BAJA_LISTA_REPORTE = [
-  'Compresor de Baja Presión #1', 'Compresor de Baja Presión #2', 'Compresor de Baja Presión #3', 'Compresor de Baja Presión #4',
-];
-const ESTADOS_EQUIPO_COMPRESOR_BAJA = ['Si', 'No', 'En espera'];
-const REPORTE_COMPRESORES_BAJA_CAMPOS = [
-  { grupo: 'Sistema', id: 'presionSistema', label: 'Presión del sistema [PSI]', col: 'PresionSistema' },
-  { grupo: 'Sistema', id: 'presionDescarga', label: 'Presión de descarga [PSI]', col: 'PresionDescarga' },
-  { grupo: 'Sistema', id: 'pdtFiltroAire', label: 'PDT: Presión de filtro de aire [inH2O]', col: 'PDTFiltroAire' },
-  { grupo: 'Sistema', id: 'corrienteMotor', label: 'Corriente del motor (control Maestro) [Amps]', col: 'CorrienteMotor' },
-  { grupo: 'Sistema', id: 'valvulaAlivio', label: 'Posición válvula de alivio [%]', col: 'ValvulaAlivio' },
-  { grupo: 'Sistema', id: 'valvulaEntrada', label: 'Posición válvula entrada [mS]', col: 'ValvulaEntrada' },
-  { grupo: 'Sistema', id: 'tempEntradaEtapa3', label: 'Temperatura de entrada etapa 3 [°C]', col: 'TempEntradaEtapa3' },
-  { grupo: 'Sistema', id: 'tempDescarga', label: 'Temperatura de descarga [°C]', col: 'TempDescarga' },
-  { grupo: 'Vibración', id: 'vibracionEtapa1', label: 'Vibración etapa 1 [Mil]', col: 'VibracionEtapa1' },
-  { grupo: 'Vibración', id: 'vibracionEtapa2', label: 'Vibración etapa 2 [Mil]', col: 'VibracionEtapa2' },
-  { grupo: 'Vibración', id: 'vibracionEtapa3', label: 'Vibración etapa 3 [Mil]', col: 'VibracionEtapa3' },
-  { grupo: 'Aceite', id: 'presionAceite', label: 'Presión de aceite [PSI]', col: 'PresionAceite' },
-  { grupo: 'Aceite', id: 'tempAceite', label: 'Temperatura de aceite [°C]', col: 'TempAceite' },
-  { grupo: 'Motor', id: 'tempEstatorA', label: 'Temperatura estator de motor A [°C]', col: 'TempEstatorA' },
-  { grupo: 'Motor', id: 'tempEstatorB', label: 'Temperatura estator de motor B [°C]', col: 'TempEstatorB' },
-  { grupo: 'Motor', id: 'tempEstatorC', label: 'Temperatura estator de motor C [°C]', col: 'TempEstatorC' },
-  { grupo: 'Motor', id: 'tempRodamientoLA', label: 'Temperatura rodamiento L/A motor [°C]', col: 'TempRodamientoLA' },
-  { grupo: 'Motor', id: 'tempRodamientoLNA', label: 'Temperatura rodamiento L/NA [°C]', col: 'TempRodamientoLNA' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireEntradaE1', label: 'Temperatura de entrada [°C] - Etapa 1', col: 'AireEntradaE1' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireSalidaE1', label: 'Temperatura de salida [°C] - Etapa 1', col: 'AireSalidaE1' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireEntradaE2', label: 'Temperatura de entrada [°C] - Etapa 2', col: 'AireEntradaE2' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireSalidaE2', label: 'Temperatura de salida [°C] - Etapa 2', col: 'AireSalidaE2' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireEntradaE3', label: 'Temperatura de entrada [°C] - Etapa 3', col: 'AireEntradaE3' },
-  { grupo: 'Aire por etapas (pirómetro)', id: 'aireSalidaE3', label: 'Temperatura de salida [°C] - Etapa 3', col: 'AireSalidaE3' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaEntradaCooler1', label: 'Temperatura de entrada [°C] - Cooler 1', col: 'AguaEntradaCooler1' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaSalidaCooler1', label: 'Temperatura de salida [°C] - Cooler 1', col: 'AguaSalidaCooler1' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaEntradaCooler2', label: 'Temperatura de entrada [°C] - Cooler 2', col: 'AguaEntradaCooler2' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaSalidaCooler2', label: 'Temperatura de salida [°C] - Cooler 2', col: 'AguaSalidaCooler2' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaEntradaCooler3', label: 'Temperatura de entrada [°C] - Cooler 3', col: 'AguaEntradaCooler3' },
-  { grupo: 'Agua por coolers (pirómetro)', id: 'aguaSalidaCooler3', label: 'Temperatura de salida [°C] - Cooler 3', col: 'AguaSalidaCooler3' },
-  { grupo: 'Agua general', id: 'tempEntradaAgua', label: 'Temperatura entrada agua [°C]', col: 'TempEntradaAgua' },
-  { grupo: 'Agua general', id: 'presionEntradaAgua', label: 'Presión entrada agua [PSI]', col: 'PresionEntradaAgua' },
-  { grupo: 'Agua general', id: 'tempSalidaAgua', label: 'Temperatura salida agua [°C]', col: 'TempSalidaAgua' },
-  { grupo: 'Agua general', id: 'presionSalidaAgua', label: 'Presión salida agua [PSI]', col: 'PresionSalidaAgua' },
-  { grupo: 'Descarga y uso', id: 'tempDescargaAire', label: 'Temperatura descarga aire [°C]', col: 'TempDescargaAire' },
   { grupo: 'Descarga y uso', id: 'horasUso', label: 'Horas de uso del equipo', col: 'HorasUso', hint: 'Número entero' },
 ];
 
@@ -12240,7 +12128,6 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'observaciones') inicializarObservacionesOperarios();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
-  if (nombre === 'compresoresbaja') inicializarReporteCompresorBaja();
   if (nombre === 'secadores') inicializarReporteSecadores();
   if (nombre === 'drycoolers') inicializarReporteDrycoolers();
   if (nombre === 'decorado') inicializarReporteDecorado();
@@ -12260,7 +12147,6 @@ async function inicializarPanelCronograma() {
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
   const tabCompresores = document.getElementById('cronTabCompresores');
-  const tabCompresoresBaja = document.getElementById('cronTabCompresoresBaja');
   const tabSecadores = document.getElementById('cronTabSecadores');
   const tabDrycoolers = document.getElementById('cronTabDrycoolers');
   const tabDecorado = document.getElementById('cronTabDecorado');
@@ -12271,7 +12157,6 @@ async function inicializarPanelCronograma() {
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
-  if (tabCompresoresBaja) tabCompresoresBaja.style.display = mostrarEntrega ? '' : 'none';
   if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
   if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
   if (tabDecorado) tabDecorado.style.display = mostrarEntrega ? '' : 'none';
@@ -14482,240 +14367,6 @@ async function exportarReportePresionDrycoolerPDF(codigo) {
   @media print{body{padding:0}}
 </style></head><body>
 ${_construirHtmlReportePresionDrycooler(r)}
-<script>window.onload=()=>window.print()<\/script>
-</body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
-}
-
-/* ══════════════════════════════════════════════
-   REPORTE DE COMPRESORES DE BAJA PRESIÓN — solo
-   Zipaquirá. Mismo patrón que Reporte Compresores
-   (Alta), pero con su propio set de mediciones —
-   el panel de control de los de Baja es distinto.
-══════════════════════════════════════════════ */
-let allReportesCompresoresBaja = [];
-
-function _htmlCamposReporteCompresorBaja(existente) {
-  const grupos = [];
-  REPORTE_COMPRESORES_BAJA_CAMPOS.forEach(c => {
-    let g = grupos.find(x => x.nombre === c.grupo);
-    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
-    g.campos.push(c);
-  });
-  return grupos.map(g => `
-    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
-      <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-        ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)}</label>
-          <input id="rcb_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
-          ${c.hint ? `<div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
-        </div>`).join('')}
-      </div>
-    </div>`).join('');
-}
-
-function _siguienteCodigoReporteCompresorBaja() {
-  let max = 0;
-  allReportesCompresoresBaja.forEach(r => {
-    const m = (r.Codigo || '').match(/RCB-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RCB-' + String(max + 1).padStart(4, '0');
-}
-
-async function inicializarReporteCompresorBaja() {
-  document.getElementById('rcb_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_COMPRESORES_BAJA.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
-    '<option value="Otras">Otras</option>';
-  document.getElementById('rcb_hora').innerHTML = '<option value="">Seleccionar...</option>' +
-    HORAS_REPORTE_COMPRESOR_BAJA.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  document.getElementById('rcb_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
-    COMPRESORES_BAJA_LISTA_REPORTE.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  document.getElementById('rcb_estadoEquipo').innerHTML = '<option value="">Seleccionar...</option>' +
-    ESTADOS_EQUIPO_COMPRESOR_BAJA.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
-
-  document.getElementById('rcb_fecha').value = _isoLocal(new Date());
-  document.getElementById('rcb_tecnicoOtroWrap').style.display = 'none';
-  document.getElementById('rcb_tecnicoOtro').value = '';
-  document.getElementById('rcb_msg').textContent = '';
-  document.getElementById('rcb_camposMediciones').innerHTML = _htmlCamposReporteCompresorBaja(null);
-
-  const wrap = document.getElementById('rcb_tablaWrap');
-  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
-  try {
-    await asegurarHoja(SH.reporteCompresoresBaja, REPORTE_COMPRESORES_BAJA_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteCompresoresBaja);
-    allReportesCompresoresBaja = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
-    renderTablaReportesCompresoresBaja();
-  } catch (e) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
-  }
-}
-
-function renderTablaReportesCompresoresBaja() {
-  const wrap = document.getElementById('rcb_tablaWrap');
-  if (!allReportesCompresoresBaja.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de compresores de baja presión registrados.</div>';
-    return;
-  }
-  const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-  const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
-  const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
-
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="background:var(--surface2)">
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Hora</th>
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Compresor</th>
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Técnico</th>
-      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
-    </tr></thead><tbody>`;
-  allReportesCompresoresBaja.forEach(r => {
-    const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
-    html += `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
-      <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
-      <td style="padding:7px 10px">${esc(r.Compresor)}</td>
-      <td style="padding:7px 10px">${esc(tecnico)}</td>
-      <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteCompresorBaja('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorBajaPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteCompresorBaja('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
-      </td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
-}
-
-async function guardarReporteCompresorBaja() {
-  const msg = document.getElementById('rcb_msg');
-  const tecnico = document.getElementById('rcb_tecnico').value;
-  const tecnicoOtro = document.getElementById('rcb_tecnicoOtro').value.trim();
-  const fecha = document.getElementById('rcb_fecha').value;
-  const hora = document.getElementById('rcb_hora').value;
-  const compresor = document.getElementById('rcb_compresor').value;
-  const estadoEquipo = document.getElementById('rcb_estadoEquipo').value;
-
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y si el compresor está bien.';
-    return;
-  }
-
-  const porColumna = {};
-  for (const c of REPORTE_COMPRESORES_BAJA_CAMPOS) {
-    const valor = document.getElementById('rcb_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
-      msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
-      return;
-    }
-    porColumna[c.col] = valor;
-  }
-
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
-
-  try {
-    await asegurarHoja(SH.reporteCompresoresBaja, REPORTE_COMPRESORES_BAJA_COLS);
-    const codigo = _siguienteCodigoReporteCompresorBaja();
-    Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
-      Compresor: compresor, EstadoEquipo: estadoEquipo,
-      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
-      FechaRegistro: new Date().toISOString(), Estado: 'Activo',
-    });
-    const valores = REPORTE_COMPRESORES_BAJA_COLS.map(col => porColumna[col] ?? '');
-    await appendHoja(SH.reporteCompresoresBaja, [valores]);
-    _invalidarCacheHoja(SH.reporteCompresoresBaja);
-
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
-    await inicializarReporteCompresorBaja();
-  } catch (e) {
-    msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
-  }
-}
-
-async function eliminarReporteCompresorBaja(codigo) {
-  if (!confirm('¿Eliminar este reporte de compresor de baja presión? Esta acción no se puede deshacer.')) return;
-  const fila = allReportesCompresoresBaja.find(r => r.Codigo === codigo);
-  if (!fila) return;
-  try {
-    const colEstado = numToCol(REPORTE_COMPRESORES_BAJA_COLS.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteCompresoresBaja + '!' + colEstado + fila._row, [['Eliminada']]);
-    _invalidarCacheHoja(SH.reporteCompresoresBaja);
-    await inicializarReporteCompresorBaja();
-  } catch (e) {
-    alert('Error al eliminar: ' + e.message);
-  }
-}
-
-function _construirHtmlReporteCompresorBaja(r, conTitulo) {
-  if (conTitulo === undefined) conTitulo = true;
-  const grupos = [];
-  REPORTE_COMPRESORES_BAJA_CAMPOS.forEach(c => {
-    let g = grupos.find(x => x.nombre === c.grupo);
-    if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
-    g.campos.push(c);
-  });
-  const gruposHtml = grupos.map(g => {
-    const filas = g.campos.filter(c => (r[c.col] || '').toString().trim());
-    if (!filas.length) return '';
-    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
-      <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(g.nombre)}</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        ${filas.map(c => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
-          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(c.label)}</div>
-          <div style="font-weight:700;color:#222">${esc(r[c.col])}</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-  const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
-
-  return `
-    ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Reporte de Compresor de Baja Presión — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Reporte de Compresor de Baja Presión — ${esc(r.Codigo)}</div>`}
-    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
-      ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp;
-      <b>Técnico:</b> ${esc(tecnico)} &nbsp;·&nbsp; <b>¿Está bien?:</b> ${esc(r.EstadoEquipo)}
-    </div>
-    ${gruposHtml}
-  `;
-}
-
-function verReporteCompresorBaja(codigo) {
-  const r = allReportesCompresoresBaja.find(x => x.Codigo === codigo);
-  if (!r) return;
-  const overlay = document.createElement('div');
-  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
-      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center">
-        <span>Reporte de Compresor de Baja Presión — ${esc(r.Codigo)}</span>
-        <span onclick="this.closest('div[style*=fixed]').remove()" style="cursor:pointer;font-size:18px">✕</span>
-      </div>
-      <div style="padding:20px">${_construirHtmlReporteCompresorBaja(r)}</div>
-    </div>`;
-  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-}
-
-async function exportarReporteCompresorBajaPDF(codigo) {
-  const r = allReportesCompresoresBaja.find(x => x.Codigo === codigo);
-  if (!r) return;
-  const ventana = window.open('', '_blank');
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Reporte de Compresor de Baja Presión — ${esc(r.Codigo)}</title>
-<style>
-  body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
-  @media print{body{padding:0}}
-</style></head><body>
-${_construirHtmlReporteCompresorBaja(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
