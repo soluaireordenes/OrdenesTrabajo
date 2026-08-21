@@ -10545,33 +10545,38 @@ function _isoLocal(d) {
 }
 
 /** Filtro Desde/Hasta de las tablas "Reportes Registrados" de cada
- *  formulario técnico — por defecto (primera vez que se abre la pestaña)
- *  muestran solo el día de hoy, para no cargar de una vez cientos de filas
- *  históricas migradas; el usuario puede ampliar el rango o borrar los
- *  campos para ver todo. */
+ *  formulario técnico — arrancan vacíos a propósito (ver
+ *  _filtrarReportesPorFecha): no se muestra ninguna fila hasta que el
+ *  usuario elija una fecha o rango, para no cargar de una vez cientos de
+ *  filas históricas migradas. No se toca si el usuario ya escribió algo
+ *  (p. ej. al volver a esta pestaña tras guardar un reporte). */
 function _inicializarFiltroFechaReporte(prefix) {
-  const desdeEl = document.getElementById(prefix + '_filtroDesde');
-  const hastaEl = document.getElementById(prefix + '_filtroHasta');
-  if (desdeEl && !desdeEl.value && !hastaEl.value) {
-    const hoy = _isoLocal(new Date());
-    desdeEl.value = hoy;
-    hastaEl.value = hoy;
-  }
+  // Sin default: los campos quedan como estén (vacíos la primera vez).
 }
 
 /** Filtra una lista de reportes (cada uno con .Fecha 'YYYY-MM-DD') según
  *  los inputs {prefix}_filtroDesde / {prefix}_filtroHasta. Si ambos están
- *  vacíos (el usuario los borró), devuelve la lista completa. */
+ *  vacíos, no se muestra nada — hay que elegir una fecha o rango primero. */
 function _filtrarReportesPorFecha(lista, prefix) {
   const desde = document.getElementById(prefix + '_filtroDesde')?.value;
   const hasta = document.getElementById(prefix + '_filtroHasta')?.value;
-  if (!desde && !hasta) return lista;
+  if (!desde && !hasta) return [];
   return lista.filter(r => {
     const f = r.Fecha || '';
     if (desde && f < desde) return false;
     if (hasta && f > hasta) return false;
     return true;
   });
+}
+
+/** Mensaje del estado vacío de la tabla: distingue "todavía no elegiste
+ *  fecha" de "no hay reportes en ese rango". */
+function _mensajeVacioFiltroFecha(prefix) {
+  const desde = document.getElementById(prefix + '_filtroDesde')?.value;
+  const hasta = document.getElementById(prefix + '_filtroHasta')?.value;
+  return (!desde && !hasta)
+    ? 'Elige una fecha o un rango arriba (Desde/Hasta) para ver los reportes.'
+    : 'No hay reportes en el rango de fechas seleccionado.';
 }
 
 /** Lee de Sheets el historial de fechas registradas en "RachaNovedades"
@@ -13211,7 +13216,7 @@ function renderTablaReportesCompresores() {
   }
   const filas = _filtrarReportesPorFecha(allReportesCompresores, 'rc');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rc')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -13508,7 +13513,7 @@ function renderTablaReportesSecadores() {
   }
   const filas = _filtrarReportesPorFecha(allReportesSecadores, 'rs');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rs')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -13803,7 +13808,7 @@ function renderTablaReportesDrycoolers() {
   }
   const filas = _filtrarReportesPorFecha(allReportesDrycoolers, 'rd');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rd')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -14060,7 +14065,7 @@ function renderTablaReportesDecorado() {
   }
   const filas = _filtrarReportesPorFecha(allReportesDecorado, 'rdec');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rdec')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -14305,7 +14310,7 @@ function renderTablaReportesEmergencia() {
   }
   const filas = _filtrarReportesPorFecha(allReportesEmergencia, 're');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('re')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -14534,7 +14539,7 @@ function renderTablaReportesPresionDrycooler() {
   }
   const filas = _filtrarReportesPorFecha(allReportesPresionDrycooler, 'rpd');
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay reportes en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rpd')}</div>`;
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
