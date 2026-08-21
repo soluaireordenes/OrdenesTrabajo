@@ -1904,11 +1904,11 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:160px">
             <label style="margin-bottom:4px;display:block">Desde</label>
-            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma()" style="margin:0">
+            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (operacionActual === 'zipaquira') _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:160px">
             <label style="margin-bottom:4px;display:block">Hasta</label>
-            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma()" style="margin:0">
+            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (operacionActual === 'zipaquira') _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
         </div>
       </div>
@@ -12349,24 +12349,29 @@ function inicializarDashboardCronograma() {
  *  dentro del Dashboard — cada uno lee su propia hoja (no depende de que
  *  esa pestaña se haya visitado antes, a diferencia de cuando este mismo
  *  cálculo vivía dentro de cada formulario). */
-async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, dias) {
+async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, desde, hasta) {
   try {
     await asegurarHoja(sheetName, cols);
     const filas = (await _leerHojaGenerica(sheetName)).filter(f => f.Estado !== 'Eliminada');
-    _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, dias);
+    _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta);
   } catch (e) {
     const resumenEl = document.getElementById(resumenId);
     if (resumenEl) resumenEl.innerHTML = `<div style="color:var(--danger);font-size:12px">Error: ${esc(e.message)}</div>`;
   }
 }
 
+/** Usa el mismo rango "Desde/Hasta" del filtro de arriba del Dashboard para
+ *  las 6 gráficas de cumplimiento de reportes técnicos. */
 function _renderTodosCumplimientosReportesTecnicos() {
-  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, REPORTE_COMPRESORES_COLS, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', 4);
-  _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', 4);
-  _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', 4);
-  _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', 4);
-  _cargarYRenderCumplimientoReporte(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', 4);
-  _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', 7);
+  const desde = document.getElementById('cronDashDesde')?.value;
+  const hasta = document.getElementById('cronDashHasta')?.value;
+  if (!desde || !hasta || desde > hasta) return;
+  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, REPORTE_COMPRESORES_COLS, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', desde, hasta);
 }
 
 /** Gráfica de cumplimiento por turno: un punto por cada combinación
@@ -12970,7 +12975,7 @@ const HORA_REPORTE_A_24H = {
  *  después de cada guardado exitoso — así el punto de "hoy" pasa a
  *  cumplido apenas se da clic en "Guardar Reporte", sin ninguna marca
  *  aparte. */
-function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, dias) {
+function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta) {
   const canvas = document.getElementById(canvasId);
   const resumenEl = document.getElementById(resumenId);
   if (!canvas || typeof Chart === 'undefined') return;
@@ -12981,10 +12986,12 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
   const hoyIso = _isoLocal(ahora);
   const horaAhora = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
 
+  // Mismo rango "Desde/Hasta" que la gráfica de turnos, con el mismo tope
+  // de 45 días para no armar una gráfica descontrolada por accidente.
   const fechas = [];
-  const cursor = new Date(hoyIso + 'T12:00:00');
-  cursor.setDate(cursor.getDate() - (dias - 1));
-  for (let i = 0; i < dias; i++) { fechas.push(_isoLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
+  const cursor = new Date(desde + 'T12:00:00');
+  const fin = new Date(hasta + 'T12:00:00');
+  while (cursor <= fin && fechas.length < 45) { fechas.push(_isoLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
 
   const labels = [], valores = [], colores = [];
   let cumplidos = 0, total = 0;
