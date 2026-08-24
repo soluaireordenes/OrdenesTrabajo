@@ -6296,6 +6296,21 @@ const INFORME_ANUAL_ACTIVIDADES = [
 ];
 const INFORME_ANUAL_INTERVALO_HORAS = 8000;
 
+/** ¿Esa marca de horas corresponde a un mantenimiento TRIMESTRAL?
+ *
+ *  En el Excel del cliente ("Horas de mantenimiento") las horas del
+ *  trimestral son 2.000, 6.000, 10.000, 14.000, 18.000… es decir cada
+ *  4.000 horas empezando en las 2.000 — NO todos los múltiplos de 2.000.
+ *  La razón es que los múltiplos de 2.000 que además son múltiplos de
+ *  4.000 (4.000, 8.000, 12.000…) ya están cubiertos por el informe
+ *  semestral (y los de 8.000 por el anual): en esa visita se hace el
+ *  checklist mayor, que incluye todas las tareas del trimestral. Por eso
+ *  el trimestral "propio" es el intervalo de 2.000 desplazado media
+ *  frecuencia respecto al semestral. */
+function esHoraTrimestral(horas) {
+  return horas > 0 && horas % INFORME_SEMESTRAL_INTERVALO_HORAS === INFORME_TRIMESTRAL_INTERVALO_HORAS;
+}
+
 /** Tipos de equipo que puede mostrar el filtro desplegable de cada informe
  *  periódico (Trimestral/Semestral/Anual). Hoy el checklist real (arriba)
  *  solo existe para "Compresores" — los otros 3 tipos son un placeholder:
@@ -9778,7 +9793,16 @@ async function pmRenderHorasMantenimiento() {
   for (let h = PASO_HORAS; h <= MAX_HORAS; h += PASO_HORAS) columnas.push(h);
 
   const BORDE = '1px solid #b9c2d0';
-  const thCols = columnas.map(h => `<th style="text-align:center;min-width:56px;padding:6px 4px;font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap;border:${BORDE}">${(h / 1000)}k</th>`).join('');
+  // Amarillo del Excel del cliente para las horas de mantenimiento trimestral
+  // (2k, 6k, 10k, 14k…): tono fuerte en el encabezado y tono suave en el
+  // cuerpo, para que el verde del punto programado siga leyéndose encima.
+  const AMARILLO_TRI_TITULO = '#FFE699';
+  const AMARILLO_TRI_COLUMNA = '#FFF2CC';
+  const VERDE_PUNTO = '#C6E0B4';
+  const thCols = columnas.map(h => {
+    const tri = esHoraTrimestral(h);
+    return `<th style="text-align:center;min-width:56px;padding:6px 4px;font-size:11px;color:${tri ? '#7f6000' : 'var(--text3)'};font-weight:${tri ? '700' : '600'};white-space:nowrap;border:${BORDE};background:${tri ? AMARILLO_TRI_TITULO : 'transparent'}"${tri ? ` title="${h.toLocaleString('es-CO')} h — mantenimiento trimestral"` : ''}>${(h / 1000)}k</th>`;
+  }).join('');
 
   let filas = '';
   HORAS_MANTENIMIENTO_REAL_ZIPAQUIRA.forEach(block => {
@@ -9804,7 +9828,11 @@ async function pmRenderHorasMantenimiento() {
 
     block.actividades.forEach(act => {
       const marcas = new Set(act.marcas);
-      const celdas = columnas.map(h => `<td style="background:${marcas.has(h) ? '#C6E0B4' : 'transparent'};border:${BORDE}" title="${h.toLocaleString('es-CO')} h"></td>`).join('');
+      const celdas = columnas.map(h => {
+        const tri = esHoraTrimestral(h);
+        const fondo = marcas.has(h) ? VERDE_PUNTO : (tri ? AMARILLO_TRI_COLUMNA : 'transparent');
+        return `<td style="background:${fondo};border:${BORDE}" title="${h.toLocaleString('es-CO')} h${tri ? ' — mantenimiento trimestral' : ''}"></td>`;
+      }).join('');
       filas += `<tr>
         <td style="padding:6px 12px;font-size:12px;color:var(--text2);white-space:nowrap;position:sticky;left:0;background:var(--surface);border:${BORDE}">${esc(act.nombre)}</td>
         ${celdas}
@@ -9814,7 +9842,8 @@ async function pmRenderHorasMantenimiento() {
 
   cont.innerHTML = `
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--text2)">
-      <span><span style="display:inline-block;width:10px;height:10px;background:#C6E0B4;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Punto de mantenimiento programado</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${VERDE_PUNTO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Punto de mantenimiento programado</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${AMARILLO_TRI_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento trimestral (2k, 6k, 10k… cada 4.000 h)</span>
     </div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
       <table style="border-collapse:collapse;width:auto;font-size:12px">
