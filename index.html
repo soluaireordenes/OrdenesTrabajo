@@ -2219,6 +2219,24 @@ body.inv-activo .container { max-width: 1800px; }
             </div>
           </div>
           <div id="rdec_camposMediciones"></div>
+
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Compresor</div>
+            <div id="rdec_laboresCompresor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Secador</div>
+            <div id="rdec_laboresSecador" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+            <div class="field" style="margin:0">
+              <label>Observaciones</label>
+              <textarea id="rdec_observaciones" rows="2" placeholder="Opcional — cualquier novedad del turno"></textarea>
+            </div>
+          </div>
+
           <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
@@ -6607,6 +6625,11 @@ const REPORTE_DECORADO_COLS = [
   'PresionRed', 'PresionDescarga', 'Temperatura', 'HorasTotales', 'HorasCarga', 'ArranquesMotor',
   'NivelAceite', 'PresionTanque',
   'TiempoMotor', 'TiempoFiltroAceite', 'TiempoAceite', 'TiempoFiltroAire', 'TiempoSeparador', 'TiempoCompresor',
+  // Cada reporte cubre el compresor Y su secador, y además registra las
+  // labores de mantenimiento que se hicieron en cada uno (selección
+  // múltiple, se guardan separadas por ";" igual que el formulario original).
+  'SecTempEntrada', 'SecTempSalida', 'SecPresionAire', 'SecPresionEvaporacion',
+  'LaboresCompresor', 'LaboresSecador', 'Observaciones',
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 const TECNICOS_REPORTE_DECORADO = TECNICOS_REPORTE_COMPRESORES;
@@ -6627,6 +6650,23 @@ const REPORTE_DECORADO_CAMPOS = [
   { grupo: 'Tiempo restante del servicio', id: 'tiempoFiltroAire', label: 'Filtro de aire [h]', col: 'TiempoFiltroAire', hint: 'Normal: mayor a 100' },
   { grupo: 'Tiempo restante del servicio', id: 'tiempoSeparador', label: 'Separador de aire - aceite [h]', col: 'TiempoSeparador', hint: 'Normal: mayor a 100' },
   { grupo: 'Tiempo restante del servicio', id: 'tiempoCompresor', label: 'Compresor [h]', col: 'TiempoCompresor', hint: 'Normal: mayor a 100' },
+  { grupo: 'Secador', id: 'secTempEntrada', label: 'Temperatura entrada [°C]', col: 'SecTempEntrada' },
+  { grupo: 'Secador', id: 'secTempSalida', label: 'Temperatura salida [°C]', col: 'SecTempSalida' },
+  { grupo: 'Secador', id: 'secPresionAire', label: 'Presión de aire [MPa]', col: 'SecPresionAire' },
+  { grupo: 'Secador', id: 'secPresionEvaporacion', label: 'Presión evaporación [MPa]', col: 'SecPresionEvaporacion' },
+];
+// Labores de mantenimiento que el técnico marca en cada reporte — son dos
+// listas independientes (una para el compresor, otra para el secador) y se
+// puede marcar más de una; se guardan unidas por ";".
+const LABORES_DECORADO_COMPRESOR = [
+  'Revisión de drenajes', 'Verificación de fugas de aceite', 'Revisión de conexiones eléctricas',
+  'Limpieza general', 'Limpieza de radiadores', 'Revisión del estado del filtro de aire',
+  'Limpieza del prefiltro', 'Limpieza filtro de aire', 'Limpieza del motor eléctrico',
+];
+const LABORES_DECORADO_SECADOR = [
+  'Revisión de drenajes', 'Revisión de conexiones eléctricas',
+  'Verificar funcionamiento adecuado del ventilador', 'Limpieza general',
+  'Limpieza del serpentín del radiador',
 ];
 
 // Reporte de seguimiento de equipos de emergencia (Zipaquirá) — calcado del
@@ -14136,6 +14176,26 @@ function _htmlCamposReporteDecorado(existente) {
     </div>`).join('');
 }
 
+/** Pinta las casillas de una lista de labores. `marcadas` es el texto tal
+ *  cual se guarda en la hoja ("Labor A;Labor B") — las que no estén en la
+ *  lista oficial (p. ej. datos históricos con un valor raro) se agregan
+ *  igual, marcadas, para no perderlas al reeditar. */
+function _htmlLaboresDecorado(prefijo, opciones, marcadas) {
+  const puestas = String(marcadas || '').split(';').map(s => s.trim()).filter(Boolean);
+  const todas = [...opciones, ...puestas.filter(p => !opciones.includes(p))];
+  return todas.map((op, i) => `<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+    <input type="checkbox" class="${prefijo}" value="${esc(op)}" style="width:auto" ${puestas.includes(op) ? 'checked' : ''}>
+    <span>${esc(op)}</span>
+  </label>`).join('');
+}
+
+/** Lee las casillas marcadas de una lista de labores y las une con ";",
+ *  igual que el formato del formulario original. */
+function _leerLaboresDecorado(prefijo) {
+  return Array.from(document.querySelectorAll('input.' + prefijo + ':checked'))
+    .map(el => el.value).join(';');
+}
+
 function _siguienteCodigoReporteDecorado() {
   let max = 0;
   allReportesDecorado.forEach(r => {
@@ -14161,6 +14221,9 @@ async function inicializarReporteDecorado() {
   document.getElementById('rdec_tecnicoOtro').value = '';
   document.getElementById('rdec_msg').textContent = '';
   document.getElementById('rdec_camposMediciones').innerHTML = _htmlCamposReporteDecorado(null);
+  document.getElementById('rdec_laboresCompresor').innerHTML = _htmlLaboresDecorado('rdec-lab-comp', LABORES_DECORADO_COMPRESOR, '');
+  document.getElementById('rdec_laboresSecador').innerHTML   = _htmlLaboresDecorado('rdec-lab-sec',  LABORES_DECORADO_SECADOR,  '');
+  document.getElementById('rdec_observaciones').value = '';
 
   _inicializarFiltroFechaReporte('rdec');
   const wrap = document.getElementById('rdec_tablaWrap');
@@ -14254,6 +14317,9 @@ async function guardarReporteDecorado() {
     Object.assign(porColumna, {
       Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
       Compresor: compresor, NivelAceite: nivelAceite,
+      LaboresCompresor: _leerLaboresDecorado('rdec-lab-comp'),
+      LaboresSecador:   _leerLaboresDecorado('rdec-lab-sec'),
+      Observaciones:    document.getElementById('rdec_observaciones').value.trim(),
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
       FechaRegistro: new Date().toISOString(), Estado: 'Activo',
     });
@@ -14307,12 +14373,28 @@ function _construirHtmlReporteDecorado(r, conTitulo) {
   }).join('');
   const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
 
+  // Labores marcadas y observaciones — como lista, no como cuadrícula.
+  const bloqueTexto = (titulo, contenido, comoLista) => {
+    const txt = (contenido || '').toString().trim();
+    if (!txt) return '';
+    const cuerpo = comoLista
+      ? `<ul style="margin:0;padding:8px 10px 8px 26px;font-size:12px">${txt.split(';').map(s => s.trim()).filter(Boolean).map(s => `<li>${esc(s)}</li>`).join('')}</ul>`
+      : `<div style="padding:8px 10px;font-size:12px">${esc(txt)}</div>`;
+    return `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#eef3f9;color:#02457A;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(titulo)}</div>
+      ${cuerpo}
+    </div>`;
+  };
+
   return `
     ${conTitulo ? `<h1 style="color:#02457A;font-size:18px;text-align:center;margin-bottom:6px">Reporte de Equipo de Decorado — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:#02457A;font-size:12.5px;margin-bottom:6px">Reporte de Equipo de Decorado — ${esc(r.Codigo)}</div>`}
     <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:#555;margin-bottom:16px">
       ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp; <b>Técnico:</b> ${esc(tecnico)}
     </div>
     ${gruposHtml}
+    ${bloqueTexto('Labores realizadas — Compresor', r.LaboresCompresor, true)}
+    ${bloqueTexto('Labores realizadas — Secador', r.LaboresSecador, true)}
+    ${bloqueTexto('Observaciones', r.Observaciones, false)}
   `;
 }
 
