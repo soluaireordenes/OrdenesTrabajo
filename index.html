@@ -13570,8 +13570,11 @@ async function guardarReporteCompresor() {
     await appendHoja(SH.reporteCompresores, [valores]);
     _invalidarCacheHoja(SH.reporteCompresores);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    // Las horas del reporte alimentan "Horas de Operación de Equipos".
+    const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
     await inicializarReporteCompresores();
+    msg.style.color = '#15803d';
+    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -13900,8 +13903,11 @@ async function guardarReporteSecador() {
     await appendHoja(SH.reporteSecadores, [valores]);
     _invalidarCacheHoja(SH.reporteSecadores);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    // Las horas del reporte alimentan "Horas de Operación de Equipos".
+    const _eqHoras = await _sincronizarHorasDesdeReporte(secador, porColumna.FHrS);
     await inicializarReporteSecadores();
+    msg.style.color = '#15803d';
+    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -14160,8 +14166,8 @@ async function guardarReporteDrycooler() {
     await appendHoja(SH.reporteDrycoolers, [valores]);
     _invalidarCacheHoja(SH.reporteDrycoolers);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
     await inicializarReporteDrycoolers();
+    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -14439,8 +14445,11 @@ async function guardarReporteDecorado() {
     await appendHoja(SH.reporteDecorado, [valores]);
     _invalidarCacheHoja(SH.reporteDecorado);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    // Las horas del reporte alimentan "Horas de Operación de Equipos".
+    const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna.HorasTotales);
     await inicializarReporteDecorado();
+    msg.style.color = '#15803d';
+    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -14726,8 +14735,11 @@ async function guardarReporteEmergencia() {
     await appendHoja(SH.reporteEmergencia, [valores]);
     _invalidarCacheHoja(SH.reporteEmergencia);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    // Las horas del reporte alimentan "Horas de Operación de Equipos".
+    const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna.RunTime);
     await inicializarReporteEmergencia();
+    msg.style.color = '#15803d';
+    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -14961,8 +14973,8 @@ async function guardarReportePresionDrycooler() {
     await appendHoja(SH.reportePresionDrycooler, [valores]);
     _invalidarCacheHoja(SH.reportePresionDrycooler);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
     await inicializarReportePresionDrycooler();
+    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -15757,6 +15769,62 @@ async function actualizarHorasEquipo(equipo, horas) {
   await _actualizarFilaPorClave(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', equipo, {
     HorasActuales: horas, UltimaActualizacion: new Date().toLocaleString('es-CO'),
   });
+}
+
+/* ══════════════════════════════════════════════
+   HORAS DE OPERACIÓN ALIMENTADAS DESDE LOS REPORTES
+   Los reportes técnicos del Cronograma se hacen cada
+   4 horas y varios incluyen el horómetro del equipo.
+   En vez de volver a digitar esas horas a mano en
+   "Horas de Operación de Equipos", cada reporte que
+   trae horas las empuja allí al guardarse — y de ahí
+   se alimentan los planes y las gráficas de
+   mantenimiento.
+
+   Los secadores HOC y los drycoolers NO aparecen aquí
+   porque su formulario no captura ningún horómetro;
+   esos se siguen digitando a mano.
+══════════════════════════════════════════════ */
+// Nombre del equipo dentro del reporte → clave en la hoja HorasEquipos
+// (INFORME_EQUIPOS_POR_TIPO). Son listas fijas y cortas, así que se dejan
+// explícitas en vez de intentar adivinar la equivalencia por texto.
+const EQUIPO_REPORTE_A_HORAS = {
+  'Compresor de Alta Presión #1': 'CA1',
+  'Compresor de Alta Presión #2': 'CA2',
+  'Compresor de Alta Presión #3': 'CA3',
+  'Compresor de Baja Presión #1': 'CB1',
+  'Compresor de Baja Presión #2': 'CB2',
+  'Compresor de Baja Presión #3': 'CB3',
+  'Compresor de Baja Presión #4': 'CB4',
+  'Compresor NXD 220': 'COMPRESOR DE EMERGENCIA NX200',
+  'Compresor IR': 'COMPRESOR EMERGENCIA IR160',
+  'Compresor NX V55': 'COMPRESOR DECORADO NX55',
+  'Compresor NX V18': 'COMPRESOR DECORADO NX18',
+  'Secador Friulair #1': 'SCB1',
+  'Secador Friulair #2': 'SCB2',
+  'Secador Friulair #3': 'SCB3',
+  'Secador Friulair #4': 'SCB4',
+  'Secador Emergencia': 'SCEMERGENCIA',
+};
+
+/** Empuja a "Horas de Operación de Equipos" el horómetro que acaba de
+ *  registrar un reporte. Nunca bloquea ni revierte el guardado del
+ *  reporte: si algo falla (sin permisos, sin red), solo queda avisado en
+ *  consola y las horas se pueden digitar a mano como siempre.
+ *  Devuelve el nombre del equipo actualizado, o '' si no aplicaba. */
+async function _sincronizarHorasDesdeReporte(equipoReporte, horas) {
+  try {
+    const clave = EQUIPO_REPORTE_A_HORAS[(equipoReporte || '').trim()];
+    const n = Number(horas);
+    // Solo horómetros creíbles: un valor vacío, no numérico o negativo se
+    // ignora en silencio (el reporte igual ya quedó guardado).
+    if (!clave || !isFinite(n) || n <= 0) return '';
+    await actualizarHorasEquipo(clave, String(n));
+    return clave;
+  } catch (e) {
+    console.warn('No se pudieron actualizar las horas del equipo:', e.message);
+    return '';
+  }
 }
 
 /* ── Operarios y Alertas (recordatorios por WhatsApp) ──
