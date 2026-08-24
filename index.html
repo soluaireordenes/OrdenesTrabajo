@@ -9437,6 +9437,9 @@ async function guardarHorasEquiposGrid() {
     await _actualizarFilasPorClaveEnLote(SH.planesMantenimiento, PLANES_MANTENIMIENTO_COLS, 'ID', cambiosPlanes);
 
     await pmRenderRegistroHoras();
+    // Las barras de "Horas de Mantenimiento" salen de estas mismas horas —
+    // se repintan ya para que crezcan apenas se guarda, sin cambiar de pestaña.
+    await pmRenderHorasMantenimiento();
     const msgNuevo = document.getElementById('rhMsg');
     msgNuevo.style.color = '#15803d';
     msgNuevo.textContent = `Horas guardadas para ${cambios.length} equipo(s).`;
@@ -9784,8 +9787,18 @@ async function pmRenderHorasMantenimiento() {
     block.equipos.forEach(equipo => {
       const horasActuales = horasDe(equipo);
       const pct = horasActuales === null ? null : Math.round((horasActuales / MAX_HORAS) * 100);
+      // Barra proporcional a las horas acumuladas, alineada con el eje de
+      // horas de la derecha (igual que en el Excel del cliente): la celda de
+      // la barra abarca exactamente las mismas columnas que el eje, así que
+      // un ancho de X% cae justo sobre la marca de X% del eje.
+      const anchoBarra = horasActuales === null ? 0 : Math.max(0, Math.min(100, (horasActuales / MAX_HORAS) * 100));
       filas += `<tr style="background:var(--surface2)">
-        <td colspan="${columnas.length + 1}" style="padding:6px 10px;position:sticky;left:0;background:var(--surface2);border:${BORDE}"><strong style="font-size:12.5px">${esc(equipo)}</strong> <span style="font-size:11px;color:var(--text3)">— ${horasActuales === null ? 'sin horas registradas' : horasActuales.toLocaleString('es-CO') + ' h'}${pct === null ? '' : ' (' + pct + '%)'}</span></td>
+        <td style="padding:6px 10px;white-space:nowrap;position:sticky;left:0;background:var(--surface2);border:${BORDE}"><strong style="font-size:12.5px">${esc(equipo)}</strong> <span style="font-size:11px;color:var(--text3)">— ${horasActuales === null ? 'sin horas registradas' : horasActuales.toLocaleString('es-CO') + ' h'}${pct === null ? '' : ' (' + pct + '%)'}</span></td>
+        <td colspan="${columnas.length}" style="padding:0;border:${BORDE}" title="${equipo}: ${horasActuales === null ? 'sin horas registradas' : horasActuales.toLocaleString('es-CO') + ' h de ' + MAX_HORAS.toLocaleString('es-CO')}">
+          <div style="position:relative;height:16px">
+            <div style="position:absolute;top:0;bottom:0;left:0;width:${anchoBarra}%;background:linear-gradient(90deg,#4a86c8 0%,#9dc3e6 55%,#dbe9f7 100%);${anchoBarra > 0 ? 'border-right:1px solid #2f6fb2;' : ''}"></div>
+          </div>
+        </td>
       </tr>`;
     });
 
