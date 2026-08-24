@@ -2486,6 +2486,11 @@ body.inv-activo .container { max-width: 1800px; }
           <div style="padding:14px" id="invAlertas"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
 
+        <div class="card" style="margin-top:16px">
+          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Comprometido en Órdenes Abiertas <span style="font-weight:400;text-transform:none;opacity:.8">· se descuenta al cerrar cada orden</span></div>
+          <div style="padding:14px;overflow-x:auto" id="invComprometidos"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+        </div>
+
       </div>
 
       <!-- ── Sub-panel: Nuevo Producto ── -->
@@ -9934,6 +9939,110 @@ function invMostrarSubTab(nombre) {
   if (nombre === 'servicios') { invCargarServicios(); invPoblarProveedores(); }
 }
 
+/** Lee de la hoja de ÓRDENES de la sede (distinta a la de inventario) los
+ *  repuestos/insumos de las órdenes que todavía NO están cerradas, y los
+ *  agrupa por producto. Son cantidades "comprometidas": ya se prometieron en
+ *  una orden pero aún no se descontaron del stock — el descuento ocurre al
+ *  cerrar la orden (ver descontarInventarioPorCierreOrden). */
+async function obtenerRepuestosComprometidos(sede) {
+  const spreadsheetId = OPERACIONES[sede]?.spreadsheetId;
+  if (!spreadsheetId) return [];
+
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
+
+  async function leer(hoja) {
+    const r = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:AZ'), { headers: hdrs });
+    if (r.status === 400) return []; // la pestaña todavía no existe en esta sede
+    if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+    if (!r.ok) throw new Error('No se pudo leer ' + hoja + ' (HTTP ' + r.status + ')');
+    const d = await r.json();
+    if (!d.values || d.values.length < 2) return [];
+    const cols = d.values[0];
+    return d.values.slice(1).map(row => {
+      const obj = {};
+      cols.forEach((c, j) => { obj[c] = row[j] || ''; });
+      return obj;
+    });
+  }
+
+  const [ordenes, repuestos, insumos] = await Promise.all([
+    leer(SH.ordenes), leer(SH.repuestos), leer(SH.insumos),
+  ]);
+
+  // Órdenes "abiertas" = todo lo que no quedó cerrado/rechazado.
+  const ESTADOS_CERRADOS = ['Cerrada', 'Realizada', 'Rechazada'];
+  const abiertas = new Map();
+  ordenes.forEach(o => {
+    if (o.NumeroOrden && !ESTADOS_CERRADOS.includes(o.Estado)) abiertas.set(o.NumeroOrden, o);
+  });
+  if (!abiertas.size) return [];
+
+  const porProducto = new Map();
+  [...repuestos, ...insumos].forEach(it => {
+    const orden = abiertas.get(it.NumeroOrden);
+    if (!orden) return;
+    const cantidad = Number(it.Cantidad) || 0;
+    if (cantidad <= 0) return;
+    const nombre = (it.Nombre || '').trim();
+    const codigo = (it.Codigo || '').trim();
+    if (!nombre && !codigo) return;
+
+    const clave = (codigo || nombre).toLowerCase();
+    let acc = porProducto.get(clave);
+    if (!acc) { acc = { codigo, nombre, cantidad: 0, ordenes: [] }; porProducto.set(clave, acc); }
+    acc.cantidad += cantidad;
+    if (!acc.ordenes.includes(it.NumeroOrden)) acc.ordenes.push(it.NumeroOrden);
+    if (!acc.nombre && nombre) acc.nombre = nombre;
+    if (!acc.codigo && codigo) acc.codigo = codigo;
+  });
+
+  return [...porProducto.values()].sort((a, b) => b.cantidad - a.cantidad);
+}
+
+/** Cruza los comprometidos con el stock actual para mostrar cuánto quedaría
+ *  disponible si se cerraran todas las órdenes abiertas. */
+function invRenderComprometidos(comprometidos, stock) {
+  const cont = document.getElementById('invComprometidos');
+  if (!cont) return;
+  if (!comprometidos.length) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px">No hay repuestos ni insumos comprometidos en órdenes abiertas.</div>';
+    return;
+  }
+
+  const porCodigo = new Map(), porNombre = new Map();
+  (stock || []).forEach(p => {
+    if (p.codigo) porCodigo.set(String(p.codigo).trim().toLowerCase(), p);
+    if (p.nombre) porNombre.set(String(p.nombre).trim().toLowerCase(), p);
+  });
+
+  const filas = comprometidos.map(c => {
+    const prod = (c.codigo && porCodigo.get(c.codigo.toLowerCase()))
+              || (c.nombre && porNombre.get(c.nombre.toLowerCase()))
+              || null;
+    const disponible = prod ? prod.cantidad : null;
+    const restante = disponible === null ? null : disponible - c.cantidad;
+    const alerta = restante !== null && restante < 0;
+    const estado = disponible === null
+      ? '<span class="inv-badge" style="background:#f1f5f9;color:#475569">No está en inventario</span>'
+      : alerta
+        ? `<span class="inv-badge" style="background:#fee2e2;color:#b91c1c">Faltarían ${Math.abs(restante)}</span>`
+        : `<span class="inv-badge" style="background:#dcfce7;color:#15803d">Alcanza (quedarían ${restante})</span>`;
+    return `<tr>
+      <td><strong>${esc(c.codigo || '—')}</strong></td>
+      <td>${esc(c.nombre || '—')}</td>
+      <td><strong>${c.cantidad}</strong></td>
+      <td>${disponible === null ? '—' : disponible}</td>
+      <td>${estado}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(c.ordenes.join(', '))}</td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `<table class="inv-table"><thead><tr>
+      <th>Código Siesa</th><th>Nombre</th><th>Comprometido</th><th>Stock actual</th><th>Estado</th><th>Órdenes</th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+}
+
 async function invCargarDashboard() {
   const msg = document.getElementById('invMsg');
   try {
@@ -9970,6 +10079,17 @@ async function invCargarDashboard() {
     invRenderActividadReciente(historial);
     invRenderDestinoChart(historial);
     invRenderEquiposChart(historial);
+
+    // Repuestos comprometidos en órdenes abiertas — se lee de la hoja de
+    // Órdenes de la sede (otra hoja de cálculo), así que va aparte y no
+    // bloquea el resto del dashboard si falla.
+    const contComp = document.getElementById('invComprometidos');
+    try {
+      const comprometidos = await obtenerRepuestosComprometidos(inventarioOperacionActual);
+      invRenderComprometidos(comprometidos, stock);
+    } catch (e) {
+      if (contComp) contComp.innerHTML = `<div style="color:var(--danger);font-size:13px">No se pudieron cargar los comprometidos: ${esc(e.message)}</div>`;
+    }
 
     msg.textContent = '';
   } catch (e) {
