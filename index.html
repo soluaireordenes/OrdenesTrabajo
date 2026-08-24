@@ -4704,7 +4704,7 @@ function abrirModalCompletar(id) {
     tr.className = 'tr-tarea-principal';
     tr.innerHTML = `
       <td><input type="text" placeholder="Descripción de la tarea" value="${esc(t.descripcion||'')}"></td>
-      <td><input type="text" placeholder="" value="${esc(t.tiempoReal||'')}"></td>
+      <td><input type="text" placeholder="Ej: 30m o 2h" value="${esc(t.tiempoReal||'')}" oninput="autocalcularCierre()"></td>
       <td style="text-align:center"><input type="checkbox" style="width:auto;transform:scale(1.3)" ${t.ok?'checked':''} onchange="actualizarEstadoPorTareasEditor()"></td>
       <td><input type="text" placeholder="Técnico" value="${esc(t.responsable||'')}"></td>
       <td style="text-align:center">
@@ -4713,7 +4713,7 @@ function abrirModalCompletar(id) {
             onchange="manejarSubidaFotoTarea(this)">
         </label>
       </td>
-      <td><button class="btn-del-row" onclick="this.closest('tr').nextElementSibling?.remove(); this.closest('tr').remove()">✕</button></td>`;
+      <td><button class="btn-del-row" onclick="this.closest('tr').nextElementSibling?.remove(); this.closest('tr').remove(); autocalcularCierre();">✕</button></td>`;
     eTareas.appendChild(tr);
     eTareas.appendChild(_crearFilaObservacionFantasma(t.observacionFantasma || ''));
   });
@@ -5357,7 +5357,7 @@ function addRow(tbodyId, tipo) {
     tr.className = 'tr-tarea-principal';
     tr.innerHTML = `
       <td><input type="text" placeholder="Descripción de la tarea"></td>
-      <td><input type="text" placeholder=""></td>
+      <td><input type="text" placeholder="Ej: 30m o 2h" ${tbodyId==='e_tbody_tareas' ? 'oninput="autocalcularCierre()"' : ''}></td>
       <td style="text-align:center"><input type="checkbox" style="width:auto;transform:scale(1.3)" ${tbodyId==='e_tbody_tareas' ? 'onchange="actualizarEstadoPorTareasEditor()"' : ''}></td>
       <td><input type="text" placeholder="Técnico"></td>
       ${tbodyId==='e_tbody_tareas' ? `<td style="text-align:center">
@@ -5366,7 +5366,7 @@ function addRow(tbodyId, tipo) {
             onchange="manejarSubidaFotoTarea(this)">
         </label>
       </td>` : ''}
-      <td><button class="btn-del-row" onclick="${tbodyId==='e_tbody_tareas' ? "this.closest('tr').nextElementSibling?.remove(); " : ''}this.closest('tr').remove()">✕</button></td>`;
+      <td><button class="btn-del-row" onclick="${tbodyId==='e_tbody_tareas' ? "this.closest('tr').nextElementSibling?.remove(); this.closest('tr').remove(); autocalcularCierre();" : "this.closest('tr').remove()"}">✕</button></td>`;
     tbody.appendChild(tr);
     if (tbodyId === 'e_tbody_tareas') tbody.appendChild(_crearFilaObservacionFantasma(''));
     return;
