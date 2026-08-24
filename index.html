@@ -12651,11 +12651,11 @@ function inicializarDashboardCronograma() {
  *  dentro del Dashboard — cada uno lee su propia hoja (no depende de que
  *  esa pestaña se haya visitado antes, a diferencia de cuando este mismo
  *  cálculo vivía dentro de cada formulario). */
-async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, desde, hasta) {
+async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo) {
   try {
     await asegurarHoja(sheetName, cols);
     const filas = (await _leerHojaGenerica(sheetName)).filter(f => f.Estado !== 'Eliminada');
-    _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta);
+    _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo);
   } catch (e) {
     const resumenEl = document.getElementById(resumenId);
     if (resumenEl) resumenEl.innerHTML = `<div style="color:var(--danger);font-size:12px">Error: ${esc(e.message)}</div>`;
@@ -12668,12 +12668,12 @@ function _renderTodosCumplimientosReportesTecnicos() {
   const desde = document.getElementById('cronDashDesde')?.value;
   const hasta = document.getElementById('cronDashHasta')?.value;
   if (!desde || !hasta || desde > hasta) return;
-  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, REPORTE_COMPRESORES_COLS, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta);
-  _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', desde, hasta);
-  _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', desde, hasta);
-  _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', desde, hasta);
-  _cargarYRenderCumplimientoReporte(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', desde, hasta);
-  _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', desde, hasta);
+  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, REPORTE_COMPRESORES_COLS, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta, 'Compresor');
+  _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', desde, hasta, 'Secador');
+  _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', desde, hasta, 'Drycooler');
+  _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', desde, hasta, 'Compresor');
+  _cargarYRenderCumplimientoReporte(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', desde, hasta, 'Compresor');
+  _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', desde, hasta, null);
 }
 
 /** Gráfica de cumplimiento por turno: un punto por cada combinación
@@ -13277,13 +13277,33 @@ const HORA_REPORTE_A_24H = {
  *  después de cada guardado exitoso — así el punto de "hoy" pasa a
  *  cumplido apenas se da clic en "Guardar Reporte", sin ninguna marca
  *  aparte. */
-function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta) {
+function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo) {
   const canvas = document.getElementById(canvasId);
   const resumenEl = document.getElementById(resumenId);
   if (!canvas || typeof Chart === 'undefined') return;
   if (window[chartVar]) { window[chartVar].destroy(); window[chartVar] = null; }
 
-  const claves = new Set((filas || []).map(f => horas ? (f.Fecha + '|' + f.Hora) : f.Fecha));
+  // Una hoja puede cubrir varios equipos (p. ej. Compresores tiene 3 de Alta
+  // y 4 de Baja), así que la franja no es "sí/no": se mide QUÉ PROPORCIÓN de
+  // los equipos se reportó. El denominador son los equipos que aparecen al
+  // menos una vez en el rango elegido — así un equipo fuera de servicio
+  // durante todo el periodo no castiga el indicador, pero sí se nota cuando
+  // un equipo activo se deja de reportar en algunas franjas.
+  const dentroRango = (filas || []).filter(f => f.Fecha >= desde && f.Fecha <= hasta);
+  const equiposDelRango = colEquipo
+    ? [...new Set(dentroRango.map(f => (f[colEquipo] || '').trim()).filter(Boolean))]
+    : [];
+  const totalEquipos = equiposDelRango.length || 1;
+
+  // clave de franja -> conjunto de equipos distintos reportados en ella
+  const porFranja = new Map();
+  dentroRango.forEach(f => {
+    const k = horas ? (f.Fecha + '|' + f.Hora) : f.Fecha;
+    if (!porFranja.has(k)) porFranja.set(k, new Set());
+    porFranja.get(k).add(colEquipo ? (f[colEquipo] || '').trim() : '1');
+  });
+  const reportadosEn = k => (porFranja.get(k) ? porFranja.get(k).size : 0);
+
   const ahora = new Date();
   const hoyIso = _isoLocal(ahora);
   const horaAhora = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
@@ -13295,23 +13315,27 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
   const fin = new Date(hasta + 'T12:00:00');
   while (cursor <= fin && fechas.length < 45) { fechas.push(_isoLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
 
-  const labels = [], valores = [], colores = [];
-  let cumplidos = 0, total = 0;
+  const labels = [], valores = [], colores = [], detalles = [];
+  let sumaReportados = 0, total = 0;
+  // Verde solo si están todos; ámbar si falta alguno; rojo si no hubo ninguno.
+  const colorDe = n => n === 0 ? '#b91c1c' : (n >= totalEquipos ? '#15803d' : '#a15c00');
+  const agregar = (etiqueta, clave) => {
+    const n = Math.min(reportadosEn(clave), totalEquipos);
+    labels.push(etiqueta);
+    valores.push(Math.round((n / totalEquipos) * 100));
+    colores.push(colorDe(n));
+    detalles.push(n);
+    total++; sumaReportados += n;
+  };
   fechas.forEach(fecha => {
     if (fecha > hoyIso) return;
     if (horas) {
       horas.forEach(hora => {
         if (fecha === hoyIso && (HORA_REPORTE_A_24H[hora] || '00:00') > horaAhora) return;
-        const val = claves.has(fecha + '|' + hora) ? 1 : 0;
-        labels.push(hora.replace(':00 ', '') + ' · ' + fmtFecha(fecha).slice(0, 5));
-        valores.push(val); colores.push(val ? '#15803d' : '#b91c1c');
-        total++; if (val) cumplidos++;
+        agregar(hora.replace(':00 ', '') + ' · ' + fmtFecha(fecha).slice(0, 5), fecha + '|' + hora);
       });
     } else {
-      const val = claves.has(fecha) ? 1 : 0;
-      labels.push(fmtFecha(fecha).slice(0, 5));
-      valores.push(val); colores.push(val ? '#15803d' : '#b91c1c');
-      total++; if (val) cumplidos++;
+      agregar(fmtFecha(fecha).slice(0, 5), fecha);
     }
   });
 
@@ -13323,7 +13347,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
   window[chartVar] = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [{
-      label: 'Reporte guardado', data: valores,
+      label: 'Equipos reportados', data: valores,
       borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,.15)',
       fill: true, tension: 0, borderWidth: 2,
       pointRadius: 3, pointHoverRadius: 5,
@@ -13333,19 +13357,28 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' ' + (ctx.raw ? '✓ Reporte guardado' : '✗ Sin reporte') } },
+        tooltip: { callbacks: { label: ctx => {
+          const n = detalles[ctx.dataIndex];
+          if (!colEquipo) return ' ' + (n ? '✓ Reporte guardado' : '✗ Sin reporte');
+          if (n === 0) return ' ✗ Ningún equipo reportado';
+          return ` ${n >= totalEquipos ? '✓' : '⚠'} ${n} de ${totalEquipos} equipos (${ctx.raw}%)`;
+        } } },
       },
       scales: {
-        y: { min: -0.1, max: 1.1, ticks: { stepSize: 1, callback: v => (v === 1 ? 'Cumplido' : v === 0 ? 'No cumplido' : '') } },
+        y: { min: 0, max: 105, ticks: { stepSize: 25, callback: v => v + '%' } },
         x: { ticks: { maxRotation: 90, minRotation: 90, autoSkip: false, font: { size: 9 } } },
       },
     },
   });
 
   if (resumenEl) {
-    const pct = total ? Math.round((cumplidos / total) * 100) : 0;
+    const posibles = total * totalEquipos;
+    const pct = posibles ? Math.round((sumaReportados / posibles) * 100) : 0;
     const color = pct >= 80 ? '#15803d' : (pct >= 50 ? '#a15c00' : '#b91c1c');
-    resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b> (${cumplidos}/${total})</span>`;
+    const detalle = colEquipo
+      ? ` <span style="color:var(--text3);font-weight:400">(${sumaReportados} de ${posibles} reportes · ${totalEquipos} equipo${totalEquipos === 1 ? '' : 's'} × ${total} franja${total === 1 ? '' : 's'})</span>`
+      : ` <span style="color:var(--text3);font-weight:400">(${sumaReportados}/${total})</span>`;
+    resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b>${detalle}</span>`;
   }
 }
 
