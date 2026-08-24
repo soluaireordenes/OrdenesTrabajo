@@ -11401,7 +11401,8 @@ async function eliminarNovedad(codigo) {
   const fila = allNovedades.find(n => n.Codigo === codigo);
   if (!fila) return;
   try {
-    const colEstado = numToCol(NOVEDADES_COLS.indexOf('Estado'));
+    const colsHoja = await asegurarHoja(SH.novedades, NOVEDADES_COLS);
+    const colEstado = numToCol(colsHoja.indexOf('Estado'));
     await sheetsRequest('UPDATE', SH.novedades + '!' + colEstado + fila._row, [['Eliminada']]);
     await inicializarPanelNovedades();
   } catch (e) {
@@ -15010,19 +15011,19 @@ async function guardarEntregaTurno() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
-    await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
+    const colsHoja = await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
     const turno = cfg.turnos.find(t => t.id === turnoId);
     const codigo = _siguienteCodigoEntregaTurno();
-    // Se arma por nombre de columna (no por posición) para que agregar
-    // campos nuevos en el futuro no dependa de que queden contiguos con
-    // los que ya existían en ENTREGA_TURNO_CAMPOS.
+    // Se arma por nombre de columna (no por posición) y se ordena según los
+    // encabezados REALES de la hoja: asegurarHoja agrega las columnas nuevas
+    // al final, así que el orden del arreglo del código puede no coincidir.
     const porColumna = {
       Codigo: codigo, Fecha: fecha, TurnoId: turnoId, TurnoNombre: turno?.nombre || '',
       EntregadoPor: entregadoPor, RecibidoPor: recibidoPor,
       NovedadesTurno: novedadesTurno, FechaRegistro: new Date().toISOString(), Estado: 'Activa',
     };
     ENTREGA_TURNO_CAMPOS.forEach(c => { porColumna[c.col] = document.getElementById('et_' + c.id).value.trim(); });
-    const valores = ENTREGA_TURNO_COLS.map(col => porColumna[col] ?? '');
+    const valores = colsHoja.map(col => porColumna[col] ?? '');
     await appendHoja(SH.entregaTurno, [valores]);
     _invalidarCacheHoja(SH.entregaTurno);
 
@@ -15042,7 +15043,8 @@ async function eliminarEntregaTurno(codigo) {
   const fila = allEntregasTurno.find(e => e.Codigo === codigo);
   if (!fila) return;
   try {
-    const colEstado = numToCol(ENTREGA_TURNO_COLS.indexOf('Estado'));
+    const colsHoja = await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
+    const colEstado = numToCol(colsHoja.indexOf('Estado'));
     await sheetsRequest('UPDATE', SH.entregaTurno + '!' + colEstado + fila._row, [['Eliminada']]);
     _invalidarCacheHoja(SH.entregaTurno);
     await inicializarEntregaTurno();
