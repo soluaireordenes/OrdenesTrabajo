@@ -3273,11 +3273,22 @@ const GOOGLE_CONFIG = {
   sheetName:     'Ordenes', // ← Nombre de la hoja
 };
 
-// Interruptor general de la generación automática de órdenes (Planes de
-// Mantenimiento + Informes Trimestral/Semestral/Anual). Apagado a pedido
-// del cliente mientras termina de definir bien esos planes y checklists —
-// cámbialo a true cuando ya estén listos para volver a generar órdenes solas.
-const GENERAR_ORDENES_AUTOMATICAS = false;
+// Interruptores de la generación automática de órdenes. Eran uno solo
+// (GENERAR_ORDENES_AUTOMATICAS), apagado a pedido del cliente mientras
+// terminaba de definir sus planes y checklists. Se separan porque son dos
+// sistemas distintos y no están igual de listos:
+//
+//  - Los Informes Trimestral/Semestral/Anual por horas ya están definidos:
+//    sus marcas salen del mismo sitio que pinta el cronograma, cada equipo
+//    tiene su hora base y sus checklists se verificaron uno a uno contra
+//    los del cliente. Se encienden.
+//  - Los Planes de Mantenimiento por calendario son otro sistema, con sus
+//    propias frecuencias y tareas, y no se ha revisado si están listos.
+//    Siguen apagados hasta que el cliente lo confirme: encenderlos sin
+//    revisarlos podría generar de golpe una tanda de órdenes de planes mal
+//    definidos.
+const GENERAR_ORDENES_INFORMES_POR_HORAS = true;
+const GENERAR_ORDENES_PLANES_MANTENIMIENTO = false;
 
 // ── LOGIN POR DOCUMENTO + PIN ──
 // URL "/exec" del Apps Script (ver Code.gs del proyecto "Login Operarios")
@@ -4701,11 +4712,25 @@ window.addEventListener('load', async () => {
       // y sus checklists todavía no están bien definidos, así que por ahora
       // no se debe generar ninguna orden automática — pon esta constante en
       // true cuando el plan ya esté listo para generarlas de nuevo.
-      if (GENERAR_ORDENES_AUTOMATICAS) {
+      if (GENERAR_ORDENES_PLANES_MANTENIMIENTO) {
         verificarPlanesMantenimientoYGenerar().catch(e => console.warn('Planes de mantenimiento:', e.message));
-        verificarInformeTrimestralYGenerar().catch(e => console.warn('Informe Cada Trimestral:', e.message));
-        verificarInformeSemestralYGenerar().catch(e => console.warn('Informe Cada Semestral:', e.message));
-        verificarInformeAnualYGenerar().catch(e => console.warn('Informe Cada Anual:', e.message));
+      }
+      if (GENERAR_ORDENES_INFORMES_POR_HORAS) {
+        // Se espera a que terminen las tres para volver a pintar Pendientes:
+        // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
+        // llegaban las ordenes nuevas, asi que no aparecian hasta la
+        // siguiente recarga y parecia que la generacion no funcionaba.
+        Promise.all([
+          verificarInformeTrimestralYGenerar().catch(e => { console.warn('Informe Cada Trimestral:', e.message); return null; }),
+          verificarInformeSemestralYGenerar().catch(e => { console.warn('Informe Cada Semestral:', e.message); return null; }),
+          verificarInformeAnualYGenerar().catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }),
+        ]).then(res => {
+          const creadas = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
+          if (creadas) {
+            renderPendientes();
+            actualizarContadorTab && actualizarContadorTab();
+          }
+        });
       }
     });
     actualizarBadgeNotificaciones();
