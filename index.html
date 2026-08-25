@@ -2985,7 +2985,11 @@ body.inv-activo .container { max-width: 1800px; }
 <!-- ════════════════════════════════════════════════════
      CHART.JS (mini dashboard)
 ════════════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- defer: sin él, el navegador frena el pintado de TODA la página hasta que
+     el CDN responda. Nada dibuja gráficas antes de tiempo — la app arranca
+     desde el callback de Google (que ya es async defer), muy después de que
+     un script defer se haya ejecutado. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 
 <!-- ════════════════════════════════════════════════════
      JSVECTORMAP (mapa "Dónde Operamos" en Inicio) — MIT License,
@@ -7753,6 +7757,9 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
           method: 'PUT', headers: hdrs, body: JSON.stringify({ values: [row] })
         });
         if (!putResp.ok) throw new Error('No se pudo guardar la fila de la orden ' + numeroOrden + ' (HTTP ' + putResp.status + ')');
+        // Esta escritura no pasa por appendHoja ni por _actualizarFilaPorClave,
+        // así que tiene que invalidar la caché por su cuenta.
+        _invalidarCacheHoja(sheetName);
       }
     }
 
@@ -7783,18 +7790,27 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
       for (let i = 1; i < allRows.length; i++) { // skip header row (i=0)
         if (allRows[i] && allRows[i][0] === numeroOrden) toDelete.push(i + 1); // +1 = sheet row number
       }
-      // Borrar de abajo hacia arriba para no desplazar índices — si en
-      // algún punto no se puede obtener el sheetId o el borrado falla, se
-      // aborta en vez de continuar a insertar las filas nuevas encima de
-      // las viejas todavía no borradas (misma razón que arriba).
-      for (let k = toDelete.length - 1; k >= 0; k--) {
+      // Borrar de abajo hacia arriba para no desplazar índices, pero todo en
+      // UN solo batchUpdate: antes se pedía el sheetId y se mandaba un
+      // borrado por cada fila (2 viajes de ida y vuelta por fila), así que
+      // reemplazar 20 repuestos costaba 40 peticiones. Google aplica las
+      // peticiones de un batchUpdate en orden, de modo que mandarlas de
+      // mayor a menor conserva la misma seguridad de índices.
+      // Si no se puede obtener el sheetId o el borrado falla, se aborta en
+      // vez de continuar a insertar las filas nuevas encima de las viejas
+      // todavía no borradas (misma razón que arriba).
+      if (toDelete.length) {
         const sheetId = await obtenerSheetId(sheetName);
         if (sheetId === null) throw new Error('No se pudo obtener el ID de la hoja ' + sheetName + ' para borrar filas viejas de la orden');
         const delResp = await fetch(base + ':batchUpdate', {
           method: 'POST', headers: hdrs,
-          body: JSON.stringify({ requests: [{ deleteDimension: {
-            range: { sheetId, dimension: 'ROWS', startIndex: toDelete[k] - 1, endIndex: toDelete[k] }
-          }}]})
+          body: JSON.stringify({ requests: toDelete
+            .slice()
+            .sort((a, b) => b - a)
+            .map(fila => ({ deleteDimension: {
+              range: { sheetId, dimension: 'ROWS', startIndex: fila - 1, endIndex: fila }
+            }}))
+          })
         });
         if (!delResp.ok) throw new Error('No se pudo borrar una fila vieja de ' + sheetName + ' (HTTP ' + delResp.status + ')');
       }
@@ -8638,6 +8654,9 @@ async function marcarRealizada(id) {
    DASHBOARD
 ══════════════════════════════════════════════ */
 async function cargarDashboard() {
+  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
+  // del panel (tablas, totales) sí tiene que seguir funcionando.
+  if (typeof Chart === 'undefined') return;
   await new Promise(r => setTimeout(r, 300));
 
   // ── Tipos fijos de mantenimiento ──
@@ -8913,6 +8932,9 @@ async function cargarDashboard() {
 /** Genera la gráfica general (gasto por empresa) y las 15 gráficas individuales
  *  (gasto por equipo dentro de cada empresa) — solo para SERVICIOTECNICO-ANTIOQUIA. */
 function renderGraficasAntioquia(ordenesFiltradas) {
+  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
+  // del panel (tablas, totales) sí tiene que seguir funcionando.
+  if (typeof Chart === 'undefined') return;
   function costoOrden(o) {
     let s = 0;
     (Array.isArray(o.repuestos)?o.repuestos:[]).forEach(r => { s += Number(r.cantidad||0)*Number(r.costoUnitario||r.costoUnit||0); });
@@ -11569,6 +11591,9 @@ function renderGaleriaFotosNovedadLocal(fotos) {
 
 /* ── Gráficas del dashboard: SOLO tiempos (dona + barras) ── */
 function renderGraficasNovedades() {
+  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
+  // del panel (tablas, totales) sí tiene que seguir funcionando.
+  if (typeof Chart === 'undefined') return;
   function destroyChart(key) { if (window[key]) { window[key].destroy(); window[key] = null; } }
   function makeChart(id, key, cfg) {
     destroyChart(key);
@@ -11794,6 +11819,9 @@ function _leyendaRangosVerticalHtml() {
 }
 
 async function _crearMiniDashboardNovedad(n) {
+  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
+  // del panel (tablas, totales) sí tiene que seguir funcionando.
+  if (typeof Chart === 'undefined') return;
   const total = Number(n.TiempoTotalMin) || 0;
   const rango = _rangoPorMinutos(total);
 
@@ -12200,14 +12228,23 @@ async function _eliminarFilasPorValorColumna(sheetName, nombreColumna, valor) {
   const sheetId = (meta.sheets || []).find(s => s.properties.title === sheetName)?.properties.sheetId;
   if (sheetId === undefined) return;
 
-  for (let k = filasABorrar.length - 1; k >= 0; k--) {
-    await fetch(base + ':batchUpdate', {
-      method: 'POST', headers: hdrs,
-      body: JSON.stringify({ requests: [{ deleteDimension: {
-        range: { sheetId, dimension: 'ROWS', startIndex: filasABorrar[k] - 1, endIndex: filasABorrar[k] }
-      }}]})
-    });
-  }
+  // Un solo batchUpdate con todos los borrados, en vez de una petición por
+  // fila: borrar 20 filas pasa de 20 viajes de ida y vuelta a 1. Google
+  // aplica las peticiones de un batchUpdate EN ORDEN, así que se mandan de
+  // abajo hacia arriba — igual que en el bucle anterior — para que borrar
+  // una fila no corra el índice de las que faltan.
+  const requests = filasABorrar
+    .slice()
+    .sort((a, b) => b - a)
+    .map(fila => ({ deleteDimension: {
+      range: { sheetId, dimension: 'ROWS', startIndex: fila - 1, endIndex: fila }
+    }}));
+
+  const delResp = await fetch(base + ':batchUpdate', {
+    method: 'POST', headers: hdrs, body: JSON.stringify({ requests })
+  });
+  if (!delResp.ok) throw new Error('No se pudieron borrar filas de ' + sheetName + ' (HTTP ' + delResp.status + ')');
+  _invalidarCacheHoja(sheetName);
 }
 
 /** Lee (con la misma caché corta de leerHojaGenericaCacheada) TODAS las
@@ -12728,7 +12765,7 @@ function _renderTodosCumplimientosReportesTecnicos() {
 async function renderDashboardCronograma() {
   const canvas = document.getElementById('chartCumplimientoTurnos');
   const resumenEl = document.getElementById('cronDashResumen');
-  if (!canvas) return;
+  if (!canvas || typeof Chart === 'undefined') return;
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   if (window._chartCumplimientoTurnos) { window._chartCumplimientoTurnos.destroy(); window._chartCumplimientoTurnos = null; }
   if (!cfg) {
@@ -15302,8 +15339,17 @@ async function leerHojaGenerica(nombre) {
 // seguidos vuelve a leer las mismas hojas una y otra vez, y agota la cuota
 // de "Read requests per minute" de Sheets. Cualquier escritura sobre una
 // de estas hojas invalida su entrada en la caché.
+//
+// El TTL es de 60 s y no de unos pocos segundos porque las dos rutas de
+// escritura genéricas (appendHoja y _actualizarFilaPorClave/EnLote) borran
+// la entrada de la hoja que tocan: los cambios que hace ESTE usuario se ven
+// siempre al instante, sin esperar a que venza la caché. Lo único que puede
+// quedar hasta 60 s desactualizado es un cambio hecho por OTRO usuario al
+// mismo tiempo — y los reportes técnicos se llenan cada 4 horas, así que un
+// minuto de desfase no cambia nada en pantalla. A cambio, moverse entre
+// pestañas deja de gastar cuota de lectura de Sheets.
 const _cacheLecturasHojas = {}; // { [hoja]: { data, timestamp } }
-const CACHE_LECTURAS_TTL_MS = 8000;
+const CACHE_LECTURAS_TTL_MS = 60000;
 
 async function leerHojaGenericaCacheada(nombre) {
   const c = _cacheLecturasHojas[nombre];
@@ -15948,9 +15994,15 @@ async function importarPlan2026Zipaquira() {
   }));
   await appendHoja(SH.planesMantenimiento, filas);
 
+  // Una sola pasada por la hoja para todos los equipos, en vez de un
+  // actualizarHorasEquipo() por equipo (que releía y reescribía la hoja
+  // completa cada vez).
+  const ahora = new Date().toLocaleString('es-CO');
+  const cambiosHoras = {};
   for (const [equipo, horas] of Object.entries(HORAS_INICIALES_2026_ZIPAQUIRA)) {
-    await actualizarHorasEquipo(equipo, horas);
+    cambiosHoras[equipo] = { HorasActuales: horas, UltimaActualizacion: ahora };
   }
+  await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', cambiosHoras);
 
   return { planes: filas.length, equiposConHoras: Object.keys(HORAS_INICIALES_2026_ZIPAQUIRA).length, reemplazados: anteriores.length };
 }
