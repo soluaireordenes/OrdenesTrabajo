@@ -6315,6 +6315,20 @@ function esHoraTrimestral(horas) {
   return horas > 0 && horas % INFORME_SEMESTRAL_INTERVALO_HORAS === INFORME_TRIMESTRAL_INTERVALO_HORAS;
 }
 
+/** ¿Esa marca de horas corresponde a un mantenimiento SEMESTRAL?
+ *
+ *  Misma lógica que el trimestral, un escalón más arriba: en el Excel del
+ *  cliente el semestral cae en 4.000, 12.000, 20.000, 28.000… es decir
+ *  cada 8.000 horas empezando en las 4.000. Los múltiplos de 4.000 que
+ *  además lo son de 8.000 (8.000, 16.000, 24.000…) son del informe anual,
+ *  cuyo checklist ya incluye todo lo del semestral.
+ *
+ *  Las tres frecuencias parten el eje sin superponerse: de cada 4 marcas
+ *  de 2.000 horas, 2 son trimestrales, 1 semestral y 1 anual. */
+function esHoraSemestral(horas) {
+  return horas > 0 && horas % INFORME_ANUAL_INTERVALO_HORAS === INFORME_SEMESTRAL_INTERVALO_HORAS;
+}
+
 /** Tipos de equipo que puede mostrar el filtro desplegable de cada informe
  *  periódico (Trimestral/Semestral/Anual). Hoy el checklist real (arriba)
  *  solo existe para "Compresores" — los otros 3 tipos son un placeholder:
@@ -9820,10 +9834,24 @@ async function pmRenderHorasMantenimiento() {
   // cuerpo, para que el verde del punto programado siga leyéndose encima.
   const AMARILLO_TRI_TITULO = '#FFE699';
   const AMARILLO_TRI_COLUMNA = '#FFF2CC';
+  // Naranja para el semestral: un escalón más intenso que el amarillo del
+  // trimestral, para que se lea como una frecuencia mayor y no como otra
+  // categoría suelta.
+  const NARANJA_SEM_TITULO = '#F4B183';
+  const NARANJA_SEM_COLUMNA = '#FCE4D6';
   const VERDE_PUNTO = '#C6E0B4';
+
+  // Trimestral y semestral nunca coinciden en la misma columna, así que
+  // basta con elegir el primero que aplique.
+  function estiloFrecuencia(h) {
+    if (esHoraTrimestral(h)) return { titulo: AMARILLO_TRI_TITULO, columna: AMARILLO_TRI_COLUMNA, texto: '#7f6000', etiqueta: 'trimestral' };
+    if (esHoraSemestral(h))  return { titulo: NARANJA_SEM_TITULO,  columna: NARANJA_SEM_COLUMNA,  texto: '#833c00', etiqueta: 'semestral' };
+    return null;
+  }
+
   const thCols = columnas.map(h => {
-    const tri = esHoraTrimestral(h);
-    return `<th style="text-align:center;min-width:56px;padding:6px 4px;font-size:11px;color:${tri ? '#7f6000' : 'var(--text3)'};font-weight:${tri ? '700' : '600'};white-space:nowrap;border:${BORDE};background:${tri ? AMARILLO_TRI_TITULO : 'transparent'}"${tri ? ` title="${h.toLocaleString('es-CO')} h — mantenimiento trimestral"` : ''}>${(h / 1000)}k</th>`;
+    const f = estiloFrecuencia(h);
+    return `<th style="text-align:center;min-width:56px;padding:6px 4px;font-size:11px;color:${f ? f.texto : 'var(--text3)'};font-weight:${f ? '700' : '600'};white-space:nowrap;border:${BORDE};background:${f ? f.titulo : 'transparent'}"${f ? ` title="${h.toLocaleString('es-CO')} h — mantenimiento ${f.etiqueta}"` : ''}>${(h / 1000)}k</th>`;
   }).join('');
 
   let filas = '';
@@ -9851,9 +9879,9 @@ async function pmRenderHorasMantenimiento() {
     block.actividades.forEach(act => {
       const marcas = new Set(act.marcas);
       const celdas = columnas.map(h => {
-        const tri = esHoraTrimestral(h);
-        const fondo = marcas.has(h) ? VERDE_PUNTO : (tri ? AMARILLO_TRI_COLUMNA : 'transparent');
-        return `<td style="background:${fondo};border:${BORDE}" title="${h.toLocaleString('es-CO')} h${tri ? ' — mantenimiento trimestral' : ''}"></td>`;
+        const f = estiloFrecuencia(h);
+        const fondo = marcas.has(h) ? VERDE_PUNTO : (f ? f.columna : 'transparent');
+        return `<td style="background:${fondo};border:${BORDE}" title="${h.toLocaleString('es-CO')} h${f ? ' — mantenimiento ' + f.etiqueta : ''}"></td>`;
       }).join('');
       filas += `<tr>
         <td style="padding:6px 12px;font-size:12px;color:var(--text2);white-space:nowrap;position:sticky;left:0;background:var(--surface);border:${BORDE}">${esc(act.nombre)}</td>
@@ -9866,6 +9894,7 @@ async function pmRenderHorasMantenimiento() {
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--text2)">
       <span><span style="display:inline-block;width:10px;height:10px;background:${VERDE_PUNTO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Punto de mantenimiento programado</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:${AMARILLO_TRI_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento trimestral (2k, 6k, 10k… cada 4.000 h)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${NARANJA_SEM_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento semestral (4k, 12k, 20k… cada 8.000 h)</span>
     </div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
       <table style="border-collapse:collapse;width:auto;font-size:12px">
