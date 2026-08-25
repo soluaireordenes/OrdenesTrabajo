@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -83,7 +83,20 @@ self.addEventListener('fetch', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       // La red SIEMPRE se pide y SIEMPRE actualiza el caché al responder,
       // así la próxima vez que toque usar el caché ya está al día.
-      const peticionRed = fetch(event.request)
+      //
+      // El HTML se pide con cache:'reload' para SALTARSE la caché HTTP del
+      // navegador. Sin eso, "ir a la red" era mentira a medias: GitHub
+      // Pages sirve el HTML con Cache-Control: max-age=600, así que el
+      // navegador podía devolver una copia de hasta 10 MINUTOS sin
+      // consultar al servidor — y el sistema se veía viejo un buen rato
+      // después de publicar una actualización. Los iconos y el manifest
+      // sí pueden seguir usando la caché normal: casi nunca cambian.
+      const esDocumento = event.request.mode === 'navigate'
+        || event.request.destination === 'document'
+        || url.endsWith('/') || url.endsWith('/index.html');
+      const peticionRed = (esDocumento
+          ? fetch(event.request.url, { cache: 'reload', credentials: 'same-origin' })
+          : fetch(event.request))
         .then((respuesta) => { cache.put(event.request, respuesta.clone()); return respuesta; })
         .catch(() => null);
 

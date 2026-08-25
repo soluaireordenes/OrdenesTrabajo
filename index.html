@@ -3187,7 +3187,7 @@ window.addEventListener('load', () => { try { renderMapaOperacion(); } catch (e)
 ══════════════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(err => {
       console.warn('No se pudo registrar el Service Worker:', err.message);
     });
   });
