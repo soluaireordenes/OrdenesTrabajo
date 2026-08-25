@@ -333,6 +333,13 @@ body.inv-activo .container { max-width: 1800px; }
 .inv-subtab:hover { background: var(--surface2); }
 .inv-subtab.active { color: var(--brand); background: var(--surface2); border-bottom: 2px solid var(--brand); margin-bottom: -2px; }
 .inv-subpanel { display: none; }
+/* Rejilla de las graficas de Variables. Exactamente 2 por fila en pantalla
+   de escritorio y 1 en angosta: con auto-fit + minmax no se puede fijar en
+   2, porque el mismo minimo que da 2 columnas en un portatil da 3 en un
+   monitor ancho y deja 1 sola (estirada a todo lo ancho) en tamanos
+   intermedios. */
+.var-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 900px) { .var-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .inv-subpanel.active { display: block; }
 .inv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .inv-table th { background: var(--surface2); padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--text2); white-space: nowrap; }
@@ -9576,9 +9583,13 @@ function _variablesTextoRango(rango) {
 // Instancias de Chart.js vivas del panel de Variables — hay que destruirlas
 // antes de volver a dibujar o se acumulan (una por variable y por render).
 let _variablesCharts = [];
+// Grupo al que pertenece cada grafica, en el mismo orden que _variablesCharts.
+// Lo usa el filtro para saber cuales volver a dimensionar al mostrarlas.
+let _variablesChartsGrupo = [];
 function _variablesDestruirCharts() {
   _variablesCharts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _variablesCharts = [];
+  _variablesChartsGrupo = [];
 }
 
 /** Ordena las lecturas cronológicamente. Los reportes traen Fecha y una
@@ -9605,7 +9616,18 @@ function _variablesDibujar(contId, bloques) {
     return;
   }
 
-  let html = '';
+  // Selector de grupo: con 30 y pico de variables por equipo, poder aislar
+  // "Vibracion" o "Motor" es la diferencia entre revisar y perderse.
+  const gruposTodos = [];
+  conDatos.forEach(b => b.campos.forEach(c => { if (!gruposTodos.includes(c.grupo)) gruposTodos.push(c.grupo); }));
+  let html = gruposTodos.length > 1 ? `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <label style="font-size:12px;color:var(--text3)">Grupo</label>
+      <select id="varFiltroGrupo" onchange="_variablesFiltrarGrupo(this.value)" class="form-control" style="max-width:280px">
+        <option value="">Todos los grupos</option>
+        ${gruposTodos.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('')}
+      </select>
+    </div>` : '';
   const porDibujar = [];
   // Se rotula segun cuantas fuentes tiene CONFIGURADAS el apartado, no
   // cuantas trajeron datos: si los drycoolers solo tienen lecturas de uno
@@ -9633,8 +9655,9 @@ function _variablesDibujar(contId, bloques) {
     </div>`;
 
   grupos.forEach(grupo => {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">${esc(grupo)}</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">`;
+    html += `<div class="var-grupo" data-grupo="${esc(grupo)}">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">${esc(grupo)}</div>
+      <div class="var-grid">`;
     campos.filter(c => c.grupo === grupo).forEach(campo => {
       const rango = _variablesParsearRango(campo.hint);
       // Casi todos los campos leen su columna; los que definen `valor()`
@@ -9670,11 +9693,11 @@ function _variablesDibujar(contId, bloques) {
             ${stats}${rango ? ' · normal ' + esc(_variablesTextoRango(rango)) : ''}
             ${fuera ? `<span style="color:#b91c1c;font-weight:700"> · ${fuera} fuera de rango</span>` : ''}
           </div>
-          <div style="height:150px"><canvas id="${canvasId}"></canvas></div>
+          <div style="height:230px"><canvas id="${canvasId}"></canvas></div>
         </div>`;
       porDibujar.push({ canvasId, valores, rango, campo, etiquetas });
     });
-    html += `</div>`;
+    html += `</div></div>`;
   });
   });
 
@@ -9699,6 +9722,7 @@ function _variablesDibujar(contId, bloques) {
         borderDash: [4, 3], pointRadius: 0, fill: false,
       });
     });
+    _variablesChartsGrupo.push(campo.grupo);
     _variablesCharts.push(new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: { labels: etiquetas, datasets },
@@ -9715,6 +9739,27 @@ function _variablesDibujar(contId, bloques) {
         },
       },
     }));
+  });
+}
+
+/** Muestra solo las graficas de un grupo (o todas si viene vacio).
+ *
+ *  Se ocultan las secciones ya dibujadas en vez de volver a graficar: con
+ *  30 y pico de variables, rehacer todas las instancias de Chart en cada
+ *  cambio del filtro seria lento y sin ninguna ganancia.
+ *
+ *  Chart.js dimensiona el lienzo cuando lo dibuja; si en ese momento estaba
+ *  oculto se queda en cero y al mostrarlo aparece en blanco. Por eso, tras
+ *  cambiar el filtro, se le pide a las graficas visibles que se redimensionen.
+ */
+function _variablesFiltrarGrupo(grupo) {
+  document.querySelectorAll('.var-grupo').forEach(sec => {
+    sec.style.display = (!grupo || sec.dataset.grupo === grupo) ? '' : 'none';
+  });
+  _variablesCharts.forEach((chart, i) => {
+    if (!grupo || _variablesChartsGrupo[i] === grupo) {
+      try { chart.resize(); } catch (_) {}
+    }
   });
 }
 
