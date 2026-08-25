@@ -6593,16 +6593,17 @@ function _proximaMarca(horas, marcas) {
  *  defina las tareas propias de cada uno. Los equipos de esos tipos
  *  todavía no tienen una fuente real de horas, así que sus horas se tratan
  *  como 0 (no generan orden automática hasta tener de dónde leerlas). */
+// Solo compresores: son los unicos equipos con mantenimiento por horas.
+// Secadores y drycoolers salieron de aqui a pedido del cliente — sus
+// reportes ademas no capturan horometro, asi que nunca habrian generado
+// una orden. Si algun dia se les agrega el campo de horas, se vuelven a
+// listar aqui y en INFORME_EQUIPOS_POR_TIPO.
 const INFORME_TIPOS_EQUIPO = [
   { tipo: 'compresores', nombreTipo: 'Compresores' },
-  { tipo: 'secadores', nombreTipo: 'Secadores' },
-  { tipo: 'drycoolers', nombreTipo: 'Dry Coolers' },
-  { tipo: 'tornillo', nombreTipo: 'Compresores de Tornillo' },
+  { tipo: 'tornillo', nombreTipo: 'Compresores de Emergencia y Decorado' },
 ];
 const INFORME_EQUIPOS_POR_TIPO = {
   compresores: ['CB1', 'CB2', 'CB3', 'CB4', 'CA1', 'CA2', 'CA3'],
-  secadores: ['SCB1', 'SCB2', 'SCB3', 'SCB4', 'SCEMERGENCIA', 'SCDECORADO', 'HOC 1', 'HOC 2', 'HOC 3'],
-  drycoolers: ['DRYCOOLER 1', 'DRYCOOLER 2', 'DRYCOOLER 3', 'DRYCOOLER 4'],
   tornillo: ['COMPRESOR DE EMERGENCIA NX200', 'COMPRESOR EMERGENCIA IR160', 'COMPRESOR DECORADO NX55', 'COMPRESOR DECORADO NX18'],
 };
 // Checklist por tipo de equipo de cada informe — hoy los 4 tipos comparten
@@ -10091,12 +10092,7 @@ function etMostrarSubTab(nombre) {
  *  de Equipos" — la misma clasificación que usa el filtro "Tipo de
  *  equipo" de los informes periódicos, ya que es de ahí de donde se
  *  alimentan (además de los planes de mantenimiento por horas). */
-const REGISTRO_HORAS_GRUPOS = [
-  { tipo: 'compresores', nombreTipo: 'Compresores' },
-  { tipo: 'secadores', nombreTipo: 'Secadores' },
-  { tipo: 'drycoolers', nombreTipo: 'Dry Coolers' },
-  { tipo: 'tornillo', nombreTipo: 'Compresores de Tornillo' },
-];
+const REGISTRO_HORAS_GRUPOS = INFORME_TIPOS_EQUIPO;
 
 /** Pinta el cuadro de "Horas de Operación de Equipos": todos los equipos
  *  agrupados por tipo, cada uno con un campo para digitar sus horas
@@ -14546,6 +14542,12 @@ async function guardarReporteCompresor() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
+    // Antes de guardar: una lectura de horometro que baja o que pega un
+    // salto enorme casi siempre es un tecleo malo, y estas horas mueven
+    // las barras del cronograma y disparan las ordenes de trabajo.
+    const _avisoH = await _avisoHorometro(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
+    if (_avisoH && !confirm(_avisoH)) { msg.textContent = ''; return; }
+
     const colsHoja = await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
     const codigo = _siguienteCodigoReporteCompresor();
     Object.assign(porColumna, {
@@ -14880,6 +14882,12 @@ async function guardarReporteSecador() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
+    // Antes de guardar: una lectura de horometro que baja o que pega un
+    // salto enorme casi siempre es un tecleo malo, y estas horas mueven
+    // las barras del cronograma y disparan las ordenes de trabajo.
+    const _avisoH = await _avisoHorometro(secador, porColumna.FHrS);
+    if (_avisoH && !confirm(_avisoH)) { msg.textContent = ''; return; }
+
     const colsHoja = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
     const codigo = _siguienteCodigoReporteSecador();
     Object.assign(porColumna, {
@@ -15418,6 +15426,12 @@ async function guardarReporteDecorado() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
+    // Antes de guardar: una lectura de horometro que baja o que pega un
+    // salto enorme casi siempre es un tecleo malo, y estas horas mueven
+    // las barras del cronograma y disparan las ordenes de trabajo.
+    const _avisoH = await _avisoHorometro(compresor, porColumna.HorasTotales);
+    if (_avisoH && !confirm(_avisoH)) { msg.textContent = ''; return; }
+
     const colsHoja = await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
     const codigo = _siguienteCodigoReporteDecorado();
     Object.assign(porColumna, {
@@ -15706,6 +15720,12 @@ async function guardarReporteEmergencia() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
+    // Antes de guardar: una lectura de horometro que baja o que pega un
+    // salto enorme casi siempre es un tecleo malo, y estas horas mueven
+    // las barras del cronograma y disparan las ordenes de trabajo.
+    const _avisoH = await _avisoHorometro(compresor, porColumna.RunTime);
+    if (_avisoH && !confirm(_avisoH)) { msg.textContent = ''; return; }
+
     const colsHoja = await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
     const codigo = _siguienteCodigoReporteEmergencia();
     Object.assign(porColumna, {
@@ -16803,6 +16823,51 @@ const EQUIPO_REPORTE_A_HORAS = {
   'Secador Friulair #4': 'SCB4',
   'Secador Emergencia': 'SCEMERGENCIA',
 };
+
+/** Salto maximo plausible de un horometro entre dos reportes del mismo
+ *  equipo. Los compresores corren ~22 h/dia, asi que 1.000 h son unos 45
+ *  dias seguidos de operacion: cubre de sobra cualquier temporada sin
+ *  reportar, y a la vez atrapa los errores de digitacion reales medidos en
+ *  el historico (entre 4,5% y 8,7% de las lecturas, con casos como un
+ *  horometro que pasa de 15.821 a 166.881 por un digito de mas). */
+const HOROMETRO_SALTO_MAXIMO = 1000;
+
+/** Revisa una lectura de horometro contra la ultima conocida del equipo y
+ *  devuelve un aviso si no cuadra, o null si esta bien.
+ *
+ *  Solo avisa: no bloquea. Un salto grande puede ser legitimo (un equipo
+ *  que estuvo semanas sin reportar), asi que la decision la toma el
+ *  operario; lo que no puede pasar es que un tecleo malo entre sin que
+ *  nadie lo note, porque estas horas mueven las barras del cronograma y
+ *  disparan las ordenes de trabajo. */
+async function _avisoHorometro(equipoReporte, valor) {
+  const clave = EQUIPO_REPORTE_A_HORAS[equipoReporte];
+  const nuevo = Number(String(valor).replace(',', '.'));
+  if (!clave || !isFinite(nuevo)) return null;
+  let anterior = null;
+  try {
+    const filas = await cargarHorasEquipos();
+    const fila = (filas || []).find(f => f.Equipo === clave);
+    const n = fila ? Number(fila.HorasActuales) : NaN;
+    if (isFinite(n) && n > 0) anterior = n;
+  } catch (_) { return null; }   // sin dato previo con que comparar, no se estorba
+  if (anterior === null) return null;
+
+  const fmt = n => n.toLocaleString('es-CO');
+  if (nuevo < anterior) {
+    return `El horómetro de ${equipoReporte} no debería bajar.\n\n`
+         + `Última lectura registrada: ${fmt(anterior)} h\n`
+         + `La que estás guardando: ${fmt(nuevo)} h\n\n`
+         + `Verifica el número en el equipo. ¿Guardar de todas formas?`;
+  }
+  if (nuevo - anterior > HOROMETRO_SALTO_MAXIMO) {
+    return `El horómetro de ${equipoReporte} subió ${fmt(nuevo - anterior)} h de una vez, que es mucho.\n\n`
+         + `Última lectura registrada: ${fmt(anterior)} h\n`
+         + `La que estás guardando: ${fmt(nuevo)} h\n\n`
+         + `Si el equipo estuvo mucho tiempo sin reportarse puede ser correcto; si no, revisa que no sobre o falte un dígito. ¿Guardar de todas formas?`;
+  }
+  return null;
+}
 
 /** Empuja a "Horas de Operación de Equipos" el horómetro que acaba de
  *  registrar un reporte. Nunca bloquea ni revierte el guardado del
