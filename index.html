@@ -3303,7 +3303,8 @@ const VARIABLES_APARTADOS = [
   { key: 'compresores', label: 'Compresores',            lista: () => COMPRESORES_LISTA_REPORTE,
     // Fuente de datos para graficar el comportamiento de las variables.
     // Los apartados que todavia no la tienen solo listan sus equipos.
-    fuente: {
+    fuentes: [{
+      titulo: 'Reporte de Compresores',
       hoja:   () => SH.reporteCompresores,
       colEquipo: 'Compresor',
       horas:  () => HORAS_REPORTE_COMPRESOR,
@@ -3311,11 +3312,56 @@ const VARIABLES_APARTADOS = [
       // juego de campos depende del equipo elegido (mismo criterio que usa
       // el formulario del Cronograma).
       campos: (equipo) => esCompresorBaja(equipo) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS,
-    } },
-  { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE },
-  { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
-  { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA },
-  { key: 'drycoolers',  label: 'Drycoolers',             lista: () => DRYCOOLERS_LISTA_REPORTE },
+    }] },
+  { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE,
+    fuentes: [{
+      titulo: 'Reporte de Secadores',
+      hoja:   () => SH.reporteSecadores,
+      colEquipo: 'Secador',
+      horas:  () => HORAS_REPORTE_SECADOR,
+      // Los HOC y los Friulair (y el de Emergencia, que usa el panel
+      // Friulair) miden cosas distintas en la misma hoja.
+      campos: (equipo) => esSecadorFriulair(equipo) ? REPORTE_SECADORES_CAMPOS_FRIULAIR : REPORTE_SECADORES_CAMPOS_GRAFICA,
+    }] },
+  { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA,
+    fuentes: [{
+      titulo: 'Reporte de Equipos de Emergencia',
+      hoja:   () => SH.reporteEmergencia,
+      colEquipo: 'Compresor',
+      horas:  () => HORAS_REPORTE_EMERGENCIA,
+      campos: () => REPORTE_EMERGENCIA_CAMPOS_GRAFICA,
+    }] },
+  { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA,
+    fuentes: [{
+      titulo: 'Reporte de Equipos de Decorado',
+      hoja:   () => SH.reporteDecorado,
+      colEquipo: 'Compresor',
+      horas:  () => HORAS_REPORTE_DECORADO,
+      campos: () => REPORTE_DECORADO_CAMPOS_GRAFICA,
+    }] },
+  { key: 'drycoolers',  label: 'Drycoolers',             lista: () => DRYCOOLERS_LISTA_REPORTE,
+    fuentes: [
+      { titulo: 'Reporte de Drycoolers',
+        hoja:   () => SH.reporteDrycoolers,
+        colEquipo: 'Drycooler',
+        horas:  () => HORAS_REPORTE_DRYCOOLER,
+        campos: () => REPORTE_DRYCOOLERS_CAMPOS },
+      // El formulario "Presion Drycooler" no tiene columna de equipo: cada
+      // fila trae las cuatro presiones a la vez (PresionDrycooler1..4). La
+      // presion que le corresponde al equipo elegido se saca de SU columna.
+      // TemperaturaCA1 no se incluye aqui: es una lectura del compresor
+      // CA1, no del drycooler, y repetirla identica bajo los cuatro
+      // equipos daria a entender que es una medida de cada uno.
+      { titulo: 'Reporte de Presión Drycooler',
+        hoja:   () => SH.reportePresionDrycooler,
+        colEquipo: null,
+        horas:  () => null,
+        campos: (equipo) => {
+          const n = (String(equipo).match(/\d+/) || [])[0];
+          const campo = REPORTE_PRESION_DRYCOOLER_CAMPOS.find(c => c.col === 'PresionDrycooler' + n);
+          return campo ? [campo] : [];
+        } },
+    ] },
 ];
 
 /** Variable de estado del panel: que apartado se esta viendo. Sirve para
@@ -6780,6 +6826,32 @@ const REPORTE_SECADORES_CAMPOS_FRIULAIR = [
   { grupo: 'Horas', id: 'fhrs', label: 'HrS: Número total de horas', col: 'FHrS' },
   { grupo: 'Horas', id: 'fsrv', label: 'Srv: Horas hasta mantenimiento', col: 'FSrv' },
 ];
+/** Campos de un secador HOC para la seccion Variables. No es exactamente
+ *  el juego del formulario:
+ *
+ *  - Se agrega PA, que en el formulario es el unico campo opcional pero
+ *    aun asi es una variable con rango normal que interesa vigilar.
+ *  - Se agrega la torre derecha. El formulario guarda ahi CUATRO parametros
+ *    distintos (S1 Parallel, S3 Heating, S4 Cooling, S6 Standby) en la
+ *    misma columna, segun cual haya elegido el tecnico. Dibujarlos como una
+ *    sola linea mezclaria cuatro magnitudes distintas y daria una grafica
+ *    sin sentido, asi que se abre en una serie por parametro: cada una toma
+ *    el valor solo en las lecturas donde ese parametro fue el elegido, y
+ *    queda con huecos en las demas.
+ */
+const REPORTE_SECADORES_CAMPOS_GRAFICA = [
+  ...REPORTE_SECADORES_CAMPOS,
+  REPORTE_SECADORES_CAMPO_OPCIONAL,
+  { grupo: 'Torre derecha', id: 's0Adsorption', label: 'S0 Adsorption [min]', col: 'S0Adsorption' },
+  ...TORRE_DERECHA_PARAMETROS.map(par => ({
+    grupo: 'Torre derecha',
+    id: 'torreDer_' + par.replace(/\s+/g, ''),
+    label: par + ' [min] — torre derecha',
+    col: 'TorreDerechaValorSecundario',
+    valor: f => (f.TorreDerechaParametro || '').trim() === par ? f.TorreDerechaValorSecundario : '',
+  })),
+];
+
 /** true si el secador elegido usa el esquema Friulair (Friulair o Emergencia). */
 function esSecadorFriulair(secador) {
   return (secador || '').includes('Friulair') || (secador || '').includes('Emergencia');
@@ -6849,6 +6921,24 @@ const REPORTE_DECORADO_CAMPOS = [
   { grupo: 'Secador', id: 'secPresionAire', label: 'Presión de aire [MPa]', col: 'SecPresionAire' },
   { grupo: 'Secador', id: 'secPresionEvaporacion', label: 'Presión evaporación [MPa]', col: 'SecPresionEvaporacion' },
 ];
+/** Campos de decorado para la seccion Variables: los numericos del
+ *  formulario mas el nivel de aceite.
+ *
+ *  El nivel de aceite se digita como texto de una lista, pero esa lista
+ *  esta ORDENADA (Alto, Medio alto, Medio, Medio bajo, Bajo), asi que su
+ *  evolucion si es informativa: un nivel que baja escalon a escalon entre
+ *  reportes es exactamente el tipo de tendencia que interesa detectar. Se
+ *  invierte para que en el eje el peor nivel quede abajo.
+ *
+ *  Las labores marcadas (LaboresCompresor / LaboresSecador) no entran: son
+ *  listas de tareas hechas, no una magnitud medida del equipo.
+ */
+const REPORTE_DECORADO_CAMPOS_GRAFICA = [
+  ...REPORTE_DECORADO_CAMPOS,
+  { grupo: 'Sistema', id: 'nivelAceiteDec', label: 'Nivel de aceite', col: 'NivelAceite',
+    escala: NIVELES_ACEITE_DECORADO.slice().reverse() },
+];
+
 // Labores de mantenimiento que el técnico marca en cada reporte — son dos
 // listas independientes (una para el compresor, otra para el secador) y se
 // puede marcar más de una; se guardan unidas por ";".
@@ -6933,6 +7023,27 @@ const REPORTE_EMERGENCIA_CAMPOS_SECADOR = [
   { id: 'secPresionEntradaAire', label: 'Presión de entrada de aire [psig]', col: 'SecPresionEntradaAire' },
   { id: 'secPresionSalidaAire', label: 'Presión de salida de aire [psig]', col: 'SecPresionSalidaAire' },
 ];
+/** Campos de emergencia para la seccion Variables.
+ *
+ *  - Los 10 campos del secador no traen `grupo` (en el formulario van en su
+ *    propio bloque), asi que se les pone uno para que la seccion los agrupe
+ *    como al resto. Son opcionales —si el compresor esta apagado no siempre
+ *    se toman—, de modo que sus series quedan con huecos.
+ *  - Se agrega el nivel de aceite como escala ordenada, igual que en
+ *    decorado.
+ *  - EstadoEquipo NO se grafica: sus valores ("Si", "No", "En espera") son
+ *    categorias sin orden entre si. Ponerlas en un eje numerico sugeriria
+ *    que una es "mayor" que otra y que un cambio es una subida o una
+ *    bajada, que no significa nada aqui.
+ *  - Las labores marcadas tampoco: son tareas hechas, no magnitudes.
+ */
+const REPORTE_EMERGENCIA_CAMPOS_GRAFICA = [
+  ...REPORTE_EMERGENCIA_CAMPOS,
+  ...REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => ({ ...c, grupo: 'Secador' })),
+  { grupo: 'Sistema', id: 'nivelAceiteEmg', label: 'Nivel de aceite', col: 'NivelAceite',
+    escala: NIVELES_ACEITE_EMERGENCIA.slice().reverse() },
+];
+
 const LABORES_EMERGENCIA_COMPRESOR = [
   'Revisión de drenajes', 'Limpieza general', 'Revisión de conexiones eléctricas',
   'Verificación de fugas de aceite', 'Limpieza de radiadores', 'Revisión del estado del filtro de aire',
@@ -9359,7 +9470,7 @@ function _variablesRenderApartado(key) {
   // Los apartados que ya tienen fuente de datos muestran el explorador de
   // variables. Se pinta una sola vez: si se volviera a pintar en cada
   // cambio de pestaña se borraria el equipo y las fechas ya elegidos.
-  if (ap && ap.fuente) {
+  if (ap && ap.fuentes && ap.fuentes.length) {
     if (cont.dataset.listo !== '1') {
       cont.innerHTML = `
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
@@ -9483,16 +9594,26 @@ function _variablesOrdenarLecturas(filas, horas) {
 
 /** Dibuja una gráfica de línea por cada variable del equipo elegido, con
  *  su rango normal sombreado y los puntos fuera de rango en rojo. */
-function _variablesDibujar(contId, lecturas, campos, horas) {
+function _variablesDibujar(contId, bloques) {
   const cont = document.getElementById(contId);
   if (!cont) return;
   _variablesDestruirCharts();
 
-  if (!lecturas.length) {
+  const conDatos = bloques.filter(b => b.lecturas.length);
+  if (!conDatos.length) {
     cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">No hay reportes de ese equipo en el rango de fechas elegido.</div>';
     return;
   }
 
+  let html = '';
+  const porDibujar = [];
+  // Se rotula segun cuantas fuentes tiene CONFIGURADAS el apartado, no
+  // cuantas trajeron datos: si los drycoolers solo tienen lecturas de uno
+  // de sus dos formularios, el bloque igual debe decir de cual viene.
+  const varios = bloques.length > 1;
+
+  conDatos.forEach((bloque, iBloque) => {
+  const { lecturas, campos, titulo } = bloque;
   const etiquetas = lecturas.map(f => {
     const d = (f.Fecha || '').split('-');
     return `${d[2] || ''}/${d[1] || ''} ${(f.Hora || '').replace(/:00\s*/, '').replace(/\s/g, '')}`;
@@ -9502,27 +9623,46 @@ function _variablesDibujar(contId, lecturas, campos, horas) {
   const grupos = [];
   campos.forEach(c => { if (!grupos.includes(c.grupo)) grupos.push(c.grupo); });
 
-  let html = `<div style="color:var(--text3);font-size:12.5px;margin-bottom:14px">
+  // Cada fuente (cada formulario) es un bloque con su propio eje de
+  // tiempo: sus lecturas no coinciden en fecha ni en franja con las de
+  // otro formulario, asi que forzarlas a un eje comun desalinearia los
+  // puntos. Solo se rotula el bloque cuando hay mas de uno.
+  if (varios) html += `<div style="margin:${iBloque ? '26px' : '0'} 0 4px;font-weight:700;color:var(--brand);font-size:13.5px">${esc(titulo || '')}</div>`;
+  html += `<div style="color:var(--text3);font-size:12.5px;margin-bottom:14px">
       ${lecturas.length} ${lecturas.length === 1 ? 'lectura' : 'lecturas'} · ${esc(lecturas[0].Fecha)} a ${esc(lecturas[lecturas.length - 1].Fecha)}
     </div>`;
-  const porDibujar = [];
 
   grupos.forEach(grupo => {
     html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">${esc(grupo)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">`;
     campos.filter(c => c.grupo === grupo).forEach(campo => {
       const rango = _variablesParsearRango(campo.hint);
+      // Casi todos los campos leen su columna; los que definen `valor()`
+      // la calculan (la torre derecha de los HOC guarda 4 parametros
+      // distintos en la misma columna, ver los campos de secadores).
       const valores = lecturas.map(f => {
-        const v = parseFloat(String(f[campo.col] ?? '').replace(',', '.'));
+        const bruto = typeof campo.valor === 'function' ? campo.valor(f) : f[campo.col];
+        // Un campo de `escala` guarda texto de una lista ORDENADA de peor a
+        // mejor ("Bajo"..."Alto"): se grafica por su posicion, asi se ve la
+        // tendencia (p.ej. un nivel de aceite que va cayendo) igual que con
+        // una variable numerica.
+        if (campo.escala) {
+          const i = campo.escala.findIndex(op => op.toLowerCase() === String(bruto ?? '').trim().toLowerCase());
+          return i < 0 ? null : i + 1;
+        }
+        const v = parseFloat(String(bruto ?? '').replace(',', '.'));
         return isFinite(v) ? v : null;
       });
       const conDato = valores.filter(v => v !== null);
       const fuera = conDato.filter(v => _variablesFueraDeRango(v, rango)).length;
-      const canvasId = 'varChart_' + campo.col;
+      const canvasId = 'varChart_' + iBloque + '_' + campo.id;
 
-      const stats = conDato.length
-        ? `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`
-        : 'sin datos';
+      // En una escala el promedio no significa nada ("Medio bajo y medio"),
+      // asi que solo se muestran los extremos, con su etiqueta.
+      const stats = !conDato.length ? 'sin datos'
+        : campo.escala
+          ? `mín ${campo.escala[Math.min(...conDato) - 1]} · máx ${campo.escala[Math.max(...conDato) - 1]}`
+          : `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`;
 
       html += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)">
           <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px">${esc(campo.label)}</div>
@@ -9532,15 +9672,16 @@ function _variablesDibujar(contId, lecturas, campos, horas) {
           </div>
           <div style="height:150px"><canvas id="${canvasId}"></canvas></div>
         </div>`;
-      porDibujar.push({ canvasId, valores, rango, campo });
+      porDibujar.push({ canvasId, valores, rango, campo, etiquetas });
     });
     html += `</div>`;
+  });
   });
 
   cont.innerHTML = html;
   if (typeof Chart === 'undefined') return;
 
-  porDibujar.forEach(({ canvasId, valores, rango }) => {
+  porDibujar.forEach(({ canvasId, valores, rango, etiquetas, campo }) => {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const colorPunto = valores.map(v => _variablesFueraDeRango(v, rango) ? '#b91c1c' : '#2f6fb2');
@@ -9566,7 +9707,11 @@ function _variablesDibujar(contId, lecturas, campos, horas) {
         plugins: { legend: { display: false }, tooltip: { filter: it => it.datasetIndex === 0 } },
         scales: {
           x: { ticks: { maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
-          y: { ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
+          y: campo.escala
+            ? { min: 0.5, max: campo.escala.length + 0.5,
+                ticks: { stepSize: 1, font: { size: 9 }, callback: v => campo.escala[v - 1] || '' },
+                grid: { color: 'rgba(128,128,128,.15)' } }
+            : { ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
         },
       },
     }));
@@ -9578,7 +9723,7 @@ function _variablesDibujar(contId, lecturas, campos, horas) {
  *  invalida sola cuando se guarda un reporte nuevo. */
 async function variablesGraficar(key) {
   const ap = VARIABLES_APARTADOS.find(a => a.key === key);
-  if (!ap || !ap.fuente) return;
+  if (!ap || !ap.fuentes || !ap.fuentes.length) return;
   const equipo = document.getElementById('varEquipo-' + key).value;
   const desde  = document.getElementById('varDesde-' + key).value;
   const hasta  = document.getElementById('varHasta-' + key).value;
@@ -9594,15 +9739,23 @@ async function variablesGraficar(key) {
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">Cargando…</div>';
 
   try {
-    const filas = await leerHojaGenericaCacheada(ap.fuente.hoja());
-    const col = ap.fuente.colEquipo;
-    const lecturas = _variablesOrdenarLecturas(
-      (filas || []).filter(f =>
-        (f[col] || '').trim() === equipo &&
-        f.Estado !== 'Eliminada' &&
-        f.Fecha >= desde && f.Fecha <= hasta),
-      ap.fuente.horas());
-    _variablesDibujar('varGraficas-' + key, lecturas, ap.fuente.campos(equipo), ap.fuente.horas());
+    // Un apartado puede alimentarse de varios formularios (los drycoolers
+    // tienen el suyo y ademas el de "Presion Drycooler"). Se leen en
+    // paralelo y cada uno se dibuja como su propio bloque.
+    const bloques = await Promise.all(ap.fuentes.map(async fuente => {
+      const filas = await leerHojaGenericaCacheada(fuente.hoja());
+      const col = fuente.colEquipo;
+      const lecturas = _variablesOrdenarLecturas(
+        (filas || []).filter(f =>
+          // Un formulario sin columna de equipo (colEquipo null) cubre a
+          // todos los equipos en la misma fila: no hay nada que filtrar.
+          (!col || (f[col] || '').trim() === equipo) &&
+          f.Estado !== 'Eliminada' &&
+          f.Fecha >= desde && f.Fecha <= hasta),
+        fuente.horas());
+      return { titulo: fuente.titulo, lecturas, campos: fuente.campos(equipo), horas: fuente.horas() };
+    }));
+    _variablesDibujar('varGraficas-' + key, bloques);
     msg.textContent = '';
   } catch (e) {
     cont.innerHTML = '';
