@@ -6602,28 +6602,48 @@ function _proximaMarca(horas, marcas) {
 // una orden. Si algun dia se les agrega el campo de horas, se vuelven a
 // listar aqui y en INFORME_EQUIPOS_POR_TIPO.
 const INFORME_TIPOS_EQUIPO = [
-  { tipo: 'compresores', nombreTipo: 'Compresores' },
-  { tipo: 'tornillo', nombreTipo: 'Compresores de Emergencia y Decorado' },
+  { tipo: 'compresores', nombreTipo: 'Compresores Centrífugos' },
+  { tipo: 'tornillo', nombreTipo: 'Compresores de Tornillo (Emergencia y Decorado)' },
 ];
 const INFORME_EQUIPOS_POR_TIPO = {
   compresores: ['CB1', 'CB2', 'CB3', 'CB4', 'CA1', 'CA2', 'CA3'],
   tornillo: ['COMPRESOR DE EMERGENCIA NX200', 'COMPRESOR EMERGENCIA IR160', 'COMPRESOR DECORADO NX55', 'COMPRESOR DECORADO NX18'],
 };
-// Checklist por tipo de equipo de cada informe — hoy los 4 tipos comparten
-// el mismo checklist (copiado del de Compresores); cuando el cliente defina
-// las tareas reales de Secadores/Dry Coolers/Tornillo, solo hay que
-// reemplazar la entrada correspondiente por su propio arreglo.
+/** Los 4 compresores de emergencia y decorado son de TORNILLO, no
+ *  centrifugos como los 7 de alta y baja, asi que su mantenimiento es
+ *  otro: no tiene sentido pedirles cojinetes, bomba auxiliar o limpieza
+ *  aerodinamica. Su plan son cambios de filtros y de aceite, y sigue la
+ *  misma logica anidada que el de los centrifugos — el semestral es el
+ *  trimestral mas el separador, y el anual es el semestral mas el aceite—
+ *  de modo que al cumplir una marca mayor la orden ya incluye lo menor.
+ */
+const INFORME_TRIMESTRAL_ACTIVIDADES_TORNILLO = [
+  { actividad: 'Filtros de aire', descripcion: 'Cambio de filtros de aire.' },
+  { actividad: 'Filtros de aceite', descripcion: 'Cambio de filtros de aceite.' },
+];
+const INFORME_SEMESTRAL_ACTIVIDADES_TORNILLO = [
+  ...INFORME_TRIMESTRAL_ACTIVIDADES_TORNILLO,
+  { actividad: 'Filtro separador', descripcion: 'Cambio de filtro separador.' },
+];
+const INFORME_ANUAL_ACTIVIDADES_TORNILLO = [
+  ...INFORME_SEMESTRAL_ACTIVIDADES_TORNILLO,
+  { actividad: 'Aceite', descripcion: 'Cambio de aceite.' },
+];
+
+// Checklist por tipo de equipo de cada informe. Cada tipo trae el suyo:
+// los centrifugos siguen los formularios del cliente (8/10/21 tareas) y
+// los de tornillo su propio plan de filtros y aceite (2/3/4).
 const INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO = {
-  compresores: INFORME_TRIMESTRAL_ACTIVIDADES, secadores: INFORME_TRIMESTRAL_ACTIVIDADES,
-  drycoolers: INFORME_TRIMESTRAL_ACTIVIDADES, tornillo: INFORME_TRIMESTRAL_ACTIVIDADES,
+  compresores: INFORME_TRIMESTRAL_ACTIVIDADES,
+  tornillo: INFORME_TRIMESTRAL_ACTIVIDADES_TORNILLO,
 };
 const INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO = {
-  compresores: INFORME_SEMESTRAL_ACTIVIDADES, secadores: INFORME_SEMESTRAL_ACTIVIDADES,
-  drycoolers: INFORME_SEMESTRAL_ACTIVIDADES, tornillo: INFORME_SEMESTRAL_ACTIVIDADES,
+  compresores: INFORME_SEMESTRAL_ACTIVIDADES,
+  tornillo: INFORME_SEMESTRAL_ACTIVIDADES_TORNILLO,
 };
 const INFORME_ANUAL_ACTIVIDADES_POR_TIPO = {
-  compresores: INFORME_ANUAL_ACTIVIDADES, secadores: INFORME_ANUAL_ACTIVIDADES,
-  drycoolers: INFORME_ANUAL_ACTIVIDADES, tornillo: INFORME_ANUAL_ACTIVIDADES,
+  compresores: INFORME_ANUAL_ACTIVIDADES,
+  tornillo: INFORME_ANUAL_ACTIVIDADES_TORNILLO,
 };
 
 
