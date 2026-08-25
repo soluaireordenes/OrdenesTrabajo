@@ -1905,7 +1905,7 @@ body.inv-activo .container { max-width: 1800px; }
             <option value="">Todos los turnos</option>
           </select>
         </div>
-        <button class="btn btn-success" onclick="descargarInformeCronograma()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
+        <button class="btn btn-success" id="btnDescargarInformeCron" onclick="descargarInformeCronograma(this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
       </div>
     </div>
 
@@ -3209,6 +3209,28 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(err => {
       console.warn('No se pudo registrar el Service Worker:', err.message);
     });
+  });
+
+  // En datos móviles el HTML pesa más de lo que alcanza a bajar antes del
+  // tope del Service Worker, así que el celular abre la versión guardada.
+  // Cuando la descarga real termina y trae otra versión, el SW nos avisa y
+  // aquí se ofrece recargar — antes el operario se quedaba con el sistema
+  // viejo creyendo que ya tenía la actualización.
+  navigator.serviceWorker.addEventListener('message', (ev) => {
+    if (!ev.data || ev.data.tipo !== 'nueva-version') return;
+    if (document.getElementById('avisoNuevaVersion')) return;
+    const barra = document.createElement('div');
+    barra.id = 'avisoNuevaVersion';
+    barra.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:5000;background:#02457A;color:#fff;'
+      + 'padding:12px 14px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.3);display:flex;align-items:center;'
+      + 'gap:10px;font-size:13px';
+    barra.innerHTML = '<span style="flex:1">Hay una versión nueva del sistema.</span>'
+      + '<button type="button" id="btnRecargarVersion" style="background:#22a45d;color:#fff;border:0;border-radius:6px;'
+      + 'padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer">Actualizar</button>'
+      + '<span id="cerrarAvisoVersion" style="cursor:pointer;font-size:16px;padding:0 4px">✕</span>';
+    document.body.appendChild(barra);
+    barra.querySelector('#btnRecargarVersion').onclick = () => location.reload();
+    barra.querySelector('#cerrarAvisoVersion').onclick = () => barra.remove();
   });
 }
 
@@ -14098,7 +14120,7 @@ async function consultarCronogramaFecha() {
 
 /** Descarga un informe PDF (nueva pestaña + imprimir, igual patrón que
  *  descargarOrdenPDF) con lo marcado/no marcado en un rango de fechas. */
-async function descargarInformeCronograma() {
+async function descargarInformeCronograma(boton) {
   const desde = document.getElementById('cronInformeDesde')?.value;
   const hasta = document.getElementById('cronInformeHasta')?.value;
   const turnoIdFiltro = document.getElementById('cronInformeTurno')?.value || '';
@@ -14112,6 +14134,12 @@ async function descargarInformeCronograma() {
   // En computador, abrir la pestaña YA (antes de cualquier await) para que
   // el navegador no la bloquee como pop-up. En celular va al visor interno.
   const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
+
+  // Armar el informe puede tardar (lee varios días y baja cada foto). Sin
+  // aviso, en el celular parece que el botón "no hace nada".
+  const btn = boton || document.getElementById('btnDescargarInformeCron');
+  const btnHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Generando informe…'; }
 
   try {
     // Tope de 62 días para no armar un informe descontrolado por accidente.
@@ -14211,7 +14239,10 @@ ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
     _entregarDocumentoImprimible(html, ventana);
   } catch (e) {
     if (ventana) ventana.close();
+    console.error('descargarInformeCronograma:', e);
     alert('No se pudo generar el informe: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
   }
 }
 

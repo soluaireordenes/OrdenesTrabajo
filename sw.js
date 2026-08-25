@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -56,6 +56,13 @@ self.addEventListener('activate', (event) => {
     ).then(() => self.clients.claim())
   );
 });
+
+// Le avisa a todas las pestañas abiertas que ya hay una versión nueva
+// descargada, para que ofrezcan recargar.
+async function avisarNuevaVersion() {
+  const clientes = await self.clients.matchAll({ type: 'window' });
+  clientes.forEach((c) => c.postMessage({ tipo: 'nueva-version' }));
+}
 
 // ── Peticiones de red ──
 self.addEventListener('fetch', (event) => {
@@ -94,10 +101,30 @@ self.addEventListener('fetch', (event) => {
       const esDocumento = event.request.mode === 'navigate'
         || event.request.destination === 'document'
         || url.endsWith('/') || url.endsWith('/index.html');
+
+      // Guardamos la versión que ya teníamos ANTES de pedir la red, para
+      // poder comparar si lo que llegó es una versión distinta.
+      const cacheada = await cache.match(event.request);
+      const etiquetaVieja = cacheada && (cacheada.headers.get('etag') || cacheada.headers.get('last-modified'));
+      let seSirvioElCache = false;
+
       const peticionRed = (esDocumento
           ? fetch(event.request.url, { cache: 'reload', credentials: 'same-origin' })
           : fetch(event.request))
-        .then((respuesta) => { cache.put(event.request, respuesta.clone()); return respuesta; })
+        .then((respuesta) => {
+          cache.put(event.request, respuesta.clone());
+          // En datos móviles el HTML (más de 1 MB) casi siempre pierde la
+          // carrera contra el tope, así que el operario termina viendo la
+          // versión guardada. Cuando la descarga real llega y resulta ser
+          // OTRA versión, le avisamos a la app para que ofrezca recargar —
+          // si no, el celular se queda con el sistema viejo sin que nadie
+          // se entere.
+          const etiquetaNueva = respuesta.headers.get('etag') || respuesta.headers.get('last-modified');
+          if (esDocumento && seSirvioElCache && etiquetaVieja && etiquetaNueva && etiquetaNueva !== etiquetaVieja) {
+            avisarNuevaVersion();
+          }
+          return respuesta;
+        })
         .catch(() => null);
 
       // Si la red responde antes del tope, se usa esa (siempre la versión
@@ -106,8 +133,7 @@ self.addEventListener('fetch', (event) => {
       const primeraEnResponder = await Promise.race([peticionRed, tope]);
       if (primeraEnResponder) return primeraEnResponder;
 
-      const cacheada = await cache.match(event.request);
-      if (cacheada) return cacheada;
+      if (cacheada) { seSirvioElCache = true; return cacheada; }
 
       // Sin caché tampoco (primera visita con red lenta): esperar la red.
       return (await peticionRed) || caches.match('./index.html');
