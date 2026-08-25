@@ -6768,6 +6768,10 @@ const REPORTE_COMPRESORES_COLS = [
   'BAguaEntradaCooler1', 'BAguaSalidaCooler1', 'BAguaEntradaCooler2', 'BAguaSalidaCooler2', 'BAguaEntradaCooler3', 'BAguaSalidaCooler3',
   'BTempEntradaAgua', 'BPresionEntradaAgua', 'BTempSalidaAgua', 'BPresionSalidaAgua',
   'BTempDescargaAire', 'BHorasUso',
+  // Arrancador de los compresores de Baja — se agregaron despues, por eso
+  // van al final: asegurarHoja anade las columnas nuevas al final de la
+  // hoja y las filas ya guardadas se quedan como estan.
+  'BAmperajeArrancador', 'BVoltajeArrancador', 'BFactorPotencia',
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 // Lista fija de técnicos del formulario original — "Otras" revela un campo
@@ -6835,6 +6839,14 @@ const REPORTE_COMPRESORES_CAMPOS = [
 // se llenan las columnas del tipo de compresor que se seleccionó; las del
 // otro tipo quedan vacías.
 const REPORTE_COMPRESORES_CAMPOS_BAJA = [
+  // Mismas tres medidas del arrancador que se toman en los de Alta. Van sin
+  // rango normal a proposito: los de Baja son otras maquinas y copiar los
+  // limites de Alta (voltaje 2.000-2.500 V, por ejemplo) marcaria como
+  // anomala cada lectura en las graficas de Variables. Cuando se sepan los
+  // valores reales de Baja, se agregan aqui como hint.
+  { grupo: 'Arrancador (Baja Presión)', id: 'amperajeArrancadorBaja', label: 'Consumo amperaje [Amps]', col: 'BAmperajeArrancador' },
+  { grupo: 'Arrancador (Baja Presión)', id: 'voltajeArrancadorBaja', label: 'Consumo voltaje [V]', col: 'BVoltajeArrancador' },
+  { grupo: 'Arrancador (Baja Presión)', id: 'factorPotenciaBaja', label: 'Factor de potencia', col: 'BFactorPotencia' },
   { grupo: 'Sistema (Baja Presión)', id: 'presionSistema', label: 'Presión del sistema [PSI]', col: 'BPresionSistema' },
   { grupo: 'Sistema (Baja Presión)', id: 'presionDescargaBaja', label: 'Presión de descarga [PSI]', col: 'BPresionDescarga' },
   { grupo: 'Sistema (Baja Presión)', id: 'pdtFiltroAire', label: 'PDT: Presión de filtro de aire [inH2O]', col: 'BPDTFiltroAire' },
@@ -14481,6 +14493,16 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
 
   // Mismo rango "Desde/Hasta" que la gráfica de turnos, con el mismo tope
   // de 45 días para no armar una gráfica descontrolada por accidente.
+  // Las franjas se recorren en ORDEN CRONOLOGICO, no en el de la lista.
+  // La lista empieza en 6 a.m. porque asi arranca el turno y deja
+  // "2:00 a.m." de ultima; en una grafica de tiempo eso pone la lectura de
+  // la madrugada DESPUES de la de las 10 p.m. del mismo dia, como si fuera
+  // la mas reciente. Por eso a las 10 de la mañana la ultima marca visible
+  // del dia era la de las 2 a.m. y parecia que el sistema exigia un
+  // reporte que todavia no tocaba, cuando en realidad ya habia pasado.
+  const horasCronologicas = (horas || []).slice()
+    .sort((a, b) => (HORA_REPORTE_A_24H[a] || '').localeCompare(HORA_REPORTE_A_24H[b] || ''));
+
   const fechas = [];
   const cursor = new Date(desde + 'T12:00:00');
   const fin = new Date(hasta + 'T12:00:00');
@@ -14501,7 +14523,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
   fechas.forEach(fecha => {
     if (fecha > hoyIso) return;
     if (horas) {
-      horas.forEach(hora => {
+      horasCronologicas.forEach(hora => {
         if (fecha === hoyIso && (HORA_REPORTE_A_24H[hora] || '00:00') > horaAhora) return;
         agregar(hora.replace(':00 ', '') + ' · ' + fmtFecha(fecha).slice(0, 5), fecha + '|' + hora);
       });
