@@ -2902,6 +2902,7 @@ body.inv-activo .container { max-width: 1800px; }
         <button class="inv-subtab" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Programa 2026</button>
         <button class="inv-subtab" data-pmtab="informetrimestral" onclick="pmMostrarSubTab('informetrimestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Trimestral</button>
         <button class="inv-subtab" data-pmtab="informesemestral" onclick="pmMostrarSubTab('informesemestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Semestral</button>
+        <button class="inv-subtab" data-pmtab="configinformes" onclick="pmMostrarSubTab('configinformes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> Configuración</button>
         <button class="inv-subtab" data-pmtab="informeanual" onclick="pmMostrarSubTab('informeanual')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Anual</button>
       </div>
 
@@ -2968,6 +2969,27 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
           <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica del formulario de inspección "Informe Cada Semestral": estas 10 actividades se revisan cada 4.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 4.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
           <div class="card-body" style="padding:18px" id="pmInformeSemestralContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+        </div>
+      </div>
+
+      <div id="pmSub-configinformes" class="inv-subpanel">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Hora base de cada equipo</div>
+          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">
+            Desde qué horómetro empieza a contar el sistema para generar órdenes automáticas.
+            Un equipo que ya llevaba miles de horas antes de entrar al sistema necesita su hora base,
+            o se le generarían órdenes de mantenimientos que ya se hicieron. Déjala vacía o en 0 para contar desde cero.
+          </div>
+          <div class="card-body" style="padding:18px" id="pmHoraBaseContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Actividades de cada informe</div>
+          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">
+            Las tareas que se escriben automáticamente en la orden. Elige la frecuencia y el tipo de equipo.
+            Si no configuras ninguna para una combinación, se usa el checklist que ya trae el sistema.
+          </div>
+          <div class="card-body" style="padding:18px" id="pmActividadesContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
       </div>
 
@@ -6044,7 +6066,11 @@ const FOTOS_COLS     = ['NumeroOrden','#','DriveFileId','UrlVer','UrlDescarga','
  *  UltimaGeneracionHoras — ver obtenerHorasEquipo/HORAS_EQUIPOS_COLS). */
 const PLANES_MANTENIMIENTO_COLS = ['ID','Equipo','TipoMantenimiento','TipoFrecuencia','Frecuencia','FechaInicio','UltimaGeneracion','UltimaGeneracionHoras','Descripcion','Responsable','Activo'];
 const NOTIFICACIONES_COLS = ['ID','Fecha','Mensaje','NumeroOrden','Equipo'];
-const HORAS_EQUIPOS_COLS = ['Equipo','HorasActuales','UltimaActualizacion'];
+// HoraBaseInformes: desde que horometro empieza a contar el sistema para
+// generar ordenes automaticas. Sirve para equipos que ya llevaban miles de
+// horas antes de entrar al sistema: sin ella habria que asumir 0 y se
+// generarian ordenes de mantenimientos que ya se hicieron hace anos.
+const HORAS_EQUIPOS_COLS = ['Equipo','HorasActuales','UltimaActualizacion','HoraBaseInformes'];
 
 /** Frecuencias de calendario soportadas por los Planes de Mantenimiento,
  *  con su intervalo en días para calcular cuándo toca la próxima
@@ -6610,6 +6636,7 @@ const SH = {
   observacionesOperarios: 'ObservacionesOperarios',
   reporteCompresores: 'ReporteCompresores',
   reporteSecadores: 'ReporteSecadores',
+  informeActividades: 'InformeActividades',
   reporteDrycoolers: 'ReporteDrycoolers',
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
@@ -7144,6 +7171,15 @@ const INVENTARIO_EQUIPOS_OBS_COLS  = ['Codificacion','Anio','Observaciones'];
 // Guarda, por equipo, en qué horas se generó por última vez la orden del
 // Informe Cada Trimestral — así verificarInformeTrimestralYGenerar() sabe
 // cuándo ya se generó la orden y no la repite hasta el próximo múltiplo.
+/** Actividades configurables de los informes periodicos. Una fila por
+ *  actividad, identificada por Clave = "frecuencia|tipoEquipo" para poder
+ *  reemplazar de una sola vez todas las de una combinacion.
+ *
+ *  Si una combinacion no tiene filas aqui, se usa el checklist por defecto
+ *  que trae el codigo (INFORME_*_ACTIVIDADES). Asi el sistema funciona tal
+ *  cual desde el primer dia y la configuracion es opcional. */
+const INFORME_ACTIVIDADES_COLS = ['Clave', 'Frecuencia', 'TipoEquipo', 'Orden', 'Actividad', 'Descripcion'];
+
 const INFORME_TRIMESTRAL_ESTADO_COLS = ['Equipo', 'UltimaGeneracionHoras'];
 // Igual que INFORME_TRIMESTRAL_ESTADO_COLS, pero para el Informe Cada Semestral.
 const INFORME_SEMESTRAL_ESTADO_COLS = ['Equipo', 'UltimaGeneracionHoras'];
@@ -10436,6 +10472,226 @@ async function pmRenderAlertas() {
  *  Mantenimiento) — con querySelectorAll acotado a este panel para no
  *  interferir con la sub-navegación (con las mismas clases CSS) del
  *  panel de Inventario. */
+/* ══════════════════════════════════════════════
+   CONFIGURACIÓN DE LOS INFORMES POR HORAS
+   Dos cosas que el usuario define y que la
+   generación automática de órdenes respeta:
+   la hora base de cada equipo y las actividades
+   que se escriben en la orden de cada frecuencia.
+══════════════════════════════════════════════ */
+
+const INFORME_FRECUENCIAS = [
+  { key: 'trimestral', label: 'Trimestral', defaults: () => INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO, marcas: () => INFORME_MARCAS.trimestral },
+  { key: 'semestral',  label: 'Semestral',  defaults: () => INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO,  marcas: () => INFORME_MARCAS.semestral },
+  { key: 'anual',      label: 'Anual',      defaults: () => INFORME_ANUAL_ACTIVIDADES_POR_TIPO,      marcas: () => INFORME_MARCAS.anual },
+];
+
+function pmRenderConfigInformes() {
+  pmRenderHoraBase();
+  pmRenderActividadesInforme();
+}
+
+/** Tabla de hora base por equipo. */
+async function pmRenderHoraBase() {
+  const cont = document.getElementById('pmHoraBaseContenido');
+  if (!cont) return;
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
+  let horasEquipos;
+  try { horasEquipos = await cargarHorasEquipos(); }
+  catch (e) { cont.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; return; }
+
+  const equipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
+  const filas = equipos.map(eq => {
+    const f = horasEquipos.find(x => x.Equipo === eq) || {};
+    const actuales = f.HorasActuales === '' || f.HorasActuales === undefined ? null : Number(f.HorasActuales);
+    const base = f.HoraBaseInformes === '' || f.HoraBaseInformes === undefined ? '' : f.HoraBaseInformes;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:600">${esc(eq)}</td>
+      <td style="padding:8px 10px;color:var(--text3)">${actuales === null || isNaN(actuales) ? '—' : actuales.toLocaleString('es-CO') + ' h'}</td>
+      <td style="padding:8px 10px"><input type="number" min="0" step="1" id="pmHB_${esc(eq).replace(/[^A-Za-z0-9]/g,'_')}" data-equipo="${esc(eq)}" class="form-control pm-hora-base" style="max-width:150px" value="${esc(String(base))}" placeholder="0"></td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Equipo</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Horas actuales</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Hora base</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:14px">
+      <button class="btn btn-primary" onclick="pmGuardarHoraBase()">Guardar horas base</button>
+      <span id="pmHoraBaseMsg" style="font-size:12px"></span>
+    </div>`;
+}
+
+async function pmGuardarHoraBase() {
+  const msg = document.getElementById('pmHoraBaseMsg');
+  const cambios = {};
+  for (const el of document.querySelectorAll('.pm-hora-base')) {
+    const v = el.value.trim();
+    if (v !== '' && (isNaN(Number(v)) || Number(v) < 0)) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = `La hora base de ${el.dataset.equipo} debe ser un número positivo.`;
+      return;
+    }
+    cambios[el.dataset.equipo] = { HoraBaseInformes: v === '' ? '' : String(Number(v)) };
+  }
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
+  try {
+    await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', cambios);
+    await pmRenderHoraBase();
+    const m2 = document.getElementById('pmHoraBaseMsg');
+    m2.style.color = 'var(--success, #1e7e34)';
+    m2.textContent = 'Horas base guardadas.';
+  } catch (e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'No se pudo guardar: ' + e.message;
+  }
+}
+
+/** Editor de actividades por frecuencia y tipo de equipo. */
+async function pmRenderActividadesInforme(frecuencia, tipo) {
+  const cont = document.getElementById('pmActividadesContenido');
+  if (!cont) return;
+  const selF = document.getElementById('pmActFrecuencia');
+  const selT = document.getElementById('pmActTipo');
+  frecuencia = frecuencia || (selF && selF.value) || INFORME_FRECUENCIAS[0].key;
+  tipo = tipo || (selT && selT.value) || INFORME_TIPOS_EQUIPO[0].tipo;
+
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
+  let filas = [];
+  try {
+    await asegurarHoja(SH.informeActividades, INFORME_ACTIVIDADES_COLS);
+    filas = await leerHojaGenericaCacheada(SH.informeActividades) || [];
+  } catch (e) { cont.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; return; }
+
+  const propias = filas
+    .filter(f => f.Frecuencia === frecuencia && f.TipoEquipo === tipo && (f.Actividad || '').trim())
+    .sort((a, b) => Number(a.Orden || 0) - Number(b.Orden || 0))
+    .map(f => ({ actividad: f.Actividad || '', descripcion: f.Descripcion || '' }));
+
+  const freqDef = INFORME_FRECUENCIAS.find(f => f.key === frecuencia);
+  const porDefecto = (freqDef.defaults()[tipo] || []).map(a => ({ actividad: a.actividad, descripcion: a.descripcion }));
+  const usandoDefecto = propias.length === 0;
+  const lista = usandoDefecto ? porDefecto : propias;
+  const equipos = INFORME_EQUIPOS_POR_TIPO[tipo] || [];
+  const marcas = freqDef.marcas();
+
+  cont.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+      <div style="min-width:170px">
+        <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Frecuencia</label>
+        <select id="pmActFrecuencia" class="form-control" onchange="pmRenderActividadesInforme(this.value, document.getElementById('pmActTipo').value)">
+          ${INFORME_FRECUENCIAS.map(f => `<option value="${f.key}"${f.key === frecuencia ? ' selected' : ''}>${esc(f.label)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="min-width:210px">
+        <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Tipo de equipo</label>
+        <select id="pmActTipo" class="form-control" onchange="pmRenderActividadesInforme(document.getElementById('pmActFrecuencia').value, this.value)">
+          ${INFORME_TIPOS_EQUIPO.map(t => `<option value="${t.tipo}"${t.tipo === tipo ? ' selected' : ''}>${esc(t.nombreTipo)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:6px;padding:10px 12px;margin-bottom:12px">
+      Se aplica a <strong>${equipos.length}</strong> ${equipos.length === 1 ? 'equipo' : 'equipos'}${equipos.length ? ': ' + esc(equipos.join(', ')) : ''}.
+      La orden se crea al cumplir ${marcas.primeraHora.toLocaleString('es-CO')} h y luego cada ${marcas.cadaHoras.toLocaleString('es-CO')} h.
+      ${usandoDefecto ? '<br><span style="color:var(--text3)">Ahora mismo usa el checklist por defecto del sistema. Si guardas, quedará esta lista configurada.</span>' : ''}
+    </div>
+
+    <div id="pmActLista"></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="pmAgregarActividad()">+ Agregar actividad</button>
+      <button class="btn btn-primary" onclick="pmGuardarActividades()">Guardar actividades</button>
+      ${usandoDefecto ? '' : '<button class="btn btn-ghost" onclick="pmRestaurarActividadesPorDefecto()">Volver al checklist por defecto</button>'}
+      <span id="pmActMsg" style="font-size:12px"></span>
+    </div>`;
+
+  _pmPintarFilasActividad(lista);
+}
+
+function _pmFilaActividadHtml(a) {
+  return `<div class="pm-act-fila" style="display:grid;grid-template-columns:minmax(140px,1fr) minmax(220px,2fr) auto;gap:8px;align-items:start;margin-bottom:8px">
+      <input class="form-control pm-act-nombre" placeholder="Actividad" value="${esc(a.actividad || '')}">
+      <textarea class="form-control pm-act-desc" rows="2" placeholder="Descripción (opcional)">${esc(a.descripcion || '')}</textarea>
+      <button class="btn btn-ghost btn-sm" title="Quitar" onclick="this.closest('.pm-act-fila').remove()">✕</button>
+    </div>`;
+}
+
+function _pmPintarFilasActividad(lista) {
+  const cont = document.getElementById('pmActLista');
+  if (!cont) return;
+  cont.innerHTML = lista.length
+    ? lista.map(_pmFilaActividadHtml).join('')
+    : '<div style="color:var(--text3);font-size:13px;padding:10px 0">Sin actividades. Agrega al menos una.</div>';
+}
+
+function pmAgregarActividad() {
+  const cont = document.getElementById('pmActLista');
+  if (!cont) return;
+  if (!cont.querySelector('.pm-act-fila')) cont.innerHTML = '';
+  cont.insertAdjacentHTML('beforeend', _pmFilaActividadHtml({}));
+}
+
+function pmRestaurarActividadesPorDefecto() {
+  const frecuencia = document.getElementById('pmActFrecuencia').value;
+  const tipo = document.getElementById('pmActTipo').value;
+  const def = INFORME_FRECUENCIAS.find(f => f.key === frecuencia).defaults()[tipo] || [];
+  _pmPintarFilasActividad(def.map(a => ({ actividad: a.actividad, descripcion: a.descripcion })));
+  const msg = document.getElementById('pmActMsg');
+  msg.style.color = 'var(--text3)';
+  msg.textContent = 'Lista restaurada. Guarda para aplicarla.';
+}
+
+async function pmGuardarActividades() {
+  const msg = document.getElementById('pmActMsg');
+  const frecuencia = document.getElementById('pmActFrecuencia').value;
+  const tipo = document.getElementById('pmActTipo').value;
+
+  const lista = [];
+  for (const fila of document.querySelectorAll('.pm-act-fila')) {
+    const nombre = fila.querySelector('.pm-act-nombre').value.trim();
+    const desc = fila.querySelector('.pm-act-desc').value.trim();
+    if (!nombre) continue;                       // una fila vacía simplemente no cuenta
+    lista.push({ actividad: nombre, descripcion: desc });
+  }
+  if (!lista.length) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Deja al menos una actividad con nombre, o las órdenes saldrían vacías.';
+    return;
+  }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
+  const clave = frecuencia + '|' + tipo;
+  try {
+    const colsHoja = await asegurarHoja(SH.informeActividades, INFORME_ACTIVIDADES_COLS);
+    // Se reemplaza el conjunto completo de esa combinación: borrar y volver
+    // a insertar es más simple y seguro que casar fila por fila cuando el
+    // usuario reordena, agrega y quita en la misma edición.
+    await _eliminarFilasPorValorColumna(SH.informeActividades, 'Clave', clave);
+    const filas = lista.map((a, i) => {
+      const porColumna = {
+        Clave: clave, Frecuencia: frecuencia, TipoEquipo: tipo,
+        Orden: String(i + 1), Actividad: a.actividad, Descripcion: a.descripcion,
+      };
+      return colsHoja.map(c => porColumna[c] ?? '');
+    });
+    await appendHoja(SH.informeActividades, filas);
+    await pmRenderActividadesInforme(frecuencia, tipo);
+    const m2 = document.getElementById('pmActMsg');
+    m2.style.color = 'var(--success, #1e7e34)';
+    m2.textContent = `${lista.length} ${lista.length === 1 ? 'actividad guardada' : 'actividades guardadas'}.`;
+  } catch (e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'No se pudo guardar: ' + e.message;
+  }
+}
+
 function pmMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-planmantenimiento');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
@@ -10448,6 +10704,7 @@ function pmMostrarSubTab(nombre) {
   if (nombre === 'informetrimestral') pmRenderInformeTrimestral();
   if (nombre === 'informesemestral') pmRenderInformeSemestral();
   if (nombre === 'informeanual') pmRenderInformeAnual();
+  if (nombre === 'configinformes') pmRenderConfigInformes();
 }
 
 /** Pinta la tabla-matriz (equipo/actividad × horas) replicando LITERALMENTE
@@ -10689,7 +10946,7 @@ function pmCambiarTipoInforme(informeId, tipo) {
  *  informe, las mismas que usa _verificarInformePeriodicoYGenerar() para
  *  generar la orden automática. Usado por pmRenderInformeTrimestral(),
  *  pmRenderInformeSemestral() y pmRenderInformeAnual(). */
-async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, actividadesPorTipo, intervaloHoras, marcas, hojaEstado, colsEstado }) {
+async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecuencia, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
   const cont = document.getElementById(contId);
   if (!cont) return;
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
@@ -10719,7 +10976,11 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, activ
   }
 
   const tipoSel = _pmInformeTipoSel[informeId] || 'compresores';
-  const actividades = actividadesPorTipo[tipoSel];
+  // Se muestran las actividades configuradas por el usuario (o las de por
+  // defecto si no configuro ninguna): tiene que ser la misma lista que
+  // terminara escrita en la orden, o la pantalla mostraria un checklist y
+  // la orden traeria otro.
+  const actividades = (await _resolverActividadesInforme(frecuencia, actividadesPorTipo))[tipoSel] || [];
   const equiposDelTipo = INFORME_EQUIPOS_POR_TIPO[tipoSel];
 
   const filasEquipos = equiposDelTipo.map(equipo => {
@@ -10752,7 +11013,7 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, activ
       ${tipoSel !== 'compresores' ? '<span style="font-size:11px;color:var(--text3)">Checklist provisional (copia del de Compresores) — horas en 0 hasta tener una fuente de datos real.</span>' : ''}
     </div>
     <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Checklist (cada ${intervaloHoras.toLocaleString('es-CO')} horas)</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Checklist — al cumplir ${marcas.primeraHora.toLocaleString('es-CO')} h y luego cada ${marcas.cadaHoras.toLocaleString('es-CO')} h</div>
       <table class="ie-table"><thead><tr><th>Actividad</th><th>Descripción</th></tr></thead><tbody>
         ${actividades.map(a => `<tr><td><strong>${esc(a.actividad)}</strong></td><td>${esc(a.descripcion)}</td></tr>`).join('')}
       </tbody></table>
@@ -10768,8 +11029,8 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, activ
 function pmRenderInformeTrimestral() {
   return _pmRenderInformePeriodico('pmInformeTrimestralContenido', 'trimestral', {
     nombreCorto: 'Informe Cada Trimestral',
+    frecuencia: 'trimestral',
     actividadesPorTipo: INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_TRIMESTRAL_INTERVALO_HORAS,
     marcas: INFORME_MARCAS.trimestral,
     hojaEstado: SH.informeTrimestralEstado,
     colsEstado: INFORME_TRIMESTRAL_ESTADO_COLS,
@@ -10779,8 +11040,8 @@ function pmRenderInformeTrimestral() {
 function pmRenderInformeSemestral() {
   return _pmRenderInformePeriodico('pmInformeSemestralContenido', 'semestral', {
     nombreCorto: 'Informe Cada Semestral',
+    frecuencia: 'semestral',
     actividadesPorTipo: INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_SEMESTRAL_INTERVALO_HORAS,
     marcas: INFORME_MARCAS.semestral,
     hojaEstado: SH.informeSemestralEstado,
     colsEstado: INFORME_SEMESTRAL_ESTADO_COLS,
@@ -10790,8 +11051,8 @@ function pmRenderInformeSemestral() {
 function pmRenderInformeAnual() {
   return _pmRenderInformePeriodico('pmInformeAnualContenido', 'anual', {
     nombreCorto: 'Informe Cada Anual',
+    frecuencia: 'anual',
     actividadesPorTipo: INFORME_ANUAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_ANUAL_INTERVALO_HORAS,
     marcas: INFORME_MARCAS.anual,
     hojaEstado: SH.informeAnualEstado,
     colsEstado: INFORME_ANUAL_ESTADO_COLS,
@@ -16851,7 +17112,34 @@ async function verificarPlanesMantenimientoYGenerar() {
  *  horas se generó la última orden por equipo (para no repetirla hasta
  *  el próximo múltiplo). Usado por verificarInformeTrimestralYGenerar()
  *  y verificarInformeSemestralYGenerar(). */
-async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
+/** Devuelve, por tipo de equipo, las actividades que deben ir en la orden
+ *  de esa frecuencia: las que el usuario configuro en la hoja
+ *  InformeActividades o, si no configuro ninguna para esa combinacion, el
+ *  checklist por defecto del codigo.
+ *
+ *  El respaldo importa: sin el, dejar la configuracion vacia generaria
+ *  ordenes sin ninguna tarea, que es peor que la lista por defecto. */
+async function _resolverActividadesInforme(frecuencia, defaultsPorTipo) {
+  let filas = [];
+  try {
+    await asegurarHoja(SH.informeActividades, INFORME_ACTIVIDADES_COLS);
+    filas = await leerHojaGenericaCacheada(SH.informeActividades) || [];
+  } catch (e) {
+    console.warn('No se pudo leer la configuración de actividades:', e.message);
+    return defaultsPorTipo;
+  }
+  const out = {};
+  INFORME_TIPOS_EQUIPO.forEach(({ tipo }) => {
+    const propias = filas
+      .filter(f => f.Frecuencia === frecuencia && f.TipoEquipo === tipo && (f.Actividad || '').trim())
+      .sort((a, b) => Number(a.Orden || 0) - Number(b.Orden || 0))
+      .map(f => ({ actividad: (f.Actividad || '').trim(), descripcion: (f.Descripcion || '').trim() }));
+    out[tipo] = propias.length ? propias : defaultsPorTipo[tipo];
+  });
+  return out;
+}
+
+async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
   if (operacionActual !== 'zipaquira') return;
 
   let horasEquipos, estado;
@@ -16879,11 +17167,23 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
   // Sheets y agota la cuota por minuto cuando varios equipos cruzan su
   // intervalo a la vez (ej. justo después de digitar las horas de todos
   // los equipos por primera vez).
+  const actividadesResueltas = await _resolverActividadesInforme(frecuencia, actividadesPorTipo);
+
+  // Hora base: desde donde empieza a contar el sistema para este equipo.
+  // Sin ella se asumiria 0 y se generarian ordenes de mantenimientos ya
+  // hechos antes de que el equipo entrara al sistema.
+  function horaBaseDe(equipo) {
+    const fila = horasEquipos.find(f => f.Equipo === equipo);
+    const n = fila ? Number(fila.HoraBaseInformes) : 0;
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+
   let i = 0;
   const nuevasOrdenes = [];
   const cambiosEstado = {};
   for (const { tipo } of INFORME_TIPOS_EQUIPO) {
-    const actividades = actividadesPorTipo[tipo];
+    const actividades = actividadesResueltas[tipo];
+    if (!actividades || !actividades.length) continue;
     for (const equipo of INFORME_EQUIPOS_POR_TIPO[tipo]) {
       const horasActuales = horasDe(equipo);
 
@@ -16892,7 +17192,10 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
       // Se genera solo al cumplir una marca DE ESTA frecuencia y solo si no
       // se genero ya para esa misma marca.
       const meta = _ultimaMarcaCumplida(horasActuales, marcas);
-      if (meta === null || meta <= baseHoras) continue;
+      // Nunca por debajo de la hora base que definio el usuario, ni de la
+      // ultima marca ya generada.
+      const desde = Math.max(baseHoras, horaBaseDe(equipo));
+      if (meta === null || meta <= desde) continue;
 
       i++;
       const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
@@ -16906,7 +17209,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
         FechaInicio: new Date().toISOString().split('T')[0],
         FechaCreacion: new Date().toISOString(),
         CreadaAutomaticamente: 'SI',
-        tareas: actividades.map(a => ({ descripcion: a.actividad + ': ' + a.descripcion, ok: false })),
+        tareas: actividades.map(a => ({ descripcion: a.descripcion ? a.actividad + ': ' + a.descripcion : a.actividad, ok: false })),
         repuestos: [], insumos: [],
         _metaHoras: meta,   // solo para el texto de la notificación
       });
@@ -16941,6 +17244,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
 function verificarInformeTrimestralYGenerar() {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Trimestral',
+    frecuencia: 'trimestral',
     tituloCorto: 'Mantenimiento Trimestral',
     actividadesPorTipo: INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO,
     marcas: INFORME_MARCAS.trimestral,
@@ -16952,6 +17256,7 @@ function verificarInformeTrimestralYGenerar() {
 function verificarInformeSemestralYGenerar() {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Semestral',
+    frecuencia: 'semestral',
     tituloCorto: 'Mantenimiento Semestral',
     actividadesPorTipo: INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO,
     marcas: INFORME_MARCAS.semestral,
@@ -16963,6 +17268,7 @@ function verificarInformeSemestralYGenerar() {
 function verificarInformeAnualYGenerar() {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Anual',
+    frecuencia: 'anual',
     tituloCorto: 'Mantenimiento Anual',
     actividadesPorTipo: INFORME_ANUAL_ACTIVIDADES_POR_TIPO,
     marcas: INFORME_MARCAS.anual,
