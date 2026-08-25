@@ -3323,7 +3323,14 @@ const VARIABLES_APARTADOS = [
       // Friulair) miden cosas distintas en la misma hoja.
       campos: (equipo) => esSecadorFriulair(equipo) ? REPORTE_SECADORES_CAMPOS_FRIULAIR : REPORTE_SECADORES_CAMPOS_GRAFICA,
     }] },
-  { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
+  { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA,
+    fuentes: [{
+      titulo: 'Reporte de Equipos de Emergencia',
+      hoja:   () => SH.reporteEmergencia,
+      colEquipo: 'Compresor',
+      horas:  () => HORAS_REPORTE_EMERGENCIA,
+      campos: () => REPORTE_EMERGENCIA_CAMPOS_GRAFICA,
+    }] },
   { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA,
     fuentes: [{
       titulo: 'Reporte de Equipos de Decorado',
@@ -7016,6 +7023,27 @@ const REPORTE_EMERGENCIA_CAMPOS_SECADOR = [
   { id: 'secPresionEntradaAire', label: 'Presión de entrada de aire [psig]', col: 'SecPresionEntradaAire' },
   { id: 'secPresionSalidaAire', label: 'Presión de salida de aire [psig]', col: 'SecPresionSalidaAire' },
 ];
+/** Campos de emergencia para la seccion Variables.
+ *
+ *  - Los 10 campos del secador no traen `grupo` (en el formulario van en su
+ *    propio bloque), asi que se les pone uno para que la seccion los agrupe
+ *    como al resto. Son opcionales —si el compresor esta apagado no siempre
+ *    se toman—, de modo que sus series quedan con huecos.
+ *  - Se agrega el nivel de aceite como escala ordenada, igual que en
+ *    decorado.
+ *  - EstadoEquipo NO se grafica: sus valores ("Si", "No", "En espera") son
+ *    categorias sin orden entre si. Ponerlas en un eje numerico sugeriria
+ *    que una es "mayor" que otra y que un cambio es una subida o una
+ *    bajada, que no significa nada aqui.
+ *  - Las labores marcadas tampoco: son tareas hechas, no magnitudes.
+ */
+const REPORTE_EMERGENCIA_CAMPOS_GRAFICA = [
+  ...REPORTE_EMERGENCIA_CAMPOS,
+  ...REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => ({ ...c, grupo: 'Secador' })),
+  { grupo: 'Sistema', id: 'nivelAceiteEmg', label: 'Nivel de aceite', col: 'NivelAceite',
+    escala: NIVELES_ACEITE_EMERGENCIA.slice().reverse() },
+];
+
 const LABORES_EMERGENCIA_COMPRESOR = [
   'Revisión de drenajes', 'Limpieza general', 'Revisión de conexiones eléctricas',
   'Verificación de fugas de aceite', 'Limpieza de radiadores', 'Revisión del estado del filtro de aire',
