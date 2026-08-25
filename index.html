@@ -801,7 +801,7 @@ body.inv-activo .container { max-width: 1800px; }
   <button class="nav-tab" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span class="nav-tab-text">Dashboard</span></button>
   <button class="nav-tab" onclick="showPanel('novedades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> <span class="nav-tab-text">Novedades</span></button>
   <button class="nav-tab" onclick="showPanel('historico')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> <span class="nav-tab-text">Histórico por Equipo</span></button>
-  <button class="nav-tab" onclick="showPanel('cronograma')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> <span class="nav-tab-text">Cronograma</span></button>
+  <button class="nav-tab" onclick="showPanel('cronograma')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> <span class="nav-tab-text">Reportes</span></button>
   <span id="navTabIndicator" class="nav-tab-indicator"></span>
 </nav>
 
@@ -1807,7 +1807,7 @@ body.inv-activo .container { max-width: 1800px; }
   <!-- ════════════ PANEL: CRONOGRAMA DE ACTIVIDADES DIARIAS ════════════ -->
   <div id="panel-cronograma" class="panel">
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Cronograma de Actividades Diarias</div>
+      <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Reportes</div>
     </div>
 
     <!-- Sub-navegación del Cronograma: Actividades / Dashboard / Reporte
@@ -1827,9 +1827,14 @@ body.inv-activo .container { max-width: 1800px; }
 
     <div id="cronSub-actividades" class="inv-subpanel active">
 
-    <!-- Entrega de Turno: el formulario va primero, arriba de las actividades
-         (solo Zipaquirá); el historial de "Entregas Registradas" va al
-         final de todo (ver más abajo), no aquí arriba. -->
+    <!-- Checklist del turno activo en este momento -->
+    <div id="cronogramaContenido"></div>
+
+    <!-- Entrega de Turno: va DEBAJO del checklist del turno, porque lo
+         primero que necesita ver el operario al entrar son sus
+         actividades del turno; la entrega se diligencia al terminar
+         (solo Zipaquirá). El historial de "Entregas Registradas" sigue
+         al final de todo, ver más abajo. -->
     <div id="cronEntregaTurnoWrap" style="display:none">
       <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
@@ -1851,8 +1856,6 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
-    <!-- Checklist del turno activo en este momento -->
-    <div id="cronogramaContenido"></div>
 
     <!-- Consultar otro día (solo lectura) -->
     <div class="card" style="margin-bottom:14px">
@@ -4417,7 +4420,7 @@ const SIDEBAR_SECCIONES_OPERACION = [
   { key: 'dashboard',   label: 'Dashboard',            icon: '<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>' },
   { key: 'novedades',   label: 'Novedades',            icon: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path>' },
   { key: 'historico',   label: 'Histórico por Equipo', icon: '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>' },
-  { key: 'cronograma',  label: 'Cronograma',           icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path>' },
+  { key: 'cronograma',  label: 'Reportes',           icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path>' },
 ];
 
 function _sidebarSeccionesOperacion() {
@@ -13897,7 +13900,7 @@ async function descargarInformeCronograma() {
     }
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Cronograma de Actividades — ${esc(desde)} a ${esc(hasta)}</title>
+<title>Actividades Diarias — ${esc(desde)} a ${esc(hasta)}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
   h1{font-size:18px;color:#02457A;margin-bottom:4px}
@@ -13908,7 +13911,7 @@ async function descargarInformeCronograma() {
   .section-title{background:#e8eef7;color:#02457A;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:6px 10px;margin-bottom:8px;margin-top:16px;border-left:3px solid #02457A}
   @media print{body{padding:0}}
 </style></head><body>
-<h1>⚙ Cronograma de Actividades Diarias</h1>
+<h1>⚙ Actividades Diarias</h1>
 <div class="sub">${esc(fmtFecha(desde))} a ${esc(fmtFecha(hasta))}${turnoIdFiltro ? ' · ' + esc(turnosAIncluir[0].nombre) : ''} · Generado el ${new Date().toLocaleString('es-CO')}</div>
 ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
 <script>window.onload=()=>window.print()<\/script>
