@@ -2913,17 +2913,8 @@ body.inv-activo .container { max-width: 1800px; }
           <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Operación de Equipos</span>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderRegistroHoras()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
         </div>
-        <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Digita aquí las horas actuales de cada equipo — de ahí se alimentan los planes de mantenimiento, y los informes Trimestral/Semestral/Anual para generar las órdenes automáticas.</div>
+        <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Horas actuales de cada equipo. Se alimentan solas con cada reporte del Cronograma que traiga horómetro, y de ahí salen las barras del cronograma de mantenimiento y las órdenes automáticas Trimestral/Semestral/Anual. No se editan a mano: una hora tecleada de más generaría una orden que no toca, o taparía una que sí.</div>
         <div class="card-body" style="padding:18px" id="pmRegistroHorasContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Reiniciar Horas</div>
-        <div class="card-body" style="padding:18px">
-          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Borra todas las horas guardadas y todas las órdenes que se generaron automáticamente hasta ahora. Antes de borrar, guarda como punto de partida las horas reales que tenga cada equipo en ese momento — así el sistema no genera de una vez todas las órdenes atrasadas, sin importar en qué orden vuelvas a digitar los equipos después. Importante: no escribas "0" de relleno en un equipo antes de tener su hora real — mejor déjalo en blanco hasta que la sepas.</div>
-          <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger)" onclick="reiniciarHorasYLimpiarAutomaticasClick()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Reiniciar Horas y Limpiar Órdenes Automáticas</button>
-          <div id="reinicioMsg" style="margin-top:10px;font-size:13px"></div>
-        </div>
       </div>
 
       </div><!-- /pmSub-registro -->
@@ -10128,98 +10119,34 @@ async function pmRenderRegistroHoras() {
     return fila ? fila.HorasActuales : '';
   }
 
+  function actualizadoDe(equipo) {
+    const fila = horasEquipos.find(f => f.Equipo === equipo);
+    return fila && fila.UltimaActualizacion ? fila.UltimaActualizacion : '';
+  }
+  // Equipos cuyo formulario de reporte SI trae horometro. Los demas no
+  // pueden recibir horas solas: su reporte no las captura.
+  const conHorometro = new Set(Object.values(EQUIPO_REPORTE_A_HORAS));
+
   cont.innerHTML = REGISTRO_HORAS_GRUPOS.map(grupo => `
     <div style="margin-bottom:18px">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(grupo.nombreTipo)}</div>
-      <table class="ie-table"><thead><tr><th>Equipo</th><th style="width:180px">Horas actuales</th></tr></thead><tbody>
-        ${INFORME_EQUIPOS_POR_TIPO[grupo.tipo].map(eq => `<tr>
+      <table class="ie-table"><thead><tr><th>Equipo</th><th style="width:160px">Horas actuales</th><th style="width:220px">Última actualización</th></tr></thead><tbody>
+        ${INFORME_EQUIPOS_POR_TIPO[grupo.tipo].map(eq => {
+          const h = horasDe(eq);
+          const cuando = actualizadoDe(eq);
+          return `<tr>
           <td><strong>${esc(eq)}</strong></td>
-          <td><input type="number" min="0" step="1" data-equipo-horas="${esc(eq)}" value="${esc(horasDe(eq))}" placeholder="Ej: 24228" style="width:160px"></td>
-        </tr>`).join('')}
+          <td style="font-variant-numeric:tabular-nums">${h === '' || h === undefined ? '<span style="color:var(--text3)">—</span>' : esc(Number(h).toLocaleString('es-CO')) + ' h'}</td>
+          <td style="font-size:12px;color:var(--text3)">${
+            cuando ? esc(cuando)
+                   : (conHorometro.has(eq) ? 'Sin reportes todavía'
+                                           : '<span style="color:#b45309">Su reporte no captura horómetro</span>')
+          }</td>
+        </tr>`; }).join('')}
       </tbody></table>
-    </div>`).join('') +
-    `<button class="btn btn-primary" onclick="guardarHorasEquiposGrid()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Guardar Horas</button>
-    <div id="rhMsg" style="margin-top:10px;font-size:13px"></div>`;
+    </div>`).join('');
 }
 
-/** Guarda las horas digitadas para todos los equipos del cuadro (solo los
- *  que tengan un valor, sin necesidad de llenarlos todos). Por cada
- *  equipo que todavía no tenga una base de referencia guardada para los
- *  informes periódicos o los planes por horas, la siembra con el valor
- *  recién digitado — así el sistema no genera de una vez todas las
- *  órdenes "atrasadas" según ese número, sino que empieza a contar el
- *  intervalo desde ahora. Si el equipo ya tenía una base, no se toca —
- *  el chequeo automático normal sigue su curso. */
-async function guardarHorasEquiposGrid() {
-  const msg = document.getElementById('rhMsg');
-  const cambios = [...document.querySelectorAll('[data-equipo-horas]')]
-    .map(inp => ({ equipo: inp.dataset.equipoHoras, horas: inp.value.trim() }))
-    .filter(c => c.horas !== '');
-
-  if (!cambios.length) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = 'Digita al menos un valor de horas para guardar.';
-    return;
-  }
-
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
-  try {
-    const [estadoTri, estadoSem, estadoAnu, planes] = await Promise.all([
-      leerHojaGenericaCacheada(SH.informeTrimestralEstado).catch(() => []),
-      leerHojaGenericaCacheada(SH.informeSemestralEstado).catch(() => []),
-      leerHojaGenericaCacheada(SH.informeAnualEstado).catch(() => []),
-      cargarPlanesMantenimiento().catch(() => []),
-    ]);
-    const estados = [
-      { estado: estadoTri, hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.trimestral },
-      { estado: estadoSem, hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.semestral },
-      { estado: estadoAnu, hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, marcas: INFORME_MARCAS.anual },
-    ];
-
-    // Arma todos los cambios en memoria y los guarda en UN SOLO viaje por
-    // hoja (en vez de una lectura+escritura por cada equipo) — así no se
-    // agota la cuota de lecturas por minuto de Sheets al guardar varios
-    // equipos de una vez.
-    const ahora = new Date().toLocaleString('es-CO');
-    const cambiosHoras = {};
-    for (const { equipo, horas } of cambios) {
-      cambiosHoras[equipo] = { HorasActuales: horas, UltimaActualizacion: ahora };
-    }
-    await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', cambiosHoras);
-
-    for (const { estado, hoja, cols, marcas } of estados) {
-      const cambiosEstado = {};
-      for (const { equipo, horas } of cambios) {
-        const fila = estado.find(f => f.Equipo === equipo);
-        if (!fila || fila.UltimaGeneracionHoras === '') {
-          cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_ultimaMarcaCumplida(Number(horas), marcas) ?? 0) };
-        }
-      }
-      await _actualizarFilasPorClaveEnLote(hoja, cols, 'Equipo', cambiosEstado);
-    }
-
-    const cambiosPlanes = {};
-    for (const { equipo, horas } of cambios) {
-      for (const plan of planes) {
-        if (plan.Equipo === equipo && (plan.TipoFrecuencia || '') === 'horas' && plan.UltimaGeneracionHoras === '') {
-          cambiosPlanes[plan.ID] = { UltimaGeneracionHoras: String(horas) };
-        }
-      }
-    }
-    await _actualizarFilasPorClaveEnLote(SH.planesMantenimiento, PLANES_MANTENIMIENTO_COLS, 'ID', cambiosPlanes);
-
-    await pmRenderRegistroHoras();
-    // Las barras de "Horas de Mantenimiento" salen de estas mismas horas —
-    // se repintan ya para que crezcan apenas se guarda, sin cambiar de pestaña.
-    await pmRenderHorasMantenimiento();
-    const msgNuevo = document.getElementById('rhMsg');
-    msgNuevo.style.color = '#15803d';
-    msgNuevo.textContent = `Horas guardadas para ${cambios.length} equipo(s).`;
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = e.message;
-  }
-}
 
 /** Borra todas las filas (excepto el encabezado) de una hoja que cumplan
  *  el predicado, indexando por los encabezados reales — de abajo hacia
@@ -10280,69 +10207,6 @@ async function limpiarOrdenesAutomaticas() {
   return numeros.size;
 }
 
-/** Botón "Reiniciar Horas y Limpiar Órdenes Automáticas": borra todas las
- *  horas guardadas y las órdenes ya generadas automáticamente — pero
- *  ANTES de borrar, fija la base ("última generación") de los informes
- *  periódicos y de los planes por horas usando las horas reales que
- *  había en ESE MOMENTO (no las que se digiten después). Así, sin
- *  importar en qué orden se vuelvan a digitar los equipos después
- *  (incluyendo si alguien digita "0" como relleno antes de la hora real),
- *  el sistema solo cuenta el intervalo hacia adelante desde la última
- *  hora real conocida, y nunca vuelve a tomar un valor recién digitado
- *  como si fuera la base. Acción destructiva: pide confirmación
- *  explícita. */
-async function reiniciarHorasYLimpiarAutomaticasClick() {
-  if (!confirm('Esto va a borrar PERMANENTEMENTE:\n\n• Todas las horas guardadas de los equipos.\n• El progreso ("última generación") de los informes Trimestral/Semestral/Anual y de los planes por horas.\n• Todas las órdenes de trabajo creadas automáticamente hasta ahora (y sus tareas/repuestos/insumos).\n\nLas órdenes creadas manualmente NO se tocan. Esta acción no se puede deshacer.\n\n¿Continuar?')) return;
-
-  const msg = document.getElementById('reinicioMsg');
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Limpiando…';
-  try {
-    const horasEquipos = await cargarHorasEquipos();
-    function horasDe(equipo) {
-      const fila = horasEquipos.find(f => f.Equipo === equipo);
-      if (!fila || fila.HorasActuales === '') return null;
-      const n = Number(fila.HorasActuales);
-      return isNaN(n) ? null : n;
-    }
-
-    const estadosDef = [
-      { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.trimestral },
-      { hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.semestral },
-      { hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, marcas: INFORME_MARCAS.anual },
-    ];
-    const todosLosEquipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
-    for (const { hoja, cols, marcas } of estadosDef) {
-      const cambiosEstado = {};
-      for (const equipo of todosLosEquipos) {
-        const h = horasDe(equipo);
-        if (h !== null) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_ultimaMarcaCumplida(h, marcas) ?? 0) };
-      }
-      await eliminarFilasDondeCumple(hoja, () => true);
-      await _actualizarFilasPorClaveEnLote(hoja, cols, 'Equipo', cambiosEstado);
-    }
-
-    const planes = await cargarPlanesMantenimiento();
-    const cambiosPlanes = {};
-    for (const plan of planes) {
-      if ((plan.TipoFrecuencia || '') === 'horas') {
-        const h = horasDe(plan.Equipo);
-        cambiosPlanes[plan.ID] = { UltimaGeneracionHoras: h !== null ? String(h) : '' };
-      }
-    }
-    await _actualizarFilasPorClaveEnLote(SH.planesMantenimiento, PLANES_MANTENIMIENTO_COLS, 'ID', cambiosPlanes);
-
-    await eliminarFilasDondeCumple(SH.horasEquipos, () => true);
-
-    const nOrdenes = await limpiarOrdenesAutomaticas();
-
-    msg.style.color = '#15803d';
-    msg.textContent = `Listo: horas reiniciadas y ${nOrdenes} orden(es) automática(s) eliminada(s). Ya puedes empezar a digitar las horas de hoy.`;
-    pmRenderRegistroHoras();
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = e.message;
-  }
-}
 
 async function operarioAgregarClick() {
   const nombre = document.getElementById('op_nombre').value.trim();
@@ -16820,8 +16684,8 @@ async function _actualizarFilaPorClave(hoja, cols, colClave, valorClave, datosPa
 /** Igual que _actualizarFilaPorClave, pero para actualizar MUCHAS filas de
  *  una sola hoja en un solo viaje (1 lectura + 1 escritura), en vez de una
  *  lectura+escritura POR fila — necesario para no agotar la cuota de
- *  "Read requests per minute" de Sheets cuando se guardan de una vez las
- *  horas de muchos equipos (ver guardarHorasEquiposGrid).
+ *  "Read requests per minute" de Sheets cuando se escriben de una vez
+ *  datos de muchos equipos (horas base, estado de los informes...).
  *  cambiosPorClave: { [valorDeLaClave]: { columna: valor, ... } } — si la
  *  clave no existe todavía en la hoja, agrega una fila nueva al final. */
 async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorClave) {
