@@ -341,6 +341,22 @@ body.inv-activo .container { max-width: 1800px; }
 .var-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 @media (min-width: 900px) { .var-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .inv-subpanel.active { display: block; }
+
+/* Visor de documentos imprimibles (informes, órdenes, reportes). En celular
+   la pestaña nueva con blob: se queda en blanco o abre un visor que nunca
+   descarga, así que el documento se muestra dentro de la app con un botón
+   "Descargar PDF" que dispara la impresión → "Guardar como PDF". */
+.visor-doc { position: fixed; inset: 0; z-index: 4000; display: flex; flex-direction: column; background: #fff; }
+.visor-doc-barra { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--primary, #02457A); color: #fff; flex-shrink: 0; }
+.visor-doc-titulo { flex: 1; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visor-doc-barra button { flex-shrink: 0; }
+.visor-doc-marco { flex: 1; width: 100%; border: 0; background: #fff; }
+@media print {
+  body.imprimiendo-doc > *:not(.visor-doc) { display: none !important; }
+  body.imprimiendo-doc .visor-doc { position: static; display: block; }
+  body.imprimiendo-doc .visor-doc-barra { display: none !important; }
+  body.imprimiendo-doc .visor-doc-marco { height: auto; min-height: 100vh; }
+}
 .inv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .inv-table th { background: var(--surface2); padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--text2); white-space: nowrap; }
 .inv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -5461,16 +5477,84 @@ async function guardarCierre() {
 }
 
 /* ══════════════════════════════════════════════
+   ENTREGA DE DOCUMENTOS IMPRIMIBLES (PDF)
+══════════════════════════════════════════════ */
+
+/** ¿Estamos en un celular/tablet? En esos navegadores la pestaña nueva con
+ *  una URL blob: no se puede imprimir: Chrome de Android la manda al visor
+ *  de descargas o la deja en blanco, y Safari de iOS bloquea la navegación.
+ *  Por eso ahí el documento se muestra dentro de la propia app. */
+function _esNavegadorMovil() {
+  return /Android|iPhone|iPad|iPod|Mobile|Silk/i.test(navigator.userAgent || '')
+      || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform || ''));
+}
+
+/** Muestra el documento a pantalla completa dentro de la app, con un botón
+ *  "Descargar PDF". La impresión se dispara desde el toque del usuario, que
+ *  es lo único que los navegadores de celular respetan siempre. */
+function _mostrarDocumentoEnVisor(html) {
+  const titulo = (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || 'Documento';
+  // Sin auto-print: en el visor la impresión la dispara el botón.
+  const htmlVisor = html.replace(/<script>window\.onload=\(\)=>window\.print\(\)<\/script>/i, '');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'visor-doc';
+  overlay.innerHTML = `
+    <div class="visor-doc-barra">
+      <span class="visor-doc-titulo">${esc(titulo)}</span>
+      <button class="btn btn-success" type="button" data-accion="imprimir">Descargar PDF</button>
+      <button class="btn btn-secondary" type="button" data-accion="cerrar">Cerrar</button>
+    </div>
+    <iframe class="visor-doc-marco"></iframe>`;
+  document.body.appendChild(overlay);
+  document.body.classList.add('imprimiendo-doc');
+
+  const marco = overlay.querySelector('.visor-doc-marco');
+  marco.setAttribute('title', titulo);
+  marco.srcdoc = htmlVisor;
+
+  overlay.querySelector('[data-accion="cerrar"]').onclick = () => {
+    overlay.remove();
+    document.body.classList.remove('imprimiendo-doc');
+  };
+  overlay.querySelector('[data-accion="imprimir"]').onclick = () => {
+    try {
+      // Imprimir el iframe deja fuera la barra y el resto de la app. Si el
+      // navegador ignora el iframe e imprime la página, el @media print de
+      // .visor-doc deja igualmente solo el documento.
+      marco.contentWindow.focus();
+      marco.contentWindow.print();
+    } catch (e) {
+      try { window.print(); } catch (e2) { alert('No se pudo abrir la impresión: ' + e.message); }
+    }
+  };
+}
+
+/** Punto único por donde salen TODOS los PDF del sistema: en computador
+ *  abre la pestaña ya reservada con el documento (auto-imprime), y en
+ *  celular usa el visor interno con botón de descarga. */
+function _entregarDocumentoImprimible(html, ventana) {
+  if (ventana && !_esNavegadorMovil()) {
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    ventana.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+  if (ventana) { try { ventana.close(); } catch (e) {} }
+  _mostrarDocumentoEnVisor(html);
+}
+
+/* ══════════════════════════════════════════════
    DESCARGAR PDF DE ORDEN REALIZADA
 ══════════════════════════════════════════════ */
 async function descargarOrdenPDF(id) {
   const o = allOrdenes.find(x => String(x.id) === String(id) || x.NumeroOrden === id);
   if (!o) return;
 
-  // Abrimos la pestaña YA (antes de cualquier "await") — si se abre después
-  // de esperar datos, el navegador (sobre todo en celular) la bloquea
-  // pensando que es un pop-up no solicitado por el usuario.
-  const ventana = window.open('', '_blank');
+  // En computador abrimos la pestaña YA (antes de cualquier "await"): si se
+  // abre después de esperar datos, el navegador la bloquea como pop-up. En
+  // celular no se abre pestaña — el documento va al visor interno.
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
 
   // Traer cada foto como data:URL ANTES de armar el documento, para que
   // quede embebida en el archivo descargado (igual que las firmas) y se
@@ -5565,25 +5649,7 @@ ${o.FirmaCierre ? `<div class="section-title">Firma del técnico ejecutor</div>
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-
-  if (ventana) {
-    // Pestaña ya abierta (la abrimos antes de los await de arriba para que
-    // el navegador no la bloquee como pop-up). La navegamos al contenido:
-    // en computador dispara el diálogo de impresión/guardar como PDF;
-    // en celular abre la vista con la opción nativa de Compartir/Imprimir
-    // → "Guardar como PDF", que es justamente lo que buscamos ahí.
-    ventana.location.href = url;
-  } else {
-    // El navegador bloqueó la pestaña (poco común) — usamos la descarga
-    // de archivo como respaldo.
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = (o.NumeroOrden || 'orden') + '_realizada.html';
-    a.click();
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -14001,9 +14067,9 @@ async function descargarInformeCronograma() {
   const turnosAIncluir = turnoIdFiltro ? cfg.turnos.filter(t => t.id === turnoIdFiltro) : cfg.turnos;
   if (!turnosAIncluir.length) { alert('Turno no válido.'); return; }
 
-  // Abrir la pestaña YA (antes de cualquier await) para que el navegador
-  // no la bloquee como pop-up no solicitado.
-  const ventana = window.open('', '_blank');
+  // En computador, abrir la pestaña YA (antes de cualquier await) para que
+  // el navegador no la bloquee como pop-up. En celular va al visor interno.
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
 
   try {
     // Tope de 62 días para no armar un informe descontrolado por accidente.
@@ -14100,9 +14166,7 @@ ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+    _entregarDocumentoImprimible(html, ventana);
   } catch (e) {
     if (ventana) ventana.close();
     alert('No se pudo generar el informe: ' + e.message);
@@ -14838,7 +14902,7 @@ function verReporteCompresor(codigo) {
 async function exportarReporteCompresorPDF(codigo) {
   const r = allReportesCompresores.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Reporte de Compresor — ${esc(r.Codigo)}</title>
 <style>
@@ -14848,9 +14912,7 @@ async function exportarReporteCompresorPDF(codigo) {
 ${_construirHtmlReporteCompresor(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -15185,7 +15247,7 @@ function verReporteSecador(codigo) {
 async function exportarReporteSecadorPDF(codigo) {
   const r = allReportesSecadores.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Reporte de Secador — ${esc(r.Codigo)}</title>
 <style>
@@ -15195,9 +15257,7 @@ async function exportarReporteSecadorPDF(codigo) {
 ${_construirHtmlReporteSecador(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -15444,7 +15504,7 @@ function verReporteDrycooler(codigo) {
 async function exportarReporteDrycoolerPDF(codigo) {
   const r = allReportesDrycoolers.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Reporte de Drycooler — ${esc(r.Codigo)}</title>
 <style>
@@ -15454,9 +15514,7 @@ async function exportarReporteDrycoolerPDF(codigo) {
 ${_construirHtmlReporteDrycooler(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -15738,7 +15796,7 @@ function verReporteDecorado(codigo) {
 async function exportarReporteDecoradoPDF(codigo) {
   const r = allReportesDecorado.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Reporte de Equipo de Decorado — ${esc(r.Codigo)}</title>
 <style>
@@ -15748,9 +15806,7 @@ async function exportarReporteDecoradoPDF(codigo) {
 ${_construirHtmlReporteDecorado(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -16038,7 +16094,7 @@ function verReporteEmergencia(codigo) {
 async function exportarReporteEmergenciaPDF(codigo) {
   const r = allReportesEmergencia.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Reporte de Equipo de Emergencia — ${esc(r.Codigo)}</title>
 <style>
@@ -16048,9 +16104,7 @@ async function exportarReporteEmergenciaPDF(codigo) {
 ${_construirHtmlReporteEmergencia(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -16241,7 +16295,7 @@ function verReportePresionDrycooler(codigo) {
 async function exportarReportePresionDrycoolerPDF(codigo) {
   const r = allReportesPresionDrycooler.find(x => x.Codigo === codigo);
   if (!r) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Presión y Temperatura de Drycooler — ${esc(r.Codigo)}</title>
 <style>
@@ -16251,9 +16305,7 @@ async function exportarReportePresionDrycoolerPDF(codigo) {
 ${_construirHtmlReportePresionDrycooler(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 async function guardarEntregaTurno() {
@@ -16377,7 +16429,7 @@ function verEntregaTurno(codigo) {
 async function exportarEntregaTurnoPDF(codigo) {
   const e = allEntregasTurno.find(x => x.Codigo === codigo);
   if (!e) return;
-  const ventana = window.open('', '_blank');
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Entrega de Turno — ${esc(e.Codigo)}</title>
 <style>
@@ -16387,9 +16439,7 @@ async function exportarEntregaTurnoPDF(codigo) {
 ${_construirHtmlEntregaTurno(e)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  if (ventana) ventana.location.href = url; else window.open(url, '_blank');
+  _entregarDocumentoImprimible(html, ventana);
 }
 
 /* ══════════════════════════════════════════════
