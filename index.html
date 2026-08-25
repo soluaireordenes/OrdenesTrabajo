@@ -6512,6 +6512,38 @@ function esHoraAnual(horas) {
   return horas > 0 && horas % INFORME_ANUAL_INTERVALO_HORAS === 0;
 }
 
+/** Las mismas marcas de arriba, pero en la forma primeraHora + k*cadaHoras,
+ *  que es la que necesita la generacion automatica de ordenes:
+ *
+ *    trimestral -> 2.000, 6.000, 10.000...   (cada 4.000 desde 2.000)
+ *    semestral  -> 4.000, 12.000, 20.000...  (cada 8.000 desde 4.000)
+ *    anual      -> 8.000, 16.000, 24.000...  (cada 8.000 desde 8.000)
+ *
+ *  Cada marca pertenece a UNA sola frecuencia, y eso es lo que evita las
+ *  ordenes repetidas: los checklists son anidados —el semestral son las 8
+ *  tareas del trimestral mas 2, y el anual esas 10 mas 11—, asi que al
+ *  cumplir 8.000 horas lo que toca es el anual, que ya incluye todo lo
+ *  demas, y no las tres ordenes a la vez.
+ */
+const INFORME_MARCAS = {
+  trimestral: { primeraHora: INFORME_TRIMESTRAL_INTERVALO_HORAS, cadaHoras: INFORME_SEMESTRAL_INTERVALO_HORAS },
+  semestral:  { primeraHora: INFORME_SEMESTRAL_INTERVALO_HORAS,  cadaHoras: INFORME_ANUAL_INTERVALO_HORAS },
+  anual:      { primeraHora: INFORME_ANUAL_INTERVALO_HORAS,      cadaHoras: INFORME_ANUAL_INTERVALO_HORAS },
+};
+
+/** Ultima marca de esa frecuencia que el equipo YA cumplio, o null si
+ *  todavia no llega ni a la primera. */
+function _ultimaMarcaCumplida(horas, { primeraHora, cadaHoras }) {
+  if (!(horas >= primeraHora)) return null;
+  return Math.floor((horas - primeraHora) / cadaHoras) * cadaHoras + primeraHora;
+}
+
+/** Siguiente marca de esa frecuencia despues de las horas dadas. */
+function _proximaMarca(horas, marcas) {
+  const ultima = _ultimaMarcaCumplida(horas, marcas);
+  return ultima === null ? marcas.primeraHora : ultima + marcas.cadaHoras;
+}
+
 /** Tipos de equipo que puede mostrar el filtro desplegable de cada informe
  *  periódico (Trimestral/Semestral/Anual). Hoy el checklist real (arriba)
  *  solo existe para "Compresores" — los otros 3 tipos son un placeholder:
@@ -6548,18 +6580,6 @@ const INFORME_ANUAL_ACTIVIDADES_POR_TIPO = {
   drycoolers: INFORME_ANUAL_ACTIVIDADES, tornillo: INFORME_ANUAL_ACTIVIDADES,
 };
 
-/** La "próxima orden" de un informe periódico tiene que caer en un múltiplo
- *  fijo del intervalo (2000, 4000, 6000... para el trimestral) — no en
- *  "las horas que había cuando se guardó por última vez". Si se guardara la
- *  hora exacta como base, cada vez que se digita un nuevo valor de horas la
- *  meta se correría con él (ej. 24.353 -> próxima 26.353), en vez de quedar
- *  fija en el número redondo que de verdad corresponde al mantenimiento
- *  (26.000). Redondeando la base hacia abajo al último múltiplo cumplido,
- *  la meta siempre es ese número fijo, sin importar el valor exacto de
- *  horas que se haya digitado. */
-function _baseGridHoras(horas, intervaloHoras) {
-  return Math.floor(horas / intervaloHoras) * intervaloHoras;
-}
 
 // Nombres de hojas
 const SH = {
@@ -10090,9 +10110,9 @@ async function guardarHorasEquiposGrid() {
       cargarPlanesMantenimiento().catch(() => []),
     ]);
     const estados = [
-      { estado: estadoTri, hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, intervalo: INFORME_TRIMESTRAL_INTERVALO_HORAS },
-      { estado: estadoSem, hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, intervalo: INFORME_SEMESTRAL_INTERVALO_HORAS },
-      { estado: estadoAnu, hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, intervalo: INFORME_ANUAL_INTERVALO_HORAS },
+      { estado: estadoTri, hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.trimestral },
+      { estado: estadoSem, hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.semestral },
+      { estado: estadoAnu, hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, marcas: INFORME_MARCAS.anual },
     ];
 
     // Arma todos los cambios en memoria y los guarda en UN SOLO viaje por
@@ -10106,12 +10126,12 @@ async function guardarHorasEquiposGrid() {
     }
     await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', cambiosHoras);
 
-    for (const { estado, hoja, cols, intervalo } of estados) {
+    for (const { estado, hoja, cols, marcas } of estados) {
       const cambiosEstado = {};
       for (const { equipo, horas } of cambios) {
         const fila = estado.find(f => f.Equipo === equipo);
         if (!fila || fila.UltimaGeneracionHoras === '') {
-          cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_baseGridHoras(Number(horas), intervalo)) };
+          cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_ultimaMarcaCumplida(Number(horas), marcas) ?? 0) };
         }
       }
       await _actualizarFilasPorClaveEnLote(hoja, cols, 'Equipo', cambiosEstado);
@@ -10225,16 +10245,16 @@ async function reiniciarHorasYLimpiarAutomaticasClick() {
     }
 
     const estadosDef = [
-      { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, intervalo: INFORME_TRIMESTRAL_INTERVALO_HORAS },
-      { hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, intervalo: INFORME_SEMESTRAL_INTERVALO_HORAS },
-      { hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, intervalo: INFORME_ANUAL_INTERVALO_HORAS },
+      { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.trimestral },
+      { hoja: SH.informeSemestralEstado, cols: INFORME_SEMESTRAL_ESTADO_COLS, marcas: INFORME_MARCAS.semestral },
+      { hoja: SH.informeAnualEstado, cols: INFORME_ANUAL_ESTADO_COLS, marcas: INFORME_MARCAS.anual },
     ];
     const todosLosEquipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
-    for (const { hoja, cols, intervalo } of estadosDef) {
+    for (const { hoja, cols, marcas } of estadosDef) {
       const cambiosEstado = {};
       for (const equipo of todosLosEquipos) {
         const h = horasDe(equipo);
-        if (h !== null) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_baseGridHoras(h, intervalo)) };
+        if (h !== null) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_ultimaMarcaCumplida(h, marcas) ?? 0) };
       }
       await eliminarFilasDondeCumple(hoja, () => true);
       await _actualizarFilasPorClaveEnLote(hoja, cols, 'Equipo', cambiosEstado);
@@ -10669,7 +10689,7 @@ function pmCambiarTipoInforme(informeId, tipo) {
  *  informe, las mismas que usa _verificarInformePeriodicoYGenerar() para
  *  generar la orden automática. Usado por pmRenderInformeTrimestral(),
  *  pmRenderInformeSemestral() y pmRenderInformeAnual(). */
-async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, actividadesPorTipo, intervaloHoras, hojaEstado, colsEstado }) {
+async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, actividadesPorTipo, intervaloHoras, marcas, hojaEstado, colsEstado }) {
   const cont = document.getElementById(contId);
   if (!cont) return;
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
@@ -10706,7 +10726,11 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, activ
     const horasActuales = horasDe(equipo);
     const filaEstado = estado.find(f => f.Equipo === equipo);
     const baseHoras = filaEstado && filaEstado.UltimaGeneracionHoras !== '' ? Number(filaEstado.UltimaGeneracionHoras) : 0;
-    const proximo = baseHoras + intervaloHoras;
+    // La proxima orden cae en la siguiente marca DE ESTA frecuencia. Tiene
+    // que coincidir con lo que decide la generacion automatica: si aqui se
+    // sumara un intervalo fijo, la pantalla anunciaria una meta distinta de
+    // la que realmente dispara la orden.
+    const proximo = _proximaMarca(baseHoras, marcas);
     const vencido = horasActuales >= proximo;
     const restante = Math.max(0, proximo - horasActuales);
     return `<tr>
@@ -10746,6 +10770,7 @@ function pmRenderInformeTrimestral() {
     nombreCorto: 'Informe Cada Trimestral',
     actividadesPorTipo: INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO,
     intervaloHoras: INFORME_TRIMESTRAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.trimestral,
     hojaEstado: SH.informeTrimestralEstado,
     colsEstado: INFORME_TRIMESTRAL_ESTADO_COLS,
   });
@@ -10756,6 +10781,7 @@ function pmRenderInformeSemestral() {
     nombreCorto: 'Informe Cada Semestral',
     actividadesPorTipo: INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO,
     intervaloHoras: INFORME_SEMESTRAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.semestral,
     hojaEstado: SH.informeSemestralEstado,
     colsEstado: INFORME_SEMESTRAL_ESTADO_COLS,
   });
@@ -10766,6 +10792,7 @@ function pmRenderInformeAnual() {
     nombreCorto: 'Informe Cada Anual',
     actividadesPorTipo: INFORME_ANUAL_ACTIVIDADES_POR_TIPO,
     intervaloHoras: INFORME_ANUAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.anual,
     hojaEstado: SH.informeAnualEstado,
     colsEstado: INFORME_ANUAL_ESTADO_COLS,
   });
@@ -16824,7 +16851,7 @@ async function verificarPlanesMantenimientoYGenerar() {
  *  horas se generó la última orden por equipo (para no repetirla hasta
  *  el próximo múltiplo). Usado por verificarInformeTrimestralYGenerar()
  *  y verificarInformeSemestralYGenerar(). */
-async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, actividadesPorTipo, intervaloHoras, hojaEstado, colsEstado }) {
+async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
   if (operacionActual !== 'zipaquira') return;
 
   let horasEquipos, estado;
@@ -16862,7 +16889,10 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
 
       const filaEstado = estado.find(f => f.Equipo === equipo);
       const baseHoras = filaEstado && filaEstado.UltimaGeneracionHoras !== '' ? Number(filaEstado.UltimaGeneracionHoras) : 0;
-      if (horasActuales < baseHoras + intervaloHoras) continue;
+      // Se genera solo al cumplir una marca DE ESTA frecuencia y solo si no
+      // se genero ya para esa misma marca.
+      const meta = _ultimaMarcaCumplida(horasActuales, marcas);
+      if (meta === null || meta <= baseHoras) continue;
 
       i++;
       const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
@@ -16878,8 +16908,9 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
         CreadaAutomaticamente: 'SI',
         tareas: actividades.map(a => ({ descripcion: a.actividad + ': ' + a.descripcion, ok: false })),
         repuestos: [], insumos: [],
+        _metaHoras: meta,   // solo para el texto de la notificación
       });
-      cambiosEstado[equipo] = { UltimaGeneracionHoras: String(_baseGridHoras(horasActuales, intervaloHoras)) };
+      cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
     }
   }
 
@@ -16896,7 +16927,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, tituloCorto, activid
     const filasNotif = nuevasOrdenes.map(o => [
       'NOTIF-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + o.NumeroOrden,
       new Date().toLocaleString('es-CO'),
-      `Se generó automáticamente la orden ${o.NumeroOrden} para ${o.Equipo} (${nombre}, cada ${intervaloHoras} horas).`,
+      `Se generó automáticamente la orden ${o.NumeroOrden} para ${o.Equipo} (${nombre}, al cumplir las ${Number(o._metaHoras).toLocaleString('es-CO')} horas).`,
       o.NumeroOrden, o.Equipo,
     ]);
     await appendHoja(SH.notificaciones, filasNotif);
@@ -16912,7 +16943,7 @@ function verificarInformeTrimestralYGenerar() {
     nombre: 'Informe Cada Trimestral',
     tituloCorto: 'Mantenimiento Trimestral',
     actividadesPorTipo: INFORME_TRIMESTRAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_TRIMESTRAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.trimestral,
     hojaEstado: SH.informeTrimestralEstado,
     colsEstado: INFORME_TRIMESTRAL_ESTADO_COLS,
   });
@@ -16923,7 +16954,7 @@ function verificarInformeSemestralYGenerar() {
     nombre: 'Informe Cada Semestral',
     tituloCorto: 'Mantenimiento Semestral',
     actividadesPorTipo: INFORME_SEMESTRAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_SEMESTRAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.semestral,
     hojaEstado: SH.informeSemestralEstado,
     colsEstado: INFORME_SEMESTRAL_ESTADO_COLS,
   });
@@ -16934,7 +16965,7 @@ function verificarInformeAnualYGenerar() {
     nombre: 'Informe Cada Anual',
     tituloCorto: 'Mantenimiento Anual',
     actividadesPorTipo: INFORME_ANUAL_ACTIVIDADES_POR_TIPO,
-    intervaloHoras: INFORME_ANUAL_INTERVALO_HORAS,
+    marcas: INFORME_MARCAS.anual,
     hojaEstado: SH.informeAnualEstado,
     colsEstado: INFORME_ANUAL_ESTADO_COLS,
   });
