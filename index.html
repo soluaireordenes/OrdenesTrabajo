@@ -6329,6 +6329,18 @@ function esHoraSemestral(horas) {
   return horas > 0 && horas % INFORME_ANUAL_INTERVALO_HORAS === INFORME_SEMESTRAL_INTERVALO_HORAS;
 }
 
+/** ¿Esa marca de horas corresponde a un mantenimiento ANUAL?
+ *
+ *  El escalón más alto: 8.000, 16.000, 24.000, 32.000… — todos los
+ *  múltiplos de 8.000. Es el único de los tres que no lleva desplazamiento,
+ *  porque no hay una frecuencia mayor que le quite marcas.
+ *
+ *  Entre las tres funciones cubren el eje completo sin superponerse: de
+ *  cada 4 marcas de 2.000 horas, 2 son trimestrales, 1 semestral y 1 anual. */
+function esHoraAnual(horas) {
+  return horas > 0 && horas % INFORME_ANUAL_INTERVALO_HORAS === 0;
+}
+
 /** Tipos de equipo que puede mostrar el filtro desplegable de cada informe
  *  periódico (Trimestral/Semestral/Anual). Hoy el checklist real (arriba)
  *  solo existe para "Compresores" — los otros 3 tipos son un placeholder:
@@ -9839,13 +9851,20 @@ async function pmRenderHorasMantenimiento() {
   // categoría suelta.
   const NARANJA_SEM_TITULO = '#F4B183';
   const NARANJA_SEM_COLUMNA = '#FCE4D6';
+  // Rojo para el anual, cerrando la escala amarillo → naranja → rojo. Se
+  // eligió un tono rosado y no un naranja oscuro para que no se confunda
+  // con el semestral; de todos modos las dos nunca quedan en columnas
+  // vecinas (entre cada semestral y cada anual siempre hay una trimestral).
+  const ROJO_ANU_TITULO = '#E8848C';
+  const ROJO_ANU_COLUMNA = '#F7C7CE';
   const VERDE_PUNTO = '#C6E0B4';
 
-  // Trimestral y semestral nunca coinciden en la misma columna, así que
-  // basta con elegir el primero que aplique.
+  // Las tres frecuencias son excluyentes entre sí, así que basta con elegir
+  // la primera que aplique.
   function estiloFrecuencia(h) {
     if (esHoraTrimestral(h)) return { titulo: AMARILLO_TRI_TITULO, columna: AMARILLO_TRI_COLUMNA, texto: '#7f6000', etiqueta: 'trimestral' };
     if (esHoraSemestral(h))  return { titulo: NARANJA_SEM_TITULO,  columna: NARANJA_SEM_COLUMNA,  texto: '#833c00', etiqueta: 'semestral' };
+    if (esHoraAnual(h))      return { titulo: ROJO_ANU_TITULO,     columna: ROJO_ANU_COLUMNA,     texto: '#9c0006', etiqueta: 'anual' };
     return null;
   }
 
@@ -9895,6 +9914,7 @@ async function pmRenderHorasMantenimiento() {
       <span><span style="display:inline-block;width:10px;height:10px;background:${VERDE_PUNTO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Punto de mantenimiento programado</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:${AMARILLO_TRI_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento trimestral (2k, 6k, 10k… cada 4.000 h)</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:${NARANJA_SEM_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento semestral (4k, 12k, 20k… cada 8.000 h)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${ROJO_ANU_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento anual (8k, 16k, 24k… cada 8.000 h)</span>
     </div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
       <table style="border-collapse:collapse;width:auto;font-size:12px">
