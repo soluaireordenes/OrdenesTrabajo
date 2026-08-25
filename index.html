@@ -3324,7 +3324,14 @@ const VARIABLES_APARTADOS = [
       campos: (equipo) => esSecadorFriulair(equipo) ? REPORTE_SECADORES_CAMPOS_FRIULAIR : REPORTE_SECADORES_CAMPOS_GRAFICA,
     }] },
   { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
-  { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA },
+  { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA,
+    fuentes: [{
+      titulo: 'Reporte de Equipos de Decorado',
+      hoja:   () => SH.reporteDecorado,
+      colEquipo: 'Compresor',
+      horas:  () => HORAS_REPORTE_DECORADO,
+      campos: () => REPORTE_DECORADO_CAMPOS_GRAFICA,
+    }] },
   { key: 'drycoolers',  label: 'Drycoolers',             lista: () => DRYCOOLERS_LISTA_REPORTE,
     fuentes: [
       { titulo: 'Reporte de Drycoolers',
@@ -6907,6 +6914,24 @@ const REPORTE_DECORADO_CAMPOS = [
   { grupo: 'Secador', id: 'secPresionAire', label: 'Presión de aire [MPa]', col: 'SecPresionAire' },
   { grupo: 'Secador', id: 'secPresionEvaporacion', label: 'Presión evaporación [MPa]', col: 'SecPresionEvaporacion' },
 ];
+/** Campos de decorado para la seccion Variables: los numericos del
+ *  formulario mas el nivel de aceite.
+ *
+ *  El nivel de aceite se digita como texto de una lista, pero esa lista
+ *  esta ORDENADA (Alto, Medio alto, Medio, Medio bajo, Bajo), asi que su
+ *  evolucion si es informativa: un nivel que baja escalon a escalon entre
+ *  reportes es exactamente el tipo de tendencia que interesa detectar. Se
+ *  invierte para que en el eje el peor nivel quede abajo.
+ *
+ *  Las labores marcadas (LaboresCompresor / LaboresSecador) no entran: son
+ *  listas de tareas hechas, no una magnitud medida del equipo.
+ */
+const REPORTE_DECORADO_CAMPOS_GRAFICA = [
+  ...REPORTE_DECORADO_CAMPOS,
+  { grupo: 'Sistema', id: 'nivelAceiteDec', label: 'Nivel de aceite', col: 'NivelAceite',
+    escala: NIVELES_ACEITE_DECORADO.slice().reverse() },
+];
+
 // Labores de mantenimiento que el técnico marca en cada reporte — son dos
 // listas independientes (una para el compresor, otra para el secador) y se
 // puede marcar más de una; se guardan unidas por ";".
@@ -9589,6 +9614,14 @@ function _variablesDibujar(contId, bloques) {
       // distintos en la misma columna, ver los campos de secadores).
       const valores = lecturas.map(f => {
         const bruto = typeof campo.valor === 'function' ? campo.valor(f) : f[campo.col];
+        // Un campo de `escala` guarda texto de una lista ORDENADA de peor a
+        // mejor ("Bajo"..."Alto"): se grafica por su posicion, asi se ve la
+        // tendencia (p.ej. un nivel de aceite que va cayendo) igual que con
+        // una variable numerica.
+        if (campo.escala) {
+          const i = campo.escala.findIndex(op => op.toLowerCase() === String(bruto ?? '').trim().toLowerCase());
+          return i < 0 ? null : i + 1;
+        }
         const v = parseFloat(String(bruto ?? '').replace(',', '.'));
         return isFinite(v) ? v : null;
       });
@@ -9596,9 +9629,12 @@ function _variablesDibujar(contId, bloques) {
       const fuera = conDato.filter(v => _variablesFueraDeRango(v, rango)).length;
       const canvasId = 'varChart_' + iBloque + '_' + campo.id;
 
-      const stats = conDato.length
-        ? `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`
-        : 'sin datos';
+      // En una escala el promedio no significa nada ("Medio bajo y medio"),
+      // asi que solo se muestran los extremos, con su etiqueta.
+      const stats = !conDato.length ? 'sin datos'
+        : campo.escala
+          ? `mín ${campo.escala[Math.min(...conDato) - 1]} · máx ${campo.escala[Math.max(...conDato) - 1]}`
+          : `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`;
 
       html += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)">
           <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px">${esc(campo.label)}</div>
@@ -9617,7 +9653,7 @@ function _variablesDibujar(contId, bloques) {
   cont.innerHTML = html;
   if (typeof Chart === 'undefined') return;
 
-  porDibujar.forEach(({ canvasId, valores, rango, etiquetas }) => {
+  porDibujar.forEach(({ canvasId, valores, rango, etiquetas, campo }) => {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const colorPunto = valores.map(v => _variablesFueraDeRango(v, rango) ? '#b91c1c' : '#2f6fb2');
@@ -9643,7 +9679,11 @@ function _variablesDibujar(contId, bloques) {
         plugins: { legend: { display: false }, tooltip: { filter: it => it.datasetIndex === 0 } },
         scales: {
           x: { ticks: { maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
-          y: { ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
+          y: campo.escala
+            ? { min: 0.5, max: campo.escala.length + 0.5,
+                ticks: { stepSize: 1, font: { size: 9 }, callback: v => campo.escala[v - 1] || '' },
+                grid: { color: 'rgba(128,128,128,.15)' } }
+            : { ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
         },
       },
     }));
