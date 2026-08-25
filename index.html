@@ -350,12 +350,14 @@ body.inv-activo .container { max-width: 1800px; }
 .visor-doc-barra { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--primary, #02457A); color: #fff; flex-shrink: 0; }
 .visor-doc-titulo { flex: 1; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .visor-doc-barra button { flex-shrink: 0; }
-.visor-doc-marco { flex: 1; width: 100%; border: 0; background: #fff; }
+.visor-doc-hoja { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 16px; background: #fff; color: #222; font-family: Arial, sans-serif; font-size: 12px; }
+.visor-doc-hoja img { max-width: 100%; }
 @media print {
+  body.imprimiendo-doc { display: block !important; overflow: visible !important; height: auto !important; background: #fff !important; }
   body.imprimiendo-doc > *:not(.visor-doc) { display: none !important; }
   body.imprimiendo-doc .visor-doc { position: static; display: block; }
   body.imprimiendo-doc .visor-doc-barra { display: none !important; }
-  body.imprimiendo-doc .visor-doc-marco { height: auto; min-height: 100vh; }
+  body.imprimiendo-doc .visor-doc-hoja { overflow: visible; padding: 0; }
 }
 .inv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .inv-table th { background: var(--surface2); padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--text2); white-space: nowrap; }
@@ -1213,7 +1215,7 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="card-body">
           <label style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:white;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:white"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto general
-            <input type="file" accept="image/*" capture="environment" style="display:none"
+            <input type="file" accept="image/*" style="display:none"
               onchange="manejarSubidaFoto(this, modalOrdenId, '', 'e_galeria-fotos-orden')">
           </label>
           <div id="e_galeria-fotos-orden"></div>
@@ -5003,7 +5005,7 @@ function abrirModalCompletar(id) {
       <td><input type="text" placeholder="Técnico" value="${esc(t.responsable||'')}"></td>
       <td style="text-align:center">
         <label style="cursor:pointer;font-size:15px" title="Adjuntar foto a esta tarea">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><input type="file" accept="image/*" capture="environment" style="display:none"
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><input type="file" accept="image/*" style="display:none"
             onchange="manejarSubidaFotoTarea(this)">
         </label>
       </td>
@@ -5489,13 +5491,56 @@ function _esNavegadorMovil() {
       || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform || ''));
 }
 
+/** Devuelve la posición de la "}" que cierra el bloque abierto en `desde`. */
+function _finDeBloqueCss(css, desde) {
+  let nivel = 1;
+  for (let i = desde; i < css.length; i++) {
+    if (css[i] === '{') nivel++;
+    else if (css[i] === '}' && --nivel === 0) return i;
+  }
+  return css.length;
+}
+
+/** Encierra el CSS del documento dentro del visor: cada selector queda
+ *  prefijado y `body` pasa a ser la hoja. Así el documento se puede pegar
+ *  en la misma página sin dañar el estilo de la app. */
+function _scopearCss(css, scope) {
+  let salida = '', i = 0;
+  while (i < css.length) {
+    const resto = css.slice(i);
+    const media = /^\s*(@media[^{]*)\{/.exec(resto);
+    if (media) {
+      const inicio = i + media[0].length;
+      const fin = _finDeBloqueCss(css, inicio);
+      salida += media[1] + '{' + _scopearCss(css.slice(inicio, fin), scope) + '}';
+      i = fin + 1;
+      continue;
+    }
+    const regla = /^([^{}]*)\{/.exec(resto);
+    if (!regla) break;
+    const inicio = i + regla[0].length;
+    const fin = _finDeBloqueCss(css, inicio);
+    const selectores = regla[1].split(',').map(s => {
+      s = s.trim();
+      if (!s) return '';
+      return (s === 'body' || s === 'html') ? scope : scope + ' ' + s;
+    }).filter(Boolean).join(', ');
+    if (selectores) salida += selectores + '{' + css.slice(inicio, fin) + '}';
+    i = fin + 1;
+  }
+  return salida;
+}
+
 /** Muestra el documento a pantalla completa dentro de la app, con un botón
- *  "Descargar PDF". La impresión se dispara desde el toque del usuario, que
- *  es lo único que los navegadores de celular respetan siempre. */
+ *  "Descargar PDF". El documento se pega en la propia página (no en un
+ *  iframe: los celulares imprimen el iframe recortado a lo que se ve) y la
+ *  impresión se dispara desde el toque del usuario, que es lo único que los
+ *  navegadores de celular respetan siempre. */
 function _mostrarDocumentoEnVisor(html) {
   const titulo = (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || 'Documento';
-  // Sin auto-print: en el visor la impresión la dispara el botón.
-  const htmlVisor = html.replace(/<script>window\.onload=\(\)=>window\.print\(\)<\/script>/i, '');
+  const cssDoc = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
+  const cuerpo = ((html.match(/<body[^>]*>([\s\S]*)<\/body>/i) || [null, html])[1] || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '');
 
   const overlay = document.createElement('div');
   overlay.className = 'visor-doc';
@@ -5505,28 +5550,25 @@ function _mostrarDocumentoEnVisor(html) {
       <button class="btn btn-success" type="button" data-accion="imprimir">Descargar PDF</button>
       <button class="btn btn-secondary" type="button" data-accion="cerrar">Cerrar</button>
     </div>
-    <iframe class="visor-doc-marco"></iframe>`;
+    <div class="visor-doc-hoja"></div>`;
+
+  const estilo = document.createElement('style');
+  estilo.textContent = _scopearCss(cssDoc, '.visor-doc-hoja');
+  overlay.appendChild(estilo);
+  overlay.querySelector('.visor-doc-hoja').innerHTML = cuerpo;
+
   document.body.appendChild(overlay);
   document.body.classList.add('imprimiendo-doc');
-
-  const marco = overlay.querySelector('.visor-doc-marco');
-  marco.setAttribute('title', titulo);
-  marco.srcdoc = htmlVisor;
 
   overlay.querySelector('[data-accion="cerrar"]').onclick = () => {
     overlay.remove();
     document.body.classList.remove('imprimiendo-doc');
   };
   overlay.querySelector('[data-accion="imprimir"]').onclick = () => {
-    try {
-      // Imprimir el iframe deja fuera la barra y el resto de la app. Si el
-      // navegador ignora el iframe e imprime la página, el @media print de
-      // .visor-doc deja igualmente solo el documento.
-      marco.contentWindow.focus();
-      marco.contentWindow.print();
-    } catch (e) {
-      try { window.print(); } catch (e2) { alert('No se pudo abrir la impresión: ' + e.message); }
-    }
+    // El @media print deja solo la hoja: la barra y el resto de la app se
+    // ocultan, así que imprimir la página entrega justo el documento.
+    try { window.print(); }
+    catch (e) { alert('No se pudo abrir la impresión: ' + e.message); }
   };
 }
 
@@ -5706,7 +5748,7 @@ function addRow(tbodyId, tipo) {
       <td><input type="text" placeholder="Técnico"></td>
       ${tbodyId==='e_tbody_tareas' ? `<td style="text-align:center">
         <label style="cursor:pointer;font-size:15px" title="Adjuntar foto a esta tarea">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><input type="file" accept="image/*" capture="environment" style="display:none"
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><input type="file" accept="image/*" style="display:none"
             onchange="manejarSubidaFotoTarea(this)">
         </label>
       </td>` : ''}
@@ -12514,7 +12556,7 @@ function abrirModalNovedad(codigo) {
           <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Puedes agregar fotos/gráficas ya mismo, antes de guardar el informe. Cada una lleva su propio título y descripción.</div>
           <label style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:white;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:white"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto/gráfica
-            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="abrirFormFotoNovedad(this)">
+            <input type="file" accept="image/*" style="display:none" onchange="abrirFormFotoNovedad(this)">
           </label>
           <div id="nov_galeria_fotos"></div>
         </div>
@@ -13641,7 +13683,7 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   const fotosHtml = (fotosActividad || []).map(f => _htmlMiniaturaFotoCronograma(f, actividadId, fecha, editable)).join('');
   const botonCamara = editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px dashed var(--border);border-radius:6px;color:var(--text3)" title="Adjuntar foto">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-      <input type="file" accept="image/*" capture="environment" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
+      <input type="file" accept="image/*" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
     </label>` : '';
   // Una vez que ya hay una decisión guardada (realizada o no), tanto el
   // checkbox como el botón "No realizado" quedan bloqueados — no hay forma
