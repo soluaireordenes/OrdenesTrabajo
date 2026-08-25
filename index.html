@@ -17188,13 +17188,25 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       const horasActuales = horasDe(equipo);
 
       const filaEstado = estado.find(f => f.Equipo === equipo);
-      const baseHoras = filaEstado && filaEstado.UltimaGeneracionHoras !== '' ? Number(filaEstado.UltimaGeneracionHoras) : 0;
-      // Se genera solo al cumplir una marca DE ESTA frecuencia y solo si no
-      // se genero ya para esa misma marca.
+      const tieneBaseGuardada = !!(filaEstado && filaEstado.UltimaGeneracionHoras !== '' && filaEstado.UltimaGeneracionHoras !== undefined);
+      const baseHoras = tieneBaseGuardada ? Number(filaEstado.UltimaGeneracionHoras) : 0;
+      const horaBaseUsuario = horaBaseDe(equipo);
       const meta = _ultimaMarcaCumplida(horasActuales, marcas);
+
+      // Primera vez que el sistema ve este equipo y el usuario no le puso
+      // hora base: se SIEMBRA la base con las horas que ya trae y no se
+      // genera nada. Si no, un equipo que entra con 24.000 horas recibiria
+      // de entrada una orden por la ultima marca cumplida, de un
+      // mantenimiento que seguramente ya se hizo. El usuario puede luego
+      // corregir la hora base en Configuracion.
+      if (!tieneBaseGuardada && !horaBaseUsuario) {
+        if (meta !== null) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
+        continue;
+      }
+
       // Nunca por debajo de la hora base que definio el usuario, ni de la
       // ultima marca ya generada.
-      const desde = Math.max(baseHoras, horaBaseDe(equipo));
+      const desde = Math.max(baseHoras, horaBaseUsuario);
       if (meta === null || meta <= desde) continue;
 
       i++;
@@ -17217,7 +17229,15 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     }
   }
 
-  if (!nuevasOrdenes.length) return;
+  // La siembra de bases ocurre aunque no se genere ninguna orden, y hay
+  // que persistirla o se volveria a sembrar en cada inicio de sesion.
+  if (!nuevasOrdenes.length) {
+    if (Object.keys(cambiosEstado).length) {
+      try { await _actualizarFilasPorClaveEnLote(hojaEstado, colsEstado, 'Equipo', cambiosEstado); }
+      catch (e) { console.warn(`No se pudo sembrar la base del ${nombre}:`, e.message); }
+    }
+    return;
+  }
 
   try {
     nuevasOrdenes.forEach(o => allOrdenes.push(o));
