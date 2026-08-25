@@ -3312,7 +3312,15 @@ const VARIABLES_APARTADOS = [
       // el formulario del Cronograma).
       campos: (equipo) => esCompresorBaja(equipo) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS,
     } },
-  { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE },
+  { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE,
+    fuente: {
+      hoja:   () => SH.reporteSecadores,
+      colEquipo: 'Secador',
+      horas:  () => HORAS_REPORTE_SECADOR,
+      // Los HOC y los Friulair (y el de Emergencia, que usa el panel
+      // Friulair) miden cosas distintas en la misma hoja.
+      campos: (equipo) => esSecadorFriulair(equipo) ? REPORTE_SECADORES_CAMPOS_FRIULAIR : REPORTE_SECADORES_CAMPOS_GRAFICA,
+    } },
   { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
   { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA },
   { key: 'drycoolers',  label: 'Drycoolers',             lista: () => DRYCOOLERS_LISTA_REPORTE },
@@ -6780,6 +6788,32 @@ const REPORTE_SECADORES_CAMPOS_FRIULAIR = [
   { grupo: 'Horas', id: 'fhrs', label: 'HrS: Número total de horas', col: 'FHrS' },
   { grupo: 'Horas', id: 'fsrv', label: 'Srv: Horas hasta mantenimiento', col: 'FSrv' },
 ];
+/** Campos de un secador HOC para la seccion Variables. No es exactamente
+ *  el juego del formulario:
+ *
+ *  - Se agrega PA, que en el formulario es el unico campo opcional pero
+ *    aun asi es una variable con rango normal que interesa vigilar.
+ *  - Se agrega la torre derecha. El formulario guarda ahi CUATRO parametros
+ *    distintos (S1 Parallel, S3 Heating, S4 Cooling, S6 Standby) en la
+ *    misma columna, segun cual haya elegido el tecnico. Dibujarlos como una
+ *    sola linea mezclaria cuatro magnitudes distintas y daria una grafica
+ *    sin sentido, asi que se abre en una serie por parametro: cada una toma
+ *    el valor solo en las lecturas donde ese parametro fue el elegido, y
+ *    queda con huecos en las demas.
+ */
+const REPORTE_SECADORES_CAMPOS_GRAFICA = [
+  ...REPORTE_SECADORES_CAMPOS,
+  REPORTE_SECADORES_CAMPO_OPCIONAL,
+  { grupo: 'Torre derecha', id: 's0Adsorption', label: 'S0 Adsorption [min]', col: 'S0Adsorption' },
+  ...TORRE_DERECHA_PARAMETROS.map(par => ({
+    grupo: 'Torre derecha',
+    id: 'torreDer_' + par.replace(/\s+/g, ''),
+    label: par + ' [min] — torre derecha',
+    col: 'TorreDerechaValorSecundario',
+    valor: f => (f.TorreDerechaParametro || '').trim() === par ? f.TorreDerechaValorSecundario : '',
+  })),
+];
+
 /** true si el secador elegido usa el esquema Friulair (Friulair o Emergencia). */
 function esSecadorFriulair(secador) {
   return (secador || '').includes('Friulair') || (secador || '').includes('Emergencia');
@@ -9512,13 +9546,17 @@ function _variablesDibujar(contId, lecturas, campos, horas) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">`;
     campos.filter(c => c.grupo === grupo).forEach(campo => {
       const rango = _variablesParsearRango(campo.hint);
+      // Casi todos los campos leen su columna; los que definen `valor()`
+      // la calculan (la torre derecha de los HOC guarda 4 parametros
+      // distintos en la misma columna, ver los campos de secadores).
       const valores = lecturas.map(f => {
-        const v = parseFloat(String(f[campo.col] ?? '').replace(',', '.'));
+        const bruto = typeof campo.valor === 'function' ? campo.valor(f) : f[campo.col];
+        const v = parseFloat(String(bruto ?? '').replace(',', '.'));
         return isFinite(v) ? v : null;
       });
       const conDato = valores.filter(v => v !== null);
       const fuera = conDato.filter(v => _variablesFueraDeRango(v, rango)).length;
-      const canvasId = 'varChart_' + campo.col;
+      const canvasId = 'varChart_' + campo.id;
 
       const stats = conDato.length
         ? `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`
