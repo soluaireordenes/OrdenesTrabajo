@@ -10544,10 +10544,35 @@ async function pmGuardarHoraBase() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
   try {
     await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', cambios);
+
+    // Poner una hora base significa "recalcula desde aqui", asi que hay que
+    // reiniciar tambien el punto desde el que cuenta cada informe.
+    //
+    // Sin esto la hora base no serviria de nada en el caso mas comun: la
+    // primera vez que se abre la app, el sistema siembra la base de cada
+    // equipo con sus horas actuales; si despues el usuario pone una hora
+    // base ANTERIOR, la generacion toma el mayor de los dos y se queda con
+    // la sembrada, de modo que los mantenimientos que quedaron pendientes
+    // entre la hora base y hoy nunca se generarian.
+    const reinicios = {};
+    Object.entries(cambios).forEach(([equipo, v]) => {
+      if (v.HoraBaseInformes !== '') reinicios[equipo] = { UltimaGeneracionHoras: v.HoraBaseInformes };
+    });
+    if (Object.keys(reinicios).length) {
+      for (const { hoja, cols } of [
+        { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS },
+        { hoja: SH.informeSemestralEstado,  cols: INFORME_SEMESTRAL_ESTADO_COLS },
+        { hoja: SH.informeAnualEstado,      cols: INFORME_ANUAL_ESTADO_COLS },
+      ]) {
+        await asegurarHoja(hoja, cols);
+        await _actualizarFilasPorClaveEnLote(hoja, cols, 'Equipo', reinicios);
+      }
+    }
+
     await pmRenderHoraBase();
     const m2 = document.getElementById('pmHoraBaseMsg');
     m2.style.color = 'var(--success, #1e7e34)';
-    m2.textContent = 'Horas base guardadas.';
+    m2.textContent = 'Horas base guardadas. Recarga la página para que se generen las órdenes que hayan quedado pendientes.';
   } catch (e) {
     msg.style.color = 'var(--danger)';
     msg.textContent = 'No se pudo guardar: ' + e.message;
