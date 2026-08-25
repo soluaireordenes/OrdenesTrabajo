@@ -2475,6 +2475,7 @@ body.inv-activo .container { max-width: 1800px; }
       <button class="btn btn-ghost" onclick="showPanel('lista')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
       <button class="btn btn-ghost" onclick="imprimirOrden()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir / PDF</button>
       <button class="btn btn-ghost" onclick="descargarPDF()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
+      <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger);margin-left:auto" onclick="eliminarOrdenCompleta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Eliminar orden</button>
     </div>
     <div id="detalleContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:visible;min-height:100px;"></div>
   </div>
@@ -4644,6 +4645,7 @@ function cambiarOperacion(key) {
 let currentUser = { name: 'Cargando...', email: '', initials: '...' };
 let currentOrderId = null;
 let allOrdenes = [];
+let ordenDetalleId = null;   // orden abierta en el panel de detalle
 let isTeams = false;
 let sigPad = null;
 let isDrawing = false, drawCtx = null, drawCanvas = null;
@@ -8721,6 +8723,9 @@ async function verDetalle(id) {
   showPanel('detalle');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   const orden = allOrdenes.find(o => String(o.id) === String(id) || o.NumeroOrden === id) || {};
+  // Que orden se esta viendo — lo necesita el boton de eliminar, que hasta
+  // ahora no existia y por eso nadie habia tenido que registrarlo.
+  ordenDetalleId = id;
 
   function parseArr(val) {
     if (Array.isArray(val)) return val;
@@ -10177,6 +10182,60 @@ async function pmRenderRegistroHoras() {
  *  el predicado, indexando por los encabezados reales — de abajo hacia
  *  arriba en un solo batchUpdate para no desplazar índices a mitad de
  *  camino. Devuelve cuántas filas borró. */
+/** Elimina POR COMPLETO la orden que se esta viendo en el detalle: su
+ *  fila y todo lo que cuelga de ella (tareas, repuestos, insumos,
+ *  servicios y fotos), en Sheets y en el navegador.
+ *
+ *  Hasta ahora no habia forma de borrar una sola orden: lo unico que
+ *  existia borraba TODAS las automaticas de golpe, junto con las horas de
+ *  los equipos. Con la generacion automatica encendida hace falta poder
+ *  quitar una orden puntual —una duplicada, una creada por error— sin
+ *  arrasar con el resto.
+ *
+ *  Se pide confirmacion escribiendo el numero de la orden: es
+ *  irreversible y no es algo que deba pasar por un clic distraido.
+ */
+async function eliminarOrdenCompleta() {
+  const o = allOrdenes.find(x => String(x.id) === String(ordenDetalleId) || x.NumeroOrden === ordenDetalleId);
+  if (!o) { alert('No se encontró la orden que estás viendo.'); return; }
+
+  const num = o.NumeroOrden || o.id;
+  const escrito = prompt(
+    `Vas a ELIMINAR esta orden y todo lo que tiene dentro:\n\n` +
+    `  Número: ${num}\n` +
+    `  Equipo: ${o.Equipo || '—'}\n` +
+    `  Título: ${o.Title || '—'}\n` +
+    `  Estado: ${o.Estado || '—'}\n\n` +
+    `Se borran también sus tareas, repuestos, insumos, servicios y fotos.\n` +
+    `Esto NO se puede deshacer.\n\n` +
+    `Para confirmar, escribe el número de la orden:`
+  );
+  if (escrito === null) return;
+  if (escrito.trim() !== String(num)) {
+    alert('El número no coincide. No se eliminó nada.');
+    return;
+  }
+
+  try {
+    const esta = (fila) => fila.NumeroOrden === num;
+    for (const hoja of [SH.ordenes, SH.tareas, SH.repuestos, SH.insumos, SH.servicios, SH.fotos]) {
+      // Cada hoja por separado y sin cortar si una falla: es preferible
+      // quedar con un resto huerfano en una hoja auxiliar que dejar la
+      // orden a medio borrar y no saber cual quedo.
+      try { await eliminarFilasDondeCumple(hoja, esta); }
+      catch (e) { console.warn('No se pudo limpiar ' + hoja + ':', e.message); }
+    }
+    allOrdenes = allOrdenes.filter(x => x.NumeroOrden !== num && String(x.id) !== String(num));
+    guardarLocal();
+    alert(`Orden ${num} eliminada.`);
+    showPanel('pendientes');
+    renderPendientes();
+    actualizarContadorTab && actualizarContadorTab();
+  } catch (e) {
+    alert('No se pudo eliminar la orden: ' + e.message);
+  }
+}
+
 async function eliminarFilasDondeCumple(hoja, predicado) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
