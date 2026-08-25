@@ -10589,49 +10589,8 @@ async function pmRenderHoraBase() {
     </div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:14px">
       <button class="btn btn-primary" onclick="pmGuardarHoraBase()">Guardar horas base</button>
-      <button class="btn btn-ghost" onclick="pmGenerarOrdenesAhora()">Generar órdenes pendientes ahora</button>
       <span id="pmHoraBaseMsg" style="font-size:12px"></span>
     </div>`;
-}
-
-/** Dispara la revision de los tres informes en el momento, sin esperar al
- *  proximo inicio de sesion, y REPORTA el resultado.
- *
- *  Al arrancar la app esa revision corre en segundo plano y se traga los
- *  errores en la consola, asi que cuando una orden no aparecia no habia
- *  forma de saber si fallo, si no tocaba todavia o si simplemente la lista
- *  en pantalla se dibujo antes de que terminara. */
-async function pmGenerarOrdenesAhora() {
-  const msg = document.getElementById('pmHoraBaseMsg');
-  msg.style.color = 'var(--text3)';
-  msg.textContent = 'Revisando los tres informes…';
-  try {
-    const res = await Promise.all([
-      verificarInformeTrimestralYGenerar(),
-      verificarInformeSemestralYGenerar(),
-      verificarInformeAnualYGenerar(),
-    ]);
-    const creadas  = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
-    // Las tres frecuencias suelen fallar por lo mismo (la sede, el token),
-    // asi que se muestra cada motivo una sola vez.
-    const errores  = [...new Set(res.map(x => x && x.error).filter(Boolean))];
-    await pmRenderHoraBase();
-    const m2 = document.getElementById('pmHoraBaseMsg');
-    if (errores.length) {
-      m2.style.color = 'var(--danger)';
-      m2.textContent = 'No se pudieron generar: ' + errores.join(' · ');
-      return;
-    }
-    m2.style.color = creadas ? 'var(--success, #1e7e34)' : 'var(--text3)';
-    m2.textContent = creadas
-      ? `${creadas} ${creadas === 1 ? 'orden creada' : 'órdenes creadas'}. Búscalas en Pendientes.`
-      : 'No hay órdenes pendientes por generar: ningún equipo cruzó una marca nueva.';
-    // La lista de Pendientes pudo haberse dibujado antes de esto.
-    if (typeof renderPendientes === 'function') renderPendientes();
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = 'No se pudieron generar: ' + e.message;
-  }
 }
 
 async function pmGuardarHoraBase() {
