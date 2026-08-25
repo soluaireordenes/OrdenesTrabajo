@@ -9836,7 +9836,11 @@ async function pmRenderHorasMantenimiento() {
 
   // Eje de horas y "vida útil" de referencia, igual que en el Excel real.
   const PASO_HORAS = 2000;
-  const MAX_HORAS = 120000;
+  // 190.000 h es hasta donde llegan las tablas de horas del cliente. Ojo:
+  // las marcas verdes del Programa de Mantenimiento real solo están
+  // definidas hasta las 120.000 h, así que de ahí en adelante las columnas
+  // muestran la frecuencia que les toca pero todavía sin puntos programados.
+  const MAX_HORAS = 190000;
   const columnas = [];
   for (let h = PASO_HORAS; h <= MAX_HORAS; h += PASO_HORAS) columnas.push(h);
 
@@ -9912,9 +9916,9 @@ async function pmRenderHorasMantenimiento() {
   cont.innerHTML = `
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--text2)">
       <span><span style="display:inline-block;width:10px;height:10px;background:${VERDE_PUNTO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Punto de mantenimiento programado</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:${AMARILLO_TRI_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento trimestral (2k, 6k, 10k… cada 4.000 h)</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:${NARANJA_SEM_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento semestral (4k, 12k, 20k… cada 8.000 h)</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:${ROJO_ANU_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento anual (8k, 16k, 24k… cada 8.000 h)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${AMARILLO_TRI_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento trimestral</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${NARANJA_SEM_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento semestral</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${ROJO_ANU_TITULO};border-radius:2px;margin-right:4px;vertical-align:middle"></span>Horas de mantenimiento anual</span>
     </div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
       <table style="border-collapse:collapse;width:auto;font-size:12px">
