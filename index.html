@@ -10500,15 +10500,53 @@ async function pmRenderHoraBase() {
   try { horasEquipos = await cargarHorasEquipos(); }
   catch (e) { cont.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`; return; }
 
+  // Se leen tambien las hojas de estado para poder decir, equipo por
+  // equipo, que va a hacer el sistema. Sin esto, cuando no aparece una
+  // orden esperada no hay forma de saber si es porque no hay horas, porque
+  // la base esta mas adelante o porque ya se genero.
+  const estados = {};
+  for (const [key, def] of Object.entries({
+    trimestral: { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS },
+    semestral:  { hoja: SH.informeSemestralEstado,  cols: INFORME_SEMESTRAL_ESTADO_COLS },
+    anual:      { hoja: SH.informeAnualEstado,      cols: INFORME_ANUAL_ESTADO_COLS },
+  })) {
+    try {
+      await asegurarHoja(def.hoja, def.cols);
+      estados[key] = await leerHojaGenericaCacheada(def.hoja) || [];
+    } catch (_) { estados[key] = []; }
+  }
+
   const equipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
   const filas = equipos.map(eq => {
     const f = horasEquipos.find(x => x.Equipo === eq) || {};
     const actuales = f.HorasActuales === '' || f.HorasActuales === undefined ? null : Number(f.HorasActuales);
     const base = f.HoraBaseInformes === '' || f.HoraBaseInformes === undefined ? '' : f.HoraBaseInformes;
+
+    let estadoTxt, color = 'var(--text3)';
+    if (actuales === null || isNaN(actuales) || actuales <= 0) {
+      estadoTxt = 'Sin horas registradas — no puede generar nada';
+      color = '#b91c1c';
+    } else {
+      const pendientes = [], proximas = [];
+      for (const k of ['trimestral', 'semestral', 'anual']) {
+        const fe = (estados[k] || []).find(x => x.Equipo === eq);
+        const yaGenerada = fe && fe.UltimaGeneracionHoras !== '' && fe.UltimaGeneracionHoras !== undefined
+          ? Number(fe.UltimaGeneracionHoras) : null;
+        const desde = Math.max(yaGenerada ?? 0, Number(base) || 0);
+        const meta = _ultimaMarcaCumplida(actuales, INFORME_MARCAS[k]);
+        if (yaGenerada === null && !Number(base)) { proximas.push(`${k} ${_proximaMarca(actuales, INFORME_MARCAS[k]).toLocaleString('es-CO')} h`); continue; }
+        if (meta !== null && meta > desde) pendientes.push(`${k} (${meta.toLocaleString('es-CO')} h)`);
+        else proximas.push(`${k} ${_proximaMarca(Math.max(desde, meta ?? 0), INFORME_MARCAS[k]).toLocaleString('es-CO')} h`);
+      }
+      if (pendientes.length) { estadoTxt = 'Pendiente al recargar: ' + pendientes.join(', '); color = '#b45309'; }
+      else estadoTxt = 'Al día — próximas: ' + proximas.join(' · ');
+    }
+
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 10px;font-weight:600">${esc(eq)}</td>
       <td style="padding:8px 10px;color:var(--text3)">${actuales === null || isNaN(actuales) ? '—' : actuales.toLocaleString('es-CO') + ' h'}</td>
       <td style="padding:8px 10px"><input type="number" min="0" step="1" id="pmHB_${esc(eq).replace(/[^A-Za-z0-9]/g,'_')}" data-equipo="${esc(eq)}" class="form-control pm-hora-base" style="max-width:150px" value="${esc(String(base))}" placeholder="0"></td>
+      <td style="padding:8px 10px;font-size:11.5px;color:${color}">${esc(estadoTxt)}</td>
     </tr>`;
   }).join('');
 
@@ -10519,6 +10557,7 @@ async function pmRenderHoraBase() {
           <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Equipo</th>
           <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Horas actuales</th>
           <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Hora base</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Qué va a hacer el sistema</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
