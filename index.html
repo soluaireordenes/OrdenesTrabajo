@@ -4712,20 +4712,31 @@ window.addEventListener('load', async () => {
         verificarPlanesMantenimientoYGenerar().catch(e => console.warn('Planes de mantenimiento:', e.message));
       }
       if (GENERAR_ORDENES_INFORMES_POR_HORAS) {
-        // Se espera a que terminen las tres para volver a pintar Pendientes:
-        // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
-        // llegaban las ordenes nuevas, asi que no aparecian hasta la
-        // siguiente recarga y parecia que la generacion no funcionaba.
-        Promise.all([
-          verificarInformeTrimestralYGenerar().catch(e => { console.warn('Informe Cada Trimestral:', e.message); return null; }),
-          verificarInformeSemestralYGenerar().catch(e => { console.warn('Informe Cada Semestral:', e.message); return null; }),
-          verificarInformeAnualYGenerar().catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }),
-        ]).then(res => {
-          const creadas = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
-          if (creadas) {
-            renderPendientes();
-            actualizarContadorTab && actualizarContadorTab();
-          }
+        // Las hojas que van a leer los tres informes se traen de una vez:
+        // asi la revision completa cuesta 1 lectura en vez de 5.
+        _precargarHojasEnCache(
+          [SH.horasEquipos, SH.informeTrimestralEstado, SH.informeSemestralEstado, SH.informeAnualEstado, SH.informeActividades],
+          { [SH.horasEquipos]: HORAS_EQUIPOS_COLS,
+            [SH.informeTrimestralEstado]: INFORME_TRIMESTRAL_ESTADO_COLS,
+            [SH.informeSemestralEstado]: INFORME_SEMESTRAL_ESTADO_COLS,
+            [SH.informeAnualEstado]: INFORME_ANUAL_ESTADO_COLS,
+            [SH.informeActividades]: INFORME_ACTIVIDADES_COLS }
+        ).finally(() => {
+          // Se espera a que terminen las tres para volver a pintar Pendientes:
+          // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
+          // llegaban las ordenes nuevas, asi que no aparecian hasta la
+          // siguiente recarga y parecia que la generacion no funcionaba.
+          Promise.all([
+            verificarInformeTrimestralYGenerar().catch(e => { console.warn('Informe Cada Trimestral:', e.message); return null; }),
+            verificarInformeSemestralYGenerar().catch(e => { console.warn('Informe Cada Semestral:', e.message); return null; }),
+            verificarInformeAnualYGenerar().catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }),
+          ]).then(res => {
+            const creadas = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
+            if (creadas) {
+              renderPendientes();
+              actualizarContadorTab && actualizarContadorTab();
+            }
+          });
         });
       }
     });
@@ -7938,6 +7949,53 @@ function numToCol(n) {
   return s;
 }
 
+/** Lee VARIAS hojas en UNA sola peticion, con values:batchGet.
+ *
+ *  Google Sheets limita las lecturas a 60 por minuto POR USUARIO, y si
+ *  todos los tecnicos entran con la misma cuenta esas 60 se reparten entre
+ *  todos. Cargar las ordenes costaba 6 lecturas —Ordenes, Tareas,
+ *  Repuestos, Insumos, Servicios y Fotos— cada vez que alguien abria el
+ *  sistema; con batchGet cuesta 1.
+ *
+ *  Devuelve { hoja: filas[][] } con las filas crudas, encabezado incluido.
+ *  Si alguna hoja todavia no existe, batchGet rechaza la peticion entera,
+ *  asi que en ese caso se crean las que falten y se reintenta una vez.
+ */
+async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
+  const url = base + '/values:batchGet?'
+    + nombres.map(n => 'ranges=' + encodeURIComponent(n + '!A:ZZ')).join('&');
+
+  async function pedir() {
+    const r = await fetch(url, { headers: hdrs });
+    if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+    if (!r.ok) {
+      const t = await r.text();
+      let msg = 'Error ' + r.status;
+      try { msg = JSON.parse(t).error?.message || msg; } catch (_) {}
+      const err = new Error(msg); err.httpStatus = r.status; throw err;
+    }
+    const d = await r.json();
+    const out = {};
+    // batchGet devuelve los rangos en el mismo orden en que se pidieron.
+    (d.valueRanges || []).forEach((vr, i) => { out[nombres[i]] = vr.values || []; });
+    nombres.forEach(n => { if (!out[n]) out[n] = []; });
+    return out;
+  }
+
+  try {
+    return await pedir();
+  } catch (e) {
+    if (!/parse range|Unable to parse|not found/i.test(e.message) || !colsPorHoja) throw e;
+    // Alguna hoja no existe todavia (sede nueva): se crean y se reintenta.
+    for (const n of nombres) {
+      if (colsPorHoja[n]) { try { await asegurarHoja(n, colsPorHoja[n]); } catch (_) {} }
+    }
+    return await pedir();
+  }
+}
+
 async function cargarOrdenesDeSheets() {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
@@ -7980,15 +8038,37 @@ async function cargarOrdenesDeSheets() {
   // más abajo fallaría con "Unable to parse range" al pedirla. Se asegura
   // aquí (igual que ya se hace con Ordenes) para que SIEMPRE exista antes
   // de intentar leerla, sin importar si esta sede ya la usó o no.
-  const [hOrdenesHeaders, dOrden] = await Promise.all([
+  // Las SEIS hojas se leen en UNA sola peticion. Antes eran 6 lecturas
+  // sueltas por cada carga del sistema, y con el limite de 60 lecturas por
+  // minuto y por usuario —compartido si varios tecnicos entran con la
+  // misma cuenta— eso agotaba la cuota y el sistema empezaba a fallar con
+  // "Quota exceeded" al abrir cualquier reporte.
+  const HOJAS_ORDEN = [SH.ordenes, SH.tareas, SH.repuestos, SH.insumos, SH.servicios, SH.fotos];
+  const COLS_ORDEN = {
+    [SH.ordenes]: SHEETS_COLS, [SH.tareas]: TAREAS_COLS, [SH.repuestos]: REPUESTOS_COLS,
+    [SH.insumos]: INSUMOS_COLS, [SH.servicios]: SERVICIOS_COLS, [SH.fotos]: FOTOS_COLS,
+  };
+  const [hOrdenesHeaders, crudo] = await Promise.all([
     asegurarHoja(SH.ordenes, SHEETS_COLS),
-    fetch(base + '/values/' + encodeURIComponent(SH.ordenes + '!A:ZZ'), { headers: hdrs }).then(r => r.json()),
-    asegurarHoja(SH.servicios, SERVICIOS_COLS),
+    _leerVariasHojasEnUnaPeticion(HOJAS_ORDEN, COLS_ORDEN),
   ]);
   window._sheetsHeaders = hOrdenesHeaders;
-  if (!dOrden.values || dOrden.values.length < 2) return [];
-  const ordenCols = dOrden.values[0];
-  const ordenes = dOrden.values.slice(1).map((row, i) => {
+
+  // Mismo formato que devolvia leerHoja(): objetos con las columnas por nombre.
+  const aObjetos = (filas) => {
+    if (!filas || filas.length < 2) return [];
+    const cols = filas[0];
+    return filas.slice(1).map(row => {
+      const obj = {};
+      cols.forEach((c, j) => { obj[c] = row[j] || ''; });
+      return obj;
+    });
+  };
+
+  const filasOrden = crudo[SH.ordenes] || [];
+  if (filasOrden.length < 2) return [];
+  const ordenCols = filasOrden[0];
+  const ordenes = filasOrden.slice(1).map((row, i) => {
     const obj = { _row: i + 2 };
     ordenCols.forEach((c, j) => { obj[c] = row[j] || ''; });
     obj.id = obj.NumeroOrden || ('local-' + i);
@@ -8002,14 +8082,12 @@ async function cargarOrdenesDeSheets() {
     return obj;
   });
 
-  // Cargar tareas, repuestos, insumos, servicios, fotos en paralelo
-  const [tareasRows, repuestosRows, insumosRows, serviciosRows, fotosRows] = await Promise.all([
-    leerHoja(SH.tareas),
-    leerHoja(SH.repuestos),
-    leerHoja(SH.insumos),
-    leerHoja(SH.servicios),
-    leerHoja(SH.fotos)
-  ]);
+  // Ya vinieron en la misma peticion de arriba: solo hay que darles forma.
+  const tareasRows    = aObjetos(crudo[SH.tareas]);
+  const repuestosRows = aObjetos(crudo[SH.repuestos]);
+  const insumosRows   = aObjetos(crudo[SH.insumos]);
+  const serviciosRows = aObjetos(crudo[SH.servicios]);
+  const fotosRows     = aObjetos(crudo[SH.fotos]);
 
   // Indexar por NumeroOrden
   const idx = {};
@@ -16388,6 +16466,51 @@ async function leerHojaGenerica(nombre) {
 // pestañas deja de gastar cuota de lectura de Sheets.
 const _cacheLecturasHojas = {}; // { [hoja]: { data, timestamp } }
 const CACHE_LECTURAS_TTL_MS = 60000;
+
+/** Trae varias hojas en UNA peticion y las deja listas en la cache de
+ *  lecturas, para que los leerHojaGenericaCacheada() que vengan despues no
+ *  gasten una peticion cada uno.
+ *
+ *  Se usa al arrancar: los tres informes por horas leen sus hojas de
+ *  estado, las horas de los equipos y las actividades configuradas, y eso
+ *  sumado al resto del arranque acercaba al limite de 60 lecturas por
+ *  minuto y por usuario de Sheets — que ademas se reparte entre todos los
+ *  tecnicos si entran con la misma cuenta.
+ *
+ *  Si falla no pasa nada: cada quien hara su lectura como antes.
+ */
+async function _precargarHojasEnCache(nombres, colsPorHoja) {
+  const pendientes = nombres.filter(n => {
+    const c = _cacheLecturasHojas[n];
+    return !(c && (Date.now() - c.timestamp) < CACHE_LECTURAS_TTL_MS);
+  });
+  if (!pendientes.length) return;
+  let crudo;
+  try {
+    crudo = await _leerVariasHojasEnUnaPeticion(pendientes, colsPorHoja);
+  } catch (e) {
+    console.warn('No se pudieron precargar las hojas:', e.message);
+    return;
+  }
+  // Misma forma que devuelve _leerHojaGenerica, para que quien lea despues
+  // no note ninguna diferencia.
+  pendientes.forEach(nombre => {
+    const filas = crudo[nombre] || [];
+    let data = [];
+    if (filas.length >= 2) {
+      const cols = filas[0];
+      data = filas.slice(1).map((row, i) => {
+        const obj = { _row: i + 2 };
+        cols.forEach((c, j) => {
+          const val = row[j] || '';
+          if (obj[c] === undefined || val) obj[c] = val;
+        });
+        return obj;
+      });
+    }
+    _cacheLecturasHojas[nombre] = { data, timestamp: Date.now() };
+  });
+}
 
 async function leerHojaGenericaCacheada(nombre) {
   const c = _cacheLecturasHojas[nombre];
