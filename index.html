@@ -3300,7 +3300,18 @@ let operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === op
  *  boton y del id varSub-*, para que agregar un apartado sea tocar solo
  *  esta lista y el HTML del panel. */
 const VARIABLES_APARTADOS = [
-  { key: 'compresores', label: 'Compresores',            lista: () => COMPRESORES_LISTA_REPORTE },
+  { key: 'compresores', label: 'Compresores',            lista: () => COMPRESORES_LISTA_REPORTE,
+    // Fuente de datos para graficar el comportamiento de las variables.
+    // Los apartados que todavia no la tienen solo listan sus equipos.
+    fuente: {
+      hoja:   () => SH.reporteCompresores,
+      colEquipo: 'Compresor',
+      horas:  () => HORAS_REPORTE_COMPRESOR,
+      // Alta y Baja comparten hoja pero miden cosas distintas, asi que el
+      // juego de campos depende del equipo elegido (mismo criterio que usa
+      // el formulario del Cronograma).
+      campos: (equipo) => esCompresorBaja(equipo) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS,
+    } },
   { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE },
   { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
   { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA },
@@ -9345,6 +9356,38 @@ function _variablesRenderApartado(key) {
   const ap = VARIABLES_APARTADOS.find(a => a.key === key);
   const equipos = ap && typeof ap.lista === 'function' ? (ap.lista() || []) : [];
 
+  // Los apartados que ya tienen fuente de datos muestran el explorador de
+  // variables. Se pinta una sola vez: si se volviera a pintar en cada
+  // cambio de pestaña se borraria el equipo y las fechas ya elegidos.
+  if (ap && ap.fuente) {
+    if (cont.dataset.listo !== '1') {
+      cont.innerHTML = `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+          <div style="flex:2;min-width:220px">
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Equipo</label>
+            <select id="varEquipo-${key}" class="form-control">
+              ${equipos.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Desde</label>
+            <input type="date" id="varDesde-${key}" class="form-control">
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Hasta</label>
+            <input type="date" id="varHasta-${key}" class="form-control">
+          </div>
+          <button class="btn btn-primary" onclick="variablesGraficar('${key}')">Ver comportamiento</button>
+        </div>
+        <div id="varMsg-${key}" style="font-size:12px;min-height:16px;margin-bottom:6px"></div>
+        <div id="varGraficas-${key}" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          Elige un equipo y un rango de fechas para ver el comportamiento de sus variables.
+        </div>`;
+      cont.dataset.listo = '1';
+    }
+    return;
+  }
+
   if (!equipos.length) {
     cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">Todavía no hay equipos configurados para este apartado.</div>';
     return;
@@ -9373,6 +9416,199 @@ function _variablesRenderApartado(key) {
         <tbody>${filas}</tbody>
       </table>
     </div>`;
+}
+
+/** Interpreta el "rango normal" que ya viene escrito en el `hint` de cada
+ *  campo de los formularios de reporte ("Normal: 120–230", "Normal: menor
+ *  que 35", "Normal: ≤110"...). Sirve para marcar en la gráfica las
+ *  lecturas que se salen de lo esperado, sin tener que volver a escribir
+ *  los rangos en otro sitio.
+ *
+ *  Solo cuentan los rangos etiquetados como "Normal" (y los "Menor que X"
+ *  sueltos de otros formularios): "Ingresar entre 0 y 100" es un límite de
+ *  digitación del campo, no un rango sano de operación, y tomarlo como tal
+ *  marcaría como anómalo un valor perfectamente normal.
+ *
+ *  Devuelve {min?, max?} o null si el hint no describe un rango. */
+function _variablesParsearRango(hint) {
+  if (!hint) return null;
+  const t = String(hint).replace(/[–—]/g, '-').trim();
+  const m = t.match(/^Normal:\s*(.+)$/i);
+  const cuerpo = m ? m[1].trim() : (/^Menor que\s/i.test(t) ? t : null);
+  if (!cuerpo) return null;
+  const N = '(-?\\d+(?:[.,]\\d+)?)';
+  const num = x => parseFloat(String(x).replace(',', '.'));
+  let r;
+  if ((r = cuerpo.match(new RegExp('^' + N + '\\s*(?:-|a)\\s*' + N + '$', 'i'))))
+    return { min: num(r[1]), max: num(r[2]) };
+  if ((r = cuerpo.match(new RegExp('^(?:menor\\s+o\\s+igual\\s+que|menor\\s+que|≤|<=?)\\s*' + N + '$', 'i'))))
+    return { max: num(r[1]) };
+  if ((r = cuerpo.match(new RegExp('^(?:mayor\\s+o\\s+igual\\s+(?:que|a)|mayor\\s+(?:que|a)|≥|>=?)\\s*' + N + '$', 'i'))))
+    return { min: num(r[1]) };
+  return null;
+}
+
+function _variablesFueraDeRango(valor, rango) {
+  if (!rango || !isFinite(valor)) return false;
+  if (rango.min !== undefined && valor < rango.min) return true;
+  if (rango.max !== undefined && valor > rango.max) return true;
+  return false;
+}
+
+function _variablesTextoRango(rango) {
+  if (!rango) return '';
+  if (rango.min !== undefined && rango.max !== undefined) return `${rango.min} – ${rango.max}`;
+  if (rango.max !== undefined) return `≤ ${rango.max}`;
+  return `≥ ${rango.min}`;
+}
+
+// Instancias de Chart.js vivas del panel de Variables — hay que destruirlas
+// antes de volver a dibujar o se acumulan (una por variable y por render).
+let _variablesCharts = [];
+function _variablesDestruirCharts() {
+  _variablesCharts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _variablesCharts = [];
+}
+
+/** Ordena las lecturas cronológicamente. Los reportes traen Fecha y una
+ *  Hora de franja fija ("6:00 a.m.", "2:00 p.m."...), que como texto no
+ *  ordena bien: se traduce a su posición dentro de la lista de franjas. */
+function _variablesOrdenarLecturas(filas, horas) {
+  const orden = new Map((horas || []).map((h, i) => [h, i]));
+  return filas.slice().sort((a, b) => {
+    if (a.Fecha !== b.Fecha) return a.Fecha < b.Fecha ? -1 : 1;
+    return (orden.get(a.Hora) ?? 99) - (orden.get(b.Hora) ?? 99);
+  });
+}
+
+/** Dibuja una gráfica de línea por cada variable del equipo elegido, con
+ *  su rango normal sombreado y los puntos fuera de rango en rojo. */
+function _variablesDibujar(contId, lecturas, campos, horas) {
+  const cont = document.getElementById(contId);
+  if (!cont) return;
+  _variablesDestruirCharts();
+
+  if (!lecturas.length) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">No hay reportes de ese equipo en el rango de fechas elegido.</div>';
+    return;
+  }
+
+  const etiquetas = lecturas.map(f => {
+    const d = (f.Fecha || '').split('-');
+    return `${d[2] || ''}/${d[1] || ''} ${(f.Hora || '').replace(/:00\s*/, '').replace(/\s/g, '')}`;
+  });
+
+  // Una sección por grupo del formulario, conservando su orden original.
+  const grupos = [];
+  campos.forEach(c => { if (!grupos.includes(c.grupo)) grupos.push(c.grupo); });
+
+  let html = `<div style="color:var(--text3);font-size:12.5px;margin-bottom:14px">
+      ${lecturas.length} ${lecturas.length === 1 ? 'lectura' : 'lecturas'} · ${esc(lecturas[0].Fecha)} a ${esc(lecturas[lecturas.length - 1].Fecha)}
+    </div>`;
+  const porDibujar = [];
+
+  grupos.forEach(grupo => {
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">${esc(grupo)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">`;
+    campos.filter(c => c.grupo === grupo).forEach(campo => {
+      const rango = _variablesParsearRango(campo.hint);
+      const valores = lecturas.map(f => {
+        const v = parseFloat(String(f[campo.col] ?? '').replace(',', '.'));
+        return isFinite(v) ? v : null;
+      });
+      const conDato = valores.filter(v => v !== null);
+      const fuera = conDato.filter(v => _variablesFueraDeRango(v, rango)).length;
+      const canvasId = 'varChart_' + campo.col;
+
+      const stats = conDato.length
+        ? `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`
+        : 'sin datos';
+
+      html += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)">
+          <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px">${esc(campo.label)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">
+            ${stats}${rango ? ' · normal ' + esc(_variablesTextoRango(rango)) : ''}
+            ${fuera ? `<span style="color:#b91c1c;font-weight:700"> · ${fuera} fuera de rango</span>` : ''}
+          </div>
+          <div style="height:150px"><canvas id="${canvasId}"></canvas></div>
+        </div>`;
+      porDibujar.push({ canvasId, valores, rango, campo });
+    });
+    html += `</div>`;
+  });
+
+  cont.innerHTML = html;
+  if (typeof Chart === 'undefined') return;
+
+  porDibujar.forEach(({ canvasId, valores, rango }) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const colorPunto = valores.map(v => _variablesFueraDeRango(v, rango) ? '#b91c1c' : '#2f6fb2');
+    const datasets = [{
+      data: valores, borderColor: '#2f6fb2', backgroundColor: 'rgba(47,111,178,.10)',
+      borderWidth: 1.6, pointRadius: 2.5, pointBackgroundColor: colorPunto, pointBorderColor: colorPunto,
+      fill: true, tension: .25, spanGaps: true,
+    }];
+    // Los limites del rango normal se dibujan como lineas punteadas: asi se
+    // ve de un vistazo si la variable se esta acercando al limite, no solo
+    // si ya lo cruzo.
+    [['min', '#15803d'], ['max', '#b91c1c']].forEach(([clave, color]) => {
+      if (rango && rango[clave] !== undefined) datasets.push({
+        data: valores.map(() => rango[clave]), borderColor: color, borderWidth: 1,
+        borderDash: [4, 3], pointRadius: 0, fill: false,
+      });
+    });
+    _variablesCharts.push(new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels: etiquetas, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: { filter: it => it.datasetIndex === 0 } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
+        },
+      },
+    }));
+  });
+}
+
+/** Lee los reportes del apartado, filtra por equipo y rango de fechas y
+ *  manda a dibujar. Se apoya en la cache de lecturas de hojas, que ya se
+ *  invalida sola cuando se guarda un reporte nuevo. */
+async function variablesGraficar(key) {
+  const ap = VARIABLES_APARTADOS.find(a => a.key === key);
+  if (!ap || !ap.fuente) return;
+  const equipo = document.getElementById('varEquipo-' + key).value;
+  const desde  = document.getElementById('varDesde-' + key).value;
+  const hasta  = document.getElementById('varHasta-' + key).value;
+  const cont   = document.getElementById('varGraficas-' + key);
+  const msg    = document.getElementById('varMsg-' + key);
+
+  if (!equipo) { msg.style.color = 'var(--danger)'; msg.textContent = 'Elige un equipo.'; return; }
+  if (!desde || !hasta) { msg.style.color = 'var(--danger)'; msg.textContent = 'Elige la fecha desde y hasta.'; return; }
+  if (desde > hasta) { msg.style.color = 'var(--danger)'; msg.textContent = 'La fecha "desde" no puede ser posterior a la de "hasta".'; return; }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Cargando lecturas…';
+  _variablesDestruirCharts();
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">Cargando…</div>';
+
+  try {
+    const filas = await leerHojaGenericaCacheada(ap.fuente.hoja());
+    const col = ap.fuente.colEquipo;
+    const lecturas = _variablesOrdenarLecturas(
+      (filas || []).filter(f =>
+        (f[col] || '').trim() === equipo &&
+        f.Estado !== 'Eliminada' &&
+        f.Fecha >= desde && f.Fecha <= hasta),
+      ap.fuente.horas());
+    _variablesDibujar('varGraficas-' + key, lecturas, ap.fuente.campos(equipo), ap.fuente.horas());
+    msg.textContent = '';
+  } catch (e) {
+    cont.innerHTML = '';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'No se pudieron cargar las lecturas: ' + e.message;
+  }
 }
 
 function variablesMostrarSubTab(nombre) {
