@@ -10564,8 +10564,49 @@ async function pmRenderHoraBase() {
     </div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:14px">
       <button class="btn btn-primary" onclick="pmGuardarHoraBase()">Guardar horas base</button>
+      <button class="btn btn-ghost" onclick="pmGenerarOrdenesAhora()">Generar órdenes pendientes ahora</button>
       <span id="pmHoraBaseMsg" style="font-size:12px"></span>
     </div>`;
+}
+
+/** Dispara la revision de los tres informes en el momento, sin esperar al
+ *  proximo inicio de sesion, y REPORTA el resultado.
+ *
+ *  Al arrancar la app esa revision corre en segundo plano y se traga los
+ *  errores en la consola, asi que cuando una orden no aparecia no habia
+ *  forma de saber si fallo, si no tocaba todavia o si simplemente la lista
+ *  en pantalla se dibujo antes de que terminara. */
+async function pmGenerarOrdenesAhora() {
+  const msg = document.getElementById('pmHoraBaseMsg');
+  msg.style.color = 'var(--text3)';
+  msg.textContent = 'Revisando los tres informes…';
+  try {
+    const res = await Promise.all([
+      verificarInformeTrimestralYGenerar(),
+      verificarInformeSemestralYGenerar(),
+      verificarInformeAnualYGenerar(),
+    ]);
+    const creadas  = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
+    // Las tres frecuencias suelen fallar por lo mismo (la sede, el token),
+    // asi que se muestra cada motivo una sola vez.
+    const errores  = [...new Set(res.map(x => x && x.error).filter(Boolean))];
+    await pmRenderHoraBase();
+    const m2 = document.getElementById('pmHoraBaseMsg');
+    if (errores.length) {
+      m2.style.color = 'var(--danger)';
+      m2.textContent = 'No se pudieron generar: ' + errores.join(' · ');
+      return;
+    }
+    m2.style.color = creadas ? 'var(--success, #1e7e34)' : 'var(--text3)';
+    m2.textContent = creadas
+      ? `${creadas} ${creadas === 1 ? 'orden creada' : 'órdenes creadas'}. Búscalas en Pendientes.`
+      : 'No hay órdenes pendientes por generar: ningún equipo cruzó una marca nueva.';
+    // La lista de Pendientes pudo haberse dibujado antes de esto.
+    if (typeof renderPendientes === 'function') renderPendientes();
+  } catch (e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'No se pudieron generar: ' + e.message;
+  }
 }
 
 async function pmGuardarHoraBase() {
@@ -17204,7 +17245,7 @@ async function _resolverActividadesInforme(frecuencia, defaultsPorTipo) {
 }
 
 async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
-  if (operacionActual !== 'zipaquira') return;
+  if (operacionActual !== 'zipaquira') return { creadas: 0, sembradas: 0, error: 'Los informes por horas solo aplican a Zipaquirá (operación actual: ' + operacionActual + ').' };
 
   let horasEquipos, estado;
   try {
@@ -17212,7 +17253,10 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       cargarHorasEquipos(),
       asegurarHoja(hojaEstado, colsEstado).then(() => leerHojaGenericaCacheada(hojaEstado)),
     ]);
-  } catch (e) { console.warn(`No se pudo revisar el ${nombre}:`, e.message); return; }
+  } catch (e) {
+    console.warn(`No se pudo revisar el ${nombre}:`, e.message);
+    return { creadas: 0, sembradas: 0, error: e.message };
+  }
 
   // Los equipos sin fuente real de horas (Secadores/Dry Coolers/Tornillo,
   // por ahora) se tratan como 0 h — nunca cruzan el intervalo, así que no
@@ -17296,11 +17340,15 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
   // La siembra de bases ocurre aunque no se genere ninguna orden, y hay
   // que persistirla o se volveria a sembrar en cada inicio de sesion.
   if (!nuevasOrdenes.length) {
-    if (Object.keys(cambiosEstado).length) {
+    const sembradas = Object.keys(cambiosEstado).length;
+    if (sembradas) {
       try { await _actualizarFilasPorClaveEnLote(hojaEstado, colsEstado, 'Equipo', cambiosEstado); }
-      catch (e) { console.warn(`No se pudo sembrar la base del ${nombre}:`, e.message); }
+      catch (e) {
+        console.warn(`No se pudo sembrar la base del ${nombre}:`, e.message);
+        return { creadas: 0, sembradas: 0, error: e.message };
+      }
     }
-    return;
+    return { creadas: 0, sembradas, error: null };
   }
 
   try {
@@ -17319,10 +17367,16 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     ]);
     await appendHoja(SH.notificaciones, filasNotif);
   } catch (e) {
+    // Hasta ahora esto se quedaba solo en la consola: la orden aparecia en
+    // el navegador pero no en Sheets, y el estado no avanzaba, asi que el
+    // sistema decia "pendiente" indefinidamente sin explicar por que.
     console.warn(`No se pudieron guardar las órdenes automáticas del ${nombre}:`, e.message);
+    actualizarBadgeNotificaciones();
+    return { creadas: 0, sembradas: 0, error: e.message };
   }
 
   actualizarBadgeNotificaciones();
+  return { creadas: nuevasOrdenes.length, sembradas: 0, error: null };
 }
 
 function verificarInformeTrimestralYGenerar() {
