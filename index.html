@@ -6072,7 +6072,13 @@ const SHEETS_COLS = [
   'FechaInicio','FechaFin','MedidasSeguridad','Observaciones',
   'UserEmail','CostoTotal','FechaCierre','EjecutadoPor','TiempoReal',
   'CostoReal','ObsCierre','FechaCreacion','FirmaCreador','FirmaCierre','HorasEquipo',
-  'CreadaAutomaticamente','PlanId'
+  'CreadaAutomaticamente','PlanId',
+  // Identidad de una orden generada por un informe por horas:
+  // "frecuencia|equipo|marca". Es lo que evita crear la misma orden dos
+  // veces: antes solo se dependia de UltimaGeneracionHoras, y si el
+  // guardado fallaba a mitad de camino ese estado no avanzaba y en el
+  // siguiente arranque se creaba otra orden igual.
+  'OrigenInforme'
 ];
 const TAREAS_COLS    = ['NumeroOrden','#','Descripcion','TiempoReal','OK','Responsable','ObservacionCierre'];
 const REPUESTOS_COLS = ['NumeroOrden','#','Codigo','Nombre','Cantidad','Unidades','CostoUnitario','Subtotal'];
@@ -10424,6 +10430,10 @@ async function pmRenderHoraBase() {
     } catch (_) { estados[key] = []; }
   }
 
+  const ordenesAutomaticas = new Set(
+    (allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean)
+  );
+
   const equipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
   const filas = equipos.map(eq => {
     const f = horasEquipos.find(x => x.Equipo === eq) || {};
@@ -10443,7 +10453,11 @@ async function pmRenderHoraBase() {
         const desde = Math.max(yaGenerada ?? 0, Number(base) || 0);
         const meta = _ultimaMarcaCumplida(actuales, INFORME_MARCAS[k]);
         if (yaGenerada === null && !Number(base)) { proximas.push(`${k} ${_proximaMarca(actuales, INFORME_MARCAS[k]).toLocaleString('es-CO')} h`); continue; }
-        if (meta !== null && meta > desde) pendientes.push(`${k} (${meta.toLocaleString('es-CO')} h)`);
+        // Igual que la generacion, se mira tambien si la orden YA existe:
+        // si el estado no alcanzo a avanzar por un fallo, la orden puede
+        // estar creada y esta pantalla no debe seguir diciendo "pendiente".
+        const yaExiste = meta !== null && ordenesAutomaticas.has(k + '|' + eq + '|' + meta);
+        if (meta !== null && meta > desde && !yaExiste) pendientes.push(`${k} (${meta.toLocaleString('es-CO')} h)`);
         else proximas.push(`${k} ${_proximaMarca(Math.max(desde, meta ?? 0), INFORME_MARCAS[k]).toLocaleString('es-CO')} h`);
       }
       if (pendientes.length) { estadoTxt = 'Pendiente al recargar: ' + pendientes.join(', '); color = '#b45309'; }
@@ -17222,6 +17236,12 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     return isFinite(n) && n > 0 ? n : 0;
   }
 
+  // Identidades de las ordenes automaticas que ya existen. allOrdenes trae
+  // las de Google Sheets, que se cargan antes de esta revision.
+  const yaGeneradas = new Set(
+    (allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean)
+  );
+
   let i = 0;
   const nuevasOrdenes = [];
   const cambiosEstado = {};
@@ -17253,6 +17273,16 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       const desde = Math.max(baseHoras, horaBaseUsuario);
       if (meta === null || meta <= desde) continue;
 
+      // Segundo candado, independiente del estado: si ya existe una orden
+      // para esta frecuencia, este equipo y esta marca, no se crea otra.
+      // Sin esto, cualquier fallo despues de escribir la orden (por
+      // ejemplo al guardar sus tareas) dejaba el estado sin avanzar y el
+      // siguiente arranque creaba un duplicado — y asi cada vez, hasta que
+      // una corrida lograra terminar completa.
+      const origen = frecuencia + '|' + equipo + '|' + meta;
+      if (yaGeneradas.has(origen)) continue;
+      yaGeneradas.add(origen);
+
       i++;
       const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
       nuevasOrdenes.push({
@@ -17265,6 +17295,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
         FechaInicio: new Date().toISOString().split('T')[0],
         FechaCreacion: new Date().toISOString(),
         CreadaAutomaticamente: 'SI',
+        OrigenInforme: origen,
         tareas: actividades.map(a => ({ descripcion: a.descripcion ? a.actividad + ': ' + a.descripcion : a.actividad, ok: false })),
         repuestos: [], insumos: [],
         _metaHoras: meta,   // solo para el texto de la notificación
@@ -17290,10 +17321,25 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
   try {
     nuevasOrdenes.forEach(o => allOrdenes.push(o));
     guardarLocal();
-
     await guardarOrdenesEnSheetsEnLote(nuevasOrdenes);
-    await _actualizarFilasPorClaveEnLote(hojaEstado, colsEstado, 'Equipo', cambiosEstado);
+  } catch (e) {
+    console.warn(`No se pudieron guardar las órdenes automáticas del ${nombre}:`, e.message);
+    actualizarBadgeNotificaciones();
+    return { creadas: 0, sembradas: 0, error: e.message };
+  }
 
+  // El estado y las notificaciones van APARTE del guardado de la orden y
+  // cada uno en su propio try: son pasos posteriores, y que uno falle no
+  // debe impedir el otro ni dejar el estado a medias. Que la orden no se
+  // duplique ya no depende de que esto salga bien — de eso se encarga la
+  // marca OrigenInforme.
+  try {
+    await _actualizarFilasPorClaveEnLote(hojaEstado, colsEstado, 'Equipo', cambiosEstado);
+  } catch (e) {
+    console.warn(`No se pudo avanzar el estado del ${nombre}:`, e.message);
+  }
+
+  try {
     await asegurarHoja(SH.notificaciones, NOTIFICACIONES_COLS);
     const filasNotif = nuevasOrdenes.map(o => [
       'NOTIF-' + Date.now() + '-' + Math.floor(Math.random() * 1000) + '-' + o.NumeroOrden,
@@ -17303,12 +17349,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     ]);
     await appendHoja(SH.notificaciones, filasNotif);
   } catch (e) {
-    // Hasta ahora esto se quedaba solo en la consola: la orden aparecia en
-    // el navegador pero no en Sheets, y el estado no avanzaba, asi que el
-    // sistema decia "pendiente" indefinidamente sin explicar por que.
-    console.warn(`No se pudieron guardar las órdenes automáticas del ${nombre}:`, e.message);
-    actualizarBadgeNotificaciones();
-    return { creadas: 0, sembradas: 0, error: e.message };
+    console.warn(`No se pudo notificar la generación del ${nombre}:`, e.message);
   }
 
   actualizarBadgeNotificaciones();
