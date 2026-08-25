@@ -3300,11 +3300,11 @@ let operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === op
  *  boton y del id varSub-*, para que agregar un apartado sea tocar solo
  *  esta lista y el HTML del panel. */
 const VARIABLES_APARTADOS = [
-  { key: 'compresores', label: 'Compresores' },
-  { key: 'secadores',   label: 'Secadores' },
-  { key: 'emergencia',  label: 'Compresores Emergencia' },
-  { key: 'decorado',    label: 'Compresores Decorado' },
-  { key: 'drycoolers',  label: 'Drycoolers' },
+  { key: 'compresores', label: 'Compresores',            lista: () => COMPRESORES_LISTA_REPORTE },
+  { key: 'secadores',   label: 'Secadores',              lista: () => SECADORES_LISTA_REPORTE },
+  { key: 'emergencia',  label: 'Compresores Emergencia', lista: () => COMPRESORES_EMERGENCIA_LISTA },
+  { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA },
+  { key: 'drycoolers',  label: 'Drycoolers',             lista: () => DRYCOOLERS_LISTA_REPORTE },
 ];
 
 /** Variable de estado del panel: que apartado se esta viendo. Sirve para
@@ -9328,6 +9328,53 @@ function abrirInventario(opKey) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+/** Pinta la lista de equipos de un apartado de Variables.
+ *
+ *  Los equipos NO se escriben aquí: se leen de las mismas listas que ya
+ *  usan los formularios de reporte del Cronograma
+ *  (COMPRESORES_LISTA_REPORTE, SECADORES_LISTA_REPORTE, etc.), para que
+ *  agregar o renombrar un equipo en un solo sitio se refleje en los dos
+ *  lados y no puedan quedar desalineados.
+ *
+ *  Las variables de cada equipo todavía no están definidas, así que por
+ *  ahora cada fila deja el espacio listo y lo dice explícitamente en vez
+ *  de mostrar campos inventados. */
+function _variablesRenderApartado(key) {
+  const cont = document.getElementById('varContenido-' + key);
+  if (!cont) return;
+  const ap = VARIABLES_APARTADOS.find(a => a.key === key);
+  const equipos = ap && typeof ap.lista === 'function' ? (ap.lista() || []) : [];
+
+  if (!equipos.length) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">Todavía no hay equipos configurados para este apartado.</div>';
+    return;
+  }
+
+  const filas = equipos.map((equipo, i) => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 12px;color:var(--text3);font-size:12px;width:38px">${i + 1}</td>
+      <td style="padding:10px 12px;font-weight:600;color:var(--text)">${esc(equipo)}</td>
+      <td style="padding:10px 12px;color:var(--text3);font-size:12.5px">Sin variables definidas</td>
+    </tr>`).join('');
+
+  cont.innerHTML = `
+    <div style="color:var(--text3);font-size:12.5px;margin-bottom:10px">
+      ${equipos.length} ${equipos.length === 1 ? 'equipo' : 'equipos'} en ${esc(ap.label)}
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--surface2)">
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">#</th>
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Equipo</th>
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Variables</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+}
+
 function variablesMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-variables');
   if (!panel) return;
@@ -9339,6 +9386,7 @@ function variablesMostrarSubTab(nombre) {
   sub.classList.add('active');
   tab.classList.add('active');
   variablesApartadoActual = nombre;
+  _variablesRenderApartado(nombre);
   renderSidebarOperaciones();
 }
 
