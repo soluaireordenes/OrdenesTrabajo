@@ -1,17 +1,21 @@
 /* ══════════════════════════════════════════════════════════════════════
-   AGENTE DE WHATSAPP — Sistema Integral de Gestión (SolucionAIRE)
+   BOT DE WHATSAPP (SIN IA) — Sistema Integral de Gestión (SolucionAIRE)
 
-   Un operario le escribe al WhatsApp de la empresa y pregunta en lenguaje
-   normal por el inventario:
+   Un operario le escribe al WhatsApp de la empresa y consulta el
+   inventario con palabras sencillas:
 
-     "¿cuánto filtro de aire nos queda?"
-     "¿qué está por debajo del mínimo?"
-     "¿dónde están guardados los filtros de aceite?"
+     filtro de aire          → existencias, mínimo y ubicación
+     minimos                 → lo que hay que reponer
+     movimientos FIL-001     → últimas entradas y salidas
+     ayuda                   → qué se puede preguntar
 
-   Este script recibe el mensaje, verifica que el número esté registrado
-   como operario, le pasa la pregunta a Claude junto con las herramientas
-   que puede usar, ejecuta contra Google Sheets la que Claude escoja, y
-   devuelve la respuesta por WhatsApp.
+   No llama a ningún servicio de inteligencia artificial, así que no
+   cuesta nada de operación. A cambio, el operario escribe el nombre del
+   producto o una de esas tres palabras, en vez de preguntar libremente.
+
+   ⚠ ESTE ARCHIVO REEMPLAZA A Codigo.gs — no los pongas juntos en el mismo
+   proyecto de Apps Script. Los dos definen doPost() y doGet(), así que si
+   conviven se pisan entre ellos y el que quede de último manda.
 
    El stock se calcula con el MISMO método FIFO que usa la aplicación web
    (ver _agruparLotesFIFO en index.html), para que el número que da el bot
@@ -20,11 +24,11 @@
    ── CÓMO SE INSTALA ──────────────────────────────────────────────────
    1. script.google.com → Proyecto nuevo → pega este archivo.
    2. Configuración del proyecto → Propiedades del script → agrega:
-        CLAVE_CLAUDE       la clave de console.anthropic.com
         TOKEN_WHATSAPP     el token permanente de la API de WhatsApp
         ID_NUMERO_WHATSAPP el "Phone number ID" del panel de Meta
         TOKEN_VERIFICACION una palabra que tú inventes (ej. solucionaire2026)
       Van ahí y NO en el código: el código se puede compartir, las claves no.
+      (Esta versión NO necesita clave de Claude ni saldo de API.)
    3. Implementar → Nueva implementación → Aplicación web
         Ejecutar como: yo
         Quién tiene acceso: cualquier usuario
@@ -35,6 +39,9 @@
         Suscríbete al campo "messages".
    5. Escríbele al número desde un celular que esté registrado como
       operario en el sistema.
+
+   Antes de conectar nada, corre desde el editor las funciones de prueba
+   del final: probarLectura, probarOperario y probarRespuestas.
    ═══════════════════════════════════════════════════════════════════ */
 
 
@@ -44,12 +51,8 @@
 const HOJA_INVENTARIO = '1cqfk7gKRX4MfnHnPEZy7WGOunwT7kYLfJ14_W10Wh3s'; // Inventario Zipaquirá
 const HOJA_SISTEMA    = '1_gIoYzZIZeURojSemB5vTtSQ1k4vw4_YfN-G6AjtaYU'; // Órdenes Zipaquirá (hoja "Operarios")
 
-const MODELO_CLAUDE = 'claude-sonnet-5';
-
-// Cuántos mensajes atrás recuerda la conversación de cada operario. Sin
-// esto no se podría preguntar "¿y dónde está?" después de "¿cuánto queda
-// de X?" — el bot no sabría de qué se está hablando.
-const MENSAJES_DE_MEMORIA = 10;
+// Cuántos productos se listan cuando la búsqueda encuentra varios.
+const MAX_COINCIDENCIAS = 8;
 
 
 /* ══════════════════════════════════════════════
@@ -60,8 +63,7 @@ const MENSAJES_DE_MEMORIA = 10;
  *  URL es realmente tuya: manda un desafío y espera que se lo devuelvas. */
 function doGet(e) {
   const p = (e && e.parameter) || {};
-  const esperado = _propiedad('TOKEN_VERIFICACION');
-  if (p['hub.mode'] === 'subscribe' && p['hub.verify_token'] === esperado) {
+  if (p['hub.mode'] === 'subscribe' && p['hub.verify_token'] === _propiedad('TOKEN_VERIFICACION')) {
     return ContentService.createTextOutput(p['hub.challenge']);
   }
   return ContentService.createTextOutput('Token de verificación incorrecto.');
@@ -138,72 +140,6 @@ function _operarioDe(numero) {
 
 
 /* ══════════════════════════════════════════════
-   LAS HERRAMIENTAS QUE PUEDE USAR EL AGENTE
-══════════════════════════════════════════════ */
-
-const HERRAMIENTAS = [
-  {
-    name: 'buscar_producto',
-    description: 'Busca productos del inventario por nombre o código, aunque el texto '
-      + 'venga incompleto o con errores de tipeo. Úsala cuando no estés seguro del '
-      + 'código exacto, antes de consultar el stock. Devuelve código, nombre, unidad, '
-      + 'grupo, ubicación y proveedor de cada coincidencia.',
-    input_schema: {
-      type: 'object',
-      properties: { texto: { type: 'string', description: 'Parte del nombre o del código a buscar.' } },
-      required: ['texto'],
-    },
-  },
-  {
-    name: 'consultar_stock',
-    description: 'Devuelve las existencias actuales de un producto, su stock mínimo, '
-      + 'su unidad y dónde está guardado. Recibe el código exacto del producto.',
-    input_schema: {
-      type: 'object',
-      properties: { codigo: { type: 'string', description: 'Código exacto del producto.' } },
-      required: ['codigo'],
-    },
-  },
-  {
-    name: 'productos_bajo_minimo',
-    description: 'Lista los productos cuyas existencias están en o por debajo de su '
-      + 'stock mínimo, es decir, los que hay que reponer. No recibe parámetros.',
-    input_schema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'ultimos_movimientos',
-    description: 'Devuelve los últimos movimientos (entradas y salidas) de un producto, '
-      + 'con fecha, tipo, cantidad, quién lo movió y a qué equipo se destinó. Sirve para '
-      + 'responder cuándo entró algo o en qué se gastó.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        codigo: { type: 'string', description: 'Código exacto del producto.' },
-        cuantos: { type: 'integer', description: 'Cuántos movimientos traer (por defecto 5).' },
-      },
-      required: ['codigo'],
-    },
-  },
-];
-
-/** Ejecuta la herramienta que pidió Claude y devuelve el resultado como
- *  texto. Nunca lanza: si algo falla, el error viaja como respuesta para
- *  que el agente pueda explicárselo al operario en vez de quedarse mudo. */
-function _ejecutarHerramienta(nombre, args) {
-  try {
-    if (nombre === 'buscar_producto')      return JSON.stringify(_buscarProducto(args.texto));
-    if (nombre === 'consultar_stock')      return JSON.stringify(_consultarStock(args.codigo));
-    if (nombre === 'productos_bajo_minimo') return JSON.stringify(_bajoMinimo());
-    if (nombre === 'ultimos_movimientos')  return JSON.stringify(_ultimosMovimientos(args.codigo, args.cuantos));
-    return 'No existe una herramienta llamada ' + nombre;
-  } catch (err) {
-    console.error('Herramienta ' + nombre + ':', err);
-    return 'Error consultando los datos: ' + err.message;
-  }
-}
-
-
-/* ══════════════════════════════════════════════
    LECTURA DEL INVENTARIO
 
    Columnas, iguales a las de la aplicación web:
@@ -273,175 +209,234 @@ function _stockPorCodigo() {
   return stock;
 }
 
-function _buscarProducto(texto) {
-  const q = String(texto || '').trim().toLowerCase();
-  if (!q) return { encontrados: [] };
-  // Todas las palabras del texto tienen que aparecer, en cualquier orden:
-  // así "filtro nx200" encuentra "Filtro de aire NX200".
-  const palabras = q.split(/\s+/);
-  const encontrados = _productos().filter(p => {
-    const donde = (p.codigo + ' ' + p.nombre + ' ' + p.grupo).toLowerCase();
-    return palabras.every(w => donde.indexOf(w) !== -1);
-  });
-  return {
-    encontrados: encontrados.slice(0, 15),
-    hayMas: Math.max(0, encontrados.length - 15),
-  };
+/* Palabras que la gente escribe alrededor de lo que de verdad busca:
+   "cuánto queda de filtro de aire", "necesito filtro de aire", "filtro de
+   aire hay?". Sin IA que interprete la frase, se descartan y queda solo lo
+   que sirve para buscar. Quitarlas nunca hace perder resultados: la
+   búsqueda exige que TODAS las palabras aparezcan, así que menos palabras
+   es siempre igual o más permisivo. */
+const PALABRAS_DE_RELLENO = [
+  'cuanto', 'cuantos', 'cuanta', 'cuantas', 'queda', 'quedan', 'quedo',
+  'hay', 'tenemos', 'tengo', 'tiene', 'necesito', 'busco', 'buscar',
+  'stock', 'existencias', 'inventario', 'disponible', 'disponibles',
+  'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas',
+  'me', 'mi', 'por', 'para', 'favor', 'que', 'y', 'o', 'a', 'en',
+];
+
+/** Las palabras del mensaje que de verdad sirven para buscar. */
+function _palabrasDeBusqueda(texto) {
+  const todas = _normalizar(texto).split(/\s+/).filter(Boolean);
+  const utiles = todas.filter(w => PALABRAS_DE_RELLENO.indexOf(w) === -1);
+  // Si TODO era relleno ("cuánto hay"), es mejor buscar con lo que vino que
+  // no buscar nada: al menos el operario ve que no se encontró y por qué.
+  return utiles.length ? utiles : todas;
 }
 
-function _consultarStock(codigo) {
-  const buscado = String(codigo || '').trim().toUpperCase();
-  const producto = _productos().filter(p => p.codigo.toUpperCase() === buscado)[0];
-  if (!producto) return { error: 'No existe ningún producto con el código ' + codigo + '.' };
-  const cantidad = _stockPorCodigo()[buscado] || 0;
-  return {
-    codigo: producto.codigo,
-    nombre: producto.nombre,
-    existencias: cantidad,
-    unidad: producto.unidad,
-    stockMinimo: producto.stockMinimo,
-    porDebajoDelMinimo: producto.stockMinimo > 0 && cantidad <= producto.stockMinimo,
-    ubicacion: producto.ubicacion,
-    proveedor: producto.proveedor,
-  };
+/** Busca por código o por nombre. Todas las palabras útiles del texto
+ *  tienen que aparecer, en cualquier orden y sin importar tildes,
+ *  mayúsculas ni signos: así "aire nx200" encuentra "Filtro de aire
+ *  NX200", y "¿cuánto queda de filtro de aceite?" encuentra el de aceite. */
+function _buscarProducto(texto) {
+  const palabras = _palabrasDeBusqueda(texto);
+  if (!palabras.length) return [];
+  return _productos().filter(p => {
+    const donde = _normalizar(p.codigo + ' ' + p.nombre + ' ' + p.grupo);
+    return palabras.every(w => donde.indexOf(w) !== -1);
+  });
 }
 
 function _bajoMinimo() {
   const stock = _stockPorCodigo();
-  const criticos = _productos()
-    .map(p => ({
-      codigo: p.codigo, nombre: p.nombre, unidad: p.unidad,
-      existencias: stock[p.codigo.toUpperCase()] || 0,
-      stockMinimo: p.stockMinimo, proveedor: p.proveedor,
-    }))
-    .filter(p => p.stockMinimo > 0 && p.existencias <= p.stockMinimo)
+  return _productos()
+    .map(p => ({ producto: p, existencias: stock[p.codigo.toUpperCase()] || 0 }))
+    .filter(x => x.producto.stockMinimo > 0 && x.existencias <= x.producto.stockMinimo)
     // Primero lo más urgente. Se compara qué TAN corto está cada uno frente
     // a su propio mínimo, no la diferencia en unidades: quedarse en 0 de 1
     // aprieta más que tener 2 de 3, aunque a los dos les falte lo mismo.
-    .sort((a, b) => (a.existencias / a.stockMinimo) - (b.existencias / b.stockMinimo)
-                 || (a.existencias - a.stockMinimo) - (b.existencias - b.stockMinimo));
-  return { cuantos: criticos.length, productos: criticos.slice(0, 30) };
+    .sort((a, b) => (a.existencias / a.producto.stockMinimo) - (b.existencias / b.producto.stockMinimo)
+                 || (a.existencias - a.producto.stockMinimo) - (b.existencias - b.producto.stockMinimo));
 }
 
 function _ultimosMovimientos(codigo, cuantos) {
   const buscado = String(codigo || '').trim().toUpperCase();
-  const n = Math.min(Math.max(parseInt(cuantos, 10) || 5, 1), 20);
-  const suyos = _movimientos()
+  return _movimientos()
     .filter(f => String(f[0] || '').trim().toUpperCase() === buscado)
     .map(f => ({
-      fecha: _comoTexto(f[1]),
+      fecha: f[1],
       tipo: String(f[2] || '').trim(),
       cantidad: parseFloat(f[3]) || 0,
       responsable: String(f[6] || '').trim(),
       equipoDestino: String(f[7] || '').trim(),
-      observaciones: String(f[8] || '').trim(),
     }))
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  return { codigo: buscado, movimientos: suyos.slice(0, n) };
-}
-
-/** Las fechas de Sheets llegan como objeto Date; se pasan a texto para que
- *  viajen legibles dentro del JSON que ve el agente. */
-function _comoTexto(valor) {
-  if (valor instanceof Date) return Utilities.formatDate(valor, 'America/Bogota', 'yyyy-MM-dd');
-  return String(valor || '').trim();
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .slice(0, cuantos || 5);
 }
 
 
 /* ══════════════════════════════════════════════
-   EL AGENTE
+   INTERPRETAR LO QUE ESCRIBIÓ EL OPERARIO
+
+   Sin IA, la regla tiene que ser simple y perdonar de más: si el mensaje
+   no empieza por una palabra clave, se asume que es el nombre de un
+   producto. Así, en el caso más común —querer saber cuánto queda de algo—
+   el operario no tiene que aprenderse nada: escribe el nombre y ya.
 ══════════════════════════════════════════════ */
 
-function _instrucciones(nombreOperario) {
-  return 'Eres el asistente de inventario de SolucionAIRE en la planta de Zipaquirá. '
-    + 'Estás hablando por WhatsApp con ' + nombreOperario + ', que trabaja ahí.\n\n'
-    + 'Cómo responder:\n'
-    + '- En español, breve y directo. Es un chat de WhatsApp, no un informe: '
-    + 'dos o tres frases suelen bastar.\n'
-    + '- Nada de markdown ni tablas. Para enumerar, usa guiones.\n'
-    + '- Di siempre la cantidad con su unidad, y avisa cuando algo esté en el mínimo o por debajo.\n'
-    + '- Si la búsqueda devuelve varios productos parecidos, pregunta cuál es en vez de adivinar.\n'
-    + '- Si no encuentras el producto, dilo claro y sugiere cómo se llama en el sistema.\n'
-    + '- Responde solo con lo que devuelvan las herramientas. Si un dato no está, di que no lo tienes; '
-    + 'nunca inventes cantidades, códigos ni ubicaciones.\n'
-    + '- Solo puedes consultar. Si te piden registrar una entrada o salida, explica que eso se hace '
-    + 'desde el sistema, en la sección de Inventario.';
+/** Minúsculas y sin tildes, para poder comparar sin que importe cómo se
+ *  escribió. En un celular casi nadie pone las tildes. */
+function _normalizar(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    // \u0300-\u036f son las tildes y diéresis, que normalize('NFD') separa
+    // de su letra. Se escriben con el código y no con el carácter para que
+    // el archivo sobreviva a copiar y pegar sin dañarse.
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // Signos fuera: nadie escribe "¿cuánto hay?" pensando en el bot, y los
+    // signos nunca ayudan a encontrar nada.
+    .replace(/[¿?¡!.,;:()"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-/** Le pasa la conversación a Claude y le deja ejecutar las herramientas que
- *  necesite, hasta que responda con texto. El tope de vueltas evita que una
- *  pregunta rara deje al script dando vueltas hasta agotar su tiempo. */
-function _responderConAgente(nombreOperario, historial) {
-  let mensajes = historial.slice();
+function _interpretar(texto) {
+  const t = _normalizar(texto);
+  if (!t) return { comando: 'ayuda' };
 
-  for (let vuelta = 0; vuelta < 5; vuelta++) {
-    const respuesta = _llamarClaude(_instrucciones(nombreOperario), mensajes);
+  if (/^(ayuda|help|menu|hola|buenas|buenos dias|buenas tardes|buenas noches)$/.test(t)) {
+    return { comando: 'ayuda' };
+  }
+  if (/^(minimos|minimo|reponer|bajo minimo|bajos|criticos|faltantes|que falta)$/.test(t)) {
+    return { comando: 'minimos' };
+  }
+  const movs = t.match(/^(movimientos|movimiento|historial|ultimos)\s+(.+)$/);
+  if (movs) return { comando: 'movimientos', texto: movs[2] };
 
-    const usosDeHerramienta = (respuesta.content || []).filter(b => b.type === 'tool_use');
-    if (!usosDeHerramienta.length) {
-      const texto = (respuesta.content || [])
-        .filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-      return { texto: texto || 'No pude armar una respuesta. Intenta preguntarlo de otra forma.', mensajes: mensajes };
+  // Todo lo demás se toma como el nombre de un producto. El relleno
+  // ("cuánto queda de…") lo descarta después _palabrasDeBusqueda, así que
+  // aquí no hay que recortarle nada al texto.
+  return { comando: 'stock', texto: texto.trim() };
+}
+
+
+/* ══════════════════════════════════════════════
+   ARMAR LA RESPUESTA
+
+   Texto plano, pensado para leerse en un celular. WhatsApp pone en negrita
+   lo que va entre asteriscos, y eso es todo el formato que admite.
+══════════════════════════════════════════════ */
+
+function _responder(operario, texto) {
+  const orden = _interpretar(texto);
+  if (orden.comando === 'ayuda')       return _textoAyuda(operario);
+  if (orden.comando === 'minimos')     return _textoMinimos();
+  if (orden.comando === 'movimientos') return _textoMovimientos(orden.texto);
+  return _textoStock(orden.texto);
+}
+
+function _textoAyuda(operario) {
+  return 'Hola ' + operario + '. Puedo consultarte el inventario:\n\n'
+    + '• Escribe el *nombre o el código* de un producto y te digo cuánto queda.\n'
+    + '   Ejemplo: filtro de aire\n\n'
+    + '• *minimos* — lo que está por debajo del mínimo y hay que reponer.\n\n'
+    + '• *movimientos* seguido del producto — las últimas entradas y salidas.\n'
+    + '   Ejemplo: movimientos filtro de aire\n\n'
+    + 'Solo consulto. Para registrar entradas o salidas, usa el sistema.';
+}
+
+function _textoStock(texto) {
+  const encontrados = _buscarProducto(texto);
+  if (!encontrados.length) {
+    return 'No encontré ningún producto con "' + texto + '".\n\n'
+      + 'Prueba con menos palabras (por ejemplo solo "filtro"), '
+      + 'o escribe *ayuda* para ver qué puedo consultar.';
+  }
+
+  const stock = _stockPorCodigo();
+  const conStock = p => stock[p.codigo.toUpperCase()] || 0;
+
+  if (encontrados.length === 1) {
+    const p = encontrados[0];
+    const cantidad = conStock(p);
+    let msg = '*' + p.nombre + '* (' + p.codigo + ')\n'
+      + 'Quedan ' + _numero(cantidad) + ' ' + p.unidad;
+    if (p.stockMinimo > 0) msg += ' · mínimo ' + _numero(p.stockMinimo);
+    if (p.stockMinimo > 0 && cantidad <= p.stockMinimo) {
+      msg += '\n⚠ ' + (cantidad === 0 ? 'Agotado.' : 'Por debajo del mínimo.') + ' Hay que reponer.';
     }
-
-    mensajes.push({ role: 'assistant', content: respuesta.content });
-    mensajes.push({
-      role: 'user',
-      content: usosDeHerramienta.map(u => ({
-        type: 'tool_result',
-        tool_use_id: u.id,
-        content: _ejecutarHerramienta(u.name, u.input || {}),
-      })),
-    });
+    if (p.ubicacion) msg += '\nUbicación: ' + p.ubicacion;
+    if (p.proveedor) msg += '\nProveedor: ' + p.proveedor;
+    return msg;
   }
-  return { texto: 'La consulta se enredó más de la cuenta. ¿Puedes preguntármelo más puntual?', mensajes: mensajes };
-}
 
-function _llamarClaude(instrucciones, mensajes) {
-  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    contentType: 'application/json',
-    headers: {
-      'x-api-key': _propiedad('CLAVE_CLAUDE'),
-      'anthropic-version': '2023-06-01',
-    },
-    payload: JSON.stringify({
-      model: MODELO_CLAUDE,
-      max_tokens: 1024,
-      system: instrucciones,
-      tools: HERRAMIENTAS,
-      messages: mensajes,
-    }),
-    muteHttpExceptions: true,
-  });
-
-  const cuerpo = resp.getContentText();
-  if (resp.getResponseCode() !== 200) {
-    throw new Error('La API de Claude respondió ' + resp.getResponseCode() + ': ' + cuerpo);
+  const mostrados = encontrados.slice(0, MAX_COINCIDENCIAS);
+  let msg = 'Encontré ' + encontrados.length + ' productos con "' + texto + '":\n\n'
+    + mostrados.map(p => {
+        const cantidad = conStock(p);
+        const alerta = p.stockMinimo > 0 && cantidad <= p.stockMinimo ? ' ⚠' : '';
+        return '• *' + p.nombre + '* (' + p.codigo + '): ' + _numero(cantidad) + ' ' + p.unidad + alerta;
+      }).join('\n');
+  if (encontrados.length > mostrados.length) {
+    msg += '\n\n…y ' + (encontrados.length - mostrados.length) + ' más. Afina la búsqueda para verlos.';
   }
-  return JSON.parse(cuerpo);
+  msg += '\n\nPara el detalle de uno, escríbeme su código.';
+  return msg;
 }
 
+function _textoMinimos() {
+  const criticos = _bajoMinimo();
+  if (!criticos.length) return 'Todo el inventario está por encima del mínimo. Nada por reponer.';
 
-/* ══════════════════════════════════════════════
-   MEMORIA DE LA CONVERSACIÓN
-
-   Guardada por número, y se olvida sola a la hora de inactividad: una
-   conversación de ayer no debe ensuciar la pregunta de hoy.
-══════════════════════════════════════════════ */
-
-function _historialDe(numero) {
-  const guardado = CacheService.getScriptCache().get('chat_' + numero);
-  return guardado ? JSON.parse(guardado) : [];
+  const mostrados = criticos.slice(0, 20);
+  let msg = criticos.length === 1
+    ? 'Hay 1 producto por reponer:\n\n'
+    : 'Hay ' + criticos.length + ' productos por reponer:\n\n';
+  msg += mostrados.map(x =>
+    '• *' + x.producto.nombre + '* (' + x.producto.codigo + '): '
+    + _numero(x.existencias) + ' de ' + _numero(x.producto.stockMinimo) + ' ' + x.producto.unidad
+    + (x.producto.proveedor ? ' — ' + x.producto.proveedor : '')
+  ).join('\n');
+  if (criticos.length > mostrados.length) {
+    msg += '\n\n…y ' + (criticos.length - mostrados.length) + ' más.';
+  }
+  return msg;
 }
 
-function _guardarHistorial(numero, mensajes) {
-  // Solo se conservan los últimos turnos, y sin los bloques de herramientas:
-  // lo que importa para el hilo es qué se preguntó y qué se respondió.
-  const limpio = mensajes
-    .filter(m => typeof m.content === 'string')
-    .slice(-MENSAJES_DE_MEMORIA);
-  CacheService.getScriptCache().put('chat_' + numero, JSON.stringify(limpio), 3600);
+function _textoMovimientos(texto) {
+  const encontrados = _buscarProducto(texto);
+  if (!encontrados.length) {
+    return 'No encontré ningún producto con "' + texto + '".';
+  }
+  if (encontrados.length > 1) {
+    return 'Hay ' + encontrados.length + ' productos con "' + texto + '". '
+      + 'Dime cuál con su código:\n\n'
+      + encontrados.slice(0, MAX_COINCIDENCIAS)
+          .map(p => '• *' + p.nombre + '* (' + p.codigo + ')').join('\n');
+  }
+
+  const p = encontrados[0];
+  const movs = _ultimosMovimientos(p.codigo, 5);
+  if (!movs.length) return '*' + p.nombre + '* (' + p.codigo + ') no tiene movimientos registrados.';
+
+  return 'Últimos movimientos de *' + p.nombre + '* (' + p.codigo + '):\n\n'
+    + movs.map(m => {
+        let linea = '• ' + _fecha(m.fecha) + ' ' + m.tipo + ' ' + _numero(m.cantidad) + ' ' + p.unidad;
+        if (m.equipoDestino) linea += ' → ' + m.equipoDestino;
+        if (m.responsable) linea += ' (' + m.responsable + ')';
+        return linea;
+      }).join('\n');
+}
+
+/** Sin decimales cuando no hacen falta: "4" se lee mejor que "4.0". */
+function _numero(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return String(v);
+}
+
+function _fecha(valor) {
+  if (valor instanceof Date) return Utilities.formatDate(valor, 'America/Bogota', 'dd/MM/yyyy');
+  const t = String(valor || '').trim();
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return iso ? iso[3] + '/' + iso[2] + '/' + iso[1] : t;
 }
 
 
@@ -460,21 +455,14 @@ function _atender(numero, texto) {
     return;
   }
 
-  const historial = _historialDe(numero);
-  historial.push({ role: 'user', content: texto });
-
   let respuesta;
   try {
-    respuesta = _responderConAgente(operario, historial);
+    respuesta = _responder(operario, texto);
   } catch (err) {
     console.error('_atender:', err);
-    _enviarWhatsApp(numero, 'Tuve un problema consultando el sistema. Vuelve a intentarlo en un momento.');
-    return;
+    respuesta = 'Tuve un problema consultando el inventario. Vuelve a intentarlo en un momento.';
   }
-
-  historial.push({ role: 'assistant', content: respuesta.texto });
-  _guardarHistorial(numero, historial);
-  _enviarWhatsApp(numero, respuesta.texto);
+  _enviarWhatsApp(numero, respuesta);
 }
 
 
@@ -541,8 +529,7 @@ function probarLectura() {
       + (stock[p.codigo.toUpperCase()] || 0) + ' ' + p.unidad
       + ' (mínimo ' + p.stockMinimo + ')');
   });
-  const criticos = _bajoMinimo();
-  console.log('Productos bajo el mínimo: ' + criticos.cuantos);
+  console.log('Productos bajo el mínimo: ' + _bajoMinimo().length);
 }
 
 /** Comprueba que un número queda reconocido como operario. Cambia el
@@ -552,12 +539,15 @@ function probarOperario() {
   console.log(numero + ' → ' + (_operarioDe(numero) || 'NO está registrado'));
 }
 
-/** Prueba el agente completo SIN pasar por WhatsApp: hace la pregunta y
- *  escribe la respuesta en el registro. Ideal para afinar el tono y las
- *  herramientas antes de conectar nada. */
-function probarAgente() {
-  const pregunta = '¿qué productos están por debajo del mínimo?';
-  const r = _responderConAgente('Alex Prieto', [{ role: 'user', content: pregunta }]);
-  console.log('Pregunta:  ' + pregunta);
-  console.log('Respuesta: ' + r.texto);
+/** Escribe en el registro las respuestas EXACTAS que daría el bot a varias
+ *  preguntas, sin pasar por WhatsApp. Cambia los textos por productos que
+ *  existan en tu inventario y revisa cómo se leen. */
+function probarRespuestas() {
+  const pruebas = ['ayuda', 'filtro', 'minimos', 'movimientos filtro de aire', 'asdfgh'];
+  pruebas.forEach(t => {
+    console.log('════════════════════════════════');
+    console.log('El operario escribe: ' + t);
+    console.log('--------------------------------');
+    console.log(_responder('Alex Prieto', t));
+  });
 }
