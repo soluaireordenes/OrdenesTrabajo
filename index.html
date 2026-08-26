@@ -36,6 +36,11 @@
   --warn:        #d9663f;   /* rechazado — más terroso que rojo puro (se conserva: es color de estado) */
   --pending:     #8a8785;
   --surface:     #ffffff;
+  /* Gris muy suave para franjas alternas de tablas, encabezados de tabla
+     compacta y pestañas activas. Estaba en uso en cuatro reglas pero nunca
+     se había definido, así que esas reglas no pintaban nada: la tabla de
+     inventario salía sin encabezado gris y las filas sin franjas. */
+  --surface2:    #f2f5f9;
   --bg:          #f6f8fb;   /* fondo general muy claro, casi blanco */
   --border:      #e6eaf1;
   --text:        #2b2e33;
@@ -385,6 +390,13 @@ body.inv-activo .container { max-width: 1800px; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
+  /* Casi todos los encabezados que llevan filtros o un botón al lado son
+     flex, y la mayoría ya traía "flex-wrap:wrap" escrito a mano. A los que
+     se quedaron sin él se les salía el botón de la tarjeta en el celular
+     —Proveedores era uno—, así que ahora envuelven todos. En un encabezado
+     que no es flex, estas dos declaraciones no hacen nada. */
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .card-body { padding: 18px; }
 
@@ -776,6 +788,99 @@ body.inv-activo .container { max-width: 1800px; }
   .pend-item, .done-item { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
   .item-actions { width: 100%; }
   .item-actions .btn { flex: 1 1 0; min-width: 96px; justify-content: center; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   CELULAR: TABLAS APILADAS
+
+   Las tablas del sistema se pensaron para escritorio. .ie-table llega a
+   pedir 980px de ancho y las de la orden nueva reparten hasta seis
+   columnas de campos. En un celular de 393px eso se veía cortado —solo
+   asomaba la primera columna y el resto quedaba fuera de la pantalla— o
+   con seis casillas de 40px imposibles de llenar.
+
+   Aquí cada fila se vuelve una tarjeta y cada celda un par
+   "rótulo: valor". El rótulo lo pone _rotularCeldasDeTablas() copiándolo
+   del <thead> de la propia tabla, de modo que esto sirve para cualquier
+   tabla del sistema sin tener que tocar las funciones que las dibujan.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  .tabla-apilada { display: block; width: 100%; min-width: 0; }
+  .tabla-apilada thead { display: none; }
+  .tabla-apilada tbody { display: block; }
+  .tabla-apilada tr {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  /* Las franjas alternas y el resaltado al pasar por encima son de la
+     versión de escritorio: entre tarjetas separadas solo ensucian. */
+  .tabla-apilada tr:nth-child(even) td,
+  .tabla-apilada tr:hover td { background: transparent; }
+  .tabla-apilada td {
+    display: block;
+    width: auto;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: normal;
+  }
+  .tabla-apilada tr td:last-child { border-bottom: 0; }
+  /* Varias de estas tablas traen la alineación escrita en el atributo
+     style de cada celda —las cantidades y los pesos van a la derecha—, y
+     un valor pegado al borde derecho con su rótulo a la izquierda no se
+     lee como un par. Apilada, todo empieza en el mismo margen. */
+  .tabla-apilada td[data-rotulo] { text-align: left !important; }
+  .tabla-apilada td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    display: block;
+    margin-bottom: 3px;
+    font-size: 10px; font-weight: 700; letter-spacing: .5px;
+    text-transform: uppercase; color: var(--text3);
+  }
+  /* La primera celda es la identidad de la fila —el equipo, el producto,
+     el proveedor—, así que hace de título de la tarjeta. En las tablas de
+     campos no aplica: ahí la primera celda es un input como los demás. */
+  .ie-table.tabla-apilada tr td:first-child,
+  .inv-table.tabla-apilada tr td:first-child {
+    background: var(--surface2);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  /* Una celda vacía, o la del botón de quitar, no merece una línea propia
+     con su rótulo encima. */
+  .tabla-apilada td:empty { display: none; }
+  .tabla-apilada td:not([data-rotulo]) { text-align: right; }
+  /* Las filas de "no hay datos" abarcan todas las columnas: no
+     corresponden a ningún encabezado y van sin rótulo ni fondo. */
+  .ie-table.tabla-apilada tr td[colspan],
+  .inv-table.tabla-apilada tr td[colspan] {
+    background: transparent; font-weight: 400; font-size: 13px; text-align: left;
+  }
+}
+
+/* ══ Celular: rejillas de dos y tres columnas ══════════════════════════
+   .grid-2/.grid-4 ya se apilaban solas, pero varias secciones traían la
+   rejilla escrita a mano en el atributo style y esas nunca se enteraron
+   del celular: las dos gráficas del panel principal quedaban en tarjetas
+   de 173px y los tres campos de tiempos de una novedad en casillas donde
+   no cabía ni el rótulo. Estas clases hacen lo mismo que .grid-2 pero con
+   sus proporciones, y se apilan igual. */
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-2-desigual { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; }
+@media(max-width:720px) {
+  .grid-3, .grid-2-desigual { grid-template-columns: 1fr; }
+  /* Ficha de detalle de una orden: dos columnas de 180px dejaban el
+     rótulo y el valor peleando por el mismo renglón. */
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-field { border-right: none; }
+  /* Actividades de un plan de mantenimiento: nombre, descripción y el
+     botón de quitar, uno debajo del otro. */
+  .pm-act-fila { grid-template-columns: 1fr !important; }
 }
 
 /* ── Section counter badge ── */
@@ -1506,7 +1611,7 @@ body.inv-activo .container { max-width: 1800px; }
     </div>
 
     <!-- Fila de gráficas 1 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="grid-2" style="gap:16px;margin-bottom:16px">
       <div class="card">
         <div class="card-head">Órdenes por Tipo de Mantenimiento</div>
         <div class="card-body" style="padding:16px">
@@ -1522,7 +1627,7 @@ body.inv-activo .container { max-width: 1800px; }
     </div>
 
     <!-- Fila de gráficas 2 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="grid-2" style="gap:16px;margin-bottom:16px">
       <div class="card">
         <div class="card-head">Costos por Tipo de Mantenimiento</div>
         <div class="card-body" style="padding:16px">
@@ -2630,7 +2735,7 @@ body.inv-activo .container { max-width: 1800px; }
             <div style="font-size:12px;color:var(--text3)">Valor Insumos</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px">
+        <div class="grid-2-desigual" style="gap:16px">
           <div class="card" style="margin:0">
             <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Actividad Reciente <span style="font-weight:400;text-transform:none;opacity:.8">· últimos 10 movimientos</span></div>
             <div style="padding:0;overflow-x:auto;max-height:320px" id="invActividadReciente"><div style="padding:14px;color:var(--text3);font-size:13px">Cargando…</div></div>
@@ -4807,9 +4912,66 @@ function cerrarSesion() {
 }
 
 /* ══════════════════════════════════════════════
+   TABLAS LEGIBLES EN CELULAR
+
+   El CSS de .tabla-apilada convierte cada fila en una tarjeta con pares
+   "rótulo: valor", y el rótulo sale de aquí: se copia del <thead> de la
+   propia tabla.
+
+   Se hace en un solo lugar, mirando lo que se va dibujando, en vez de
+   dentro de cada función que arma una tabla: son más de veinte, y encima
+   hay filas que se agregan sobre la marcha (los repuestos de una orden
+   nueva, por ejemplo). Así ninguna se queda por fuera, ni las que se
+   agreguen después.
+══════════════════════════════════════════════ */
+const TABLAS_APILABLES = 'table.ie-table, table.inv-table, table.dyn-table, table.tabla-datos';
+
+function _rotularCeldasDeTablas(raiz) {
+  (raiz || document).querySelectorAll(TABLAS_APILABLES).forEach(tabla => {
+    // Los PDF y los informes que se abren en el visor son documentos para
+    // imprimir en hoja carta, no pantallas: ahí una tabla apilada estaría
+    // fuera de lugar y además se llevaría el formato del papel.
+    if (tabla.closest('.visor-doc')) return;
+    const filaEncabezado = tabla.querySelector('thead tr');
+    if (!filaEncabezado) return;
+    const rotulos = Array.from(filaEncabezado.children).map(th => th.textContent.trim());
+    tabla.classList.add('tabla-apilada');
+    tabla.querySelectorAll('tbody tr').forEach(fila => {
+      const celdas = Array.from(fila.children);
+      // Una fila con una celda que abarca varias columnas no es una fila de
+      // datos: es un total o un "no hay nada registrado". Sus celdas no
+      // corresponden a ningún encabezado, así que van todas sin rótulo.
+      if (celdas.some(c => c.colSpan > 1)) return;
+      celdas.forEach((celda, i) => {
+        if (celda.hasAttribute('data-rotulo')) return;
+        if (rotulos[i]) celda.setAttribute('data-rotulo', rotulos[i]);
+      });
+    });
+  });
+}
+
+/** Vigila lo que se dibuja en la página para rotular cada tabla nueva.
+ *  Solo mira si se agregaron o quitaron elementos (childList), no los
+ *  atributos, de modo que poner los rótulos no vuelve a despertarlo. */
+function _vigilarTablasParaCelular() {
+  let pendiente = false;
+  new MutationObserver(() => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(() => { pendiente = false; _rotularCeldasDeTablas(); });
+  }).observe(document.body, { childList: true, subtree: true });
+  _rotularCeldasDeTablas();
+}
+
+/* ══════════════════════════════════════════════
    INICIALIZACIÓN
 ══════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
+  // Antes de cualquier otra cosa, y aunque todavía no se haya entrado:
+  // las tablas se dibujan después del login y todas tienen que quedar
+  // rotuladas para poder apilarse en el celular.
+  _vigilarTablasParaCelular();
+
   // Verificar sesión guardada (login por Documento + PIN — ver
   // loginConDocumentoPinClick()). El token en sí no viene de un OAuth
   // propio del operario: lo entrega el Apps Script tras validar su
@@ -9182,7 +9344,7 @@ async function verDetalle(id) {
   // ── Tareas ──
   html += '<div class="detail-section"><div class="detail-section-title">Tareas a Ejecutar</div>';
   if (tareas.length) {
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<thead><tr style="background:linear-gradient(90deg, var(--brand) 0%, #1a4a8a 100%)">';
     html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Descripción</th>';
     html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">T. Real</th>';
@@ -9226,7 +9388,7 @@ async function verDetalle(id) {
   html += '<div class="detail-section"><div class="detail-section-title">Repuestos Requeridos</div>';
   if (repuestos.length) {
     var totalRep = repuestos.reduce(function(s,r){ return s + (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<thead><tr style="background:var(--brand-light)">';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
@@ -9259,7 +9421,7 @@ async function verDetalle(id) {
   html += '<div class="detail-section"><div class="detail-section-title">Insumos Requeridos</div>';
   if (insumos.length) {
     var totalIns = insumos.reduce(function(s,i){ return s + (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<thead><tr style="background:var(--brand-light)">';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
@@ -9292,7 +9454,7 @@ async function verDetalle(id) {
   html += '<div class="detail-section"><div class="detail-section-title">Servicios Requeridos</div>';
   if (servicios.length) {
     var totalServ = servicios.reduce(function(s,sv){ return s + (Number(sv.cantidad||0) * Number(sv.costoUnitario||sv.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<thead><tr style="background:var(--brand-light)">';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
     html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
@@ -9670,7 +9832,7 @@ async function cargarDashboard() {
     } else {
       const totalGeneral = equiposSorted.reduce((s,x) => s + x.total, 0);
       tablaDiv.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:var(--brand-light);color:var(--brand)">
               <th style="padding:10px 16px;text-align:left;font-weight:600">Equipo / Activo</th>
@@ -10036,7 +10198,7 @@ function _variablesRenderApartado(key) {
       ${equipos.length} ${equipos.length === 1 ? 'equipo' : 'equipos'} en ${esc(ap.label)}
     </div>
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="background:var(--surface2)">
             <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">#</th>
@@ -10954,7 +11116,7 @@ async function pmRenderHoraBase() {
 
   cont.innerHTML = `
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:var(--surface2)">
           <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Equipo</th>
           <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);color:var(--text3);font-size:12px">Horas actuales</th>
@@ -11527,10 +11689,21 @@ function pmRenderInformeAnual() {
 
 // ── Sub-navegación del inventario (Dashboard / Nuevo Producto / Movimientos / Stock / Reportes) ──
 function invMostrarSubTab(nombre) {
-  document.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
-  document.getElementById('invSub-' + nombre).classList.add('active');
-  document.querySelector(`.inv-subtab[data-invtab="${nombre}"]`).classList.add('active');
+  // Antes esto buscaba en TODA la página, no solo en Inventario. Como las
+  // sub-pestañas de Plan de Mantenimiento, Cronograma, Variables y
+  // Encargados usan las mismas clases, abrir una pestaña del inventario
+  // apagaba de paso la pestaña activa de esos otros paneles, y al volver a
+  // ellos aparecían en blanco. Todos los demás paneles ya buscaban dentro
+  // del suyo; este se había quedado sin acotar.
+  const panel = document.getElementById('panel-inventario');
+  if (!panel) return;
+  panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
+  panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
+  const sub = document.getElementById('invSub-' + nombre);
+  const tab = panel.querySelector(`.inv-subtab[data-invtab="${nombre}"]`);
+  if (!sub || !tab) return;
+  sub.classList.add('active');
+  tab.classList.add('active');
   if (nombre === 'dashboard') invCargarDashboard();
   if (nombre === 'stock')     invCargarStock();
   if (nombre === 'proveedores') invCargarProveedores();
@@ -12623,7 +12796,7 @@ function filtrarNovedadesUI() {
     return;
   }
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Título</th>
@@ -12708,7 +12881,7 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
         <div class="field"><label>Fecha de estabilización *</label><input id="nov_fechaEstabilizacion" type="date" value="${fechaEstab}" onchange="actualizarTiemposNovedad()"></div>
         <div class="field"><label>Hora de estabilización *</label><input id="nov_horaEstabilizacion" type="time" value="${horaEstab}" onchange="actualizarTiemposNovedad()"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="grid-3" style="gap:10px;margin-bottom:14px">
         <div class="field"><label>Tiempo inicio → finalización (min)</label><input id="nov_tiempoIF" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoInicioFinMin||'')}"></div>
         <div class="field"><label>Tiempo finalización → estabilización (min)</label><input id="nov_tiempoFE" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoFinEstabilizacionMin||'')}"></div>
         <div class="field"><label>Tiempo total de recuperación (min)</label><input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>
@@ -12779,7 +12952,7 @@ function abrirModalNovedad(codigo) {
 
         <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
           <div style="font-weight:700;color:var(--brand);margin-bottom:8px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg> Firmas</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="grid-2" style="gap:14px">
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Elaborado por</div>
               <div class="field" style="margin-bottom:8px"><input id="nov_elaboradoNombre" placeholder="Nombre" value="${esc(existente?.ElaboradoNombre || currentUser?.name || '')}"></div>
@@ -18327,7 +18500,7 @@ function renderHistoricoEquipoSeleccionado() {
     'Rechazada': 'background:#fdecea;color:#c62828',
   };
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">N° Orden</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Título</th>
