@@ -4774,7 +4774,14 @@ window.addEventListener('load', async () => {
             [SH.informeSemestralEstado]: INFORME_SEMESTRAL_ESTADO_COLS,
             [SH.informeAnualEstado]: INFORME_ANUAL_ESTADO_COLS,
             [SH.informeActividades]: INFORME_ACTIVIDADES_COLS }
-        ).finally(() => {
+        ).finally(async () => {
+          // Si ninguna hora ni hora base cambió desde la última revisión
+          // completa, no hay nada que generar y las tres revisiones se
+          // saltan enteras — son unas 18 peticiones a Sheets contra una
+          // cuota que toda la planta comparte. Comprobarlo no cuesta
+          // ninguna petición: sale de la caché recién precargada.
+          const { revisar, huella } = await _revisionInformesPendiente();
+          if (!revisar) return;
           // Se espera a que terminen las tres para volver a pintar Pendientes:
           // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
           // llegaban las ordenes nuevas, asi que no aparecian hasta la
@@ -4789,6 +4796,7 @@ window.addEventListener('load', async () => {
               renderPendientes();
               actualizarContadorTab && actualizarContadorTab();
             }
+            _recordarRevisionInformes(huella, res);
           });
         });
       }
@@ -7607,15 +7615,35 @@ async function repararHoja() {
 let _hojasExistentesCache = null; // Set<string> | null
 const _cacheEncabezadosHoja = {}; // { [hoja]: string[] }
 
+// Los cachés de arriba solo sirven DESPUÉS de que la primera petición
+// termina. Cuando varias partes arrancan a la vez (los tres generadores de
+// órdenes corren en paralelo), todas encuentran el caché vacío y todas
+// salen a pedir lo mismo: se medían 3 lecturas idénticas de
+// "HorasEquipos!A1:D1" y otras 3 de "InformeActividades!A1:F1" en un solo
+// arranque. Guardando también la promesa EN VUELO, la segunda y la tercera
+// se cuelgan de la petición que ya va en camino en vez de abrir la suya.
+// Importa porque todos los operarios comparten un mismo usuario de Google
+// y, con él, la misma cuota de lecturas por minuto.
+let _hojasExistentesEnVuelo = null;   // Promise<Set<string>> | null
+const _asegurarHojaEnVuelo = {};      // { [hoja]: Promise<string[]> }
+
 // ── Helper: crear hoja si no existe ──
 async function crearHojaSiNoExiste(nombre) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   if (!_hojasExistentesCache) {
-    // Leer metadata del spreadsheet para ver qué hojas existen
-    const metaR = await fetch(base + '?fields=sheets.properties.title', { headers: hdrs });
-    const meta  = await metaR.json();
-    _hojasExistentesCache = new Set((meta.sheets || []).map(s => s.properties.title));
+    // Leer metadata del spreadsheet para ver qué hojas existen. Una sola
+    // lectura aunque entren diez llamadas a la vez: las que lleguen
+    // mientras va en camino esperan la misma promesa.
+    if (!_hojasExistentesEnVuelo) {
+      _hojasExistentesEnVuelo = (async () => {
+        const metaR = await fetch(base + '?fields=sheets.properties.title', { headers: hdrs });
+        const meta  = await metaR.json();
+        return new Set((meta.sheets || []).map(s => s.properties.title));
+      })().finally(() => { _hojasExistentesEnVuelo = null; });
+    }
+    // Si falla, el caché queda en null y la próxima llamada lo reintenta.
+    _hojasExistentesCache = await _hojasExistentesEnVuelo;
   }
   if (_hojasExistentesCache.has(nombre)) return; // ya existe
   // Crear la hoja
@@ -7636,8 +7664,18 @@ async function crearHojaSiNoExiste(nombre) {
 }
 
 // ── Helper: asegurar encabezados en una hoja específica ──
+// Envoltura que une las llamadas simultáneas para la MISMA hoja en una
+// sola petición (ver el comentario de _asegurarHojaEnVuelo arriba).
 async function asegurarHoja(nombre, cols) {
   if (_cacheEncabezadosHoja[nombre]) return _cacheEncabezadosHoja[nombre];
+  if (!_asegurarHojaEnVuelo[nombre]) {
+    _asegurarHojaEnVuelo[nombre] = _asegurarHojaReal(nombre, cols)
+      .finally(() => { delete _asegurarHojaEnVuelo[nombre]; });
+  }
+  return _asegurarHojaEnVuelo[nombre];
+}
+
+async function _asegurarHojaReal(nombre, cols) {
   const base   = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const colFin = numToCol(cols.length - 1);
@@ -17740,6 +17778,51 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
 
   actualizarBadgeNotificaciones();
   return { creadas: nuevasOrdenes.length, sembradas: 0, error: null };
+}
+
+/* ── ¿Hace falta revisar los informes por horas en esta carga? ──
+ *  Las tres revisiones cuestan del orden de 18 peticiones a Sheets, y
+ *  todos los operarios comparten un mismo usuario de Google (el token lo
+ *  emite el Apps Script del login), así que esa cuota por minuto es una
+ *  sola para toda la planta: repetirlas en cada carga de página es lo que
+ *  la agotaba cuando varios entraban a la vez.
+ *
+ *  Lo único que puede hacer que una orden se venza es que cambien las
+ *  horas de un equipo o su hora base. Así que se guarda una huella de esos
+ *  datos y, si no cambió nada desde la última revisión completa en este
+ *  dispositivo, no hay nada que revisar. La huella sale de la caché que
+ *  acaba de llenar _precargarHojasEnCache, o sea que comprobarlo no cuesta
+ *  ni una petición.
+ *
+ *  Ante cualquier duda se revisa: dejar de generar una orden es mucho peor
+ *  que gastar unas peticiones de más. */
+const HUELLA_HORAS_CLAVE = 'informesHuellaHoras';
+
+function _huellaDeHoras(filas) {
+  return (filas || [])
+    .map(f => [f.Equipo, f.HorasActuales, f.HoraBaseInformes].join('~'))
+    .sort()
+    .join('|');
+}
+
+async function _revisionInformesPendiente() {
+  try {
+    const huella = _huellaDeHoras(await leerHojaGenericaCacheada(SH.horasEquipos));
+    if (!huella) return { revisar: true, huella: null };  // sin datos: revisar
+    const guardada = localStorage.getItem(HUELLA_HORAS_CLAVE + ':' + operacionActual);
+    return { revisar: huella !== guardada, huella };
+  } catch (e) {
+    return { revisar: true, huella: null };
+  }
+}
+
+/** Solo se recuerda la huella cuando las TRES revisiones terminaron sin
+ *  error. Si una falló a medias (sin red, cuota agotada), la próxima carga
+ *  tiene que volver a intentarlo. */
+function _recordarRevisionInformes(huella, resultados) {
+  if (!huella) return;
+  if (!resultados.every(r => r && !r.error)) return;
+  try { localStorage.setItem(HUELLA_HORAS_CLAVE + ':' + operacionActual, huella); } catch (_) {}
 }
 
 function verificarInformeTrimestralYGenerar() {
