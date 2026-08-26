@@ -356,6 +356,99 @@ function _horasDeEquipos() {
 }
 
 /* ══════════════════════════════════════════════
+   FICHA DE EQUIPOS Y RESUMEN DEL DÍA
+══════════════════════════════════════════════ */
+
+/** Fecha en formato 'AAAA-MM-DD', venga como texto o como objeto Date
+ *  (Sheets devuelve unas y otras según cómo se haya escrito la celda). */
+function _aIso(valor) {
+  if (valor instanceof Date) return Utilities.formatDate(valor, 'America/Bogota', 'yyyy-MM-dd');
+  const t = String(valor || '').trim();
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[0];
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (dmy) return dmy[3] + '-' + ('0'+dmy[2]).slice(-2) + '-' + ('0'+dmy[1]).slice(-2);
+  return t;
+}
+
+/** Interpreta cómo escribe la gente una fecha en un chat: "hoy", "ayer",
+ *  "25/08" (año actual), "25/08/2026" o "2026-08-25". */
+function _fechaPedida(texto) {
+  const t = _normalizar(texto);
+  const hoy = new Date();
+  if (!t || t === 'hoy') return Utilities.formatDate(hoy, 'America/Bogota', 'yyyy-MM-dd');
+  if (t === 'ayer') {
+    const ayer = new Date(hoy.getTime() - 86400000);
+    return Utilities.formatDate(ayer, 'America/Bogota', 'yyyy-MM-dd');
+  }
+  const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) return iso[1] + '-' + ('0'+iso[2]).slice(-2) + '-' + ('0'+iso[3]).slice(-2);
+  const dmy = t.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+  if (dmy) {
+    let anio = dmy[3] || String(hoy.getFullYear());
+    if (anio.length === 2) anio = '20' + anio;
+    return anio + '-' + ('0'+dmy[2]).slice(-2) + '-' + ('0'+dmy[1]).slice(-2);
+  }
+  return null;
+}
+
+function _equiposDelInventario() {
+  return _objetosDe('InventarioEquiposBase')
+    .filter(f => String(f.Codificacion || '').trim() || String(f.Equipo || '').trim())
+    .map(f => ({
+      codigo: String(f.Codificacion || '').trim(),
+      equipo: String(f.Equipo || '').trim(),
+      marca: String(f.Marca || '').trim(),
+      descripcion: String(f.DescripcionEspecifica || '').trim(),
+      ubicacion: String(f.Ubicacion || '').trim(),
+      tipo: String(f.Tipo || '').trim(),
+      serial: String(f.Serial || '').trim(),
+    }));
+}
+
+function _buscarEquipo(texto) {
+  const palabras = _palabrasDeBusqueda(texto);
+  if (!palabras.length) return [];
+  return _equiposDelInventario().filter(e => {
+    const donde = _normalizar([e.codigo, e.equipo, e.marca, e.tipo, e.descripcion].join(' '));
+    return palabras.every(w => donde.indexOf(w) !== -1);
+  });
+}
+
+/** Lo registrado del cronograma en una fecha, agrupado por turno. El texto
+ *  de la actividad viene de la hoja (columna ActividadTexto); los
+ *  registros viejos no la tienen y caen al id, que es lo mejor
+ *  disponible. */
+function _registrosDelDia(fechaIso) {
+  const porTurno = {};
+  _objetosDe('CronogramaRegistros').forEach(r => {
+    if (_aIso(r.Fecha) !== fechaIso) return;
+    const turno = String(r.TurnoId || '—').trim();
+    (porTurno[turno] = porTurno[turno] || []).push({
+      actividad: String(r.ActividadTexto || '').trim() || String(r.ActividadId || '').trim(),
+      realizado: String(r.Realizado || '').trim().toUpperCase() === 'SI',
+      quien: String(r.RealizadoPor || '').trim(),
+      hora: String(r.HoraRealizada || '').trim(),
+      motivo: String(r.Observacion || '').trim(),
+    });
+  });
+  return porTurno;
+}
+
+function _entregasDelDia(fechaIso) {
+  const porTurno = {};
+  _objetosDe('EntregaTurno').forEach(e => {
+    if (_aIso(e.Fecha) !== fechaIso) return;
+    porTurno[String(e.TurnoId || '').trim()] = {
+      nombre: String(e.TurnoNombre || '').trim(),
+      entrego: String(e.EntregadoPor || '').trim(),
+      recibio: String(e.RecibidoPor || '').trim(),
+    };
+  });
+  return porTurno;
+}
+
+/* ══════════════════════════════════════════════
    INTERPRETAR LO QUE ESCRIBIÓ EL OPERARIO
 
    Sin IA, la regla tiene que ser simple y perdonar de más: si el mensaje
@@ -401,6 +494,12 @@ function _interpretar(texto) {
   const prox = t.match(/^(proximo|proximos|proxima|mantenimiento|mantenimientos|falta|cuanto falta)(?:\s+(?:de\s+|para\s+)?(.+))?$/);
   if (prox) return { comando: 'proximo', texto: (prox[2] || '').trim() };
 
+  const ficha = t.match(/^(ficha|equipo|datos|serial)\s+(?:de\s+)?(.+)$/);
+  if (ficha) return { comando: 'ficha', texto: ficha[2] };
+
+  const res = t.match(/^(resumen|turno|turnos|dia|jornada)(?:\s+(?:del?\s+)?(.+))?$/);
+  if (res) return { comando: 'resumen', texto: (res[2] || '').trim() };
+
   // Todo lo demás se toma como el nombre de un producto. El relleno
   // ("cuánto queda de…") lo descarta después _palabrasDeBusqueda, así que
   // aquí no hay que recortarle nada al texto.
@@ -422,6 +521,8 @@ function _responder(operario, texto) {
   if (orden.comando === 'movimientos') return _textoMovimientos(orden.texto);
   if (orden.comando === 'ordenes')     return _textoOrdenes(orden.texto);
   if (orden.comando === 'proximo')     return _textoProximo(orden.texto);
+  if (orden.comando === 'ficha')       return _textoFicha(orden.texto);
+  if (orden.comando === 'resumen')     return _textoResumen(orden.texto);
   return _textoStock(orden.texto);
 }
 
@@ -436,7 +537,11 @@ function _textoAyuda(operario) {
     + '   Ejemplo: ordenes CB1\n\n'
     + '• *proximo* seguido del equipo — cuántas horas faltan para su mantenimiento.\n'
     + '   Ejemplo: proximo CB1\n\n'
-    + 'Los dos últimos funcionan también sin equipo, y te respondo por todos.\n\n'
+    + '• *ficha* seguido del equipo — marca, serial y ubicación.\n'
+    + '   Ejemplo: ficha CB1\n\n'
+    + '• *resumen* seguido del día — qué se hizo y qué faltó en cada turno.\n'
+    + '   Ejemplo: resumen ayer\n\n'
+    + '*ordenes* y *proximo* funcionan también sin equipo, y te respondo por todos.\n\n'
     + 'Solo consulto. Para registrar cosas, usa el sistema.';
 }
 
@@ -561,6 +666,78 @@ function _textoProximo(equipo) {
         + ' → faltan ' + _horas(r.cercano.faltan) + ' h'
         + (r.cercano.faltan <= 200 ? ' ⚠' : '')
       ).join('\n');
+}
+
+function _textoFicha(texto) {
+  const encontrados = _buscarEquipo(texto);
+  if (!encontrados.length) {
+    return 'No encontré ningún equipo con "' + texto + '".\n\n'
+      + 'Prueba con su código (por ejemplo CB1) o con menos palabras.';
+  }
+  if (encontrados.length > 1) {
+    return 'Hay ' + encontrados.length + ' equipos con "' + texto + '". Dime cuál:\n\n'
+      + encontrados.slice(0, MAX_COINCIDENCIAS)
+          .map(e => '• *' + (e.codigo || e.equipo) + '* — ' + e.equipo).join('\n');
+  }
+
+  const e = encontrados[0];
+  let msg = '*' + (e.codigo || e.equipo) + '*';
+  if (e.equipo && e.equipo !== e.codigo) msg += ' · ' + e.equipo;
+  if (e.tipo)        msg += '\nTipo: ' + e.tipo;
+  if (e.marca)       msg += '\nMarca: ' + e.marca;
+  if (e.serial)      msg += '\nSerial: ' + e.serial;
+  if (e.ubicacion)   msg += '\nUbicación: ' + e.ubicacion;
+  if (e.descripcion) msg += '\n\n' + e.descripcion;
+  return msg;
+}
+
+function _textoResumen(texto) {
+  const fecha = _fechaPedida(texto);
+  if (!fecha) {
+    return 'No entendí la fecha "' + texto + '".\n\n'
+      + 'Puedes escribir: *resumen hoy*, *resumen ayer* o *resumen 25/08*.';
+  }
+
+  const registros = _registrosDelDia(fecha);
+  const entregas  = _entregasDelDia(fecha);
+  const turnos = Object.keys(registros).concat(Object.keys(entregas))
+    .filter((t, i, a) => a.indexOf(t) === i).sort();
+
+  if (!turnos.length) {
+    return 'No hay nada registrado el ' + _fecha(fecha) + '.';
+  }
+
+  let msg = '*' + _fecha(fecha) + '*';
+
+  turnos.forEach(turnoId => {
+    const lista = registros[turnoId] || [];
+    const entrega = entregas[turnoId];
+    const hechas = lista.filter(r => r.realizado);
+    const faltaron = lista.filter(r => !r.realizado);
+
+    msg += '\n\n*' + ((entrega && entrega.nombre) || turnoId) + '*';
+
+    if (lista.length) {
+      msg += '\n' + hechas.length + (hechas.length === 1 ? ' actividad realizada' : ' actividades realizadas');
+      if (faltaron.length) {
+        msg += ', ' + faltaron.length + ' sin hacer:';
+        faltaron.forEach(r => {
+          msg += '\n  ✗ ' + r.actividad;
+          if (r.motivo) msg += '\n     ' + r.motivo;
+        });
+      }
+    } else {
+      msg += '\nSin actividades marcadas';
+    }
+
+    if (entrega && (entrega.entrego || entrega.recibio)) {
+      msg += '\nEntregó ' + (entrega.entrego || '—') + ' → recibió ' + (entrega.recibio || '—');
+    } else if (lista.length) {
+      msg += '\nSin entrega de turno registrada';
+    }
+  });
+
+  return msg;
 }
 
 function _textoMinimos() {

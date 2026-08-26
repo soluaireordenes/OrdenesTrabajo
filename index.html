@@ -6863,7 +6863,7 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 // una fecha concreta — es un LOG (se agrega, nunca se sobrescribe); el
 // estado "actual" de una actividad en una fecha es el de su fila más
 // reciente (ver obtenerRegistrosCronogramaFecha()).
-const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron'];
+const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto'];
 // Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
@@ -13527,6 +13527,7 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
       realizado ? (horaRealizada || '') : '',
       observacion || '',
       realizado ? (operariosRealizaron || '') : '',
+      _textoDeActividadCronograma(actividadId, fecha),
     ]]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
@@ -13847,6 +13848,31 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
  *  marcar/desmarcar, el modal de motivo obligatorio y el PDF. */
 function _idReporteCheckpoint(turnoId, hora) {
   return turnoId + '_cp_' + hora.replace(':', '');
+}
+
+/** El texto de una actividad del cronograma, a partir de su id y la fecha
+ *  (nueve de las doce actividades cambian de texto según el día).
+ *
+ *  Se guarda junto al registro para que la hoja se explique sola: hasta
+ *  ahora CronogramaRegistros solo tenía ids como "zpq_t1_6am_2", ilegibles
+ *  para quien abra la hoja y para el bot de WhatsApp, que tendría que
+ *  duplicar toda la configuración del cronograma para traducirlos — y
+ *  quedaría desactualizado en cuanto el cronograma cambiara. */
+function _textoDeActividadCronograma(actividadId, fecha) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  if (!cfg) return '';
+  const dia = _diaSemanaDe(fecha);
+  for (const turno of cfg.turnos) {
+    for (const cp of turno.checkpoints) {
+      if (_idReporteCheckpoint(turno.id, cp.hora) === actividadId) {
+        return 'Reporte de datos de equipos ' + cp.hora;
+      }
+      for (const b of cp.bloques) {
+        if (b.id === actividadId) return (b.actividad[dia] || '').trim();
+      }
+    }
+  }
+  return '';  // adicional agregada a mano: su descripción ya vive en su propia hoja
 }
 
 /** Botones "Realizado" / "No realizado" al frente del encabezado de cada
