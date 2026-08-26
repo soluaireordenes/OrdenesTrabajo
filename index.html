@@ -3383,6 +3383,99 @@ let operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === op
 // sin autenticar ninguna sede) se ven todos desplegados; una vez se entra
 // a una operación, se colapsan solos para mostrar solo la sede activa, y
 // la flechita de cada grupo permite volver a desplegarlos manualmente.
+/* ══════════════════════════════════════════════
+   CATÁLOGO DE VARIABLES PARA EL BOT DE WHATSAPP
+
+   El bot necesita saber cómo se llama cada variable de los reportes y cuál
+   es su rango normal, para poder responder "la última lectura de CB1" con
+   nombres legibles en vez de columnas como DPT o SAPT.
+
+   Esa definición vive en VARIABLES_APARTADOS, que ya es la fuente única
+   que usan las gráficas. En vez de duplicarla en el bot —donde se
+   desactualizaría al primer cambio— se publica a una hoja, y el bot la
+   lee de ahí.
+
+   Se reescribe sola cuando cambia: cada fila lleva una huella del catálogo
+   completo, y basta comparar la de la primera fila para saber si quedó
+   vieja. Mientras nadie toque los formularios, no cuesta ninguna escritura.
+══════════════════════════════════════════════ */
+
+/** El catálogo completo, armado desde VARIABLES_APARTADOS. Una fila por
+ *  cada variable de cada equipo: alta y baja comparten hoja pero miden
+ *  cosas distintas, así que el juego de campos depende del equipo. */
+function _catalogoDeVariables() {
+  const filas = [];
+  VARIABLES_APARTADOS.forEach(ap => {
+    const equipos = (ap.lista && ap.lista()) || [];
+    (ap.fuentes || []).forEach(fuente => {
+      const hoja = fuente.hoja();
+      equipos.forEach(equipo => {
+        const campos = (fuente.campos && fuente.campos(equipo)) || [];
+        campos.forEach((c, i) => {
+          filas.push({
+            hoja: hoja,
+            colEquipo: fuente.colEquipo || '',
+            equipo: equipo,
+            // El operario escribe "CB1", pero en el reporte el equipo se
+            // llama "Compresor de Baja Presión #1". Se guardan los dos.
+            codigoCorto: EQUIPO_REPORTE_A_HORAS[equipo] || '',
+            orden: i + 1,
+            grupo: c.grupo || '',
+            columna: c.col || '',
+            etiqueta: c.label || '',
+            rango: c.hint || '',
+          });
+        });
+      });
+    });
+  });
+  return filas;
+}
+
+/** Huella corta del catálogo: si cambia una etiqueta, un rango o se agrega
+ *  un campo, cambia la huella y toca republicar. */
+function _huellaCatalogo(filas) {
+  let h = 0;
+  const texto = filas.map(f => [f.hoja, f.equipo, f.codigoCorto, f.columna, f.etiqueta, f.rango].join('|')).join('\n');
+  for (let i = 0; i < texto.length; i++) { h = ((h << 5) - h + texto.charCodeAt(i)) | 0; }
+  return filas.length + '-' + (h >>> 0).toString(36);
+}
+
+/** Publica el catálogo si la hoja está vacía o quedó vieja. Devuelve true
+ *  si tuvo que escribir. */
+async function publicarCatalogoVariablesSiCambio() {
+  const catalogo = _catalogoDeVariables();
+  if (!catalogo.length) return false;
+  const huella = _huellaCatalogo(catalogo);
+
+  const colsReales = await asegurarHoja(SH.camposReportes, CAMPOS_REPORTES_COLS);
+  const yaGuardado = await leerHojaGenericaCacheada(SH.camposReportes);
+  if (yaGuardado.length && String(yaGuardado[0].Huella || '') === huella) return false;
+
+  // Reescritura completa: el catálogo es un espejo de la definición, no un
+  // histórico, así que no tiene sentido conservar lo anterior.
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+  await fetch(base + '/values/' + encodeURIComponent(SH.camposReportes + '!A2:ZZ') + ':clear',
+    { method: 'POST', headers: hdrs });
+
+  const filas = catalogo.map(f => colsReales.map(col => {
+    if (col === 'Hoja') return f.hoja;
+    if (col === 'ColumnaEquipo') return f.colEquipo;
+    if (col === 'Equipo') return f.equipo;
+    if (col === 'CodigoCorto') return f.codigoCorto;
+    if (col === 'Orden') return f.orden;
+    if (col === 'Grupo') return f.grupo;
+    if (col === 'Columna') return f.columna;
+    if (col === 'Etiqueta') return f.etiqueta;
+    if (col === 'RangoNormal') return f.rango;
+    if (col === 'Huella') return huella;
+    return '';
+  }));
+  await appendHoja(SH.camposReportes, filas);
+  return true;
+}
+
 /** Los 5 apartados de la seccion "Variables" del menu lateral, en el
  *  orden en que se muestran. La clave es la misma del data-vartab del
  *  boton y del id varSub-*, para que agregar un apartado sea tocar solo
@@ -4768,13 +4861,20 @@ window.addEventListener('load', async () => {
         // Las hojas que van a leer los tres informes se traen de una vez:
         // asi la revision completa cuesta 1 lectura en vez de 5.
         _precargarHojasEnCache(
-          [SH.horasEquipos, SH.informeTrimestralEstado, SH.informeSemestralEstado, SH.informeAnualEstado, SH.informeActividades],
+          [SH.horasEquipos, SH.informeTrimestralEstado, SH.informeSemestralEstado, SH.informeAnualEstado, SH.informeActividades, SH.camposReportes],
           { [SH.horasEquipos]: HORAS_EQUIPOS_COLS,
             [SH.informeTrimestralEstado]: INFORME_TRIMESTRAL_ESTADO_COLS,
             [SH.informeSemestralEstado]: INFORME_SEMESTRAL_ESTADO_COLS,
             [SH.informeAnualEstado]: INFORME_ANUAL_ESTADO_COLS,
-            [SH.informeActividades]: INFORME_ACTIVIDADES_COLS }
+            [SH.informeActividades]: INFORME_ACTIVIDADES_COLS,
+            [SH.camposReportes]: CAMPOS_REPORTES_COLS }
         ).finally(async () => {
+          // El catálogo de variables para el bot viaja en ese mismo
+          // batchGet, así que comprobar si quedó viejo no cuesta ninguna
+          // lectura. Solo escribe cuando de verdad cambió un formulario.
+          publicarCatalogoVariablesSiCambio()
+            .catch(e => console.warn('Catálogo de variables:', e.message));
+
           // Si ninguna hora ni hora base cambió desde la última revisión
           // completa, no hay nada que generar y las tres revisiones se
           // saltan enteras — son unas 18 peticiones a Sheets contra una
@@ -6851,6 +6951,7 @@ const SH = {
   reporteCompresores: 'ReporteCompresores',
   reporteSecadores: 'ReporteSecadores',
   informeActividades: 'InformeActividades',
+  camposReportes: 'CamposReportes',
   reporteDrycoolers: 'ReporteDrycoolers',
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
@@ -6863,7 +6964,16 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 // una fecha concreta — es un LOG (se agrega, nunca se sobrescribe); el
 // estado "actual" de una actividad en una fecha es el de su fila más
 // reciente (ver obtenerRegistrosCronogramaFecha()).
-const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron'];
+/* Catálogo de las variables de los reportes técnicos, publicado a una hoja
+   para que el bot de WhatsApp pueda nombrarlas y saber su rango normal.
+   Son unos 160 campos repartidos en 12 formularios, y el juego depende del
+   equipo (los compresores de alta y los de baja miden cosas distintas
+   aunque compartan hoja). Duplicarlo en el bot se habría desactualizado al
+   primer cambio — de hecho hoy mismo se le agregaron campos al formulario
+   de baja. Publicándolo, la definición sigue viviendo en un solo lugar. */
+const CAMPOS_REPORTES_COLS = ['Hoja', 'ColumnaEquipo', 'Equipo', 'CodigoCorto', 'Orden', 'Grupo', 'Columna', 'Etiqueta', 'RangoNormal', 'Huella'];
+
+const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto'];
 // Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
@@ -13527,6 +13637,7 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
       realizado ? (horaRealizada || '') : '',
       observacion || '',
       realizado ? (operariosRealizaron || '') : '',
+      _textoDeActividadCronograma(actividadId, fecha),
     ]]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
@@ -13847,6 +13958,31 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
  *  marcar/desmarcar, el modal de motivo obligatorio y el PDF. */
 function _idReporteCheckpoint(turnoId, hora) {
   return turnoId + '_cp_' + hora.replace(':', '');
+}
+
+/** El texto de una actividad del cronograma, a partir de su id y la fecha
+ *  (nueve de las doce actividades cambian de texto según el día).
+ *
+ *  Se guarda junto al registro para que la hoja se explique sola: hasta
+ *  ahora CronogramaRegistros solo tenía ids como "zpq_t1_6am_2", ilegibles
+ *  para quien abra la hoja y para el bot de WhatsApp, que tendría que
+ *  duplicar toda la configuración del cronograma para traducirlos — y
+ *  quedaría desactualizado en cuanto el cronograma cambiara. */
+function _textoDeActividadCronograma(actividadId, fecha) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  if (!cfg) return '';
+  const dia = _diaSemanaDe(fecha);
+  for (const turno of cfg.turnos) {
+    for (const cp of turno.checkpoints) {
+      if (_idReporteCheckpoint(turno.id, cp.hora) === actividadId) {
+        return 'Reporte de datos de equipos ' + cp.hora;
+      }
+      for (const b of cp.bloques) {
+        if (b.id === actividadId) return (b.actividad[dia] || '').trim();
+      }
+    }
+  }
+  return '';  // adicional agregada a mano: su descripción ya vive en su propia hoja
 }
 
 /** Botones "Realizado" / "No realizado" al frente del encabezado de cada
