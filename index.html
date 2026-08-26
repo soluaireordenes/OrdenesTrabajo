@@ -2755,7 +2755,7 @@ body.inv-activo .container { max-width: 1800px; }
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.71.71 1.23 1.5 1.41 2.5"></path></svg>
               <span>Cada ingreso guarda su propio precio — si compras el mismo producto más adelante a otro precio, se registra como un lote nuevo. Al usarlo en una orden de trabajo, el sistema toma primero el lote más antiguo que todavía tenga existencias (FIFO).</span>
             </div>
-            <button class="btn btn-primary" onclick="invRegistrarMovimiento()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Movimiento</button>
+            <button class="btn btn-primary" id="invmBtnGuardar" onclick="invRegistrarMovimiento()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Movimiento</button>
           </div>
         </div>
       </div>
@@ -11813,8 +11813,20 @@ function invHandleTipoDocumentoChange() {
   if (!tieneDocumento) document.getElementById('invm_numeroDocumento').value = '';
 }
 
+/* Registrar un movimiento son unos nueve viajes a Sheets (validar el
+   producto, tomar el candado, leer toda la hoja de Movimientos para saber
+   el stock, escribir la fila, soltar el candado) — en datos móviles, entre
+   3 y 6 segundos con el botón activo y solo un "Guardando…" chiquito de
+   aviso. Es natural volver a tocarlo creyendo que no registró, y ahí se
+   guardaban DOS movimientos: el candado impide que dos escrituras se
+   corrompan entre ellas, pero no que la misma persona mande la misma dos
+   veces — las pone en fila y las dos quedan. Pasó en producción: un
+   ingreso de 1 unidad quedó como 2. */
+let _invGuardandoMovimiento = false;
+
 async function invRegistrarMovimiento() {
   const msg = document.getElementById('invMsg');
+  if (_invGuardandoMovimiento) return;
   const tipo = document.getElementById('invm_tipo').value;
   const equipo = document.getElementById('invm_equipo').value.trim();
   const responsable = document.getElementById('invm_responsable').value.trim();
@@ -11828,7 +11840,15 @@ async function invRegistrarMovimiento() {
   if (esEntrada && !precio) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Para un ingreso, el precio unitario es obligatorio.'; return; }
   if (tipoDocumento && !numeroDocumento) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Escribe el número o referencia del documento elegido.'; return; }
 
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
+  // A partir de aquí el botón queda bloqueado hasta que termine, salga
+  // bien o mal. Sin esto, un segundo toque durante la espera registraba el
+  // movimiento por duplicado.
+  _invGuardandoMovimiento = true;
+  const btnGuardar = document.getElementById('invmBtnGuardar');
+  const btnGuardarHtml = btnGuardar ? btnGuardar.innerHTML : '';
+  if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.innerHTML = 'Guardando…'; }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando… no toques el botón otra vez.';
   try {
     await registrarMovimientoInventarioDirecto(inventarioOperacionActual, {
       codigo: document.getElementById('invm_codigo').value.trim(),
@@ -11858,6 +11878,10 @@ async function invRegistrarMovimiento() {
     invCargarDashboard().catch(() => {});
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
+  } finally {
+    // Se libera siempre: si falló, el operario tiene que poder reintentar.
+    _invGuardandoMovimiento = false;
+    if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerHTML = btnGuardarHtml; }
   }
 }
 
