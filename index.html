@@ -977,6 +977,24 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
+    <!-- Política de privacidad: la misma página pública que se registró en
+         Meta para el bot de WhatsApp, aquí al lado de "Dónde Operamos" para
+         que cualquiera en la planta pueda leer qué guarda el sistema. -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Tratamiento de Datos</div>
+      <div class="card-body" style="padding:22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">
+        <div style="flex:1 1 320px;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:5px">Política de privacidad</div>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.55;margin:0">
+            Qué datos recoge el sistema, para qué se usan, dónde se guardan y cuánto tiempo se conservan.
+            Incluye el uso de WhatsApp y los derechos que da la Ley 1581 de 2012.
+            Es la misma política registrada ante Meta para el bot de consultas.
+          </p>
+        </div>
+        <button class="btn btn-primary" style="padding:10px 20px;font-size:13px;flex-shrink:0" onclick="abrirPoliticaPrivacidad()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Leer la política</button>
+      </div>
+    </div>
+
     <!-- Llamado a la acción -->
     <div style="text-align:center;padding:24px 0 12px">
       <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="showPanel('pendientes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Ir a Órdenes Pendientes</button>
@@ -4747,6 +4765,14 @@ function renderSidebarOperaciones() {
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
     ${_sidebarEncabezadoGrupo('operaciones', 'Operaciones', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>')}
     ${items}
+    <div onclick="abrirPoliticaPrivacidad()"
+      title="Qué datos guarda el sistema, para qué se usan y dónde quedan"
+      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:12.5px;color:var(--text3)"
+      onmouseover="this.style.background='var(--brand-light)'"
+      onmouseout="this.style.background='transparent'">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      <span style="flex:1;line-height:1.25">Política de privacidad</span>
+    </div>
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
     ${_sidebarEncabezadoGrupo('variables', 'Variables', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>')}
     ${(sidebarGrupoExpandido.variables ? VARIABLES_APARTADOS : []).map(ap => {
@@ -4839,6 +4865,24 @@ function renderSidebarOperaciones() {
           ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
         </div>`;
     }).join('')}`;
+}
+
+/** Abre la política de privacidad del sistema —la misma página pública que
+ *  se registró en Meta para el bot de WhatsApp— dentro de la propia app.
+ *
+ *  Se muestra en el visor de documentos en vez de mandar al operario a otra
+ *  pestaña: instalada como app, una pestaña nueva lo saca del sistema y en
+ *  celular cuesta volver. De paso queda con el botón de descargar, por si
+ *  alguien la necesita en PDF. Si por lo que sea no se puede traer el
+ *  archivo, se abre como página aparte antes que dejar el botón muerto. */
+async function abrirPoliticaPrivacidad() {
+  try {
+    const respuesta = await fetch('./privacidad.html', { cache: 'no-cache' });
+    if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+    _mostrarDocumentoEnVisor(await respuesta.text());
+  } catch (e) {
+    window.open('./privacidad.html', '_blank', 'noopener');
+  }
 }
 
 /** Pide contraseña antes de cambiar de operación/sede. La clave YA NO vive

@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Política de Privacidad — Sistema Integral de Gestión SolucionAIRE</title>
 <style>
+/* Los colores van con un valor de respaldo escrito al lado. Esta misma
+   página se muestra también DENTRO del sistema (menú lateral → Política de
+   privacidad), y ahí el visor de documentos acota todo el CSS a la hoja: las
+   variables definidas en :root dejan de aplicar y, sin respaldo, los títulos
+   perdían el azul de la marca. Suelta, en su propia dirección, sigue
+   funcionando igual, con tema claro y oscuro. */
+
   :root { --tinta: #1f2933; --tinta2: #52606d; --marca: #02457A; --borde: #e4e7eb; --fondo: #fff; }
   @media (prefers-color-scheme: dark) {
     :root { --tinta: #e8eaed; --tinta2: #b0b6bd; --marca: #7fb3e0; --borde: #3a4048; --fondo: #1a1d21; }
@@ -12,20 +19,20 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 32px 20px 64px;
-    background: var(--fondo); color: var(--tinta);
+    background: var(--fondo, #fff); color: var(--tinta, #1f2933);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
     font-size: 16px; line-height: 1.65;
   }
   main { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 26px; color: var(--marca); margin: 0 0 4px; line-height: 1.25; }
-  .sub { color: var(--tinta2); font-size: 14px; margin-bottom: 32px; }
-  h2 { font-size: 18px; color: var(--marca); margin: 34px 0 10px; }
-  p, li { color: var(--tinta); }
+  h1 { font-size: 26px; color: var(--marca, #02457A); margin: 0 0 4px; line-height: 1.25; }
+  .sub { color: var(--tinta2, #52606d); font-size: 14px; margin-bottom: 32px; }
+  h2 { font-size: 18px; color: var(--marca, #02457A); margin: 34px 0 10px; }
+  p, li { color: var(--tinta, #1f2933); }
   ul { padding-left: 22px; }
   li { margin-bottom: 6px; }
-  .nota { border-left: 3px solid var(--marca); padding: 2px 0 2px 14px; color: var(--tinta2); font-size: 15px; }
-  footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--borde); color: var(--tinta2); font-size: 13px; }
-  a { color: var(--marca); }
+  .nota { border-left: 3px solid var(--marca, #02457A); padding: 2px 0 2px 14px; color: var(--tinta2, #52606d); font-size: 15px; }
+  footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--borde, #e4e7eb); color: var(--tinta2, #52606d); font-size: 13px; }
+  a { color: var(--marca, #02457A); }
 </style>
 </head>
 <body>

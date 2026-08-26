@@ -28,6 +28,10 @@ const TOPE_RED_MS = 2500;
 const APP_SHELL = [
   './',
   './index.html',
+  // La política de privacidad se abre desde el menú lateral, dentro de la
+  // app. Va en el caché para que también se pueda leer sin señal, igual
+  // que el resto de la interfaz.
+  './privacidad.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
