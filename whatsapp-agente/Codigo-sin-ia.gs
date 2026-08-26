@@ -292,6 +292,70 @@ function _ultimosMovimientos(codigo, cuantos) {
 
 
 /* ══════════════════════════════════════════════
+   ÓRDENES DE TRABAJO Y HORAS DE LOS EQUIPOS
+
+   Viven en el mismo libro que la hoja Operarios, no en el del inventario.
+   Son hojas chicas, así que estas consultas casi no pesan en la cuota de
+   lecturas que comparte toda la planta.
+══════════════════════════════════════════════ */
+
+/* Los mismos estados que la aplicación considera "por hacer". */
+const ESTADOS_PENDIENTES = ['Pendiente', 'Aprobada', 'En ejecución', 'Borrador'];
+
+/* Cada cuántas horas toca cada mantenimiento. Copiado de INFORME_MARCAS en
+   index.html: el trimestral cae en 2.000, 6.000, 10.000…; el semestral en
+   4.000, 12.000, 20.000…; el anual en 8.000, 16.000, 24.000… Si allá
+   cambian, hay que cambiarlo aquí también. */
+const MARCAS_MANTENIMIENTO = [
+  { nombre: 'Trimestral', primeraHora: 2000, cadaHoras: 4000 },
+  { nombre: 'Semestral',  primeraHora: 4000, cadaHoras: 8000 },
+  { nombre: 'Anual',      primeraHora: 8000, cadaHoras: 8000 },
+];
+
+/** Siguiente vez que toca ese mantenimiento, en horas de operación. */
+function _proximaMarca(horas, marca) {
+  if (!(horas >= marca.primeraHora)) return marca.primeraHora;
+  const ultimaCumplida = Math.floor((horas - marca.primeraHora) / marca.cadaHoras) * marca.cadaHoras + marca.primeraHora;
+  return ultimaCumplida + marca.cadaHoras;
+}
+
+function _filasDe(nombreHoja) {
+  const hoja = SpreadsheetApp.openById(HOJA_SISTEMA).getSheetByName(nombreHoja);
+  if (!hoja) return { encabezado: [], filas: [] };
+  const valores = hoja.getDataRange().getValues();
+  return { encabezado: (valores[0] || []).map(c => String(c).trim()), filas: valores.slice(1) };
+}
+
+/** Convierte las filas en objetos usando la fila 1 como nombres, igual que
+ *  hace la aplicación. Así da lo mismo el orden de las columnas. */
+function _objetosDe(nombreHoja) {
+  const { encabezado, filas } = _filasDe(nombreHoja);
+  return filas.map(fila => {
+    const o = {};
+    encabezado.forEach((nombre, i) => { if (nombre) o[nombre] = fila[i]; });
+    return o;
+  });
+}
+
+function _ordenesPendientes(equipo) {
+  const buscado = _normalizar(equipo || '');
+  return _objetosDe('Ordenes')
+    .filter(o => ESTADOS_PENDIENTES.indexOf(String(o.Estado || '').trim()) !== -1)
+    .filter(o => !buscado || _normalizar(o.Equipo || '') === buscado)
+    .sort((a, b) => String(a.FechaInicio || '').localeCompare(String(b.FechaInicio || '')));
+}
+
+function _horasDeEquipos() {
+  return _objetosDe('HorasEquipos')
+    .filter(f => String(f.Equipo || '').trim())
+    .map(f => ({
+      equipo: String(f.Equipo).trim(),
+      horas: parseFloat(f.HorasActuales) || 0,
+      actualizado: f.UltimaActualizacion,
+    }));
+}
+
+/* ══════════════════════════════════════════════
    INTERPRETAR LO QUE ESCRIBIÓ EL OPERARIO
 
    Sin IA, la regla tiene que ser simple y perdonar de más: si el mensaje
@@ -329,6 +393,14 @@ function _interpretar(texto) {
   const movs = t.match(/^(movimientos|movimiento|historial|ultimos)\s+(.+)$/);
   if (movs) return { comando: 'movimientos', texto: movs[2] };
 
+  // "ordenes" y "proximo" funcionan con equipo ("ordenes CB1") o sin él,
+  // en cuyo caso responden por todos los equipos.
+  const ord = t.match(/^(ordenes|orden|pendientes|ots?)(?:\s+(?:de\s+)?(.+))?$/);
+  if (ord) return { comando: 'ordenes', texto: (ord[2] || '').trim() };
+
+  const prox = t.match(/^(proximo|proximos|proxima|mantenimiento|mantenimientos|falta|cuanto falta)(?:\s+(?:de\s+|para\s+)?(.+))?$/);
+  if (prox) return { comando: 'proximo', texto: (prox[2] || '').trim() };
+
   // Todo lo demás se toma como el nombre de un producto. El relleno
   // ("cuánto queda de…") lo descarta después _palabrasDeBusqueda, así que
   // aquí no hay que recortarle nada al texto.
@@ -348,6 +420,8 @@ function _responder(operario, texto) {
   if (orden.comando === 'ayuda')       return _textoAyuda(operario);
   if (orden.comando === 'minimos')     return _textoMinimos();
   if (orden.comando === 'movimientos') return _textoMovimientos(orden.texto);
+  if (orden.comando === 'ordenes')     return _textoOrdenes(orden.texto);
+  if (orden.comando === 'proximo')     return _textoProximo(orden.texto);
   return _textoStock(orden.texto);
 }
 
@@ -358,7 +432,12 @@ function _textoAyuda(operario) {
     + '• *minimos* — lo que está por debajo del mínimo y hay que reponer.\n\n'
     + '• *movimientos* seguido del producto — las últimas entradas y salidas.\n'
     + '   Ejemplo: movimientos filtro de aire\n\n'
-    + 'Solo consulto. Para registrar entradas o salidas, usa el sistema.';
+    + '• *ordenes* seguido del equipo — lo que está pendiente ahí.\n'
+    + '   Ejemplo: ordenes CB1\n\n'
+    + '• *proximo* seguido del equipo — cuántas horas faltan para su mantenimiento.\n'
+    + '   Ejemplo: proximo CB1\n\n'
+    + 'Los dos últimos funcionan también sin equipo, y te respondo por todos.\n\n'
+    + 'Solo consulto. Para registrar cosas, usa el sistema.';
 }
 
 function _textoStock(texto) {
@@ -398,6 +477,90 @@ function _textoStock(texto) {
   }
   msg += '\n\nPara el detalle de uno, escríbeme su código.';
   return msg;
+}
+
+function _textoOrdenes(equipo) {
+  const pendientes = _ordenesPendientes(equipo);
+
+  if (!pendientes.length) {
+    return equipo
+      ? 'No hay órdenes pendientes para "' + equipo + '".\n\n'
+        + 'Si el equipo se llama distinto en el sistema, prueba con su código exacto.'
+      : 'No hay ninguna orden pendiente. Todo al día.';
+  }
+
+  const encabezado = equipo
+    ? (pendientes.length === 1
+        ? '1 orden pendiente de ' + equipo.toUpperCase() + ':'
+        : pendientes.length + ' órdenes pendientes de ' + equipo.toUpperCase() + ':')
+    : (pendientes.length === 1
+        ? 'Hay 1 orden pendiente:'
+        : 'Hay ' + pendientes.length + ' órdenes pendientes:');
+
+  const mostradas = pendientes.slice(0, 15);
+  let msg = encabezado + '\n\n' + mostradas.map(o => {
+    let linea = '• *' + String(o.NumeroOrden || '—') + '*';
+    if (!equipo && o.Equipo) linea += ' · ' + o.Equipo;
+    linea += '\n   ' + String(o.Title || 'Sin descripción');
+    const detalle = [o.TipoMantenimiento, o.Estado].filter(Boolean).join(' · ');
+    if (detalle) linea += '\n   ' + detalle;
+    if (o.FechaInicio) linea += ' · desde ' + _fecha(o.FechaInicio);
+    if (o.Responsable) linea += '\n   Responsable: ' + o.Responsable;
+    return linea;
+  }).join('\n\n');
+
+  if (pendientes.length > mostradas.length) {
+    msg += '\n\n…y ' + (pendientes.length - mostradas.length) + ' más. Pregunta por un equipo para acotar.';
+  }
+  return msg;
+}
+
+function _textoProximo(equipo) {
+  const buscado = _normalizar(equipo || '');
+  const todos = _horasDeEquipos();
+  const equipos = buscado ? todos.filter(e => _normalizar(e.equipo) === buscado) : todos;
+
+  if (!equipos.length) {
+    return buscado
+      ? 'No tengo horas registradas de "' + equipo + '".\n\n'
+        + 'Equipos con horas: ' + (todos.map(e => e.equipo).join(', ') || 'ninguno') + '.'
+      : 'Todavía no hay horas registradas de ningún equipo.';
+  }
+
+  // Un solo equipo: se detalla cuánto falta para cada mantenimiento.
+  if (equipos.length === 1) {
+    const e = equipos[0];
+    let msg = '*' + e.equipo + '*: ' + _horas(e.horas) + ' h\n';
+    MARCAS_MANTENIMIENTO.forEach(marca => {
+      const meta = _proximaMarca(e.horas, marca);
+      const faltan = meta - e.horas;
+      msg += '\n' + marca.nombre + ' a las ' + _horas(meta) + ' h'
+           + ' → faltan ' + _horas(faltan) + ' h';
+      if (faltan <= 200) msg += ' ⚠';
+    });
+    if (e.actualizado) msg += '\n\nÚltima actualización: ' + _fecha(e.actualizado);
+    return msg;
+  }
+
+  // Varios equipos: solo el mantenimiento más cercano de cada uno, y
+  // primero el que está por cumplirse, que es lo que se quiere ver.
+  const resumen = equipos.map(e => {
+    let cercano = null;
+    MARCAS_MANTENIMIENTO.forEach(marca => {
+      const meta = _proximaMarca(e.horas, marca);
+      const faltan = meta - e.horas;
+      if (!cercano || faltan < cercano.faltan) cercano = { nombre: marca.nombre, meta: meta, faltan: faltan };
+    });
+    return { equipo: e.equipo, horas: e.horas, cercano: cercano };
+  }).sort((a, b) => a.cercano.faltan - b.cercano.faltan);
+
+  return 'Próximo mantenimiento de cada equipo:\n\n'
+    + resumen.map(r =>
+        '• *' + r.equipo + '* · ' + _horas(r.horas) + ' h\n'
+        + '   ' + r.cercano.nombre + ' a las ' + _horas(r.cercano.meta) + ' h'
+        + ' → faltan ' + _horas(r.cercano.faltan) + ' h'
+        + (r.cercano.faltan <= 200 ? ' ⚠' : '')
+      ).join('\n');
 }
 
 function _textoMinimos() {
@@ -442,6 +605,13 @@ function _textoMovimientos(texto) {
         if (m.responsable) linea += ' (' + m.responsable + ')';
         return linea;
       }).join('\n');
+}
+
+/** Las horas se escriben con punto de miles: 24.353 se lee de un vistazo,
+ *  24353 hay que contarlo. Se usa solo para horas, no para cantidades de
+ *  inventario, que son números chicos y se leen bien tal cual. */
+function _horas(n) {
+  return Math.round(Number(n) || 0).toLocaleString('es-CO');
 }
 
 /** Sin decimales cuando no hacen falta: "4" se lee mejor que "4.0". */
