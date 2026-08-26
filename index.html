@@ -7836,6 +7836,20 @@ async function _obtenerDataUrlFoto(driveFileId) {
   }
 }
 
+/** Baja varias fotos a la vez y las deja en caché, en lotes para no
+ *  disparar cientos de peticiones simultáneas al Apps Script (que las
+ *  rechazaría). `alAvanzar(hechas, total)` sirve para mostrar el progreso.
+ *  Los errores no interesan aquí: _obtenerDataUrlFoto ya devuelve '' y lo
+ *  deja anotado en consola, y el documento se arma igual sin esa foto. */
+async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10) {
+  const total = ids.length;
+  if (!total) return;
+  for (let i = 0; i < total; i += tamLote) {
+    await Promise.all(ids.slice(i, i + tamLote).map(id => _obtenerDataUrlFoto(id)));
+    if (alAvanzar) alAvanzar(Math.min(i + tamLote, total), total);
+  }
+}
+
 /** Pinta la foto en el <img> indicado (y, si se pasa, ajusta el href del
  *  <a> que la envuelve para que al hacer clic abra la imagen completa). */
 async function _cargarFotoEnImg(driveFileId, imgEl, aEl) {
@@ -8702,8 +8716,12 @@ function limpiarFormulario() {
  *  usa el timestamp completo en base36 más un sufijo aleatorio (crypto,
  *  no Math.random), y además se revisa contra las órdenes ya cargadas en
  *  este dispositivo por si acaso — la combinación hace que una colisión
- *  real sea, en la práctica, imposible. */
-function generarNumeroOrdenUnico() {
+ *  real sea, en la práctica, imposible.
+ *
+ *  `yaUsados` es un Set opcional con los números de un lote que todavía no
+ *  se ha guardado: las órdenes automáticas se arman todas en memoria antes
+ *  de subirlas, así que en ese momento aún no están en allOrdenes. */
+function generarNumeroOrdenUnico(yaUsados) {
   let numero;
   do {
     const ts = Date.now().toString(36).toUpperCase();
@@ -8711,7 +8729,8 @@ function generarNumeroOrdenUnico() {
     crypto.getRandomValues(azar);
     const sufijo = Array.from(azar).map(b => b.toString(36).toUpperCase().padStart(2, '0')).join('');
     numero = 'OT-' + ts + sufijo;
-  } while (allOrdenes.some(o => o.NumeroOrden === numero));
+  } while (allOrdenes.some(o => o.NumeroOrden === numero) || (yaUsados && yaUsados.has(numero)));
+  if (yaUsados) yaUsados.add(numero);
   return numero;
 }
 
@@ -14177,6 +14196,23 @@ async function descargarInformeCronograma(boton) {
       operacionActual === 'zipaquira' ? _leerTodasEntregasTurnoAgrupadas() : Promise.resolve({}),
     ]);
 
+    // Las fotos se bajan TODAS de una vez antes de armar el documento.
+    // Antes se pedían actividad por actividad, encadenadas: en Zipaquirá son
+    // 17 esperas por día, o más de 500 para un mes, cada una un viaje al
+    // Apps Script — un informe mensual con fotos podía tardar minutos y
+    // parecer congelado. _obtenerDataUrlFoto guarda cada foto en caché, así
+    // que después de esta precarga las llamadas de abajo son instantáneas.
+    const idsFotos = [];
+    for (const fecha of fechas) {
+      for (const lista of Object.values(todasLasFotos[fecha] || {})) {
+        for (const f of (lista || [])) if (f && f.driveFileId) idsFotos.push(f.driveFileId);
+      }
+    }
+    await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
+      if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
+    });
+    if (btn) btn.innerHTML = 'Generando informe…';
+
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
     // debajo las fotos si tiene) para UNA actividad — la usan tanto las
     // fijas del cronograma como las adicionales agregadas a mano.
@@ -17435,7 +17471,10 @@ async function verificarPlanesMantenimientoYGenerar() {
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const hoyStr = hoy.toISOString().split('T')[0];
-  let i = 0;
+  // Números ya usados en este lote: las órdenes se arman todas en
+  // memoria antes de subirlas, así que todavía no están en allOrdenes
+  // y generarNumeroOrdenUnico no las vería.
+  const numerosDelLote = new Set();
 
   for (const plan of planes) {
     if (!plan.ID || plan.Activo === 'NO') continue;
@@ -17473,9 +17512,8 @@ async function verificarPlanesMantenimientoYGenerar() {
 
     if (!debeGenerar) continue;
 
-    i++;
     try {
-      const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
+      const numOrden = generarNumeroOrdenUnico(numerosDelLote);
       const nuevaOrden = {
         id: numOrden, NumeroOrden: numOrden,
         Title: plan.Descripcion || ('Mantenimiento (' + etiquetaFrecuencia + ') — ' + plan.Equipo),
@@ -17588,7 +17626,10 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     (allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean)
   );
 
-  let i = 0;
+  // Números ya usados en este lote: las órdenes se arman todas en
+  // memoria antes de subirlas, así que todavía no están en allOrdenes
+  // y generarNumeroOrdenUnico no las vería.
+  const numerosDelLote = new Set();
   const nuevasOrdenes = [];
   const cambiosEstado = {};
   for (const { tipo } of INFORME_TIPOS_EQUIPO) {
@@ -17629,8 +17670,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       if (yaGeneradas.has(origen)) continue;
       yaGeneradas.add(origen);
 
-      i++;
-      const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
+      const numOrden = generarNumeroOrdenUnico(numerosDelLote);
       nuevasOrdenes.push({
         id: numOrden, NumeroOrden: numOrden,
         Title: tituloCorto + ' ' + equipo,
