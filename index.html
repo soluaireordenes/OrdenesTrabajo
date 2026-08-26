@@ -10000,9 +10000,19 @@ function _variablesDestruirCharts() {
  *  ordena bien: se traduce a su posición dentro de la lista de franjas. */
 function _variablesOrdenarLecturas(filas, horas) {
   const orden = new Map((horas || []).map((h, i) => [h, i]));
+  // Ordenar por la hora REAL del reloj, no por la posición de la franja en
+  // el formulario. Ahí "2:00 a.m." va de última (cierra el ciclo de turnos),
+  // así que la lectura de las 2 a.m. quedaba dibujada al final de su día,
+  // después de las 10 p.m. — el eje mostraba "26/08 6 a.m." y luego
+  // "26/08 2 a.m.", que es al revés de como pasó el tiempo.
+  const minutosDelDia = (h) => {
+    const hhmm = HORA_REPORTE_A_24H[h];
+    if (hhmm) return Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3));
+    return (orden.get(h) ?? 99) * 60;  // franja sin hora conocida: como venga en el formulario
+  };
   return filas.slice().sort((a, b) => {
     if (a.Fecha !== b.Fecha) return a.Fecha < b.Fecha ? -1 : 1;
-    return (orden.get(a.Hora) ?? 99) - (orden.get(b.Hora) ?? 99);
+    return minutosDelDia(a.Hora) - minutosDelDia(b.Hora);
   });
 }
 
@@ -10133,7 +10143,12 @@ function _variablesDibujar(contId, bloques) {
         responsive: true, maintainAspectRatio: false, animation: false,
         plugins: { legend: { display: false }, tooltip: { filter: it => it.datasetIndex === 0 } },
         scales: {
-          x: { ticks: { maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
+          // maxTicksLimit: 6 tapaba las franjas: con dos días de reportes se
+          // veían solo 4 etiquetas sueltas (6 a.m., 6 p.m., 6 a.m.) y no las
+          // seis franjas del día. Con un tope alto y las etiquetas giradas,
+          // un rango corto muestra todas las lecturas y uno largo las va
+          // salteando solo cuando de verdad no caben.
+          x: { ticks: { maxTicksLimit: 24, maxRotation: 60, minRotation: 0, font: { size: 9 } }, grid: { display: false } },
           y: campo.escala
             ? { min: 0.5, max: campo.escala.length + 0.5,
                 ticks: { stepSize: 1, font: { size: 9 }, callback: v => campo.escala[v - 1] || '' },
