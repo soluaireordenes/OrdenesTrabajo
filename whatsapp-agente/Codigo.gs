@@ -529,7 +529,8 @@ function _marcarAtendido(idMensaje) {
 
 /** Comprueba que el script llega a las dos hojas y que los datos se leen
  *  bien. Es lo primero que hay que correr: si esto falla, nada más va a
- *  funcionar. Mira el resultado en Ver → Registros. */
+ *  funcionar. El resultado sale en el panel "Registro de ejecución" que se
+ *  abre solo abajo del editor. */
 function probarLectura() {
   const productos = _productos();
   const stock = _stockPorCodigo();
