@@ -4774,7 +4774,14 @@ window.addEventListener('load', async () => {
             [SH.informeSemestralEstado]: INFORME_SEMESTRAL_ESTADO_COLS,
             [SH.informeAnualEstado]: INFORME_ANUAL_ESTADO_COLS,
             [SH.informeActividades]: INFORME_ACTIVIDADES_COLS }
-        ).finally(() => {
+        ).finally(async () => {
+          // Si ninguna hora ni hora base cambió desde la última revisión
+          // completa, no hay nada que generar y las tres revisiones se
+          // saltan enteras — son unas 18 peticiones a Sheets contra una
+          // cuota que toda la planta comparte. Comprobarlo no cuesta
+          // ninguna petición: sale de la caché recién precargada.
+          const { revisar, huella } = await _revisionInformesPendiente();
+          if (!revisar) return;
           // Se espera a que terminen las tres para volver a pintar Pendientes:
           // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
           // llegaban las ordenes nuevas, asi que no aparecian hasta la
@@ -4789,6 +4796,7 @@ window.addEventListener('load', async () => {
               renderPendientes();
               actualizarContadorTab && actualizarContadorTab();
             }
+            _recordarRevisionInformes(huella, res);
           });
         });
       }
@@ -7607,15 +7615,35 @@ async function repararHoja() {
 let _hojasExistentesCache = null; // Set<string> | null
 const _cacheEncabezadosHoja = {}; // { [hoja]: string[] }
 
+// Los cachés de arriba solo sirven DESPUÉS de que la primera petición
+// termina. Cuando varias partes arrancan a la vez (los tres generadores de
+// órdenes corren en paralelo), todas encuentran el caché vacío y todas
+// salen a pedir lo mismo: se medían 3 lecturas idénticas de
+// "HorasEquipos!A1:D1" y otras 3 de "InformeActividades!A1:F1" en un solo
+// arranque. Guardando también la promesa EN VUELO, la segunda y la tercera
+// se cuelgan de la petición que ya va en camino en vez de abrir la suya.
+// Importa porque todos los operarios comparten un mismo usuario de Google
+// y, con él, la misma cuota de lecturas por minuto.
+let _hojasExistentesEnVuelo = null;   // Promise<Set<string>> | null
+const _asegurarHojaEnVuelo = {};      // { [hoja]: Promise<string[]> }
+
 // ── Helper: crear hoja si no existe ──
 async function crearHojaSiNoExiste(nombre) {
   const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   if (!_hojasExistentesCache) {
-    // Leer metadata del spreadsheet para ver qué hojas existen
-    const metaR = await fetch(base + '?fields=sheets.properties.title', { headers: hdrs });
-    const meta  = await metaR.json();
-    _hojasExistentesCache = new Set((meta.sheets || []).map(s => s.properties.title));
+    // Leer metadata del spreadsheet para ver qué hojas existen. Una sola
+    // lectura aunque entren diez llamadas a la vez: las que lleguen
+    // mientras va en camino esperan la misma promesa.
+    if (!_hojasExistentesEnVuelo) {
+      _hojasExistentesEnVuelo = (async () => {
+        const metaR = await fetch(base + '?fields=sheets.properties.title', { headers: hdrs });
+        const meta  = await metaR.json();
+        return new Set((meta.sheets || []).map(s => s.properties.title));
+      })().finally(() => { _hojasExistentesEnVuelo = null; });
+    }
+    // Si falla, el caché queda en null y la próxima llamada lo reintenta.
+    _hojasExistentesCache = await _hojasExistentesEnVuelo;
   }
   if (_hojasExistentesCache.has(nombre)) return; // ya existe
   // Crear la hoja
@@ -7636,8 +7664,18 @@ async function crearHojaSiNoExiste(nombre) {
 }
 
 // ── Helper: asegurar encabezados en una hoja específica ──
+// Envoltura que une las llamadas simultáneas para la MISMA hoja en una
+// sola petición (ver el comentario de _asegurarHojaEnVuelo arriba).
 async function asegurarHoja(nombre, cols) {
   if (_cacheEncabezadosHoja[nombre]) return _cacheEncabezadosHoja[nombre];
+  if (!_asegurarHojaEnVuelo[nombre]) {
+    _asegurarHojaEnVuelo[nombre] = _asegurarHojaReal(nombre, cols)
+      .finally(() => { delete _asegurarHojaEnVuelo[nombre]; });
+  }
+  return _asegurarHojaEnVuelo[nombre];
+}
+
+async function _asegurarHojaReal(nombre, cols) {
   const base   = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const colFin = numToCol(cols.length - 1);
@@ -7833,6 +7871,20 @@ async function _obtenerDataUrlFoto(driveFileId) {
   } catch (e) {
     console.warn('No se pudo cargar la foto', driveFileId, e.message);
     return '';
+  }
+}
+
+/** Baja varias fotos a la vez y las deja en caché, en lotes para no
+ *  disparar cientos de peticiones simultáneas al Apps Script (que las
+ *  rechazaría). `alAvanzar(hechas, total)` sirve para mostrar el progreso.
+ *  Los errores no interesan aquí: _obtenerDataUrlFoto ya devuelve '' y lo
+ *  deja anotado en consola, y el documento se arma igual sin esa foto. */
+async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10) {
+  const total = ids.length;
+  if (!total) return;
+  for (let i = 0; i < total; i += tamLote) {
+    await Promise.all(ids.slice(i, i + tamLote).map(id => _obtenerDataUrlFoto(id)));
+    if (alAvanzar) alAvanzar(Math.min(i + tamLote, total), total);
   }
 }
 
@@ -8702,8 +8754,12 @@ function limpiarFormulario() {
  *  usa el timestamp completo en base36 más un sufijo aleatorio (crypto,
  *  no Math.random), y además se revisa contra las órdenes ya cargadas en
  *  este dispositivo por si acaso — la combinación hace que una colisión
- *  real sea, en la práctica, imposible. */
-function generarNumeroOrdenUnico() {
+ *  real sea, en la práctica, imposible.
+ *
+ *  `yaUsados` es un Set opcional con los números de un lote que todavía no
+ *  se ha guardado: las órdenes automáticas se arman todas en memoria antes
+ *  de subirlas, así que en ese momento aún no están en allOrdenes. */
+function generarNumeroOrdenUnico(yaUsados) {
   let numero;
   do {
     const ts = Date.now().toString(36).toUpperCase();
@@ -8711,7 +8767,8 @@ function generarNumeroOrdenUnico() {
     crypto.getRandomValues(azar);
     const sufijo = Array.from(azar).map(b => b.toString(36).toUpperCase().padStart(2, '0')).join('');
     numero = 'OT-' + ts + sufijo;
-  } while (allOrdenes.some(o => o.NumeroOrden === numero));
+  } while (allOrdenes.some(o => o.NumeroOrden === numero) || (yaUsados && yaUsados.has(numero)));
+  if (yaUsados) yaUsados.add(numero);
   return numero;
 }
 
@@ -14137,6 +14194,12 @@ async function consultarCronogramaFecha() {
   }
 }
 
+/** Cuántas fotos entran en el informe por cada actividad. Cada foto va
+ *  embebida en base64 dentro del documento, así que una actividad con
+ *  muchas engorda el archivo y lo vuelve lento de abrir sin aportar gran
+ *  cosa: las demás siempre se pueden ver en el sistema. */
+const INFORME_MAX_FOTOS_POR_ACTIVIDAD = 3;
+
 /** Descarga un informe PDF (nueva pestaña + imprimir, igual patrón que
  *  descargarOrdenPDF) con lo marcado/no marcado en un rango de fechas. */
 async function descargarInformeCronograma(boton) {
@@ -14177,6 +14240,27 @@ async function descargarInformeCronograma(boton) {
       operacionActual === 'zipaquira' ? _leerTodasEntregasTurnoAgrupadas() : Promise.resolve({}),
     ]);
 
+    // Las fotos se bajan TODAS de una vez antes de armar el documento.
+    // Antes se pedían actividad por actividad, encadenadas: en Zipaquirá son
+    // 17 esperas por día, o más de 500 para un mes, cada una un viaje al
+    // Apps Script — un informe mensual con fotos podía tardar minutos y
+    // parecer congelado. _obtenerDataUrlFoto guarda cada foto en caché, así
+    // que después de esta precarga las llamadas de abajo son instantáneas.
+    const idsFotos = [];
+    for (const fecha of fechas) {
+      for (const lista of Object.values(todasLasFotos[fecha] || {})) {
+        // Solo las que de verdad van a salir en el documento — bajar las
+        // demás sería gastar peticiones en fotos que nadie va a ver.
+        for (const f of (lista || []).slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD)) {
+          if (f && f.driveFileId) idsFotos.push(f.driveFileId);
+        }
+      }
+    }
+    await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
+      if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
+    });
+    if (btn) btn.innerHTML = 'Generando informe…';
+
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
     // debajo las fotos si tiene) para UNA actividad — la usan tanto las
     // fijas del cronograma como las adicionales agregadas a mano.
@@ -14190,9 +14274,13 @@ async function descargarInformeCronograma(boton) {
       const obs = reg?.observacion ? esc(reg.observacion) + (reg.realizado ? '' : ' (motivo)') : '';
       // Traer cada foto como data:URL para que quede embebida en el PDF
       // descargado y se vea aunque luego se abra sin internet (igual que
-      // las fotos y firmas de descargarOrdenPDF).
+      // las fotos y firmas de descargarOrdenPDF). Solo las primeras
+      // INFORME_MAX_FOTOS_POR_ACTIVIDAD: cada foto va embebida en base64,
+      // así que una actividad con muchas engorda el informe sin aportar.
       const fotosActividad = fotosFecha[id] || [];
-      const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+      const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
+      const sobrantes = fotosActividad.length - fotosMostradas.length;
+      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId)));
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.
@@ -14202,6 +14290,9 @@ async function descargarInformeCronograma(boton) {
           <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px 0">
             ${fotosOk.map(url => `<img src="${url}" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`).join('')}
           </div>
+          ${sobrantes > 0 ? `<div style="font-size:10px;color:#666;font-style:italic;padding-bottom:8px">
+            Esta actividad tiene ${sobrantes} foto${sobrantes === 1 ? '' : 's'} más; en el informe se incluyen las primeras ${INFORME_MAX_FOTOS_POR_ACTIVIDAD}. Las demás se ven en el sistema.
+          </div>` : ''}
         </td></tr>`);
       }
       return filas;
@@ -17435,7 +17526,10 @@ async function verificarPlanesMantenimientoYGenerar() {
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const hoyStr = hoy.toISOString().split('T')[0];
-  let i = 0;
+  // Números ya usados en este lote: las órdenes se arman todas en
+  // memoria antes de subirlas, así que todavía no están en allOrdenes
+  // y generarNumeroOrdenUnico no las vería.
+  const numerosDelLote = new Set();
 
   for (const plan of planes) {
     if (!plan.ID || plan.Activo === 'NO') continue;
@@ -17473,9 +17567,8 @@ async function verificarPlanesMantenimientoYGenerar() {
 
     if (!debeGenerar) continue;
 
-    i++;
     try {
-      const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
+      const numOrden = generarNumeroOrdenUnico(numerosDelLote);
       const nuevaOrden = {
         id: numOrden, NumeroOrden: numOrden,
         Title: plan.Descripcion || ('Mantenimiento (' + etiquetaFrecuencia + ') — ' + plan.Equipo),
@@ -17588,7 +17681,10 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     (allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean)
   );
 
-  let i = 0;
+  // Números ya usados en este lote: las órdenes se arman todas en
+  // memoria antes de subirlas, así que todavía no están en allOrdenes
+  // y generarNumeroOrdenUnico no las vería.
+  const numerosDelLote = new Set();
   const nuevasOrdenes = [];
   const cambiosEstado = {};
   for (const { tipo } of INFORME_TIPOS_EQUIPO) {
@@ -17629,8 +17725,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       if (yaGeneradas.has(origen)) continue;
       yaGeneradas.add(origen);
 
-      i++;
-      const numOrden = 'OT-' + String(Date.now() + i).slice(-5);
+      const numOrden = generarNumeroOrdenUnico(numerosDelLote);
       nuevasOrdenes.push({
         id: numOrden, NumeroOrden: numOrden,
         Title: tituloCorto + ' ' + equipo,
@@ -17700,6 +17795,51 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
 
   actualizarBadgeNotificaciones();
   return { creadas: nuevasOrdenes.length, sembradas: 0, error: null };
+}
+
+/* ── ¿Hace falta revisar los informes por horas en esta carga? ──
+ *  Las tres revisiones cuestan del orden de 18 peticiones a Sheets, y
+ *  todos los operarios comparten un mismo usuario de Google (el token lo
+ *  emite el Apps Script del login), así que esa cuota por minuto es una
+ *  sola para toda la planta: repetirlas en cada carga de página es lo que
+ *  la agotaba cuando varios entraban a la vez.
+ *
+ *  Lo único que puede hacer que una orden se venza es que cambien las
+ *  horas de un equipo o su hora base. Así que se guarda una huella de esos
+ *  datos y, si no cambió nada desde la última revisión completa en este
+ *  dispositivo, no hay nada que revisar. La huella sale de la caché que
+ *  acaba de llenar _precargarHojasEnCache, o sea que comprobarlo no cuesta
+ *  ni una petición.
+ *
+ *  Ante cualquier duda se revisa: dejar de generar una orden es mucho peor
+ *  que gastar unas peticiones de más. */
+const HUELLA_HORAS_CLAVE = 'informesHuellaHoras';
+
+function _huellaDeHoras(filas) {
+  return (filas || [])
+    .map(f => [f.Equipo, f.HorasActuales, f.HoraBaseInformes].join('~'))
+    .sort()
+    .join('|');
+}
+
+async function _revisionInformesPendiente() {
+  try {
+    const huella = _huellaDeHoras(await leerHojaGenericaCacheada(SH.horasEquipos));
+    if (!huella) return { revisar: true, huella: null };  // sin datos: revisar
+    const guardada = localStorage.getItem(HUELLA_HORAS_CLAVE + ':' + operacionActual);
+    return { revisar: huella !== guardada, huella };
+  } catch (e) {
+    return { revisar: true, huella: null };
+  }
+}
+
+/** Solo se recuerda la huella cuando las TRES revisiones terminaron sin
+ *  error. Si una falló a medias (sin red, cuota agotada), la próxima carga
+ *  tiene que volver a intentarlo. */
+function _recordarRevisionInformes(huella, resultados) {
+  if (!huella) return;
+  if (!resultados.every(r => r && !r.error)) return;
+  try { localStorage.setItem(HUELLA_HORAS_CLAVE + ':' + operacionActual, huella); } catch (_) {}
 }
 
 function verificarInformeTrimestralYGenerar() {
