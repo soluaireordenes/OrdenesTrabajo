@@ -14740,14 +14740,26 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
     : [];
   const totalEquipos = equiposDelRango.length || 1;
 
-  // clave de franja -> conjunto de equipos distintos reportados en ella
+  // clave de franja -> conjunto de equipos distintos reportados en ella,
+  // y quién hizo esos reportes (para mostrarlo al pasar por el punto).
   const porFranja = new Map();
+  const personasPorFranja = new Map();
+  // El técnico que tomó los datos es el del formulario; si escogió "Otras",
+  // el nombre quedó escrito a mano en TecnicoOtro. Si por lo que sea no hay
+  // técnico, queda quien tenía la sesión abierta al guardar.
+  const quienReporto = f => ((f.Tecnico === 'Otras' ? f.TecnicoOtro : f.Tecnico) || f.RegistradoPor || '').trim();
   dentroRango.forEach(f => {
     const k = horas ? (f.Fecha + '|' + f.Hora) : f.Fecha;
     if (!porFranja.has(k)) porFranja.set(k, new Set());
     porFranja.get(k).add(colEquipo ? (f[colEquipo] || '').trim() : '1');
+    const quien = quienReporto(f);
+    if (quien) {
+      if (!personasPorFranja.has(k)) personasPorFranja.set(k, new Set());
+      personasPorFranja.get(k).add(quien);
+    }
   });
   const reportadosEn = k => (porFranja.get(k) ? porFranja.get(k).size : 0);
+  const personasEn = k => [...(personasPorFranja.get(k) || [])];
 
   const ahora = new Date();
   const hoyIso = _isoLocal(ahora);
@@ -14770,7 +14782,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
   const fin = new Date(hasta + 'T12:00:00');
   while (cursor <= fin && fechas.length < 45) { fechas.push(_isoLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
 
-  const labels = [], valores = [], colores = [], detalles = [];
+  const labels = [], valores = [], colores = [], detalles = [], responsables = [];
   let sumaReportados = 0, total = 0;
   // Verde solo si están todos; ámbar si falta alguno; rojo si no hubo ninguno.
   const colorDe = n => n === 0 ? '#b91c1c' : (n >= totalEquipos ? '#15803d' : '#a15c00');
@@ -14780,6 +14792,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
     valores.push(Math.round((n / totalEquipos) * 100));
     colores.push(colorDe(n));
     detalles.push(n);
+    responsables.push(personasEn(clave));
     total++; sumaReportados += n;
   };
   fechas.forEach(fecha => {
@@ -14814,9 +14827,21 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => {
           const n = detalles[ctx.dataIndex];
-          if (!colEquipo) return ' ' + (n ? '✓ Reporte guardado' : '✗ Sin reporte');
-          if (n === 0) return ' ✗ Ningún equipo reportado';
-          return ` ${n >= totalEquipos ? '✓' : '⚠'} ${n} de ${totalEquipos} equipos (${ctx.raw}%)`;
+          const resumen = !colEquipo
+            ? ' ' + (n ? '✓ Reporte guardado' : '✗ Sin reporte')
+            : (n === 0 ? ' ✗ Ningún equipo reportado'
+                       : ` ${n >= totalEquipos ? '✓' : '⚠'} ${n} de ${totalEquipos} equipos (${ctx.raw}%)`);
+          // Debajo del resumen, quién hizo esos reportes. Se muestran hasta
+          // 4 nombres para que el globo no se vuelva una pared de texto.
+          const quienes = responsables[ctx.dataIndex] || [];
+          if (!quienes.length) return resumen;
+          const visibles = quienes.slice(0, 4);
+          const resto = quienes.length - visibles.length;
+          return [
+            resumen,
+            ' ' + (quienes.length === 1 ? 'Lo hizo: ' : 'Lo hicieron: ')
+                + visibles.join(', ') + (resto > 0 ? ` y ${resto} más` : ''),
+          ];
         } } },
       },
       scales: {
