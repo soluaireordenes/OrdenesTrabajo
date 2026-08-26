@@ -28,17 +28,35 @@
         ID_NUMERO_WHATSAPP el "Phone number ID" del panel de Meta
         TOKEN_VERIFICACION una palabra que tú inventes (ej. solucionaire2026)
       Van ahí y NO en el código: el código se puede compartir, las claves no.
+      Y acuérdate de darle a "Guardar propiedades del script": llenar los
+      campos no basta.
       (Esta versión NO necesita clave de Claude ni saldo de API.)
+
+      ⚠ _propiedad() recibe el NOMBRE de la propiedad, nunca su valor.
+        Bien:  _propiedad('ID_NUMERO_WHATSAPP')
+        Mal:   _propiedad('1193628797176924')
+      Pegar el valor ahí dentro rompe el bot de una forma difícil de
+      diagnosticar: el mensaje llega, se reconoce, se arma la respuesta, y
+      revienta justo al enviarla. Como el error queda atrapado, la ejecución
+      figura como "Completada" y el operario nunca recibe nada.
    3. Implementar → Nueva implementación → Aplicación web
         Ejecutar como: yo
         Quién tiene acceso: cualquier usuario
       Copia la URL que termina en /exec.
-   4. En el panel de Meta → WhatsApp → Configuración → Webhooks:
-        URL de devolución de llamada: la URL del paso 3
+   4. Pon delante el Worker de Cloudflare (ver cloudflare-worker.js). Meta
+      espera respuesta en pocos segundos y este script tarda entre 3 y 6 en
+      leer las hojas y contestar; sin el Worker, Meta da el mensaje por
+      perdido y lo reenvía, y al operario le llega la respuesta repetida.
+   5. En el panel de Meta → WhatsApp → Configuración → Webhooks:
+        URL de devolución de llamada: la URL del Worker
         Token de verificación: el mismo TOKEN_VERIFICACION del paso 2
-        Suscríbete al campo "messages".
-   5. Escríbele al número desde un celular que esté registrado como
-      operario en el sistema.
+        Suscríbete al campo "messages" — sin eso no llega ni un mensaje.
+      Al cambiar la URL, Meta suele desmarcar los campos: revísalo después
+      de guardar.
+   6. Escríbele al número desde un celular que esté registrado como
+      operario en el sistema. Si responde "Este número no está registrado",
+      el bot funciona: solo falta agregar ese celular en la aplicación,
+      en Encargados Turnos → Operarios.
 
    Antes de conectar nada, corre desde el editor las funciones de prueba
    del final: probarLectura, probarOperario y probarRespuestas.
@@ -530,6 +548,32 @@ function probarLectura() {
       + ' (mínimo ' + p.stockMinimo + ')');
   });
   console.log('Productos bajo el mínimo: ' + _bajoMinimo().length);
+}
+
+/** Comprueba de una sola vez que las tres propiedades están guardadas y
+ *  que el envío a WhatsApp funciona: manda un mensaje al número que le
+ *  pongas. Es la prueba que más rápido detecta una propiedad mal escrita o
+ *  un valor pegado dentro de _propiedad(). */
+function probarCredenciales() {
+  ['TOKEN_WHATSAPP', 'ID_NUMERO_WHATSAPP', 'TOKEN_VERIFICACION'].forEach(nombre => {
+    const valor = PropertiesService.getScriptProperties().getProperty(nombre);
+    console.log(nombre + ': ' + (valor ? 'guardada (' + valor.length + ' caracteres)' : '← FALTA'));
+  });
+
+  const miNumero = '573001234567';   // ← TU número, con indicativo y sin signos
+  const url = 'https://graph.facebook.com/v21.0/' + _propiedad('ID_NUMERO_WHATSAPP') + '/messages';
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + _propiedad('TOKEN_WHATSAPP') },
+    payload: JSON.stringify({
+      messaging_product: 'whatsapp', to: miNumero, type: 'text',
+      text: { body: 'Prueba del bot. Si te llegó esto, el envío funciona.' },
+    }),
+    muteHttpExceptions: true,
+  });
+  console.log('Envío — código HTTP: ' + resp.getResponseCode());
+  console.log('Envío — respuesta: ' + resp.getContentText());
 }
 
 /** Comprueba que un número queda reconocido como operario. Cambia el
