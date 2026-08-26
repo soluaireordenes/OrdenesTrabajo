@@ -14194,6 +14194,12 @@ async function consultarCronogramaFecha() {
   }
 }
 
+/** Cuántas fotos entran en el informe por cada actividad. Cada foto va
+ *  embebida en base64 dentro del documento, así que una actividad con
+ *  muchas engorda el archivo y lo vuelve lento de abrir sin aportar gran
+ *  cosa: las demás siempre se pueden ver en el sistema. */
+const INFORME_MAX_FOTOS_POR_ACTIVIDAD = 3;
+
 /** Descarga un informe PDF (nueva pestaña + imprimir, igual patrón que
  *  descargarOrdenPDF) con lo marcado/no marcado en un rango de fechas. */
 async function descargarInformeCronograma(boton) {
@@ -14243,7 +14249,11 @@ async function descargarInformeCronograma(boton) {
     const idsFotos = [];
     for (const fecha of fechas) {
       for (const lista of Object.values(todasLasFotos[fecha] || {})) {
-        for (const f of (lista || [])) if (f && f.driveFileId) idsFotos.push(f.driveFileId);
+        // Solo las que de verdad van a salir en el documento — bajar las
+        // demás sería gastar peticiones en fotos que nadie va a ver.
+        for (const f of (lista || []).slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD)) {
+          if (f && f.driveFileId) idsFotos.push(f.driveFileId);
+        }
       }
     }
     await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
@@ -14264,9 +14274,13 @@ async function descargarInformeCronograma(boton) {
       const obs = reg?.observacion ? esc(reg.observacion) + (reg.realizado ? '' : ' (motivo)') : '';
       // Traer cada foto como data:URL para que quede embebida en el PDF
       // descargado y se vea aunque luego se abra sin internet (igual que
-      // las fotos y firmas de descargarOrdenPDF).
+      // las fotos y firmas de descargarOrdenPDF). Solo las primeras
+      // INFORME_MAX_FOTOS_POR_ACTIVIDAD: cada foto va embebida en base64,
+      // así que una actividad con muchas engorda el informe sin aportar.
       const fotosActividad = fotosFecha[id] || [];
-      const fotosDataUrls = await Promise.all(fotosActividad.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+      const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
+      const sobrantes = fotosActividad.length - fotosMostradas.length;
+      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId)));
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:#666">${detalle}</td><td style="font-size:10px;color:#666;font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.
@@ -14276,6 +14290,9 @@ async function descargarInformeCronograma(boton) {
           <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px 0">
             ${fotosOk.map(url => `<img src="${url}" style="width:160px;height:160px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`).join('')}
           </div>
+          ${sobrantes > 0 ? `<div style="font-size:10px;color:#666;font-style:italic;padding-bottom:8px">
+            Esta actividad tiene ${sobrantes} foto${sobrantes === 1 ? '' : 's'} más; en el informe se incluyen las primeras ${INFORME_MAX_FOTOS_POR_ACTIVIDAD}. Las demás se ven en el sistema.
+          </div>` : ''}
         </td></tr>`);
       }
       return filas;
