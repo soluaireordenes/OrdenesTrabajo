@@ -6030,15 +6030,8 @@ async function descargarOrdenPDF(id) {
 
 ${fotosHtml}
 
-${o.FirmaCreador ? `<div class="section-title">Firma del solicitante</div>
-<div style="padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:16px">
-  <img src="${o.FirmaCreador}" style="max-height:70px;max-width:260px">
-</div>` : ''}
-
-${o.FirmaCierre ? `<div class="section-title">Firma del técnico ejecutor</div>
-<div style="padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:16px">
-  <img src="${o.FirmaCierre}" style="max-height:70px;max-width:260px">
-</div>` : ''}
+${_bloqueFirmaPdf(o, 'FirmaCreador', 'Firma del solicitante')}
+${_bloqueFirmaPdf(o, 'FirmaCierre', 'Firma del técnico ejecutor')}
 
 <div class="footer">${esc(o.NumeroOrden||'—')} · Sistema de Órdenes de Trabajo · ${new Date().toLocaleString('es-CO')}</div>
 <script>window.onload=()=>window.print()<\/script>
@@ -8606,6 +8599,12 @@ async function cargarOrdenesDeSheets() {
     obj.servicios = [];
     obj.fotos     = [];
     ['FirmaCreador','FirmaCierre'].forEach(c => { if (typeof obj[c] !== 'string') obj[c] = ''; });
+    // Qué firmas trae Sheets, anotado AHORA — antes de que el merge de
+    // cargarOrdenes() complete las que falten con lo que hubiera en el
+    // navegador. Después ya no se distingue "Sheets la tiene" de "la
+    // teníamos aquí", y esa diferencia es la que decide si la copia local
+    // puede soltarla sin perderla (ver _ordenesParaGuardarLocal).
+    obj._firmasEnSheets = ['FirmaCreador','FirmaCierre'].filter(c => obj[c]);
     return obj;
   });
 
@@ -9005,12 +9004,112 @@ setInterval(intentarSincronizarPendientes, 60000);
 ══════════════════════════════════════════════ */
 const LS_KEY = 'ordenesTrabajo_v1_' + operacionActual;
 
+/* ══════════════════════════════════════════════
+   COPIA LOCAL DE LAS ÓRDENES
+
+   El navegador da 5 MB por sitio, y en esos 5 MB cabía todo el historial
+   de órdenes… hasta que dejó de caber. Una firma se guarda como imagen y
+   pesa unos 21 KB; una orden cerrada trae dos, así que pesa 44,8 KB — de
+   los cuales 41,9 son las firmas. A ese ritmo el tope llegaba en 114
+   órdenes, y llegaba en silencio: el error se atrapaba con un console.warn
+   que nadie mira.
+
+   Dos cambios. Uno: las firmas de las órdenes viejas no se guardan aquí
+   —ya están en Sheets, y de allá se leen cuando hagan falta—, pero SÍ se
+   guardan las de las últimas ORDENES_CON_FIRMA_LOCAL, para poder sacar el
+   PDF de una orden reciente estando sin señal, que es el caso real. Con
+   eso el techo pasa de 114 a más de mil. Dos: si aun así se llena, ahora
+   se ve en pantalla y quien guardó se entera.
+══════════════════════════════════════════════ */
+
+// Cuántas órdenes recientes conservan sus firmas en el dispositivo.
+// 40 × 42 KB ≈ 1,7 MB, y quedan más de 3 MB para el resto del historial.
+const ORDENES_CON_FIRMA_LOCAL = 40;
+
+/** La lista tal como se va a guardar: completa para las órdenes recientes
+ *  y para las que todavía no han subido, y sin firmas para el resto.
+ *
+ *  Una firma solo se quita si consta que Sheets ya la tiene (_firmasEnSheets,
+ *  anotado al leer). Si no consta, se guarda igual: esta copia podría ser
+ *  lo único que la tenga, y perderla sería perder la firma del operario. */
+function _ordenesParaGuardarLocal() {
+  const recientes = new Set(
+    allOrdenes.slice()
+      .sort((a, b) => String(b.FechaCreacion || '').localeCompare(String(a.FechaCreacion || '')))
+      .slice(0, ORDENES_CON_FIRMA_LOCAL)
+      .map(o => o.NumeroOrden || o.id)
+  );
+
+  return allOrdenes.map(o => {
+    if (o._pendienteSync) return o;                      // no ha subido: aquí está su única copia
+    if (recientes.has(o.NumeroOrden || o.id)) return o;  // reciente: se conserva para el PDF sin señal
+    const enSheets = o._firmasEnSheets || [];
+    if (!enSheets.length) return o;                      // no consta que Sheets las tenga
+    const copia = Object.assign({}, o);
+    enSheets.forEach(campo => { copia[campo] = ''; });
+    return copia;
+  });
+}
+
+/** El bloque de una firma en el PDF de la orden: la imagen si la tenemos,
+ *  una nota si está guardada pero no se pudo traer, y nada si la orden
+ *  sencillamente no se firmó. */
+function _bloqueFirmaPdf(orden, campo, titulo) {
+  if (orden[campo]) {
+    return `<div class="section-title">${titulo}</div>
+<div style="padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:16px">
+  <img src="${orden[campo]}" style="max-height:70px;max-width:260px">
+</div>`;
+  }
+  if (_firmaGuardadaPeroNoDisponible(orden, campo)) {
+    return `<div class="section-title">${titulo}</div>
+<div style="padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:16px;font-size:11px;color:#666;font-style:italic">
+  La firma está guardada en el sistema, pero no se pudo traer sin conexión. Genera el PDF con internet para incluirla.
+</div>`;
+  }
+  return '';
+}
+
+/** ¿Esa firma existe en Sheets pero no en esta copia? Pasa al abrir una
+ *  orden vieja sin señal: su firma no viaja en la copia del dispositivo.
+ *  Hay que decirlo, porque una orden sin firma y una orden cuya firma no
+ *  se pudo traer se ven igual, y en un soporte de mantenimiento no son
+ *  lo mismo. */
+function _firmaGuardadaPeroNoDisponible(orden, campo) {
+  return !orden[campo] && (orden._firmasEnSheets || []).indexOf(campo) !== -1;
+}
+
 function guardarLocal() {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(allOrdenes));
-  } catch(e) {
+    localStorage.setItem(LS_KEY, JSON.stringify(_ordenesParaGuardarLocal()));
+    _avisarMemoriaLlena(false);
+    return true;
+  } catch (e) {
     console.warn('No se pudo guardar en localStorage:', e.message);
+    _avisarMemoriaLlena(true);
+    return false;
   }
+}
+
+/** Barra fija avisando que el dispositivo ya no puede guardar más. Mientras
+ *  esté llena, lo que se cree sin señal NO queda respaldado aquí, así que
+ *  el operario tiene que saberlo en el momento, no descubrirlo después. */
+function _avisarMemoriaLlena(llena) {
+  const existente = document.getElementById('avisoMemoriaLlena');
+  if (!llena) { if (existente) existente.remove(); return; }
+  if (existente) return;
+
+  const barra = document.createElement('div');
+  barra.id = 'avisoMemoriaLlena';
+  barra.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:5000;background:#8a2c12;color:#fff;'
+    + 'padding:12px 14px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.3);display:flex;align-items:center;'
+    + 'gap:10px;font-size:13px;line-height:1.4';
+  barra.innerHTML = '<span style="flex:1">La memoria de este dispositivo está llena. '
+    + '<strong>Lo que hagas sin señal puede perderse.</strong> Trabaja con internet hasta liberarla, '
+    + 'o usa «Limpiar caché» en el menú.</span>'
+    + '<span id="cerrarAvisoMemoria" style="cursor:pointer;font-size:16px;padding:0 4px">✕</span>';
+  document.body.appendChild(barra);
+  barra.querySelector('#cerrarAvisoMemoria').onclick = () => barra.remove();
 }
 
 function cargarLocal() {
@@ -9177,7 +9276,19 @@ async function guardarOrden() {
     } else if (esSinConexion) {
       // Sin internet: queda en cola y se sube SOLA cuando vuelva la señal — no hay que recrearla.
       nuevaOrden._pendienteSync = true;
-      guardarLocal();
+      if (!guardarLocal()) {
+        // La memoria del dispositivo está llena: la orden solo existe en
+        // esta pestaña y se pierde al cerrarla. Decirlo ahora, mientras el
+        // operario todavía tiene el formulario lleno y puede anotarla.
+        alert.className = 'alert alert-err show';
+        alert.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> '
+          + `Sin conexión y con la memoria del dispositivo llena: la orden <strong>${numOrden}</strong> `
+          + '<strong>NO quedó guardada</strong>. No cierres esta pestaña — anota los datos o espera a tener '
+          + 'internet y vuelve a guardarla.';
+        mostrarIndicadorStorage(false);
+        actualizarContadorTab && actualizarContadorTab();
+        return;   // sin limpiar el formulario: los datos siguen a la vista
+      }
       alert.className = 'alert alert-ok show';
       alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> Sin conexión: la orden <strong>${numOrden}</strong> quedó guardada en este dispositivo y se subirá sola a Google Sheets apenas vuelva el internet (no necesitas crearla de nuevo). <a href="#" onclick="verDetalle('${numOrden}');showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(false);
@@ -9540,13 +9651,23 @@ async function verDetalle(id) {
   html += '</div></div>';
 
   // ── Firmas ──
+  // Las firmas de las órdenes viejas no viajan en la copia del dispositivo
+  // (ver _ordenesParaGuardarLocal). Sin señal no se pueden traer de Sheets,
+  // y entonces se dice — dejar el hueco en blanco haría ver como si la
+  // orden nunca se hubiera firmado.
+  const _firmaFaltaTxt = '<div style="padding:12px 18px;font-size:12.5px;color:var(--text3);font-style:italic">'
+    + 'La firma está guardada, pero no se pudo traer sin conexión. Ábrela con internet para verla.</div></div>';
   if (orden.FirmaCreador) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>';
     html += '<div style="padding:12px 18px"><img src="' + orden.FirmaCreador + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+  } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCreador')) {
+    html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>' + _firmaFaltaTxt;
   }
   if (orden.FirmaCierre) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>';
     html += '<div style="padding:12px 18px"><img src="' + orden.FirmaCierre + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+  } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCierre')) {
+    html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>' + _firmaFaltaTxt;
   }
 
   // ── Pie ──
