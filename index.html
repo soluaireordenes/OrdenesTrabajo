@@ -5008,6 +5008,75 @@ function _vigilarTablasParaCelular() {
 }
 
 /* ══════════════════════════════════════════════
+   UN TOQUE, UNA VEZ
+
+   Los botones que escriben esperan a la red ANTES de escribir: verificar el
+   stock, asegurar que la hoja tenga sus columnas, avisar de un horómetro
+   raro. En los datos de la planta eso son segundos, y en esos segundos la
+   pantalla no cambia. El operario cree que no pasó nada y vuelve a tocar.
+
+   El segundo toque entra mientras el primero sigue en camino, encuentra el
+   mismo estado de antes y hace el trabajo otra vez. Al cerrar una orden eso
+   descuenta el inventario DOS VECES —la orden todavía no figura como
+   cerrada cuando entra el segundo toque, así que la comprobación de "ya
+   estaba cerrada" no lo detiene—, y al guardar un reporte deja dos filas
+   del mismo equipo a la misma hora, que después salen como dos puntos en
+   las gráficas y como un cumplimiento inflado.
+
+   En vez de repetir la misma guarda dentro de cada función —son veinte, y
+   la siguiente que se agregue nacería sin ella—, se envuelven todas aquí.
+   Mientras una siga en camino, otra llamada a esa misma función no hace
+   nada. No se toca lo que cada una hace: solo se le pone la puerta.
+══════════════════════════════════════════════ */
+
+// Solo las que ESCRIBEN. Las que únicamente leen y vuelven a pintar
+// (variablesGraficar, pmRenderRegistroHoras, hvdSeleccionarEquipo) se dejan
+// libres: repetirlas no daña nada y bloquearlas sí estorbaría.
+const FUNCIONES_DE_UN_SOLO_TOQUE = [
+  'guardarOrden', 'guardarEdicion', 'guardarCierre', 'marcarRealizada',
+  'guardarEntregaTurno', 'guardarNovedad', 'guardarObservacionOperario',
+  'agregarObservacionEquipo', 'invRegistrarProveedor', 'pmGuardarActividades',
+  'guardarReporteCompresor', 'guardarReporteSecador', 'guardarReporteDrycooler',
+  'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler',
+  'eliminarFotoOrden', 'eliminarFotoCronograma', 'confirmarSubidaFotoNovedad',
+  'eliminarFechaRacha',
+];
+
+function _protegerContraDobleToque(nombres) {
+  nombres.forEach(nombre => {
+    const original = window[nombre];
+    if (typeof original !== 'function') {
+      // Si alguien renombra una función y olvida esta lista, que se note en
+      // la consola en vez de dejar el botón desprotegido en silencio.
+      console.warn('Doble toque: no existe la función ' + nombre);
+      return;
+    }
+    let enVuelo = false;
+    window[nombre] = function (...args) {
+      if (enVuelo) return;
+      enVuelo = true;
+      let resultado;
+      try {
+        resultado = original.apply(this, args);
+      } catch (e) {
+        enVuelo = false;
+        throw e;
+      }
+      // Las que son async devuelven una promesa: la puerta se abre cuando
+      // termine, salga bien o mal. Las que no, ya terminaron.
+      if (resultado && typeof resultado.then === 'function') {
+        return resultado.then(
+          valor => { enVuelo = false; return valor; },
+          error => { enVuelo = false; throw error; }
+        );
+      }
+      enVuelo = false;
+      return resultado;
+    };
+  });
+}
+
+/* ══════════════════════════════════════════════
    INICIALIZACIÓN
 ══════════════════════════════════════════════ */
 window.addEventListener('load', async () => {
@@ -5015,6 +5084,10 @@ window.addEventListener('load', async () => {
   // las tablas se dibujan después del login y todas tienen que quedar
   // rotuladas para poder apilarse en el celular.
   _vigilarTablasParaCelular();
+
+  // Aquí, y no antes: al dispararse "load" ya se ejecutaron todos los
+  // bloques <script>, así que todas las funciones a proteger existen.
+  _protegerContraDobleToque(FUNCIONES_DE_UN_SOLO_TOQUE);
 
   // Verificar sesión guardada (login por Documento + PIN — ver
   // loginConDocumentoPinClick()). El token en sí no viene de un OAuth
