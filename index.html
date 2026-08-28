@@ -620,6 +620,18 @@ body.inv-activo .container { max-width: 1800px; }
 .kpi-val { font-size: 26px; font-weight: 700; color: var(--brand); line-height: 1; }
 .kpi-label { font-size: 11px; color: var(--text2); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
 .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+/* En celular la rejilla pasa a dos columnas y la tarjeta queda en unos
+   150px utiles. Ahi "$ 2.553.482" no cabe de una linea: el navegador
+   partia por el espacio y dejaba el signo de peso solo arriba y el numero
+   debajo. Se prohibe ese corte y el tamano sigue al ancho del telefono,
+   que es lo que fija el ancho de la tarjeta.
+
+   Va DESPUES de .kpi-val y no junto al @media de .kpi-grid de mas arriba:
+   un @media no suma especificidad, asi que alla perdia contra la regla
+   base y el numero se quedaba en 26px. */
+@media (max-width: 720px) {
+  .kpi-val { font-size: clamp(13px, 4.1vw, 21px); white-space: nowrap; }
+}
 
 
 /* ── Alerts ── */
@@ -1626,6 +1638,11 @@ body.inv-activo .container { max-width: 1800px; }
         <div class="kpi-label">Costo Insumos</div>
         <div class="kpi-sub">Total acumulado</div>
       </div>
+      <div class="kpi-card" style="border-top-color:#B15A2E">
+        <div class="kpi-val" id="kpi_costo_serv" style="color:#B15A2E">—</div>
+        <div class="kpi-label">Costo Servicios</div>
+        <div class="kpi-sub">Total acumulado</div>
+      </div>
     </div>
 
     <!-- Fila de gráficas 1 -->
@@ -1653,7 +1670,7 @@ body.inv-activo .container { max-width: 1800px; }
         </div>
       </div>
       <div class="card">
-        <div class="card-head">Repuestos vs Insumos — Costo total</div>
+        <div class="card-head">Repuestos, Insumos y Servicios — Costo total</div>
         <div class="card-body" style="padding:16px;display:flex;align-items:center;justify-content:center">
           <div style="position:relative;height:280px;width:100%"><canvas id="chartCostoRep"></canvas></div>
         </div>
@@ -9864,15 +9881,17 @@ async function cargarDashboard() {
   const cerradas = ordenesFiltradas.filter(o => o.Estado === 'Cerrada').length;
   const urgentes = ordenesFiltradas.filter(o => o.Prioridad === 'Urgente' && o.Estado !== 'Cerrada').length;
 
-  // ── Costos de repuestos e insumos — SOLO de órdenes ya CERRADAS
-  //    (no cuenta lo que está Pendiente ni En ejecución, porque esos
-  //    repuestos/insumos todavía no se han usado de verdad) ──
-  let costoRep = 0, costoIns = 0;
+  // ── Costos de repuestos, insumos y servicios — SOLO de órdenes ya
+  //    CERRADAS (no cuenta lo que está Pendiente ni En ejecución, porque
+  //    todavía no se ha usado ni contratado de verdad) ──
+  let costoRep = 0, costoIns = 0, costoServ = 0;
   ordenesFiltradas.filter(o => o.Estado === 'Cerrada').forEach(o => {
     const reps = Array.isArray(o.repuestos) ? o.repuestos : [];
     const inss = Array.isArray(o.insumos)   ? o.insumos   : [];
-    reps.forEach(r => { costoRep += (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); });
-    inss.forEach(i => { costoIns += (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); });
+    const srvs = Array.isArray(o.servicios) ? o.servicios : [];
+    reps.forEach(r => { costoRep  += (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); });
+    inss.forEach(i => { costoIns  += (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); });
+    srvs.forEach(s => { costoServ += (Number(s.cantidad||0) * Number(s.costoUnitario||s.costoUnit||0)); });
   });
 
   // ── KPIs ──
@@ -9886,11 +9905,12 @@ async function cargarDashboard() {
   document.getElementById('kpi_urgentes').textContent  = urgentes;
   document.getElementById('kpi_costo_rep').textContent = fmtCOP(costoRep);
   document.getElementById('kpi_costo_ins').textContent = fmtCOP(costoIns);
-  // Actualizar subtítulo de KPIs de costo
-  const kpiRepSub = document.querySelector('#kpi_costo_rep')?.closest('.kpi-card')?.querySelector('.kpi-sub');
-  const kpiInsSub = document.querySelector('#kpi_costo_ins')?.closest('.kpi-card')?.querySelector('.kpi-sub');
-  if (kpiRepSub) kpiRepSub.textContent = periodoLabel + ' · solo cerradas';
-  if (kpiInsSub) kpiInsSub.textContent = periodoLabel + ' · solo cerradas';
+  document.getElementById('kpi_costo_serv').textContent = fmtCOP(costoServ);
+  // Actualizar subtítulo de los KPIs de costo
+  ['kpi_costo_rep', 'kpi_costo_ins', 'kpi_costo_serv'].forEach(id => {
+    const sub = document.querySelector('#' + id)?.closest('.kpi-card')?.querySelector('.kpi-sub');
+    if (sub) sub.textContent = periodoLabel + ' · solo cerradas';
+  });
 
   // Colores — paleta corporativa (tonos más saturados y serios, no
   // pastel), una tonalidad distinta por categoría en las gráficas del Dashboard.
@@ -9987,11 +10007,11 @@ async function cargarDashboard() {
       scales: { y: { beginAtZero: true, ticks: { callback: v => fmtCOP(v) } } } }
   });
 
-  // ── Gráfica 4: Repuestos vs Insumos ──
+  // ── Gráfica 4: Repuestos vs Insumos vs Servicios ──
   makeChart('chartCostoRep','_chartCostoRep',{
     type: 'pie',
-    data: { labels: ['Repuestos','Insumos'], datasets: [{ data: [costoRep, costoIns],
-      backgroundColor: ['#6C4A9C','#0F7A82'], borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }] },
+    data: { labels: ['Repuestos','Insumos','Servicios'], datasets: [{ data: [costoRep, costoIns, costoServ],
+      backgroundColor: ['#6C4A9C','#0F7A82','#B15A2E'], borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }] },
     options: { responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom', labels: { boxWidth: 14, padding: 16, font: { size: 13 } } },
         tooltip: { callbacks: { label: ctx => ' ' + fmtCOP(ctx.raw) } } } }
@@ -10011,23 +10031,27 @@ async function cargarDashboard() {
   const costosPorEquipo = {};
   ordenesFiltradas.filter(o => o.Estado === 'Cerrada').forEach(o => {
     const eq = (o.Equipo||'Sin equipo').trim();
-    if (!costosPorEquipo[eq]) costosPorEquipo[eq] = { rep: 0, ins: 0 };
+    if (!costosPorEquipo[eq]) costosPorEquipo[eq] = { rep: 0, ins: 0, serv: 0 };
     (Array.isArray(o.repuestos)?o.repuestos:[]).forEach(r => {
       costosPorEquipo[eq].rep += Number(r.cantidad||0)*Number(r.costoUnitario||r.costoUnit||0);
     });
     (Array.isArray(o.insumos)?o.insumos:[]).forEach(i => {
       costosPorEquipo[eq].ins += Number(i.cantidad||0)*Number(i.costoUnitario||i.costoUnit||0);
     });
+    (Array.isArray(o.servicios)?o.servicios:[]).forEach(sv => {
+      costosPorEquipo[eq].serv += Number(sv.cantidad||0)*Number(sv.costoUnitario||sv.costoUnit||0);
+    });
   });
   // Ordenar por costo total descendente
   const equiposSorted = Object.entries(costosPorEquipo)
-    .map(([eq, v]) => ({ eq, rep: v.rep, ins: v.ins, total: v.rep + v.ins }))
+    .map(([eq, v]) => ({ eq, rep: v.rep, ins: v.ins, serv: v.serv, total: v.rep + v.ins + v.serv }))
     .filter(x => x.total > 0)
     .sort((a,b) => b.total - a.total);
 
   const eqLabels = equiposSorted.map(x => x.eq);
   const eqRepData = equiposSorted.map(x => x.rep);
   const eqInsData = equiposSorted.map(x => x.ins);
+  const eqServData = equiposSorted.map(x => x.serv);
 
   makeChart('chartCostoEquipo','_chartCostoEquipo',{
     type: 'bar',
@@ -10035,7 +10059,8 @@ async function cargarDashboard() {
       labels: eqLabels,
       datasets: [
         { label: 'Repuestos', data: eqRepData, backgroundColor: '#6C4A9C', borderRadius: 4, borderSkipped: false },
-        { label: 'Insumos',   data: eqInsData, backgroundColor: '#0F7A82', borderRadius: 4, borderSkipped: false }
+        { label: 'Insumos',   data: eqInsData, backgroundColor: '#0F7A82', borderRadius: 4, borderSkipped: false },
+        { label: 'Servicios', data: eqServData, backgroundColor: '#B15A2E', borderRadius: 4, borderSkipped: false }
       ]
     },
     options: {
@@ -10076,6 +10101,7 @@ async function cargarDashboard() {
               <th style="padding:10px 16px;text-align:left;font-weight:600">Equipo / Activo</th>
               <th style="padding:10px 16px;text-align:right;font-weight:600">Repuestos</th>
               <th style="padding:10px 16px;text-align:right;font-weight:600">Insumos</th>
+              <th style="padding:10px 16px;text-align:right;font-weight:600">Servicios</th>
               <th style="padding:10px 16px;text-align:right;font-weight:600">Total Equipo</th>
               <th style="padding:10px 16px;text-align:right;font-weight:600">% del Total</th>
             </tr>
@@ -10086,6 +10112,7 @@ async function cargarDashboard() {
                 <td style="padding:9px 16px;font-weight:500">${esc(x.eq)}</td>
                 <td style="padding:9px 16px;text-align:right;color:#6C4A9C">${fmtCOP(x.rep)}</td>
                 <td style="padding:9px 16px;text-align:right;color:#0F7A82">${fmtCOP(x.ins)}</td>
+                <td style="padding:9px 16px;text-align:right;color:#B15A2E">${fmtCOP(x.serv)}</td>
                 <td style="padding:9px 16px;text-align:right;font-weight:700">${fmtCOP(x.total)}</td>
                 <td style="padding:9px 16px;text-align:right;color:var(--text2)">${totalGeneral>0?(x.total/totalGeneral*100).toFixed(1)+'%':'—'}</td>
               </tr>`).join('')}
@@ -10095,6 +10122,7 @@ async function cargarDashboard() {
               <td style="padding:10px 16px;font-weight:700">TOTAL GENERAL</td>
               <td style="padding:10px 16px;text-align:right;font-weight:700">${fmtCOP(equiposSorted.reduce((s,x)=>s+x.rep,0))}</td>
               <td style="padding:10px 16px;text-align:right;font-weight:700">${fmtCOP(equiposSorted.reduce((s,x)=>s+x.ins,0))}</td>
+              <td style="padding:10px 16px;text-align:right;font-weight:700">${fmtCOP(equiposSorted.reduce((s,x)=>s+x.serv,0))}</td>
               <td style="padding:10px 16px;text-align:right;font-weight:700">${fmtCOP(totalGeneral)}</td>
               <td style="padding:10px 16px;text-align:right">100%</td>
             </tr>
