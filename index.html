@@ -620,6 +620,18 @@ body.inv-activo .container { max-width: 1800px; }
 .kpi-val { font-size: 26px; font-weight: 700; color: var(--brand); line-height: 1; }
 .kpi-label { font-size: 11px; color: var(--text2); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
 .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+/* En celular la rejilla pasa a dos columnas y la tarjeta queda en unos
+   150px utiles. Ahi "$ 2.553.482" no cabe de una linea: el navegador
+   partia por el espacio y dejaba el signo de peso solo arriba y el numero
+   debajo. Se prohibe ese corte y el tamano sigue al ancho del telefono,
+   que es lo que fija el ancho de la tarjeta.
+
+   Va DESPUES de .kpi-val y no junto al @media de .kpi-grid de mas arriba:
+   un @media no suma especificidad, asi que alla perdia contra la regla
+   base y el numero se quedaba en 26px. */
+@media (max-width: 720px) {
+  .kpi-val { font-size: clamp(13px, 4.1vw, 21px); white-space: nowrap; }
+}
 
 
 /* ── Alerts ── */
@@ -1624,6 +1636,11 @@ body.inv-activo .container { max-width: 1800px; }
       <div class="kpi-card" style="border-top-color:#0F7A82">
         <div class="kpi-val" id="kpi_costo_ins" style="color:#0F7A82">—</div>
         <div class="kpi-label">Costo Insumos</div>
+        <div class="kpi-sub">Total acumulado</div>
+      </div>
+      <div class="kpi-card" style="border-top-color:#B15A2E">
+        <div class="kpi-val" id="kpi_costo_serv" style="color:#B15A2E">—</div>
+        <div class="kpi-label">Costo Servicios</div>
         <div class="kpi-sub">Total acumulado</div>
       </div>
     </div>
@@ -9864,15 +9881,17 @@ async function cargarDashboard() {
   const cerradas = ordenesFiltradas.filter(o => o.Estado === 'Cerrada').length;
   const urgentes = ordenesFiltradas.filter(o => o.Prioridad === 'Urgente' && o.Estado !== 'Cerrada').length;
 
-  // ── Costos de repuestos e insumos — SOLO de órdenes ya CERRADAS
-  //    (no cuenta lo que está Pendiente ni En ejecución, porque esos
-  //    repuestos/insumos todavía no se han usado de verdad) ──
-  let costoRep = 0, costoIns = 0;
+  // ── Costos de repuestos, insumos y servicios — SOLO de órdenes ya
+  //    CERRADAS (no cuenta lo que está Pendiente ni En ejecución, porque
+  //    todavía no se ha usado ni contratado de verdad) ──
+  let costoRep = 0, costoIns = 0, costoServ = 0;
   ordenesFiltradas.filter(o => o.Estado === 'Cerrada').forEach(o => {
     const reps = Array.isArray(o.repuestos) ? o.repuestos : [];
     const inss = Array.isArray(o.insumos)   ? o.insumos   : [];
-    reps.forEach(r => { costoRep += (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); });
-    inss.forEach(i => { costoIns += (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); });
+    const srvs = Array.isArray(o.servicios) ? o.servicios : [];
+    reps.forEach(r => { costoRep  += (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); });
+    inss.forEach(i => { costoIns  += (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); });
+    srvs.forEach(s => { costoServ += (Number(s.cantidad||0) * Number(s.costoUnitario||s.costoUnit||0)); });
   });
 
   // ── KPIs ──
@@ -9886,11 +9905,12 @@ async function cargarDashboard() {
   document.getElementById('kpi_urgentes').textContent  = urgentes;
   document.getElementById('kpi_costo_rep').textContent = fmtCOP(costoRep);
   document.getElementById('kpi_costo_ins').textContent = fmtCOP(costoIns);
-  // Actualizar subtítulo de KPIs de costo
-  const kpiRepSub = document.querySelector('#kpi_costo_rep')?.closest('.kpi-card')?.querySelector('.kpi-sub');
-  const kpiInsSub = document.querySelector('#kpi_costo_ins')?.closest('.kpi-card')?.querySelector('.kpi-sub');
-  if (kpiRepSub) kpiRepSub.textContent = periodoLabel + ' · solo cerradas';
-  if (kpiInsSub) kpiInsSub.textContent = periodoLabel + ' · solo cerradas';
+  document.getElementById('kpi_costo_serv').textContent = fmtCOP(costoServ);
+  // Actualizar subtítulo de los KPIs de costo
+  ['kpi_costo_rep', 'kpi_costo_ins', 'kpi_costo_serv'].forEach(id => {
+    const sub = document.querySelector('#' + id)?.closest('.kpi-card')?.querySelector('.kpi-sub');
+    if (sub) sub.textContent = periodoLabel + ' · solo cerradas';
+  });
 
   // Colores — paleta corporativa (tonos más saturados y serios, no
   // pastel), una tonalidad distinta por categoría en las gráficas del Dashboard.
