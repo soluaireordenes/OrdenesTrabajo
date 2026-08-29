@@ -4025,7 +4025,7 @@ async function registrarServicioInventarioDirecto(sede, servicio) {
   const fila = [
     codigo, nombre, servicio.descripcion || '',
     Math.max(0, parseFloat(servicio.precioUnitario) || 0),
-    servicio.fecha || new Date().toISOString().split('T')[0],
+    servicio.fecha || _isoLocal(new Date()),
     servicio.proveedor || '',
   ];
   await _invAppend(spreadsheetId, 'Servicios', [fila]);
@@ -4136,7 +4136,7 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
 
     const fila = [
       codigo,
-      mov.fecha || new Date().toISOString().split('T')[0],
+      mov.fecha || _isoLocal(new Date()),
       tipo,
       cantidad,
       (typeof currentUser !== 'undefined' && currentUser?.email) || 'Sistema',
@@ -4579,7 +4579,7 @@ async function descontarInventarioPorCierreOrden(o) {
     if (p.nombre) porNombre.set(String(p.nombre).trim().toLowerCase(), p);
   });
 
-  const fecha = new Date().toISOString().slice(0, 10);
+  const fecha = _isoLocal(new Date());
 
   for (const it of items) {
     const codigoBuscado = (it.codigo || '').trim().toLowerCase();
@@ -5530,7 +5530,7 @@ function abrirModalCompletar(id) {
   }
 
   // ── 8. Campos de cierre
-  document.getElementById('mFechaEjecucion').value = o.FechaCierre ? o.FechaCierre.slice(0,10) : new Date().toISOString().slice(0,10);
+  document.getElementById('mFechaEjecucion').value = o.FechaCierre ? o.FechaCierre.slice(0,10) : _isoLocal(new Date());
   document.getElementById('mEjecutadoPor').value   = o.EjecutadoPor || o.Responsable || currentUser.name;
   document.getElementById('mTiempoReal').value     = o.TiempoReal || '';
   document.getElementById('mCostoReal').value      = o.CostoReal || '';
@@ -6148,7 +6148,7 @@ function exportarRealizadasCSV() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = 'ordenes_realizadas_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.href = url; a.download = 'ordenes_realizadas_' + _isoLocal(new Date()) + '.csv';
   a.click(); URL.revokeObjectURL(url);
 }
 
@@ -12113,8 +12113,8 @@ async function invCargarDashboard() {
     // (últimos 3 meses, para no traer todo el historial completo cada vez)
     const desde = new Date(); desde.setMonth(desde.getMonth() - 3);
     const historial = await obtenerHistorialInventarioDirecto(inventarioOperacionActual, {
-      fechaDesde: desde.toISOString().split('T')[0],
-      fechaHasta: new Date().toISOString().split('T')[0],
+      fechaDesde: _isoLocal(desde),
+      fechaHasta: _isoLocal(new Date()),
     });
     invRenderActividadReciente(historial);
     invRenderDestinoChart(historial);
@@ -13130,7 +13130,7 @@ function _viñetasHtml(texto) {
  *  Cada momento lleva su propia fecha además de la hora, para que una
  *  novedad que dura más de un día calcule bien el tiempo transcurrido. */
 function _htmlCamposTiempoNovedad(tipo, existente) {
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = _isoLocal(new Date());
   const fechaInicio = esc(existente?.FechaEvento || hoy);
   const horaInicio  = esc(existente?.HoraInicio || '');
   const fechaFin    = esc(existente?.FechaFin || existente?.FechaEvento || hoy);
@@ -15040,7 +15040,7 @@ async function inicializarEntregaTurno() {
     if (ctx) selTurno.value = ctx.turno.id;
   }
   const fechaEl = document.getElementById('et_fecha');
-  if (fechaEl) fechaEl.value = ctx ? ctx.fecha : new Date().toISOString().slice(0, 10);
+  if (fechaEl) fechaEl.value = ctx ? ctx.fecha : _isoLocal(new Date());
   const entregadoPorEl = document.getElementById('et_entregadoPor');
   if (entregadoPorEl) entregadoPorEl.value = currentUser?.name || '';
   const recibidoPorEl = document.getElementById('et_recibidoPor');
@@ -18078,7 +18078,7 @@ async function importarPlan2026Zipaquira() {
   }
 
   const runId = Date.now();
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = _isoLocal(new Date());
   const filas = PLAN_2026_ZIPAQUIRA.map((p, i) => cols.map(c => {
     if (c === 'ID') return 'PLAN2026-' + runId + '-' + String(i + 1).padStart(3, '0');
     if (c === 'Equipo') return p.equipo;
@@ -18164,7 +18164,7 @@ async function verificarPlanesMantenimientoYGenerar() {
   }
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  const hoyStr = hoy.toISOString().split('T')[0];
+  const hoyStr = _isoLocal(hoy);
   // Números ya usados en este lote: las órdenes se arman todas en
   // memoria antes de subirlas, así que todavía no están en allOrdenes
   // y generarNumeroOrdenUnico no las vería.
@@ -18372,7 +18372,7 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
         TipoMantenimiento: 'Preventivo',
         Prioridad: 'Media', Estado: 'Pendiente',
         Responsable: '',
-        FechaInicio: new Date().toISOString().split('T')[0],
+        FechaInicio: _isoLocal(new Date()),
         FechaCreacion: new Date().toISOString(),
         CreadaAutomaticamente: 'SI',
         OrigenInforme: origen,
