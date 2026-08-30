@@ -14752,7 +14752,9 @@ function inicializarDashboardCronograma() {
 async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo) {
   try {
     await asegurarHoja(sheetName, cols);
-    const filas = (await _leerHojaGenerica(sheetName)).filter(f => f.Estado !== 'Eliminada');
+    // Solo el tramo de fechas que se está mirando (ver _leerReportesDelRango):
+    // antes se bajaba la hoja entera y se filtraba después.
+    const filas = (await _leerReportesDelRango(sheetName, desde, hasta)).filter(f => f.Estado !== 'Eliminada');
     _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo);
   } catch (e) {
     const resumenEl = document.getElementById(resumenId);
@@ -17507,6 +17509,140 @@ async function leerHojaGenericaCacheada(nombre) {
   const data = await leerHojaGenerica(nombre);
   _cacheLecturasHojas[nombre] = { data, timestamp: Date.now() };
   return data;
+}
+
+/* ══════════════════════════════════════════════
+   LEER SOLO EL FINAL DE UNA HOJA
+
+   Las gráficas de cumplimiento del Cronograma leían las SEIS hojas de
+   reportes enteras, de la primera fila a la última, cada vez que se abría
+   el panel — y el filtro de fechas se aplicaba después, ya con todo
+   descargado. Hoy son unos 55 KB por día de historia acumulada: a los seis
+   meses son 10 MB por apertura, al año 20 y a los tres años 60. En los datos
+   de la planta eso es cerca de un minuto de espera cada vez.
+
+   El API de Sheets no sabe filtrar por valor, solo por rango de filas. Pero
+   los reportes se agregan en orden, así que las fechas recientes están al
+   final: pidiendo la cola alcanza. Si resulta que no se alcanzó a llegar
+   hasta la fecha pedida —porque alguien cargó reportes atrasados y el orden
+   no es perfecto— se pide más, y si aun así no cuadra se lee la hoja
+   completa. Nunca se grafica con datos a medias.
+══════════════════════════════════════════════ */
+
+/** Cuántas filas tiene cada hoja del archivo, en una sola petición pequeña.
+ *  Es el tamaño de la cuadrícula, no las filas llenas, pero como las filas
+ *  se insertan al agregar, sigue de cerca a la realidad. Si se queda corto
+ *  se lee de más (inofensivo) y si se pasa, la comprobación de abajo lo
+ *  detecta. */
+let _cacheFilasPorHoja = null;
+async function _filasPorHoja() {
+  if (_cacheFilasPorHoja && (Date.now() - _cacheFilasPorHoja.timestamp) < CACHE_LECTURAS_TTL_MS) {
+    return _cacheFilasPorHoja.data;
+  }
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const campos = 'sheets(properties(title,gridProperties(rowCount)))';
+  const data = {};
+  try {
+    const r = await fetch(base + '?fields=' + encodeURIComponent(campos),
+      { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+    if (r.ok) {
+      const d = await r.json();
+      (d.sheets || []).forEach(h => {
+        const p = h.properties || {};
+        data[p.title] = (p.gridProperties || {}).rowCount || 0;
+      });
+    }
+  } catch (e) {
+    // Sin esta medida no se puede pedir la cola, pero tampoco hay que
+    // romper nada: quien llama se cae a leer la hoja entera, que es
+    // exactamente lo que se hacía antes de este atajo.
+    console.warn('No se pudo medir el tamaño de las hojas:', e.message);
+  }
+  _cacheFilasPorHoja = { data, timestamp: Date.now() };
+  return data;
+}
+
+/** Las últimas `cuantas` filas de una hoja, más su encabezado, en UNA sola
+ *  petición (batchGet con dos rangos). Devuelve objetos igual que
+ *  _leerHojaGenerica, con su _row real. */
+async function _leerColaDeHoja(nombre, cuantas) {
+  const totales = (await _filasPorHoja())[nombre] || 0;
+  // Fila 1 = encabezado, así que los datos empiezan en la 2.
+  const inicio = Math.max(2, totales - cuantas + 1);
+  if (inicio <= 2) return { filas: await _leerHojaGenerica(nombre), completa: true };
+
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const rangos = ['ranges=' + encodeURIComponent(nombre + '!A1:ZZ1'),
+                  'ranges=' + encodeURIComponent(nombre + '!A' + inicio + ':ZZ')];
+  const r = await fetch(base + '/values:batchGet?' + rangos.join('&'),
+    { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!r.ok) throw new Error('No se pudo leer la hoja ' + nombre);
+  const d = await r.json();
+  const cols = ((d.valueRanges || [])[0] || {}).values?.[0] || [];
+  const cuerpo = ((d.valueRanges || [])[1] || {}).values || [];
+  if (!cols.length) return { filas: [], completa: true };
+
+  const filas = cuerpo.map((row, i) => {
+    const obj = { _row: inicio + i };
+    cols.forEach((c, j) => {
+      const val = row[j] || '';
+      if (obj[c] === undefined || val) obj[c] = val;
+    });
+    return obj;
+  }).filter(o => Object.keys(o).some(k => k !== '_row' && o[k]));
+  return { filas, completa: false };
+}
+
+/** Días entre dos fechas 'YYYY-MM-DD'. */
+function _diasEntre(desde, hasta) {
+  return Math.round((_fechaLocalDesdeString(hasta) - _fechaLocalDesdeString(desde)) / 86400000);
+}
+
+/** Las filas de una hoja de reportes que cubren el rango pedido, leyendo lo
+ *  menos posible.
+ *
+ *  Se pide la cola con margen. Si la fila más vieja que llegó todavía es
+ *  posterior a `desde`, falta historia — y ahí NO se tantea doblando: con lo
+ *  que se acaba de leer ya se sabe cuántas filas trae esta hoja por día, así
+ *  que se calcula de una cuántas faltan. Tantear salía caro: pedir un rango
+ *  viejo llegó a bajar 32 MB en cuatro intentos fallidos, más de lo que
+ *  costaba leer la hoja entera. Si la cuenta da que hace falta casi todo, se
+ *  lee entera de una vez y listo. */
+async function _leerReportesDelRango(nombre, desde, hasta) {
+  const totales = (await _filasPorHoja())[nombre] || 0;
+  // 60 filas por día es holgado: la hoja más cargada, la de compresores, hace
+  // 42 (siete equipos por seis franjas). El piso de 200 cubre un solo día.
+  const dias = Math.max(1, _diasEntre(desde, hasta) + 1);
+  let cuantas = Math.max(200, dias * 60);
+
+  for (let intento = 0; intento < 2; intento++) {
+    if (cuantas >= totales) break;                 // no vale la pena la cola
+    const { filas, completa } = await _leerColaDeHoja(nombre, cuantas);
+    if (completa) return filas;
+
+    const fechas = filas.map(f => _aIsoFecha(f.Fecha)).filter(Boolean).sort();
+    if (!fechas.length) return filas;              // cola vacía: no hay más atrás
+    const masVieja = fechas[0];
+    if (masVieja <= desde) return filas;           // el rango quedó cubierto
+
+    // No alcanzó: con lo leído se mide el ritmo real de esta hoja y se
+    // calcula de una cuánto falta, en vez de ir doblando a ciegas.
+    const diasLeidos  = Math.max(1, _diasEntre(masVieja, fechas[fechas.length - 1]) + 1);
+    const filasPorDia = filas.length / diasLeidos;
+    const diasFaltan  = Math.max(0, _diasEntre(desde, masVieja));
+    cuantas = Math.ceil((filas.length + diasFaltan * filasPorDia) * 1.3) + 200;
+  }
+  return await _leerHojaGenerica(nombre);
+}
+
+/** La fecha de una fila como 'YYYY-MM-DD', venga como texto o como fecha de
+ *  Sheets. */
+function _aIsoFecha(v) {
+  const s = String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = _fechaLocalDesdeString(s);
+  return isNaN(d) ? '' : _isoLocal(d);
 }
 
 function _invalidarCacheHoja(nombre) {
