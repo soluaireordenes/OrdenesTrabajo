@@ -13115,14 +13115,55 @@ async function cargarNovedadesDeSheets() {
 }
 
 /** Genera el siguiente código (INF-N-XX o INF-E-XX), cada prefijo con su propia numeración */
-function _siguienteCodigo(prefijo) {
+/* ══════════════════════════════════════════════
+   CÓDIGOS DE REPORTE QUE NO SE REPITAN
+
+   El correlativo se calculaba sobre lo que tenía ESE celular en memoria:
+   max + 1 sobre la lista ya cargada. Dos operarios reportando a la misma
+   hora —que es lo normal, con seis franjas fijas al día y veintitrés
+   equipos— sacaban los dos el mismo RC-0412. Y si uno de los dos tenía la
+   lista desactualizada, ni siquiera hacía falta que fuera al mismo tiempo.
+
+   El código no es decorativo: es lo que usa el sistema para encontrar la
+   fila. Al borrar un reporte, el find() por código marcaba como eliminado
+   el primero que coincidiera, que podía ser el del otro operario.
+
+   Repartir correlativos sin repetir no se puede desde el navegador: haría
+   falta un contador con candado del lado del servidor, y aquí cada celular
+   escribe directo en la hoja. Así que el número se queda como referencia
+   legible —para que la tabla siga leyéndose igual— y la identidad la da una
+   cola corta y aleatoria: RC-0412-A3F9. Es la misma decisión que se tomó en
+   su momento con el NumeroOrden (ver generarNumeroOrdenUnico).
+
+   Los regex que leen el correlativo siguen funcionando: RC-(\d+) encuentra
+   el 0412 igual, con cola o sin ella, así que los códigos viejos y los
+   nuevos conviven sin tocar nada.
+══════════════════════════════════════════════ */
+function _codigoConsecutivoUnico(prefijo, filas, digitos) {
+  const re = new RegExp('^' + prefijo + '-(\\d+)');
   let max = 0;
-  const re = new RegExp(prefijo + '-(\\d+)');
-  allNovedades.forEach(n => {
-    const m = (n.Codigo || '').match(re);
+  (filas || []).forEach(f => {
+    const m = String((f && f.Codigo) || '').match(re);
     if (m) max = Math.max(max, parseInt(m[1], 10));
   });
-  return prefijo + '-' + String(max + 1).padStart(2, '0');
+  const numero = prefijo + '-' + String(max + 1).padStart(digitos, '0');
+  // Seis caracteres tomados uno a uno del alfabeto, no bytes convertidos a
+  // base36: un byte llega apenas hasta "73", así que dos bytes daban 65.536
+  // combinaciones y no el millón y medio que aparentaban. Con esa cola, mil
+  // códigos seguidos traían ocho repetidos. Así son 36^6, más de dos mil
+  // millones, y en cien mil no se repite ninguno.
+  const ALFABETO = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let codigo;
+  do {
+    const azar = new Uint8Array(6);
+    crypto.getRandomValues(azar);
+    codigo = numero + '-' + Array.from(azar).map(b => ALFABETO[b % 36]).join('');
+  } while ((filas || []).some(f => f && f.Codigo === codigo));
+  return codigo;
+}
+
+function _siguienteCodigo(prefijo) {
+  return _codigoConsecutivoUnico(prefijo, allNovedades, 2);
 }
 
 /** Se llama cada vez que se entra a la pestaña Novedades */
@@ -15095,12 +15136,7 @@ async function _leerTodasEntregasTurnoAgrupadas() {
 }
 
 function _siguienteCodigoEntregaTurno() {
-  let max = 0;
-  allEntregasTurno.forEach(e => {
-    const m = (e.Codigo || '').match(/ET-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'ET-' + String(max + 1).padStart(3, '0');
+  return _codigoConsecutivoUnico('ET', allEntregasTurno, 3);
 }
 
 /** Arma los campos de equipos/indicadores agrupados igual que el reporte
@@ -15209,12 +15245,7 @@ function renderTablaEntregasTurno() {
 let allObservacionesOperarios = [];
 
 function _siguienteCodigoObservacion() {
-  let max = 0;
-  allObservacionesOperarios.forEach(o => {
-    const m = (o.Codigo || '').match(/OBS-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'OBS-' + String(max + 1).padStart(3, '0');
+  return _codigoConsecutivoUnico('OBS', allObservacionesOperarios, 3);
 }
 
 async function inicializarObservacionesOperarios() {
@@ -15599,12 +15630,7 @@ function _actualizarCamposMedicionesCompresor() {
 }
 
 function _siguienteCodigoReporteCompresor() {
-  let max = 0;
-  allReportesCompresores.forEach(r => {
-    const m = (r.Codigo || '').match(/RC-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RC-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RC', allReportesCompresores, 4);
 }
 
 async function inicializarReporteCompresores() {
@@ -15845,12 +15871,7 @@ ${_construirHtmlReporteCompresor(r)}
 let allReportesSecadores = [];
 
 function _siguienteCodigoReporteSecador() {
-  let max = 0;
-  allReportesSecadores.forEach(r => {
-    const m = (r.Codigo || '').match(/RS-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RS-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RS', allReportesSecadores, 4);
 }
 
 /** Arma el HTML de los campos fijos (Torre izquierda + Datos generales),
@@ -16206,12 +16227,7 @@ function _htmlCamposReporteDrycooler(existente) {
 }
 
 function _siguienteCodigoReporteDrycooler() {
-  let max = 0;
-  allReportesDrycoolers.forEach(r => {
-    const m = (r.Codigo || '').match(/RD-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RD-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RD', allReportesDrycoolers, 4);
 }
 
 async function inicializarReporteDrycoolers() {
@@ -16484,12 +16500,7 @@ function _leerLaboresDecorado(prefijo) {
 }
 
 function _siguienteCodigoReporteDecorado() {
-  let max = 0;
-  allReportesDecorado.forEach(r => {
-    const m = (r.Codigo || '').match(/RDEC-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RDEC-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RDEC', allReportesDecorado, 4);
 }
 
 async function inicializarReporteDecorado() {
@@ -16757,12 +16768,7 @@ function _htmlCamposReporteEmergencia(existente) {
 }
 
 function _siguienteCodigoReporteEmergencia() {
-  let max = 0;
-  allReportesEmergencia.forEach(r => {
-    const m = (r.Codigo || '').match(/RE-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RE-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RE', allReportesEmergencia, 4);
 }
 
 async function inicializarReporteEmergencia() {
@@ -17047,12 +17053,7 @@ function _htmlCamposReportePresionDrycooler(existente) {
 }
 
 function _siguienteCodigoReportePresionDrycooler() {
-  let max = 0;
-  allReportesPresionDrycooler.forEach(r => {
-    const m = (r.Codigo || '').match(/RPD-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RPD-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RPD', allReportesPresionDrycooler, 4);
 }
 
 async function inicializarReportePresionDrycooler() {
