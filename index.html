@@ -4240,6 +4240,116 @@ function _fotosUrlSede() {
 }
 
 /* ══════════════════════════════════════════════
+   ACHICAR LA FOTO ANTES DE SUBIRLA
+
+   Hasta ahora la foto se subía tal como salía de la cámara. Un celular de
+   hoy saca entre 3 y 6 MB por foto, y eso se manda en base64, que abulta un
+   tercio más: de 4 a 8 MB por cada evidencia, desde los datos móviles de la
+   planta. Se llenaba el Drive y la subida se sentía eterna.
+
+   1600px de lado mayor y JPEG al 80% deja la foto en unos 300 KB sin que se
+   note la diferencia ni en la pantalla ni en el PDF impreso, que es para lo
+   único que se usan.
+
+   Regla de oro: si algo falla —un formato que el navegador no sabe decodificar,
+   memoria insuficiente para el lienzo— se sube el archivo original. Perder la
+   evidencia de un trabajo sería mucho peor que subirla pesada.
+══════════════════════════════════════════════ */
+
+const FOTO_LADO_MAXIMO  = 1600;  // píxeles del lado mayor
+const FOTO_CALIDAD_JPEG = 0.8;
+
+/** El archivo tal cual, en base64 (sin el prefijo "data:...;base64,"). */
+function _archivoABase64(file) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload  = () => resolve(String(lector.result).split(',')[1]);
+    lector.onerror = () => reject(lector.error || new Error('No se pudo leer el archivo'));
+    lector.readAsDataURL(file);
+  });
+}
+
+/** Decodifica la imagen respetando la orientación EXIF. Sin eso, las fotos
+ *  de iPhone salen acostadas al pasarlas por un lienzo: la cámara guarda la
+ *  imagen en horizontal y anota aparte "va girada 90°", y el lienzo se come
+ *  esa anotación. createImageBitmap con imageOrientation la aplica; donde no
+ *  exista esa opción se cae a un <img>, que en los navegadores actuales ya
+ *  orienta solo. */
+async function _decodificarImagen(file) {
+  if (typeof createImageBitmap === 'function') {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e) { /* opción no soportada: se sigue con <img> */ }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = () => resolve(img);
+      img.onerror = () => reject(new Error('El navegador no pudo abrir esta imagen'));
+      img.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Devuelve { base64, mimeType, bytes } ya achicada, o null si el navegador
+ *  no pudo producir un JPEG. */
+async function _comprimirImagen(file) {
+  const imagen = await _decodificarImagen(file);
+  const anchoOrig = imagen.width  || imagen.naturalWidth;
+  const altoOrig  = imagen.height || imagen.naturalHeight;
+  if (!anchoOrig || !altoOrig) return null;
+
+  try {
+    const escala = Math.min(1, FOTO_LADO_MAXIMO / Math.max(anchoOrig, altoOrig));
+    const ancho = Math.max(1, Math.round(anchoOrig * escala));
+    const alto  = Math.max(1, Math.round(altoOrig  * escala));
+
+    const lienzo = document.createElement('canvas');
+    lienzo.width = ancho; lienzo.height = alto;
+    const ctx = lienzo.getContext('2d');
+    // Fondo blanco antes de dibujar: un PNG con transparencia sobre JPEG
+    // —que no tiene canal alfa— saldría con los huecos en negro.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ancho, alto);
+    ctx.drawImage(imagen, 0, 0, ancho, alto);
+
+    const dataUrl = lienzo.toDataURL('image/jpeg', FOTO_CALIDAD_JPEG);
+    // Si el navegador no sabe producir JPEG devuelve un PNG sin avisar, y
+    // ese pesaría más que el original.
+    if (!/^data:image\/jpeg/i.test(dataUrl)) return null;
+
+    const base64 = dataUrl.split(',')[1];
+    return { base64, mimeType: 'image/jpeg', bytes: Math.round(base64.length * 3 / 4) };
+  } finally {
+    if (imagen && typeof imagen.close === 'function') imagen.close();
+  }
+}
+
+/** Punto único por donde pasan las fotos antes de salir a Drive: intenta
+ *  achicarla y, si no puede o el resultado no es más liviano, manda el
+ *  archivo original. Devuelve además el nombre con la extensión correcta,
+ *  para que en Drive no quede un JPEG llamándose .heic. */
+async function _prepararFotoParaSubir(file, nombreSugerido) {
+  const nombreBase = String(nombreSugerido || file.name || 'foto').replace(/\.[^.]+$/, '');
+  try {
+    const chica = await _comprimirImagen(file);
+    if (chica && chica.bytes < file.size) {
+      return { base64: chica.base64, mimeType: 'image/jpeg', nombreArchivo: nombreBase + '.jpg' };
+    }
+  } catch (e) {
+    console.warn('No se pudo achicar la foto, se sube como está:', e.message);
+  }
+  const extension = (String(file.name || '').match(/\.[^.]+$/) || ['.jpg'])[0];
+  return {
+    base64: await _archivoABase64(file),
+    mimeType: file.type || 'image/jpeg',
+    nombreArchivo: nombreBase + extension,
+  };
+}
+
+/* ══════════════════════════════════════════════
    SENSORES EN TIEMPO REAL (Ubidots — proveedor Celsia)
    Lee las últimas lecturas directo de la API de Ubidots
    (sin backend intermedio, igual que el resto de
@@ -8152,13 +8262,9 @@ async function appendHoja(nombre, rows) {
 async function subirFotoOrden(file, numeroOrden, tareaDescripcion) {
   if (!file.type.startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen');
 
-  // 1. Convertir el archivo a base64 (se manda al Apps Script, no a Drive directo)
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // 1. Achicarla y pasarla a base64 (se manda al Apps Script, no a Drive
+  //    directo). Ver _prepararFotoParaSubir: si no se puede achicar, va tal cual.
+  const foto = await _prepararFotoParaSubir(file, `${numeroOrden}_${Date.now()}`);
 
   const subidoPor = currentUser?.name || currentUser?.email || '';
   const fecha     = new Date().toISOString();
@@ -8172,9 +8278,9 @@ async function subirFotoOrden(file, numeroOrden, tareaDescripcion) {
       accion: 'subirFoto',
       tipo: 'orden',
       codigo: numeroOrden,
-      nombreArchivo: `${numeroOrden}_${Date.now()}.jpg`,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       tareaDescripcion: tareaDescripcion || '',
       subidoPor,
       correo: currentUser?.email || ''
@@ -13375,12 +13481,7 @@ async function eliminarNovedad(codigo) {
 /* ── Fotos / Evidencias gráficas (con título y descripción por imagen) ── */
 
 async function subirFotoNovedad(file, codigo, titulo, descripcion) {
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const foto = await _prepararFotoParaSubir(file, codigo + '_' + Date.now() + '_' + (file.name || 'foto'));
 
   const subidoPor = currentUser?.email || 'Usuario';
   const fecha = new Date().toISOString();
@@ -13392,9 +13493,9 @@ async function subirFotoNovedad(file, codigo, titulo, descripcion) {
       accion: 'subirFoto',
       tipo: 'novedad',
       codigo,
-      nombreArchivo: codigo + '_' + Date.now() + '_' + file.name,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       titulo: titulo || '',
       descripcion: descripcion || '',
       subidoPor,
@@ -14233,16 +14334,10 @@ async function agregarActividadAdicionalCronograma(turnoId, fecha) {
 async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
   if (!file.type.startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen');
 
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
   const subidoPor = currentUser?.name || currentUser?.email || '';
   const fechaHora  = new Date().toISOString();
   const codigo = fecha + '_' + actividadId;
+  const foto = await _prepararFotoParaSubir(file, `${codigo}_${Date.now()}`);
 
   const resp = await fetch(_fotosUrlSede(), {
     method: 'POST',
@@ -14251,9 +14346,9 @@ async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
       accion: 'subirFoto',
       tipo: 'cronograma',
       codigo,
-      nombreArchivo: `${codigo}_${Date.now()}.jpg`,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       tareaDescripcion: actividadId,
       subidoPor,
       correo: currentUser?.email || ''
