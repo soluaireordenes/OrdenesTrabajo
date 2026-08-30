@@ -3590,14 +3590,12 @@ async function publicarCatalogoVariablesSiCambio() {
 
   const colsReales = await asegurarHoja(SH.camposReportes, CAMPOS_REPORTES_COLS);
   const yaGuardado = await leerHojaGenericaCacheada(SH.camposReportes);
-  if (yaGuardado.length && String(yaGuardado[0].Huella || '') === huella) return false;
-
-  // Reescritura completa: el catálogo es un espejo de la definición, no un
-  // histórico, así que no tiene sentido conservar lo anterior.
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  await fetch(base + '/values/' + encodeURIComponent(SH.camposReportes + '!A2:ZZ') + ':clear',
-    { method: 'POST', headers: hdrs });
+  // Se comprueba la huella Y el número de filas. Solo la huella no bastaba:
+  // si la hoja quedó con las filas duplicadas, la huella de la primera fila
+  // sigue siendo la correcta y el catálogo nunca se volvía a escribir — el
+  // daño se quedaba ahí hasta el siguiente cambio de formulario.
+  if (yaGuardado.length === catalogo.length
+      && String(yaGuardado[0].Huella || '') === huella) return false;
 
   const filas = catalogo.map(f => colsReales.map(col => {
     if (col === 'Hoja') return f.hoja;
@@ -3612,7 +3610,32 @@ async function publicarCatalogoVariablesSiCambio() {
     if (col === 'Huella') return huella;
     return '';
   }));
-  await appendHoja(SH.camposReportes, filas);
+
+  // Se ESCRIBE SOBRE las celdas exactas en vez de borrar y luego agregar.
+  //
+  // Con borrar+agregar había una carrera: el día que se despliega un cambio
+  // de formulario, si dos operarios abren la app casi a la vez, los dos ven
+  // la huella distinta, los dos borran y los dos agregan — y la hoja queda
+  // con las 490 filas repetidas. El bot entonces listaba cada variable dos
+  // veces, y no se arreglaba solo porque la huella ya coincidía.
+  //
+  // Escribiendo un rango fijo el problema desaparece sin necesidad de
+  // candados: los dos escriben lo mismo en las mismas celdas, así que da
+  // igual quién llegue de último. El resultado es idéntico.
+  const ultimaCol = numToCol(colsReales.length - 1);
+  await sheetsRequest('UPDATE',
+    SH.camposReportes + '!A2:' + ultimaCol + (filas.length + 1), filas);
+
+  // Y si el catálogo anterior era más largo (o había quedado duplicado de
+  // antes), se limpia lo que sobra debajo. Borrar filas que ya no
+  // corresponden se puede repetir sin consecuencia.
+  if (yaGuardado.length > filas.length) {
+    const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    await fetch(base + '/values/'
+      + encodeURIComponent(SH.camposReportes + '!A' + (filas.length + 2) + ':ZZ') + ':clear',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' } });
+  }
+  _invalidarCacheHoja(SH.camposReportes);
   return true;
 }
 
