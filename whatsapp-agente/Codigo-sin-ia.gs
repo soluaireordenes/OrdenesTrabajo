@@ -458,21 +458,41 @@ function _entregasDelDia(fechaIso) {
    duplicarlos: si mañana agregan una variable al formulario, aparece sola.
 ══════════════════════════════════════════════ */
 
-/** Lee el catálogo publicado por la aplicación. */
+/** Lee el catálogo publicado por la aplicación.
+ *
+ *  Se descartan las filas repetidas. La aplicación ya escribe el catálogo de
+ *  forma que no pueda duplicarse, pero si una hoja quedó con las filas
+ *  repetidas de antes de ese arreglo, el bot no tiene por qué listar cada
+ *  variable dos veces.
+ *
+ *  La clave incluye la etiqueta y el orden, no solo la columna: hay campos
+ *  distintos que comparten columna a propósito. Los secadores HOC guardan
+ *  S1 Parallel, S3 Heating, S4 Cooling y S6 Standby en la misma
+ *  TorreDerechaValorSecundario, y son cuatro cosas, no una repetida cuatro
+ *  veces. Descartar por columna se habría comido tres de las cuatro. */
 function _catalogoVariables() {
+  var vistas = {};
   return _objetosDe('CamposReportes')
-    .filter(f => String(f.Columna || '').trim())
-    .map(f => ({
-      hoja: String(f.Hoja || '').trim(),
-      colEquipo: String(f.ColumnaEquipo || '').trim(),
-      equipo: String(f.Equipo || '').trim(),
-      codigo: String(f.CodigoCorto || '').trim(),
-      orden: parseInt(f.Orden, 10) || 0,
-      grupo: String(f.Grupo || '').trim(),
-      columna: String(f.Columna || '').trim(),
-      etiqueta: String(f.Etiqueta || '').trim(),
-      rango: String(f.RangoNormal || '').trim(),
-    }));
+    .filter(function (f) {
+      if (!String(f.Columna || '').trim()) return false;
+      var clave = [f.Hoja, f.Equipo, f.Columna, f.Orden, f.Etiqueta].join('|');
+      if (vistas[clave]) return false;
+      vistas[clave] = true;
+      return true;
+    })
+    .map(function (f) {
+      return {
+        hoja: String(f.Hoja || '').trim(),
+        colEquipo: String(f.ColumnaEquipo || '').trim(),
+        equipo: String(f.Equipo || '').trim(),
+        codigo: String(f.CodigoCorto || '').trim(),
+        orden: parseInt(f.Orden, 10) || 0,
+        grupo: String(f.Grupo || '').trim(),
+        columna: String(f.Columna || '').trim(),
+        etiqueta: String(f.Etiqueta || '').trim(),
+        rango: String(f.RangoNormal || '').trim(),
+      };
+    });
 }
 
 /** Convierte "Normal: 120–230" o "Normal: menor que 35" en límites

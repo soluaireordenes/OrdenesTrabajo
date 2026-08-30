@@ -3590,14 +3590,12 @@ async function publicarCatalogoVariablesSiCambio() {
 
   const colsReales = await asegurarHoja(SH.camposReportes, CAMPOS_REPORTES_COLS);
   const yaGuardado = await leerHojaGenericaCacheada(SH.camposReportes);
-  if (yaGuardado.length && String(yaGuardado[0].Huella || '') === huella) return false;
-
-  // Reescritura completa: el catálogo es un espejo de la definición, no un
-  // histórico, así que no tiene sentido conservar lo anterior.
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  await fetch(base + '/values/' + encodeURIComponent(SH.camposReportes + '!A2:ZZ') + ':clear',
-    { method: 'POST', headers: hdrs });
+  // Se comprueba la huella Y el número de filas. Solo la huella no bastaba:
+  // si la hoja quedó con las filas duplicadas, la huella de la primera fila
+  // sigue siendo la correcta y el catálogo nunca se volvía a escribir — el
+  // daño se quedaba ahí hasta el siguiente cambio de formulario.
+  if (yaGuardado.length === catalogo.length
+      && String(yaGuardado[0].Huella || '') === huella) return false;
 
   const filas = catalogo.map(f => colsReales.map(col => {
     if (col === 'Hoja') return f.hoja;
@@ -3612,7 +3610,32 @@ async function publicarCatalogoVariablesSiCambio() {
     if (col === 'Huella') return huella;
     return '';
   }));
-  await appendHoja(SH.camposReportes, filas);
+
+  // Se ESCRIBE SOBRE las celdas exactas en vez de borrar y luego agregar.
+  //
+  // Con borrar+agregar había una carrera: el día que se despliega un cambio
+  // de formulario, si dos operarios abren la app casi a la vez, los dos ven
+  // la huella distinta, los dos borran y los dos agregan — y la hoja queda
+  // con las 490 filas repetidas. El bot entonces listaba cada variable dos
+  // veces, y no se arreglaba solo porque la huella ya coincidía.
+  //
+  // Escribiendo un rango fijo el problema desaparece sin necesidad de
+  // candados: los dos escriben lo mismo en las mismas celdas, así que da
+  // igual quién llegue de último. El resultado es idéntico.
+  const ultimaCol = numToCol(colsReales.length - 1);
+  await sheetsRequest('UPDATE',
+    SH.camposReportes + '!A2:' + ultimaCol + (filas.length + 1), filas);
+
+  // Y si el catálogo anterior era más largo (o había quedado duplicado de
+  // antes), se limpia lo que sobra debajo. Borrar filas que ya no
+  // corresponden se puede repetir sin consecuencia.
+  if (yaGuardado.length > filas.length) {
+    const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    await fetch(base + '/values/'
+      + encodeURIComponent(SH.camposReportes + '!A' + (filas.length + 2) + ':ZZ') + ':clear',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' } });
+  }
+  _invalidarCacheHoja(SH.camposReportes);
   return true;
 }
 
@@ -4237,6 +4260,116 @@ function _fotosUrlSede() {
     throw new Error('Aún no se configuró el Apps Script de fotos para esta sede (' + operacionActual + ').');
   }
   return url;
+}
+
+/* ══════════════════════════════════════════════
+   ACHICAR LA FOTO ANTES DE SUBIRLA
+
+   Hasta ahora la foto se subía tal como salía de la cámara. Un celular de
+   hoy saca entre 3 y 6 MB por foto, y eso se manda en base64, que abulta un
+   tercio más: de 4 a 8 MB por cada evidencia, desde los datos móviles de la
+   planta. Se llenaba el Drive y la subida se sentía eterna.
+
+   1600px de lado mayor y JPEG al 80% deja la foto en unos 300 KB sin que se
+   note la diferencia ni en la pantalla ni en el PDF impreso, que es para lo
+   único que se usan.
+
+   Regla de oro: si algo falla —un formato que el navegador no sabe decodificar,
+   memoria insuficiente para el lienzo— se sube el archivo original. Perder la
+   evidencia de un trabajo sería mucho peor que subirla pesada.
+══════════════════════════════════════════════ */
+
+const FOTO_LADO_MAXIMO  = 1600;  // píxeles del lado mayor
+const FOTO_CALIDAD_JPEG = 0.8;
+
+/** El archivo tal cual, en base64 (sin el prefijo "data:...;base64,"). */
+function _archivoABase64(file) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload  = () => resolve(String(lector.result).split(',')[1]);
+    lector.onerror = () => reject(lector.error || new Error('No se pudo leer el archivo'));
+    lector.readAsDataURL(file);
+  });
+}
+
+/** Decodifica la imagen respetando la orientación EXIF. Sin eso, las fotos
+ *  de iPhone salen acostadas al pasarlas por un lienzo: la cámara guarda la
+ *  imagen en horizontal y anota aparte "va girada 90°", y el lienzo se come
+ *  esa anotación. createImageBitmap con imageOrientation la aplica; donde no
+ *  exista esa opción se cae a un <img>, que en los navegadores actuales ya
+ *  orienta solo. */
+async function _decodificarImagen(file) {
+  if (typeof createImageBitmap === 'function') {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e) { /* opción no soportada: se sigue con <img> */ }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = () => resolve(img);
+      img.onerror = () => reject(new Error('El navegador no pudo abrir esta imagen'));
+      img.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Devuelve { base64, mimeType, bytes } ya achicada, o null si el navegador
+ *  no pudo producir un JPEG. */
+async function _comprimirImagen(file) {
+  const imagen = await _decodificarImagen(file);
+  const anchoOrig = imagen.width  || imagen.naturalWidth;
+  const altoOrig  = imagen.height || imagen.naturalHeight;
+  if (!anchoOrig || !altoOrig) return null;
+
+  try {
+    const escala = Math.min(1, FOTO_LADO_MAXIMO / Math.max(anchoOrig, altoOrig));
+    const ancho = Math.max(1, Math.round(anchoOrig * escala));
+    const alto  = Math.max(1, Math.round(altoOrig  * escala));
+
+    const lienzo = document.createElement('canvas');
+    lienzo.width = ancho; lienzo.height = alto;
+    const ctx = lienzo.getContext('2d');
+    // Fondo blanco antes de dibujar: un PNG con transparencia sobre JPEG
+    // —que no tiene canal alfa— saldría con los huecos en negro.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ancho, alto);
+    ctx.drawImage(imagen, 0, 0, ancho, alto);
+
+    const dataUrl = lienzo.toDataURL('image/jpeg', FOTO_CALIDAD_JPEG);
+    // Si el navegador no sabe producir JPEG devuelve un PNG sin avisar, y
+    // ese pesaría más que el original.
+    if (!/^data:image\/jpeg/i.test(dataUrl)) return null;
+
+    const base64 = dataUrl.split(',')[1];
+    return { base64, mimeType: 'image/jpeg', bytes: Math.round(base64.length * 3 / 4) };
+  } finally {
+    if (imagen && typeof imagen.close === 'function') imagen.close();
+  }
+}
+
+/** Punto único por donde pasan las fotos antes de salir a Drive: intenta
+ *  achicarla y, si no puede o el resultado no es más liviano, manda el
+ *  archivo original. Devuelve además el nombre con la extensión correcta,
+ *  para que en Drive no quede un JPEG llamándose .heic. */
+async function _prepararFotoParaSubir(file, nombreSugerido) {
+  const nombreBase = String(nombreSugerido || file.name || 'foto').replace(/\.[^.]+$/, '');
+  try {
+    const chica = await _comprimirImagen(file);
+    if (chica && chica.bytes < file.size) {
+      return { base64: chica.base64, mimeType: 'image/jpeg', nombreArchivo: nombreBase + '.jpg' };
+    }
+  } catch (e) {
+    console.warn('No se pudo achicar la foto, se sube como está:', e.message);
+  }
+  const extension = (String(file.name || '').match(/\.[^.]+$/) || ['.jpg'])[0];
+  return {
+    base64: await _archivoABase64(file),
+    mimeType: file.type || 'image/jpeg',
+    nombreArchivo: nombreBase + extension,
+  };
 }
 
 /* ══════════════════════════════════════════════
@@ -8152,13 +8285,9 @@ async function appendHoja(nombre, rows) {
 async function subirFotoOrden(file, numeroOrden, tareaDescripcion) {
   if (!file.type.startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen');
 
-  // 1. Convertir el archivo a base64 (se manda al Apps Script, no a Drive directo)
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // 1. Achicarla y pasarla a base64 (se manda al Apps Script, no a Drive
+  //    directo). Ver _prepararFotoParaSubir: si no se puede achicar, va tal cual.
+  const foto = await _prepararFotoParaSubir(file, `${numeroOrden}_${Date.now()}`);
 
   const subidoPor = currentUser?.name || currentUser?.email || '';
   const fecha     = new Date().toISOString();
@@ -8172,9 +8301,9 @@ async function subirFotoOrden(file, numeroOrden, tareaDescripcion) {
       accion: 'subirFoto',
       tipo: 'orden',
       codigo: numeroOrden,
-      nombreArchivo: `${numeroOrden}_${Date.now()}.jpg`,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       tareaDescripcion: tareaDescripcion || '',
       subidoPor,
       correo: currentUser?.email || ''
@@ -13009,14 +13138,55 @@ async function cargarNovedadesDeSheets() {
 }
 
 /** Genera el siguiente código (INF-N-XX o INF-E-XX), cada prefijo con su propia numeración */
-function _siguienteCodigo(prefijo) {
+/* ══════════════════════════════════════════════
+   CÓDIGOS DE REPORTE QUE NO SE REPITAN
+
+   El correlativo se calculaba sobre lo que tenía ESE celular en memoria:
+   max + 1 sobre la lista ya cargada. Dos operarios reportando a la misma
+   hora —que es lo normal, con seis franjas fijas al día y veintitrés
+   equipos— sacaban los dos el mismo RC-0412. Y si uno de los dos tenía la
+   lista desactualizada, ni siquiera hacía falta que fuera al mismo tiempo.
+
+   El código no es decorativo: es lo que usa el sistema para encontrar la
+   fila. Al borrar un reporte, el find() por código marcaba como eliminado
+   el primero que coincidiera, que podía ser el del otro operario.
+
+   Repartir correlativos sin repetir no se puede desde el navegador: haría
+   falta un contador con candado del lado del servidor, y aquí cada celular
+   escribe directo en la hoja. Así que el número se queda como referencia
+   legible —para que la tabla siga leyéndose igual— y la identidad la da una
+   cola corta y aleatoria: RC-0412-A3F9. Es la misma decisión que se tomó en
+   su momento con el NumeroOrden (ver generarNumeroOrdenUnico).
+
+   Los regex que leen el correlativo siguen funcionando: RC-(\d+) encuentra
+   el 0412 igual, con cola o sin ella, así que los códigos viejos y los
+   nuevos conviven sin tocar nada.
+══════════════════════════════════════════════ */
+function _codigoConsecutivoUnico(prefijo, filas, digitos) {
+  const re = new RegExp('^' + prefijo + '-(\\d+)');
   let max = 0;
-  const re = new RegExp(prefijo + '-(\\d+)');
-  allNovedades.forEach(n => {
-    const m = (n.Codigo || '').match(re);
+  (filas || []).forEach(f => {
+    const m = String((f && f.Codigo) || '').match(re);
     if (m) max = Math.max(max, parseInt(m[1], 10));
   });
-  return prefijo + '-' + String(max + 1).padStart(2, '0');
+  const numero = prefijo + '-' + String(max + 1).padStart(digitos, '0');
+  // Seis caracteres tomados uno a uno del alfabeto, no bytes convertidos a
+  // base36: un byte llega apenas hasta "73", así que dos bytes daban 65.536
+  // combinaciones y no el millón y medio que aparentaban. Con esa cola, mil
+  // códigos seguidos traían ocho repetidos. Así son 36^6, más de dos mil
+  // millones, y en cien mil no se repite ninguno.
+  const ALFABETO = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let codigo;
+  do {
+    const azar = new Uint8Array(6);
+    crypto.getRandomValues(azar);
+    codigo = numero + '-' + Array.from(azar).map(b => ALFABETO[b % 36]).join('');
+  } while ((filas || []).some(f => f && f.Codigo === codigo));
+  return codigo;
+}
+
+function _siguienteCodigo(prefijo) {
+  return _codigoConsecutivoUnico(prefijo, allNovedades, 2);
 }
 
 /** Se llama cada vez que se entra a la pestaña Novedades */
@@ -13375,12 +13545,7 @@ async function eliminarNovedad(codigo) {
 /* ── Fotos / Evidencias gráficas (con título y descripción por imagen) ── */
 
 async function subirFotoNovedad(file, codigo, titulo, descripcion) {
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const foto = await _prepararFotoParaSubir(file, codigo + '_' + Date.now() + '_' + (file.name || 'foto'));
 
   const subidoPor = currentUser?.email || 'Usuario';
   const fecha = new Date().toISOString();
@@ -13392,9 +13557,9 @@ async function subirFotoNovedad(file, codigo, titulo, descripcion) {
       accion: 'subirFoto',
       tipo: 'novedad',
       codigo,
-      nombreArchivo: codigo + '_' + Date.now() + '_' + file.name,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       titulo: titulo || '',
       descripcion: descripcion || '',
       subidoPor,
@@ -14233,16 +14398,10 @@ async function agregarActividadAdicionalCronograma(turnoId, fecha) {
 async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
   if (!file.type.startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen');
 
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
   const subidoPor = currentUser?.name || currentUser?.email || '';
   const fechaHora  = new Date().toISOString();
   const codigo = fecha + '_' + actividadId;
+  const foto = await _prepararFotoParaSubir(file, `${codigo}_${Date.now()}`);
 
   const resp = await fetch(_fotosUrlSede(), {
     method: 'POST',
@@ -14251,9 +14410,9 @@ async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
       accion: 'subirFoto',
       tipo: 'cronograma',
       codigo,
-      nombreArchivo: `${codigo}_${Date.now()}.jpg`,
-      mimeType: file.type || 'image/jpeg',
-      base64,
+      nombreArchivo: foto.nombreArchivo,
+      mimeType: foto.mimeType,
+      base64: foto.base64,
       tareaDescripcion: actividadId,
       subidoPor,
       correo: currentUser?.email || ''
@@ -14657,7 +14816,9 @@ function inicializarDashboardCronograma() {
 async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo) {
   try {
     await asegurarHoja(sheetName, cols);
-    const filas = (await _leerHojaGenerica(sheetName)).filter(f => f.Estado !== 'Eliminada');
+    // Solo el tramo de fechas que se está mirando (ver _leerReportesDelRango):
+    // antes se bajaba la hoja entera y se filtraba después.
+    const filas = (await _leerReportesDelRango(sheetName, desde, hasta)).filter(f => f.Estado !== 'Eliminada');
     _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo);
   } catch (e) {
     const resumenEl = document.getElementById(resumenId);
@@ -14998,12 +15159,7 @@ async function _leerTodasEntregasTurnoAgrupadas() {
 }
 
 function _siguienteCodigoEntregaTurno() {
-  let max = 0;
-  allEntregasTurno.forEach(e => {
-    const m = (e.Codigo || '').match(/ET-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'ET-' + String(max + 1).padStart(3, '0');
+  return _codigoConsecutivoUnico('ET', allEntregasTurno, 3);
 }
 
 /** Arma los campos de equipos/indicadores agrupados igual que el reporte
@@ -15112,12 +15268,7 @@ function renderTablaEntregasTurno() {
 let allObservacionesOperarios = [];
 
 function _siguienteCodigoObservacion() {
-  let max = 0;
-  allObservacionesOperarios.forEach(o => {
-    const m = (o.Codigo || '').match(/OBS-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'OBS-' + String(max + 1).padStart(3, '0');
+  return _codigoConsecutivoUnico('OBS', allObservacionesOperarios, 3);
 }
 
 async function inicializarObservacionesOperarios() {
@@ -15502,12 +15653,7 @@ function _actualizarCamposMedicionesCompresor() {
 }
 
 function _siguienteCodigoReporteCompresor() {
-  let max = 0;
-  allReportesCompresores.forEach(r => {
-    const m = (r.Codigo || '').match(/RC-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RC-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RC', allReportesCompresores, 4);
 }
 
 async function inicializarReporteCompresores() {
@@ -15748,12 +15894,7 @@ ${_construirHtmlReporteCompresor(r)}
 let allReportesSecadores = [];
 
 function _siguienteCodigoReporteSecador() {
-  let max = 0;
-  allReportesSecadores.forEach(r => {
-    const m = (r.Codigo || '').match(/RS-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RS-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RS', allReportesSecadores, 4);
 }
 
 /** Arma el HTML de los campos fijos (Torre izquierda + Datos generales),
@@ -16109,12 +16250,7 @@ function _htmlCamposReporteDrycooler(existente) {
 }
 
 function _siguienteCodigoReporteDrycooler() {
-  let max = 0;
-  allReportesDrycoolers.forEach(r => {
-    const m = (r.Codigo || '').match(/RD-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RD-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RD', allReportesDrycoolers, 4);
 }
 
 async function inicializarReporteDrycoolers() {
@@ -16387,12 +16523,7 @@ function _leerLaboresDecorado(prefijo) {
 }
 
 function _siguienteCodigoReporteDecorado() {
-  let max = 0;
-  allReportesDecorado.forEach(r => {
-    const m = (r.Codigo || '').match(/RDEC-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RDEC-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RDEC', allReportesDecorado, 4);
 }
 
 async function inicializarReporteDecorado() {
@@ -16660,12 +16791,7 @@ function _htmlCamposReporteEmergencia(existente) {
 }
 
 function _siguienteCodigoReporteEmergencia() {
-  let max = 0;
-  allReportesEmergencia.forEach(r => {
-    const m = (r.Codigo || '').match(/RE-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RE-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RE', allReportesEmergencia, 4);
 }
 
 async function inicializarReporteEmergencia() {
@@ -16950,12 +17076,7 @@ function _htmlCamposReportePresionDrycooler(existente) {
 }
 
 function _siguienteCodigoReportePresionDrycooler() {
-  let max = 0;
-  allReportesPresionDrycooler.forEach(r => {
-    const m = (r.Codigo || '').match(/RPD-(\d+)/);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  });
-  return 'RPD-' + String(max + 1).padStart(4, '0');
+  return _codigoConsecutivoUnico('RPD', allReportesPresionDrycooler, 4);
 }
 
 async function inicializarReportePresionDrycooler() {
@@ -17412,6 +17533,140 @@ async function leerHojaGenericaCacheada(nombre) {
   const data = await leerHojaGenerica(nombre);
   _cacheLecturasHojas[nombre] = { data, timestamp: Date.now() };
   return data;
+}
+
+/* ══════════════════════════════════════════════
+   LEER SOLO EL FINAL DE UNA HOJA
+
+   Las gráficas de cumplimiento del Cronograma leían las SEIS hojas de
+   reportes enteras, de la primera fila a la última, cada vez que se abría
+   el panel — y el filtro de fechas se aplicaba después, ya con todo
+   descargado. Hoy son unos 55 KB por día de historia acumulada: a los seis
+   meses son 10 MB por apertura, al año 20 y a los tres años 60. En los datos
+   de la planta eso es cerca de un minuto de espera cada vez.
+
+   El API de Sheets no sabe filtrar por valor, solo por rango de filas. Pero
+   los reportes se agregan en orden, así que las fechas recientes están al
+   final: pidiendo la cola alcanza. Si resulta que no se alcanzó a llegar
+   hasta la fecha pedida —porque alguien cargó reportes atrasados y el orden
+   no es perfecto— se pide más, y si aun así no cuadra se lee la hoja
+   completa. Nunca se grafica con datos a medias.
+══════════════════════════════════════════════ */
+
+/** Cuántas filas tiene cada hoja del archivo, en una sola petición pequeña.
+ *  Es el tamaño de la cuadrícula, no las filas llenas, pero como las filas
+ *  se insertan al agregar, sigue de cerca a la realidad. Si se queda corto
+ *  se lee de más (inofensivo) y si se pasa, la comprobación de abajo lo
+ *  detecta. */
+let _cacheFilasPorHoja = null;
+async function _filasPorHoja() {
+  if (_cacheFilasPorHoja && (Date.now() - _cacheFilasPorHoja.timestamp) < CACHE_LECTURAS_TTL_MS) {
+    return _cacheFilasPorHoja.data;
+  }
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const campos = 'sheets(properties(title,gridProperties(rowCount)))';
+  const data = {};
+  try {
+    const r = await fetch(base + '?fields=' + encodeURIComponent(campos),
+      { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+    if (r.ok) {
+      const d = await r.json();
+      (d.sheets || []).forEach(h => {
+        const p = h.properties || {};
+        data[p.title] = (p.gridProperties || {}).rowCount || 0;
+      });
+    }
+  } catch (e) {
+    // Sin esta medida no se puede pedir la cola, pero tampoco hay que
+    // romper nada: quien llama se cae a leer la hoja entera, que es
+    // exactamente lo que se hacía antes de este atajo.
+    console.warn('No se pudo medir el tamaño de las hojas:', e.message);
+  }
+  _cacheFilasPorHoja = { data, timestamp: Date.now() };
+  return data;
+}
+
+/** Las últimas `cuantas` filas de una hoja, más su encabezado, en UNA sola
+ *  petición (batchGet con dos rangos). Devuelve objetos igual que
+ *  _leerHojaGenerica, con su _row real. */
+async function _leerColaDeHoja(nombre, cuantas) {
+  const totales = (await _filasPorHoja())[nombre] || 0;
+  // Fila 1 = encabezado, así que los datos empiezan en la 2.
+  const inicio = Math.max(2, totales - cuantas + 1);
+  if (inicio <= 2) return { filas: await _leerHojaGenerica(nombre), completa: true };
+
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const rangos = ['ranges=' + encodeURIComponent(nombre + '!A1:ZZ1'),
+                  'ranges=' + encodeURIComponent(nombre + '!A' + inicio + ':ZZ')];
+  const r = await fetch(base + '/values:batchGet?' + rangos.join('&'),
+    { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!r.ok) throw new Error('No se pudo leer la hoja ' + nombre);
+  const d = await r.json();
+  const cols = ((d.valueRanges || [])[0] || {}).values?.[0] || [];
+  const cuerpo = ((d.valueRanges || [])[1] || {}).values || [];
+  if (!cols.length) return { filas: [], completa: true };
+
+  const filas = cuerpo.map((row, i) => {
+    const obj = { _row: inicio + i };
+    cols.forEach((c, j) => {
+      const val = row[j] || '';
+      if (obj[c] === undefined || val) obj[c] = val;
+    });
+    return obj;
+  }).filter(o => Object.keys(o).some(k => k !== '_row' && o[k]));
+  return { filas, completa: false };
+}
+
+/** Días entre dos fechas 'YYYY-MM-DD'. */
+function _diasEntre(desde, hasta) {
+  return Math.round((_fechaLocalDesdeString(hasta) - _fechaLocalDesdeString(desde)) / 86400000);
+}
+
+/** Las filas de una hoja de reportes que cubren el rango pedido, leyendo lo
+ *  menos posible.
+ *
+ *  Se pide la cola con margen. Si la fila más vieja que llegó todavía es
+ *  posterior a `desde`, falta historia — y ahí NO se tantea doblando: con lo
+ *  que se acaba de leer ya se sabe cuántas filas trae esta hoja por día, así
+ *  que se calcula de una cuántas faltan. Tantear salía caro: pedir un rango
+ *  viejo llegó a bajar 32 MB en cuatro intentos fallidos, más de lo que
+ *  costaba leer la hoja entera. Si la cuenta da que hace falta casi todo, se
+ *  lee entera de una vez y listo. */
+async function _leerReportesDelRango(nombre, desde, hasta) {
+  const totales = (await _filasPorHoja())[nombre] || 0;
+  // 60 filas por día es holgado: la hoja más cargada, la de compresores, hace
+  // 42 (siete equipos por seis franjas). El piso de 200 cubre un solo día.
+  const dias = Math.max(1, _diasEntre(desde, hasta) + 1);
+  let cuantas = Math.max(200, dias * 60);
+
+  for (let intento = 0; intento < 2; intento++) {
+    if (cuantas >= totales) break;                 // no vale la pena la cola
+    const { filas, completa } = await _leerColaDeHoja(nombre, cuantas);
+    if (completa) return filas;
+
+    const fechas = filas.map(f => _aIsoFecha(f.Fecha)).filter(Boolean).sort();
+    if (!fechas.length) return filas;              // cola vacía: no hay más atrás
+    const masVieja = fechas[0];
+    if (masVieja <= desde) return filas;           // el rango quedó cubierto
+
+    // No alcanzó: con lo leído se mide el ritmo real de esta hoja y se
+    // calcula de una cuánto falta, en vez de ir doblando a ciegas.
+    const diasLeidos  = Math.max(1, _diasEntre(masVieja, fechas[fechas.length - 1]) + 1);
+    const filasPorDia = filas.length / diasLeidos;
+    const diasFaltan  = Math.max(0, _diasEntre(desde, masVieja));
+    cuantas = Math.ceil((filas.length + diasFaltan * filasPorDia) * 1.3) + 200;
+  }
+  return await _leerHojaGenerica(nombre);
+}
+
+/** La fecha de una fila como 'YYYY-MM-DD', venga como texto o como fecha de
+ *  Sheets. */
+function _aIsoFecha(v) {
+  const s = String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = _fechaLocalDesdeString(s);
+  return isNaN(d) ? '' : _isoLocal(d);
 }
 
 function _invalidarCacheHoja(nombre) {
