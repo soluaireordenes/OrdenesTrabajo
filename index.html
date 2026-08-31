@@ -4307,7 +4307,7 @@ const ENTREGA_TURNO_HORA_DE_TURNO = {
 const ENTREGA_TURNO_HORAS_GRAFICA = ['6:00 a.m.', '2:00 p.m.', '10:00 p.m.'];
 
 const ENTREGA_TURNO_CAMPOS_GRAFICA = [
-  { grupo: 'Dry Cooler', id: 'consumoAguaGraf', label: 'Consumo de agua', col: 'ConsumoAgua' },
+  { grupo: 'Dry Cooler', id: 'consumoAguaGraf', label: 'Consumo de agua [m³]', col: 'ConsumoAgua' },
 ];
 
 /** Variable de estado del panel: que apartado se esta viendo. Sirve para
@@ -8528,7 +8528,7 @@ const ENTREGA_TURNO_CAMPOS = [
   { grupo: 'Compresores Decorado', id: 'decNxv18', label: 'NXV 18', col: 'DecoradoNXV18' },
   { grupo: 'Dry Cooler', id: 'presionDryCooler', label: 'Presión de Dry Cooler', col: 'PresionDryCooler' },
   { grupo: 'Dry Cooler', id: 'temperaturaCA1', label: 'Temperatura con respecto a CA1', col: 'TemperaturaCA1' },
-  { grupo: 'Dry Cooler', id: 'consumoAgua', label: 'Consumo de agua', col: 'ConsumoAgua' },
+  { grupo: 'Dry Cooler', id: 'consumoAgua', label: 'Consumo de agua [m³]', col: 'ConsumoAgua' },
   { grupo: 'Bypass', id: 'bypassPosicion', label: 'Bypass (posición / pin)', col: 'BypassPosicion' },
   // 4 manómetros de bypass, uno por cada esquina del tablero.
   { grupo: 'Bypass', id: 'presionBypassArribaIzq', label: 'Presión arriba izquierda', col: 'PresionBypassArribaIzq' },
@@ -11408,7 +11408,7 @@ function _auxHtmlPromedio() {
   return `
   <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--brand);flex:1">Consumo de agua por hora</div>
+      <div style="font-size:13px;font-weight:700;color:var(--brand);flex:1">Consumo de agua por hora (m³/h)</div>
       <label style="font-size:11px;color:var(--text3)">El operario anota</label>
       <select class="form-control" style="max-width:230px;font-size:12.5px" onchange="_auxCambiarModo(this.value)">
         <option value="turno" ${modo === 'turno' ? 'selected' : ''}>El consumo de ese turno</option>
@@ -11424,20 +11424,20 @@ function _auxHtmlPromedio() {
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
-        <div style="font-size:20px;font-weight:800;color:var(--brand)">${n(promedio)}</div>
+        <div style="font-size:20px;font-weight:800;color:var(--brand)">${n(promedio)} <span style="font-size:12px;font-weight:600">m³/h</span></div>
         <div style="font-size:11.5px;color:var(--text3)">Promedio por hora</div>
       </div>
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #0f766e">
-        <div style="font-size:20px;font-weight:800;color:#0f766e">${n(totalConsumo)}</div>
+        <div style="font-size:20px;font-weight:800;color:#0f766e">${n(totalConsumo)} <span style="font-size:12px;font-weight:600">m³</span></div>
         <div style="font-size:11.5px;color:var(--text3)">Consumo del periodo · ${n(totalHoras)} h</div>
       </div>
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #b45309">
-        <div style="font-size:20px;font-weight:800;color:#b45309">${n(maximo.porHora)}</div>
+        <div style="font-size:20px;font-weight:800;color:#b45309">${n(maximo.porHora)} <span style="font-size:12px;font-weight:600">m³/h</span></div>
         <div style="font-size:11.5px;color:var(--text3)">Máximo · ${esc(maximo.turno)} del ${esc(maximo.fecha)}</div>
       </div>
       ${filasTurno.map(t => `
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-        <div style="font-size:17px;font-weight:800;color:var(--text)">${n(t.porHora)}</div>
+        <div style="font-size:17px;font-weight:800;color:var(--text)">${n(t.porHora)} <span style="font-size:11.5px;font-weight:600">m³/h</span></div>
         <div style="font-size:11.5px;color:var(--text3)">Por hora · ${esc(t.turno)}</div>
       </div>`).join('')}
     </div>
@@ -11475,9 +11475,9 @@ function _auxDibujarPromedio() {
         return `${d[2] || ''}/${d[1] || ''} ${p.turno}`;
       }),
       datasets: [
-        { label: 'Consumo por hora', data: serie.map(p => p.porHora),
+        { label: 'Consumo por hora (m³/h)', data: serie.map(p => p.porHora),
           backgroundColor: '#2f6fb2', borderRadius: 4, maxBarThickness: 34 },
-        { label: 'Promedio del periodo', type: 'line', data: serie.map(() => promedio),
+        { label: 'Promedio del periodo (m³/h)', type: 'line', data: serie.map(() => promedio),
           borderColor: '#b45309', borderWidth: 1.4, borderDash: [4, 3], pointRadius: 0, fill: false },
       ],
     },
