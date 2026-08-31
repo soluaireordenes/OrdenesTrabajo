@@ -11276,6 +11276,7 @@ function _variablesDestruirCharts() {
   _variablesCharts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _variablesCharts = [];
   _variablesChartsGrupo = [];
+  if (typeof _auxDestruirChartPromedio === 'function') _auxDestruirChartPromedio();
 }
 
 /* ── Consumo de agua por hora ──────────────────────────────────────
@@ -11293,6 +11294,17 @@ function _variablesDestruirCharts() {
    para corregirlo de un clic si la deducción no acierta. */
 let _auxPuntosConsumo = null;
 let _auxModoForzado   = null;
+// La gráfica del promedio se redibuja cada vez que se cambia el selector.
+// Se guarda aparte para poder destruirla: si solo se quitaba el <canvas>
+// del DOM, cada cambio dejaba un Chart vivo apuntando a un canvas que ya
+// no existe (seis cambios, seis gráficas colgadas en la memoria del
+// celular).
+let _auxChartPromedio = null;
+
+function _auxDestruirChartPromedio() {
+  if (_auxChartPromedio) { try { _auxChartPromedio.destroy(); } catch (_) {} }
+  _auxChartPromedio = null;
+}
 
 /** Duración real del turno en horas, tomada del cronograma de la sede. */
 function _auxHorasDeTurno(turnoId) {
@@ -11331,26 +11343,49 @@ function _auxModoDetectado(puntos) {
   return (subeSiempre && alguoSubio) ? 'contador' : 'turno';
 }
 
-/** Convierte cada lectura en el consumo por hora que le corresponde. */
+/** Convierte cada lectura en el consumo por hora que le corresponde.
+ *
+ *  El agua no se consume en negativo. Si un cálculo da menos de cero es un
+ *  error de digitación, y hay que descartarlo, no promediarlo: un dedazo en
+ *  una lectura de contador (900 donde iba 1090) producía de una vez dos
+ *  cifras falsas —un consumo de −150 m³ y otro de +200— que además
+ *  aplastaban la escala de la gráfica. Se descarta el tramo y se avisa
+ *  cuántos, para que quede claro que hay algo que corregir en la hoja. */
 function _auxConsumoPorHora(puntos, modo) {
-  return puntos.map((p, i) => {
-    if (modo === 'contador') {
-      const previo = puntos[i - 1];
-      if (!previo) return Object.assign({}, p, { consumo: null, horas: null, porHora: null });
-      const horas = (previo.momento && p.momento)
-        ? (p.momento - previo.momento) / 3600000
-        : _auxHorasDeTurno(p.turnoId);
-      const consumo = p.valor - previo.valor;
-      return Object.assign({}, p, {
-        consumo, horas,
-        porHora: horas > 0 ? consumo / horas : null,
-      });
-    }
-    const horas = _auxHorasDeTurno(p.turnoId);
-    return Object.assign({}, p, {
-      consumo: p.valor, horas,
-      porHora: horas > 0 ? p.valor / horas : null,
+  const descartar = (p) => Object.assign({}, p, { consumo: null, horas: null, porHora: null, sospechoso: true });
+  const sinCalcular = (p) => Object.assign({}, p, { consumo: null, horas: null, porHora: null });
+
+  if (modo !== 'contador') {
+    return puntos.map(p => {
+      if (p.valor < 0) return descartar(p);
+      const horas = _auxHorasDeTurno(p.turnoId);
+      return Object.assign({}, p, { consumo: p.valor, horas, porHora: horas > 0 ? p.valor / horas : null });
     });
+  }
+
+  // Con un contador, una lectura mal digitada echa a perder DOS tramos: el
+  // que termina en ella y el que arranca desde ella. Por eso primero se
+  // apartan las lecturas malas —las que aparecen por debajo de la última
+  // buena— y recién después se restan las que quedan, midiendo las horas
+  // que de verdad pasaron entre ellas. Así el tramo se calcula contra la
+  // última lectura confiable en vez de contra el dedazo.
+  const malas = new Set();
+  let ultimaBuena = null;
+  puntos.forEach(p => {
+    if (ultimaBuena && p.valor < ultimaBuena.valor) { malas.add(p); return; }
+    ultimaBuena = p;
+  });
+
+  let previo = null;
+  return puntos.map(p => {
+    if (malas.has(p)) return descartar(p);
+    if (!previo) { previo = p; return sinCalcular(p); }
+    const horas = (previo.momento && p.momento)
+      ? (p.momento - previo.momento) / 3600000
+      : _auxHorasDeTurno(p.turnoId);
+    const consumo = p.valor - previo.valor;
+    previo = p;
+    return Object.assign({}, p, { consumo, horas, porHora: horas > 0 ? consumo / horas : null });
   });
 }
 
@@ -11375,7 +11410,9 @@ function _auxiliaresPromedioPorHora(bloques) {
 function _auxHtmlPromedio() {
   const puntos = _auxPuntosConsumo || [];
   const modo = _auxModoForzado || _auxModoDetectado(puntos);
-  const serie = _auxConsumoPorHora(puntos, modo).filter(p => p.porHora !== null && isFinite(p.porHora));
+  const calculada = _auxConsumoPorHora(puntos, modo);
+  const sospechosos = calculada.filter(p => p.sospechoso);
+  const serie = calculada.filter(p => p.porHora !== null && isFinite(p.porHora));
 
   if (!serie.length) {
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px;color:var(--text3);font-size:13px">
@@ -11421,6 +11458,12 @@ function _auxHtmlPromedio() {
         : 'Se reparte lo anotado entre las horas que dura el turno.'}
       ${_auxModoForzado ? '' : ' Deducido del dato; si no es así, cámbialo arriba.'}
     </div>
+    ${sospechosos.length ? `<div style="font-size:11.5px;color:#b91c1c;margin:-6px 0 12px;line-height:1.5">
+      Se dejaron por fuera ${sospechosos.length} ${sospechosos.length === 1 ? 'lectura' : 'lecturas'}
+      (${esc(sospechosos.map(x => x.turno + ' del ' + x.fecha).join(', '))}):
+      ${modo === 'contador' ? 'el contador aparece más bajo que la lectura anterior' : 'el consumo aparece en negativo'},
+      así que hay un dato mal digitado en la hoja. Corrígelo y el promedio se recalcula.
+    </div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
@@ -11451,6 +11494,7 @@ function _auxCambiarModo(modo) {
   _auxModoForzado = modo;
   const cont = document.getElementById('varGraficas-auxiliares');
   if (!cont || !_auxPuntosConsumo) return;
+  _auxDestruirChartPromedio();
   const viejo = cont.firstElementChild;
   if (viejo) viejo.remove();
   cont.insertAdjacentHTML('afterbegin', _auxHtmlPromedio());
@@ -11467,7 +11511,8 @@ function _auxDibujarPromedio() {
   const totalHoras = serie.reduce((s, p) => s + p.horas, 0);
   const promedio = totalHoras > 0 ? serie.reduce((s, p) => s + p.consumo, 0) / totalHoras : 0;
 
-  _variablesCharts.push(new Chart(canvas.getContext('2d'), {
+  _auxDestruirChartPromedio();
+  _auxChartPromedio = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
       labels: serie.map(p => {
@@ -11489,7 +11534,7 @@ function _auxDibujarPromedio() {
         y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
       },
     },
-  }));
+  });
 }
 
 /** Ordena las lecturas cronológicamente. Los reportes traen Fecha y una
