@@ -19741,24 +19741,63 @@ async function _proyAppend(tab, filas) {
 }
 
 /** Sobrescribe una fila completa ya existente (identificada por su _row). */
-async function _proyEscribirFila(tab, row, valores) {
+/** Los códigos de la columna A, indexados por número de fila real.
+ *  Es la forma barata de saber si la hoja se movió debajo de nosotros. */
+async function _proyCodigosPorFila(tab) {
+  const filas = await _invGet(PROY_SPREADSHEET_ID, tab + '!A1:A100000');
+  return (filas || []).map(f => String((f && f[0]) || '').trim());
+}
+
+/** Error de "alguien más movió la hoja". Se distingue por su marca para
+ *  poder recargar solo en ese caso. */
+function _proyDesfase() {
+  const e = new Error('Otra persona agregó o borró filas en la hoja mientras tenías esta pantalla abierta. No se guardó nada para no dañar el dato de al lado; se recargó lo último, vuelve a hacer el cambio.');
+  e.desfase = true;
+  return e;
+}
+
+/** Escribe VARIAS filas ya existentes en una sola petición, pero solo si
+ *  cada una sigue siendo la que creíamos.
+ *
+ *  Sin esta comprobación, si otra persona borraba una fila mientras vos
+ *  tenías la pantalla abierta, todo lo de abajo se corría un puesto y tu
+ *  corrección terminaba escrita encima del registro vecino, que se perdía
+ *  sin aviso. El número de fila no identifica nada por sí solo: el que
+ *  manda es el código. */
+async function _proyEscribirFilas(tab, cambios) {
+  if (!cambios || !cambios.length) return;
+  const codigos = await _proyCodigosPorFila(tab);
+  cambios.forEach(c => {
+    if (codigos[c.row - 1] !== String(c.codigo || '').trim()) throw _proyDesfase();
+  });
+
   const colFin = numToCol(PROY_COLS[tab].length - 1);
-  const rango = `${tab}!A${row}:${colFin}${row}`;
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values/${encodeURIComponent(rango)}?valueInputOption=RAW`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchUpdate`;
   const resp = await fetch(url, {
-    method: 'PUT',
+    method: 'POST',
     headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ values: [valores] }),
+    body: JSON.stringify({
+      valueInputOption: 'RAW',
+      data: cambios.map(c => ({ range: `${tab}!A${c.row}:${colFin}${c.row}`, values: [c.valores] })),
+    }),
   });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
-  if (!resp.ok) throw new Error('No se pudo actualizar la fila (HTTP ' + resp.status + ')');
+  if (!resp.ok) throw new Error('No se pudieron actualizar las filas (HTTP ' + resp.status + ')');
+}
+
+async function _proyEscribirFila(tab, row, valores, codigo) {
+  await _proyEscribirFilas(tab, [{ row, valores, codigo }]);
 }
 
 /** Borra físicamente una fila. Se hace de una en una y siempre releyendo
  *  después, porque al borrar se corren todos los _row de abajo. */
-async function _proyBorrarFila(tab, row) {
+async function _proyBorrarFila(tab, row, codigo) {
   const sheetId = proyHojaIds[tab];
   if (sheetId === undefined) throw new Error('No se encontró la pestaña ' + tab);
+  // Igual que al escribir: borrar por número de fila a ciegas puede llevarse
+  // el registro de al lado si alguien más ya movió la hoja.
+  const codigos = await _proyCodigosPorFila(tab);
+  if (codigos[row - 1] !== String(codigo || '').trim()) throw _proyDesfase();
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}:batchUpdate`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -20049,6 +20088,18 @@ async function abrirProyectos() {
   if (!googleAccessToken) {
     alert('🔒 Primero inicia sesión con Google en el panel izquierdo.');
     return;
+  }
+  // Aquí se ve el contrato completo del proyecto: valores por alcance,
+  // calendario de pagos y montos. Es información de gerencia, así que pide
+  // la misma contraseña que el Dashboard — una sola vez por sesión.
+  if (sessionStorage.getItem('panelesProtegidosDesbloqueados') !== '1') {
+    const clave = prompt('Esta sección está protegida.\nIngresa la contraseña para continuar:');
+    if (clave === null) return;
+    if ((await _sha256Hex(clave)) !== CLAVE_ACCESO_HASH) {
+      alert('Contraseña incorrecta. No tienes acceso a esta sección.');
+      return;
+    }
+    sessionStorage.setItem('panelesProtegidosDesbloqueados', '1');
   }
   if (_tiempoRealIntervalId) { clearInterval(_tiempoRealIntervalId); _tiempoRealIntervalId = null; }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -20860,12 +20911,13 @@ async function _proyEditarCampo(tab, row, campo, valor) {
   obj[campo] = valor;
   try {
     _proyMsg('Guardando…');
-    await _proyEscribirFila(tab, row, _proyFilaDeObjeto(tab, obj));
+    await _proyEscribirFila(tab, row, _proyFilaDeObjeto(tab, obj), obj.Codigo);
     _proyMsg('Guardado.', 'ok');
     proyRenderTodo();
   } catch (e) {
     obj[campo] = anterior;               // deshacer para no mentirle a la pantalla
     _proyMsg(e.message, 'error');
+    if (e.desfase) await proyCargarTodo();   // traer lo que sí quedó en la hoja
     proyRenderTodo();
   }
 }
@@ -20882,14 +20934,19 @@ async function _proyAgregarFila(tab, obj) {
 
 /** Borrar corre las filas de abajo, así que hay que releer siempre después. */
 async function _proyEliminarFila(tab, row, pregunta) {
+  const obj = _proyListaDe(tab).find(o => o._row === row);
+  if (!obj) { _proyMsg('No se encontró la fila; vuelve a actualizar.', 'error'); return; }
   if (!confirm(pregunta)) return;
   try {
     _proyMsg('Eliminando…');
-    await _proyBorrarFila(tab, row);
+    await _proyBorrarFila(tab, row, obj.Codigo);
     await proyCargarTodo();
     _proyMsg('Eliminado.', 'ok');
     proyRenderTodo();
-  } catch (e) { _proyMsg(e.message, 'error'); }
+  } catch (e) {
+    _proyMsg(e.message, 'error');
+    if (e.desfase) { await proyCargarTodo(); proyRenderTodo(); }
+  }
 }
 
 /* ── Proyectos ─────────────────────────────────────────────────── */
@@ -20987,8 +21044,11 @@ async function proyGuardarAvances() {
       .filter(a => a.Proyecto === proyActual && proyIso(a.FechaCorte) === corte)
       .forEach(a => { existentes[String(a.Alcance || '').trim()] = a; });
 
+    // Las correcciones se juntan y van en UNA sola petición: antes era una
+    // por alcance, y un corte de diez frentes se comía diez de las sesenta
+    // lecturas por minuto que Google reparte entre todos los operarios.
     const nuevas = [];
-    let corregidas = 0;
+    const cambios = [];
     for (const celda of celdas) {
       const alcance = celda.getAttribute('data-proy-captura');
       const pct = Math.max(0, Math.min(100, proyNum(celda.value)));
@@ -20999,8 +21059,7 @@ async function proyGuardarAvances() {
         if (proyNum(ya.PctAvance) === pct && String(ya.Observacion || '') === obs) continue;
         ya.PctAvance = pct; ya.Observacion = obs;
         ya.Usuario = _proyUsuario(); ya.FechaRegistro = _proyAhora();
-        _proyMsg(`Guardando… (${++corregidas} corregidos)`);
-        await _proyEscribirFila(PROY_SH.avances, ya._row, _proyFilaDeObjeto(PROY_SH.avances, ya));
+        cambios.push({ row: ya._row, valores: _proyFilaDeObjeto(PROY_SH.avances, ya), codigo: ya.Codigo });
       } else {
         nuevas.push({
           Codigo: _codigoConsecutivoUnico('AVA', proyDatos.avances.concat(nuevas), 5),
@@ -21010,16 +21069,18 @@ async function proyGuardarAvances() {
       }
     }
 
-    if (nuevas.length) {
-      _proyMsg('Guardando…');
-      await _proyAppend(PROY_SH.avances, nuevas.map(o => _proyFilaDeObjeto(PROY_SH.avances, o)));
-    }
-    if (!nuevas.length && !corregidas) { _proyMsg('No hubo cambios que guardar.', 'ok'); return; }
+    if (!nuevas.length && !cambios.length) { _proyMsg('No hubo cambios que guardar.', 'ok'); return; }
+    _proyMsg('Guardando…');
+    // Primero las correcciones: si la hoja se movió, se aborta antes de
+    // agregar nada, y el corte no queda a medias.
+    await _proyEscribirFilas(PROY_SH.avances, cambios);
+    if (nuevas.length) await _proyAppend(PROY_SH.avances, nuevas.map(o => _proyFilaDeObjeto(PROY_SH.avances, o)));
     await proyCargarTodo();
-    _proyMsg(`Corte del ${proyFechaLarga(corte)} guardado (${nuevas.length} nuevos, ${corregidas} corregidos).`, 'ok');
+    _proyMsg(`Corte del ${proyFechaLarga(corte)} guardado (${nuevas.length} nuevos, ${cambios.length} corregidos).`, 'ok');
     proyRenderTodo();
   } catch (e) {
     _proyMsg(e.message, 'error');
+    if (e.desfase) { await proyCargarTodo(); proyRenderTodo(); }
   } finally {
     if (boton) boton.disabled = false;
   }
