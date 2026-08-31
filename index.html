@@ -2863,6 +2863,7 @@ body.inv-activo .container { max-width: 1800px; }
         <button class="inv-subtab" data-vartab="emergencia" onclick="variablesMostrarSubTab('emergencia')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 14h7l-1 8 9-12h-7z"></path></svg> Compresores Emergencia</button>
         <button class="inv-subtab" data-vartab="decorado" onclick="variablesMostrarSubTab('decorado')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"></path></svg> Compresores Decorado</button>
         <button class="inv-subtab" data-vartab="drycoolers" onclick="variablesMostrarSubTab('drycoolers')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M5.6 5.6l12.8 12.8"></path><path d="M18.4 5.6L5.6 18.4"></path><circle cx="12" cy="12" r="3"></circle></svg> Drycoolers</button>
+        <button class="inv-subtab" data-vartab="auxiliares" onclick="variablesMostrarSubTab('auxiliares')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S6.5 9 6.5 13a5.5 5.5 0 0 0 11 0c0-4-5.5-10.3-5.5-10.3z"></path><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"></path></svg> Variables Auxiliares</button>
       </div>
 
       <div id="varSub-compresores" class="inv-subpanel active">
@@ -2911,6 +2912,16 @@ body.inv-activo .container { max-width: 1800px; }
           <div class="card-body" style="padding:18px">
             <div id="varContenido-drycoolers" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
               Todavía no se han definido las variables de Drycoolers.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="varSub-auxiliares" class="inv-subpanel">
+        <div class="card">
+          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S6.5 9 6.5 13a5.5 5.5 0 0 0 11 0c0-4-5.5-10.3-5.5-10.3z"></path><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"></path></svg> Variables — Auxiliares</div>
+          <div class="card-body" style="padding:18px">
+            <div id="varContenido-auxiliares" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+              Todavía no se han definido las variables auxiliares.
             </div>
           </div>
         </div>
@@ -4262,6 +4273,41 @@ const VARIABLES_APARTADOS = [
           return campo ? [campo] : [];
         } },
     ] },
+  // Variables que no las anota un formulario de equipo sino la Entrega de
+  // Turno. No tienen "equipo" al que pertenezcan (son de la planta), así
+  // que la lista trae un solo elemento y la fuente no filtra por columna.
+  { key: 'auxiliares', label: 'Variables Auxiliares', lista: () => AUXILIARES_LISTA,
+    fuentes: [{
+      titulo: 'Entrega de Turno',
+      hoja:   () => SH.entregaTurno,
+      colEquipo: null,
+      horas:  () => ENTREGA_TURNO_HORAS_GRAFICA,
+      // La Entrega de Turno no guarda Hora sino TurnoId. Se le pone la hora
+      // de inicio de su turno para que el eje quede en orden cronológico y
+      // rotulado como en los demás apartados.
+      preparar: (filas) => (filas || []).map(f =>
+        Object.assign({}, f, { Hora: ENTREGA_TURNO_HORA_DE_TURNO[f.TurnoId] || '' })),
+      campos: () => ENTREGA_TURNO_CAMPOS_GRAFICA,
+    }],
+    extra: (bloques) => _auxiliaresPromedioPorHora(bloques),
+    extraDibujar: () => _auxDibujarPromedio(),
+  },
+];
+
+/* ── Variables auxiliares ──────────────────────────────────────────
+   El consumo de agua se anota una vez por turno en la Entrega de Turno.
+   Aquí se grafica igual que las variables de los compresores, y además se
+   calcula cuánta agua se está gastando por hora. */
+const AUXILIARES_LISTA = ['Sistema de agua (Dry Cooler)'];
+
+// Los tres turnos, con la hora de inicio que se usa para ordenar y rotular.
+const ENTREGA_TURNO_HORA_DE_TURNO = {
+  turno1: '6:00 a.m.', turno2: '2:00 p.m.', turno3: '10:00 p.m.',
+};
+const ENTREGA_TURNO_HORAS_GRAFICA = ['6:00 a.m.', '2:00 p.m.', '10:00 p.m.'];
+
+const ENTREGA_TURNO_CAMPOS_GRAFICA = [
+  { grupo: 'Dry Cooler', id: 'consumoAguaGraf', label: 'Consumo de agua', col: 'ConsumoAgua' },
 ];
 
 /** Variable de estado del panel: que apartado se esta viendo. Sirve para
@@ -11232,6 +11278,220 @@ function _variablesDestruirCharts() {
   _variablesChartsGrupo = [];
 }
 
+/* ── Consumo de agua por hora ──────────────────────────────────────
+   El consumo se anota UNA vez por turno, así que para saber cuánto se
+   gasta por hora hay que repartirlo entre las horas del turno. Pero hay
+   dos formas de anotarlo y dan cuentas distintas:
+
+     · "consumo del turno" — lo gastado en esas horas → por hora = valor / horas
+     · "lectura del contador" — un acumulado que solo sube → hay que restarle
+       la lectura anterior y repartir esa diferencia entre las horas que
+       pasaron de verdad entre las dos lecturas.
+
+   Cuál de las dos es no se puede saber mirando el código, así que se
+   deduce del propio dato (un contador nunca baja) y se deja un selector
+   para corregirlo de un clic si la deducción no acierta. */
+let _auxPuntosConsumo = null;
+let _auxModoForzado   = null;
+
+/** Duración real del turno en horas, tomada del cronograma de la sede. */
+function _auxHorasDeTurno(turnoId) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const t = cfg && cfg.turnos && cfg.turnos.find(x => x.id === turnoId);
+  if (!t || !t.horaInicio || !t.horaFin) return 8;
+  const min = s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+  let d = min(t.horaFin) - min(t.horaInicio);
+  if (d <= 0) d += 24 * 60;          // el turno cruza la medianoche
+  return d / 60;
+}
+
+/** Momento real de la lectura: la fecha del registro con la hora de inicio
+ *  de su turno. Sirve para medir cuántas horas pasaron entre dos lecturas
+ *  aunque falten turnos por el medio. */
+function _auxMomentoLectura(fecha, turnoId) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const t = cfg && cfg.turnos && cfg.turnos.find(x => x.id === turnoId);
+  const hhmm = (t && t.horaInicio) || '06:00';
+  const d = new Date(fecha + 'T' + hhmm + ':00');
+  return isNaN(d) ? null : d;
+}
+
+function _auxNombreTurno(f) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const t = cfg && cfg.turnos && cfg.turnos.find(x => x.id === f.TurnoId);
+  return (t && t.nombre) || f.TurnoNombre || f.TurnoId || '—';
+}
+
+/** Un contador nunca retrocede. Con pocas lecturas la señal no es fiable,
+ *  así que por debajo de cuatro se asume lo más común: consumo del turno. */
+function _auxModoDetectado(puntos) {
+  if (puntos.length < 4) return 'turno';
+  const subeSiempre = puntos.every((p, i) => i === 0 || p.valor >= puntos[i - 1].valor);
+  const alguoSubio  = puntos.some((p, i) => i > 0 && p.valor > puntos[i - 1].valor);
+  return (subeSiempre && alguoSubio) ? 'contador' : 'turno';
+}
+
+/** Convierte cada lectura en el consumo por hora que le corresponde. */
+function _auxConsumoPorHora(puntos, modo) {
+  return puntos.map((p, i) => {
+    if (modo === 'contador') {
+      const previo = puntos[i - 1];
+      if (!previo) return Object.assign({}, p, { consumo: null, horas: null, porHora: null });
+      const horas = (previo.momento && p.momento)
+        ? (p.momento - previo.momento) / 3600000
+        : _auxHorasDeTurno(p.turnoId);
+      const consumo = p.valor - previo.valor;
+      return Object.assign({}, p, {
+        consumo, horas,
+        porHora: horas > 0 ? consumo / horas : null,
+      });
+    }
+    const horas = _auxHorasDeTurno(p.turnoId);
+    return Object.assign({}, p, {
+      consumo: p.valor, horas,
+      porHora: horas > 0 ? p.valor / horas : null,
+    });
+  });
+}
+
+function _auxiliaresPromedioPorHora(bloques) {
+  const bloque = (bloques || [])[0];
+  const lecturas = (bloque && bloque.lecturas) || [];
+  _auxPuntosConsumo = lecturas.map(f => ({
+    fecha: f.Fecha,
+    turnoId: f.TurnoId,
+    turno: _auxNombreTurno(f),
+    valor: parseFloat(String(f.ConsumoAgua ?? '').replace(',', '.')),
+    momento: _auxMomentoLectura(f.Fecha, f.TurnoId),
+  })).filter(p => isFinite(p.valor));
+
+  if (!_auxPuntosConsumo.length) {
+    _auxPuntosConsumo = null;
+    return '';
+  }
+  return _auxHtmlPromedio();
+}
+
+function _auxHtmlPromedio() {
+  const puntos = _auxPuntosConsumo || [];
+  const modo = _auxModoForzado || _auxModoDetectado(puntos);
+  const serie = _auxConsumoPorHora(puntos, modo).filter(p => p.porHora !== null && isFinite(p.porHora));
+
+  if (!serie.length) {
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px;color:var(--text3);font-size:13px">
+      Con una sola lectura de contador todavía no se puede calcular el consumo por hora: hace falta al menos una anterior con la que compararla.
+    </div>`;
+  }
+
+  const totalConsumo = serie.reduce((s, p) => s + p.consumo, 0);
+  const totalHoras   = serie.reduce((s, p) => s + p.horas, 0);
+  // El promedio general es el total gastado sobre el total de horas, no el
+  // promedio de los promedios: los turnos podrían no durar todos lo mismo.
+  const promedio = totalHoras > 0 ? totalConsumo / totalHoras : 0;
+  const maximo = serie.reduce((a, b) => (b.porHora > a.porHora ? b : a), serie[0]);
+
+  // Promedio por hora de cada turno, para ver si el gasto se concentra en
+  // alguno de los tres.
+  const porTurno = {};
+  serie.forEach(p => {
+    porTurno[p.turno] = porTurno[p.turno] || { consumo: 0, horas: 0 };
+    porTurno[p.turno].consumo += p.consumo;
+    porTurno[p.turno].horas   += p.horas;
+  });
+  const filasTurno = Object.keys(porTurno).map(t => ({
+    turno: t,
+    porHora: porTurno[t].horas > 0 ? porTurno[t].consumo / porTurno[t].horas : 0,
+  })).sort((a, b) => b.porHora - a.porHora);
+
+  const n = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+
+  return `
+  <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--brand);flex:1">Consumo de agua por hora</div>
+      <label style="font-size:11px;color:var(--text3)">El operario anota</label>
+      <select class="form-control" style="max-width:230px;font-size:12.5px" onchange="_auxCambiarModo(this.value)">
+        <option value="turno" ${modo === 'turno' ? 'selected' : ''}>El consumo de ese turno</option>
+        <option value="contador" ${modo === 'contador' ? 'selected' : ''}>La lectura del contador</option>
+      </select>
+    </div>
+    <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px;line-height:1.5">
+      ${modo === 'contador'
+        ? 'Se toma la diferencia con la lectura anterior y se reparte entre las horas que pasaron entre las dos.'
+        : 'Se reparte lo anotado entre las horas que dura el turno.'}
+      ${_auxModoForzado ? '' : ' Deducido del dato; si no es así, cámbialo arriba.'}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
+        <div style="font-size:20px;font-weight:800;color:var(--brand)">${n(promedio)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Promedio por hora</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #0f766e">
+        <div style="font-size:20px;font-weight:800;color:#0f766e">${n(totalConsumo)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Consumo del periodo · ${n(totalHoras)} h</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #b45309">
+        <div style="font-size:20px;font-weight:800;color:#b45309">${n(maximo.porHora)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Máximo · ${esc(maximo.turno)} del ${esc(maximo.fecha)}</div>
+      </div>
+      ${filasTurno.map(t => `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:17px;font-weight:800;color:var(--text)">${n(t.porHora)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Por hora · ${esc(t.turno)}</div>
+      </div>`).join('')}
+    </div>
+
+    <div style="height:230px"><canvas id="auxChartPorHora"></canvas></div>
+  </div>`;
+}
+
+/** Redibuja solo el bloque del promedio cuando se cambia cómo se anota. */
+function _auxCambiarModo(modo) {
+  _auxModoForzado = modo;
+  const cont = document.getElementById('varGraficas-auxiliares');
+  if (!cont || !_auxPuntosConsumo) return;
+  const viejo = cont.firstElementChild;
+  if (viejo) viejo.remove();
+  cont.insertAdjacentHTML('afterbegin', _auxHtmlPromedio());
+  _auxDibujarPromedio();
+}
+
+function _auxDibujarPromedio() {
+  const canvas = document.getElementById('auxChartPorHora');
+  if (!canvas || typeof Chart === 'undefined' || !_auxPuntosConsumo) return;
+  const modo = _auxModoForzado || _auxModoDetectado(_auxPuntosConsumo);
+  const serie = _auxConsumoPorHora(_auxPuntosConsumo, modo).filter(p => p.porHora !== null && isFinite(p.porHora));
+  if (!serie.length) return;
+
+  const totalHoras = serie.reduce((s, p) => s + p.horas, 0);
+  const promedio = totalHoras > 0 ? serie.reduce((s, p) => s + p.consumo, 0) / totalHoras : 0;
+
+  _variablesCharts.push(new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: serie.map(p => {
+        const d = (p.fecha || '').split('-');
+        return `${d[2] || ''}/${d[1] || ''} ${p.turno}`;
+      }),
+      datasets: [
+        { label: 'Consumo por hora', data: serie.map(p => p.porHora),
+          backgroundColor: '#2f6fb2', borderRadius: 4, maxBarThickness: 34 },
+        { label: 'Promedio del periodo', type: 'line', data: serie.map(() => promedio),
+          borderColor: '#b45309', borderWidth: 1.4, borderDash: [4, 3], pointRadius: 0, fill: false },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 24, maxRotation: 60, minRotation: 0, font: { size: 9 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
+      },
+    },
+  }));
+}
+
 /** Ordena las lecturas cronológicamente. Los reportes traen Fecha y una
  *  Hora de franja fija ("6:00 a.m.", "2:00 p.m."...), que como texto no
  *  ordena bien: se traduce a su posición dentro de la lista de franjas. */
@@ -11443,7 +11703,10 @@ async function variablesGraficar(key) {
     // tienen el suyo y ademas el de "Presion Drycooler"). Se leen en
     // paralelo y cada uno se dibuja como su propio bloque.
     const bloques = await Promise.all(ap.fuentes.map(async fuente => {
-      const filas = await leerHojaGenericaCacheada(fuente.hoja());
+      let filas = await leerHojaGenericaCacheada(fuente.hoja());
+      // Algunas fuentes necesitan acomodar sus filas antes de graficar (la
+      // Entrega de Turno guarda TurnoId, no Hora).
+      if (typeof fuente.preparar === 'function') filas = fuente.preparar(filas);
       const col = fuente.colEquipo;
       const lecturas = _variablesOrdenarLecturas(
         (filas || []).filter(f =>
@@ -11456,6 +11719,13 @@ async function variablesGraficar(key) {
       return { titulo: fuente.titulo, lecturas, campos: fuente.campos(equipo), horas: fuente.horas() };
     }));
     _variablesDibujar('varGraficas-' + key, bloques);
+    // Un apartado puede agregar sus propios bloques debajo de las gráficas
+    // estándar (Auxiliares agrega el promedio de consumo por hora).
+    if (typeof ap.extra === 'function') {
+      const html = ap.extra(bloques);
+      if (html) document.getElementById('varGraficas-' + key).insertAdjacentHTML('afterbegin', html);
+      if (typeof ap.extraDibujar === 'function') ap.extraDibujar(bloques);
+    }
     msg.textContent = '';
   } catch (e) {
     cont.innerHTML = '';
