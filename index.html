@@ -904,6 +904,199 @@ body.inv-activo .container { max-width: 1800px; }
   margin-left: 6px;
 }
 .count-badge.green { background: var(--accent2); }
+
+/* ══════════ PANEL PROYECTOS ══════════
+   Paleta propia (tinta + dorado + papel) para que el seguimiento gerencial
+   se lea igual que el panel que se venía manejando por fuera del sistema,
+   sin alterar el resto de la app. Todo va acotado bajo .proy. */
+.proy {
+  --proy-ink: #10233B;
+  --proy-ink2: #16304F;
+  --proy-paper: #F4F2EC;
+  --proy-panel: #FFFFFF;
+  --proy-gold: #B8892B;
+  --proy-gold-soft: #E9D6AC;
+  --proy-slate: #4A6580;
+  --proy-verde: #3F7A5C;
+  --proy-rojo: #B23A3A;
+  --proy-line: rgba(16, 35, 59, .10);
+  --proy-text: #1B2733;
+  --proy-muted: #69758A;
+  max-width: 1320px;
+  margin: 0 auto;
+  width: 100%;
+  color: var(--proy-text);
+}
+.proy .mono, .proy .num { font-variant-numeric: tabular-nums; }
+
+.proy-head {
+  background: linear-gradient(160deg, var(--proy-ink) 0%, var(--proy-ink2) 100%);
+  color: #F4F2EC; padding: 24px 26px 20px; border-radius: 12px;
+  position: relative; overflow: hidden; margin-bottom: 18px;
+}
+.proy-head::after {
+  content: ""; position: absolute; right: -60px; top: -60px;
+  width: 240px; height: 240px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(184, 137, 43, .28) 0%, transparent 70%);
+}
+.proy-eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 10.5px; color: var(--proy-gold-soft); margin-bottom: 8px; }
+.proy-head-fila { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; position: relative; z-index: 1; }
+.proy-h1 { font-size: 23px; font-weight: 800; margin: 0 0 6px; letter-spacing: -.01em; color: #fff; }
+.proy-sub-txt { color: #C7D0DC; font-size: 13px; max-width: 620px; line-height: 1.5; margin: 0; }
+.proy-selector { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.proy-selector label { font-size: 11px; color: var(--proy-gold-soft); text-transform: uppercase; letter-spacing: .08em; }
+.proy-selector select {
+  font-size: 13px; padding: 7px 10px; border-radius: 8px; min-width: 200px;
+  border: 1px solid rgba(244, 242, 236, .3); background: rgba(244, 242, 236, .1); color: #fff;
+}
+.proy-selector select option { color: #1B2733; }
+
+.proy-tabs { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; position: relative; z-index: 1; }
+.proy-tab {
+  font-size: 12.5px; background: rgba(244, 242, 236, .06); color: #C7D0DC;
+  border: 1px solid rgba(244, 242, 236, .16); padding: 8px 16px; border-radius: 20px;
+  cursor: pointer; transition: all .15s ease; font-family: inherit;
+}
+.proy-tab:hover { border-color: var(--proy-gold-soft); color: #F4F2EC; }
+.proy-tab.active { background: var(--proy-gold); color: #1B1404; border-color: var(--proy-gold); font-weight: 700; }
+.proy-subpanel { display: none; }
+.proy-subpanel.active { display: block; }
+
+.proy-msg { font-size: 13px; margin-bottom: 10px; }
+.proy-msg:empty { display: none; }
+
+.proy-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 18px; flex-wrap: wrap; }
+.proy-toolbar-grupo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.proy-toolbar-grupo label { font-size: 11.5px; color: var(--proy-muted); }
+.proy-toolbar-grupo select, .proy-captura-head input[type="date"] {
+  font-size: 12.5px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--proy-line); background: var(--proy-panel); color: var(--proy-text);
+}
+.proy-toolbar-grupo select { min-width: 200px; cursor: pointer; }
+.proy-badge {
+  font-size: 11px; background: rgba(184, 137, 43, .14); color: #8A6314;
+  padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;
+}
+.proy-badge:empty { display: none; }
+.proy-badge .cerrar { cursor: pointer; font-weight: 700; }
+
+.proy-btn, .proy-btn-ghost {
+  font-size: 12px; padding: 7px 14px; border-radius: 20px; cursor: pointer; font-family: inherit;
+}
+.proy-btn { background: var(--proy-ink); color: #fff; border: 1px solid var(--proy-ink); font-weight: 600; }
+.proy-btn:hover { background: var(--proy-gold); border-color: var(--proy-gold); color: #1B1404; }
+.proy-btn:disabled { opacity: .5; cursor: default; }
+.proy-btn-ghost { background: none; border: 1px solid var(--proy-line); color: var(--proy-muted); }
+.proy-btn-ghost:hover { border-color: var(--proy-gold); color: var(--proy-gold); }
+.proy-head .proy-btn-ghost { border-color: rgba(244, 242, 236, .3); color: var(--proy-gold-soft); }
+
+.proy-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
+.proy-kpi {
+  background: var(--proy-panel); border-radius: 10px; padding: 16px;
+  box-shadow: 0 10px 30px -18px rgba(16, 35, 59, .35); border: 1px solid var(--proy-line);
+}
+.proy-kpi.acento { border-top: 3px solid var(--proy-gold); }
+.proy-kpi .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--proy-muted); margin-bottom: 8px; line-height: 1.3; }
+.proy-kpi .v { font-weight: 800; font-size: 20px; color: var(--proy-ink); font-variant-numeric: tabular-nums; }
+.proy-kpi .s { font-size: 11px; color: var(--proy-muted); margin-top: 4px; }
+
+.proy-sec { margin-bottom: 28px; }
+.proy-sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+.proy-sec-head h2 { font-size: 15px; margin: 0; color: var(--proy-ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.proy-sec-head h2 .tag { font-size: 10px; color: var(--proy-gold); background: rgba(184, 137, 43, .1); padding: 2px 8px; border-radius: 12px; letter-spacing: .03em; font-weight: 500; }
+.proy-sec-head p { margin: 0; font-size: 12px; color: var(--proy-muted); max-width: 430px; text-align: right; }
+
+.proy-panel { background: var(--proy-panel); border-radius: 10px; border: 1px solid var(--proy-line); padding: 18px; box-shadow: 0 8px 24px -20px rgba(16, 35, 59, .3); }
+.proy-grid-13 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.proy-chart { position: relative; height: 300px; }
+.proy-chart.chico { height: 270px; }
+.proy-caption { text-align: center; margin-top: 6px; font-size: 12px; color: var(--proy-muted); }
+
+/* Línea de tiempo de pagos */
+.proy-timeline-wrap { overflow-x: auto; padding-bottom: 8px; }
+.proy-timeline { position: relative; display: flex; min-width: max-content; padding: 34px 22px 14px; }
+.proy-timeline .base { position: absolute; left: 22px; right: 22px; top: 70px; height: 2px; background: var(--proy-line); z-index: 0; }
+.proy-tseg { position: relative; flex: 0 0 124px; text-align: center; }
+.proy-tseg:not(:first-child)::before { content: ""; position: absolute; top: 70px; left: -62px; width: 124px; height: 2px; background: var(--proy-gold-soft); z-index: 0; }
+.proy-tgap { height: 18px; font-size: 10.5px; color: var(--proy-slate); position: relative; z-index: 1; }
+.proy-tgap .inicio { color: var(--proy-muted); font-size: 9.5px; }
+.proy-tdot-fila { height: 34px; display: flex; align-items: flex-end; justify-content: center; position: relative; z-index: 1; }
+.proy-tdot { width: 14px; height: 14px; border-radius: 50%; background: var(--proy-gold); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--proy-gold); }
+.proy-tfecha { margin-top: 9px; font-size: 10.5px; color: var(--proy-ink); white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
+.proy-tmonto { margin-top: 2px; font-size: 9.5px; color: var(--proy-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Tablas */
+.proy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.proy-table thead th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--proy-muted); border-bottom: 2px solid var(--proy-ink); padding: 0 10px 10px; white-space: nowrap; }
+.proy-table tbody td { padding: 9px 10px; border-bottom: 1px solid var(--proy-line); vertical-align: middle; }
+.proy-table tbody tr:hover { background: rgba(184, 137, 43, .05); }
+.proy-table td.num, .proy-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.proy-table input, .proy-table select {
+  width: 100%; min-width: 96px; background: transparent; border: 1px solid transparent; color: var(--proy-text);
+  font-size: 13px; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-variant-numeric: tabular-nums;
+}
+.proy-table input:hover, .proy-table select:hover { border-color: var(--proy-line); background: rgba(74, 101, 128, .05); }
+.proy-table input:focus, .proy-table select:focus { outline: none; border-color: var(--proy-gold); background: #FFF7E6; }
+.proy-table input.num { text-align: right; }
+/* El <select> necesita sitio para su flecha: con el ancho de los demás
+   campos el texto quedaba cortado ("Programa▾"). */
+.proy-table select { min-width: 130px; padding-right: 4px; }
+.proy-vacio { text-align: center; color: var(--proy-muted); font-size: 13px; padding: 18px; }
+
+.proy-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.proy-chip { background: var(--proy-ink); color: #F4F2EC; font-size: 10.5px; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+.proy-pill { display: inline-block; min-width: 26px; text-align: center; padding: 2px 8px; border-radius: 20px; font-size: 11.5px; background: rgba(74, 101, 128, .12); color: var(--proy-slate); font-variant-numeric: tabular-nums; }
+.proy-pill.alta { background: rgba(184, 137, 43, .16); color: #8A6314; font-weight: 700; }
+.proy-primero { color: var(--proy-muted); font-size: 11px; }
+
+.proy-estado { font-size: 10.5px; padding: 3px 10px; border-radius: 20px; display: inline-block; white-space: nowrap; }
+.proy-estado.completo { background: rgba(63, 122, 92, .14); color: var(--proy-verde); }
+.proy-estado.aldia { background: rgba(63, 122, 92, .10); color: var(--proy-verde); }
+.proy-estado.progreso { background: rgba(184, 137, 43, .16); color: #8A6314; }
+.proy-estado.atencion { background: rgba(184, 137, 43, .20); color: #8A6314; }
+.proy-estado.critico { background: rgba(178, 58, 58, .12); color: var(--proy-rojo); }
+.proy-estado.sininiciar { background: rgba(74, 101, 128, .12); color: var(--proy-slate); }
+
+.proy-desvio-pos { color: var(--proy-verde); font-weight: 700; }
+.proy-desvio-neg { color: var(--proy-rojo); font-weight: 700; }
+
+.proy-riesgo { display: flex; gap: 12px; align-items: flex-start; padding: 12px 4px; border-bottom: 1px solid var(--proy-line); }
+.proy-riesgo:last-child { border-bottom: none; }
+.proy-riesgo .icono { flex: 0 0 26px; height: 26px; border-radius: 50%; background: rgba(178, 58, 58, .12); color: var(--proy-rojo); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.proy-riesgo .icono.medio { background: rgba(184, 137, 43, .16); color: #8A6314; }
+.proy-riesgo .titulo { font-weight: 700; font-size: 13px; color: var(--proy-ink); }
+.proy-riesgo .detalle { font-size: 12.5px; color: var(--proy-muted); margin-top: 2px; }
+
+.proy-borrar { background: none; border: none; color: var(--proy-muted); cursor: pointer; font-size: 15px; width: 28px; height: 28px; border-radius: 6px; line-height: 1; }
+.proy-borrar:hover { color: var(--proy-rojo); background: rgba(178, 58, 58, .08); }
+
+.proy-captura-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.proy-captura-head label { font-size: 11.5px; color: var(--proy-muted); margin-right: 8px; }
+
+@media (max-width: 980px) {
+  .proy-grid-13 { grid-template-columns: 1fr; }
+  .proy-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .proy-head { padding: 18px 16px 16px; border-radius: 10px; }
+  .proy-h1 { font-size: 19px; }
+  .proy-selector { width: 100%; }
+  .proy-selector select { flex: 1; min-width: 0; }
+  .proy-sec-head { flex-direction: column; align-items: flex-start; }
+  .proy-sec-head p { text-align: left; max-width: none; }
+  .proy-panel { padding: 14px 12px; }
+  .proy-chart { height: 260px; }
+  .proy-kpi .v { font-size: 18px; }
+}
+@media (max-width: 460px) {
+  .proy-kpis { grid-template-columns: 1fr; }
+}
+@media print {
+  .proy-toolbar, .proy-tabs, .proy-btn, .proy-btn-ghost, .proy-borrar { display: none !important; }
+  .proy-subpanel { display: block !important; }
+  .proy-panel { box-shadow: none; border: 1px solid #ccc; }
+  .proy-sec { page-break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -3238,6 +3431,358 @@ body.inv-activo .container { max-width: 1800px; }
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════════════════
+       PANEL PROYECTOS — seguimiento gerencial de obra
+  ════════════════════════════════════════════════════ -->
+  <div id="panel-proyectos" class="panel">
+    <div class="proy">
+
+      <header class="proy-head">
+        <div class="proy-eyebrow">Proyecto · Control gerencial</div>
+        <div class="proy-head-fila">
+          <div>
+            <h1 class="proy-h1" id="proyTituloNombre">Panel Gerencial del Proyecto</h1>
+            <p class="proy-sub-txt" id="proyTituloSub">Dos vistas conectadas por los mismos alcances de obra: cuánto se ha pagado (flujo de caja) y cuánto se ha avanzado físicamente en campo (% de ejecución).</p>
+          </div>
+          <div class="proy-selector">
+            <label for="proySelectProyecto">Proyecto</label>
+            <select id="proySelectProyecto" onchange="proyCambiarProyecto(this.value)"></select>
+            <button class="proy-btn-ghost" onclick="proyRecargar()" title="Volver a leer la hoja de Google">↻ Actualizar</button>
+          </div>
+        </div>
+        <div class="proy-tabs">
+          <button class="proy-tab active" data-proytab="caja" onclick="proyMostrarSubTab('caja')">Flujo de Caja</button>
+          <button class="proy-tab" data-proytab="avance" onclick="proyMostrarSubTab('avance')">Avance de Obra</button>
+          <button class="proy-tab" data-proytab="alcances" onclick="proyMostrarSubTab('alcances')">Alcances y contrato</button>
+        </div>
+      </header>
+
+      <div id="proyMsg" class="proy-msg"></div>
+
+      <!-- ══════════ SUB-PESTAÑA: FLUJO DE CAJA ══════════ -->
+      <div id="proySub-caja" class="proy-subpanel active">
+
+        <div class="proy-toolbar">
+          <div class="proy-toolbar-grupo">
+            <label for="proyFiltroAlcance">Filtrar por alcance</label>
+            <select id="proyFiltroAlcance" onchange="proyCambiarFiltro(this.value)"><option value="ALL">Todos los alcances</option></select>
+            <span id="proyFiltroBadge" class="proy-badge" style="display:none"></span>
+          </div>
+          <button class="proy-btn-ghost" onclick="proyImprimir()">🖨 Exportar a PDF</button>
+        </div>
+
+        <div class="proy-kpis" id="proyKpiRow">
+          <div class="proy-kpi acento">
+            <div class="l" id="proyKpiTotalLabel">Total del proyecto</div>
+            <div class="v" id="proyKpiTotal">$0</div>
+            <div class="s" id="proyKpiTotalSub">&nbsp;</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Pago más alto</div>
+            <div class="v" id="proyKpiMax">$0</div>
+            <div class="s" id="proyKpiMaxFecha">&nbsp;</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Promedio de días entre pagos</div>
+            <div class="v" id="proyKpiAvgDias">0</div>
+            <div class="s">días calendario</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Brecha máxima sin pago</div>
+            <div class="v" id="proyKpiBrecha">0</div>
+            <div class="s">días entre dos pagos consecutivos</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Alcances involucrados</div>
+            <div class="v" id="proyKpiAlcances">0</div>
+            <div class="s">frentes de obra con pagos</div>
+          </div>
+        </div>
+
+        <section class="proy-sec" id="proySecRiesgos" style="display:none">
+          <div class="proy-sec-head">
+            <h2>Alertas de riesgo <span class="tag">seguimiento de tesorería</span></h2>
+            <p>Pagos que concentran mucho monto o dejan poco margen de preparación de fondos.</p>
+          </div>
+          <div class="proy-panel" id="proyRiesgos"></div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Línea de tiempo de pagos <span class="tag">señal: lapso entre pagos</span></h2>
+            <p>El tamaño del punto refleja el monto; la etiqueta superior indica los días transcurridos desde el pago anterior.</p>
+          </div>
+          <div class="proy-panel">
+            <div class="proy-timeline-wrap"><div class="proy-timeline" id="proyTimeline"></div></div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Monto por pago vs. días transcurridos</h2>
+            <p>Barras: monto del pago. Línea: días desde el pago anterior.</p>
+          </div>
+          <div class="proy-grid-13">
+            <div class="proy-panel"><div class="proy-chart"><canvas id="proyChMontoDias"></canvas></div></div>
+            <div class="proy-panel"><div class="proy-chart"><canvas id="proyChAcumulado"></canvas></div></div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Distribución del monto por alcance</h2>
+            <p>Valor total de contrato por frente de obra.</p>
+          </div>
+          <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChAlcance"></canvas></div></div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Avance de caja y participación por alcance</h2>
+            <p>Ejecución acumulada a la fecha frente al total del proyecto, y peso relativo de cada frente de obra.</p>
+          </div>
+          <div class="proy-grid-13">
+            <div class="proy-panel">
+              <div class="proy-chart chico"><canvas id="proyChGauge"></canvas></div>
+              <div class="proy-caption" id="proyGaugeCaption"></div>
+              <div id="proyProximoPago" style="text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--proy-line)"></div>
+            </div>
+            <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChDonut"></canvas></div></div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Frecuencia de pagos y carga mensual</h2>
+            <p>Distribución de los lapsos entre pagos y monto total desembolsado por mes.</p>
+          </div>
+          <div class="proy-grid-13">
+            <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChHist"></canvas></div></div>
+            <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChMes"></canvas></div></div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Calendario de pagos</h2>
+            <p>Un desembolso por fecha, con su acumulado y los días transcurridos.</p>
+          </div>
+          <div class="proy-panel" style="overflow-x:auto">
+            <table class="proy-table" id="proyTablaPagos">
+              <thead><tr>
+                <th>#</th><th>Fecha</th><th class="num">Monto del pago</th>
+                <th class="num">Monto acumulado</th><th>Días desde pago anterior</th><th>Alcance(s) que pagan</th>
+              </tr></thead>
+              <tbody id="proyTablaPagosBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Detalle editable de pagos <span class="tag">se guarda en la hoja</span></h2>
+            <p>Cada línea es un desembolso de un alcance. Varias líneas con la misma fecha forman un solo pago del calendario.</p>
+          </div>
+          <div class="proy-panel">
+            <div style="padding:0 0 12px"><button class="proy-btn" onclick="proyNuevoPago()">+ Agregar línea de pago</button></div>
+            <div style="overflow-x:auto">
+              <table class="proy-table" id="proyTablaPagosEdit">
+                <thead><tr>
+                  <th>Fecha</th><th>Alcance</th><th class="num">Monto</th>
+                  <th class="num">% del alcance</th><th>Estado</th><th>Nota</th><th></th>
+                </tr></thead>
+                <tbody id="proyTablaPagosEditBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══════════ SUB-PESTAÑA: AVANCE DE OBRA ══════════ -->
+      <div id="proySub-avance" class="proy-subpanel">
+
+        <div class="proy-toolbar">
+          <div class="proy-toolbar-grupo">
+            <label for="proySelectPonderacion">Ponderar el avance por</label>
+            <select id="proySelectPonderacion" onchange="proyCambiarPonderacion(this.value)">
+              <option value="horas">Horas programadas</option>
+              <option value="valor">Valor de contrato</option>
+            </select>
+            <span id="proyPonderacionNota" class="proy-badge"></span>
+          </div>
+          <button class="proy-btn-ghost" onclick="proyImprimir()">🖨 Exportar a PDF</button>
+        </div>
+
+        <div class="proy-kpis" id="proyAvKpiRow">
+          <div class="proy-kpi acento">
+            <div class="l">Avance físico ponderado</div>
+            <div class="v" id="proyAvKpiGlobal">0%</div>
+            <div class="s" id="proyAvKpiGlobalSub">&nbsp;</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Desviación vs. programado</div>
+            <div class="v" id="proyAvKpiDesvio">0 pp</div>
+            <div class="s" id="proyAvKpiDesvioSub">&nbsp;</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Alcances completados</div>
+            <div class="v" id="proyAvKpiCompletos">0 / 0</div>
+            <div class="s" id="proyAvKpiSinIniciar">0 sin iniciar</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Valor ganado (físico)</div>
+            <div class="v" id="proyAvKpiValor">$0</div>
+            <div class="s" id="proyAvKpiValorSub">&nbsp;</div>
+          </div>
+          <div class="proy-kpi">
+            <div class="l">Horas ganadas</div>
+            <div class="v" id="proyAvKpiHoras">0 h</div>
+            <div class="s" id="proyAvKpiHorasSub">&nbsp;</div>
+          </div>
+        </div>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Avance físico vs. financiero <span class="tag">semáforo gerencial</span></h2>
+            <p>Compara el % pagado (flujo de caja) contra el % ejecutado en obra, alcance por alcance.</p>
+          </div>
+          <div class="proy-grid-13">
+            <div class="proy-panel">
+              <div class="proy-chart chico"><canvas id="proyChAvGauge"></canvas></div>
+              <div class="proy-caption" id="proyAvGaugeCaption"></div>
+            </div>
+            <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChCajaVsAvance"></canvas></div></div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Curva S — programado vs. ejecutado</h2>
+            <p>Línea base del contrato contra el avance real ponderado, corte a corte.</p>
+          </div>
+          <div class="proy-panel"><div class="proy-chart"><canvas id="proyChCurvaS"></canvas></div></div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Curva de avance por alcance</h2>
+            <p>Cada línea es un alcance; el eje X son las semanas de captura en campo.</p>
+          </div>
+          <div class="proy-panel"><div class="proy-chart"><canvas id="proyChCurvaAlcances"></canvas></div></div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>% Avance actual por alcance</h2>
+            <p>Foto del último dato capturado para cada frente de obra.</p>
+          </div>
+          <div class="proy-panel"><div class="proy-chart chico"><canvas id="proyChAvBarras"></canvas></div></div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Semáforo por alcance</h2>
+            <p>Real contra programado a la fecha, con el valor y las horas ya ganadas.</p>
+          </div>
+          <div class="proy-panel" style="overflow-x:auto">
+            <table class="proy-table" id="proyTablaSemaforo">
+              <thead><tr>
+                <th>Alcance</th><th class="num">% Real</th><th class="num">% Programado</th>
+                <th class="num">Desviación</th><th class="num">% Pagado</th>
+                <th class="num">Valor ganado</th><th class="num">Horas ganadas</th><th>Estado</th>
+              </tr></thead>
+              <tbody id="proyTablaSemaforoBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Captura semanal de avance <span class="tag">todos los viernes</span></h2>
+            <p>Elige la fecha de corte y digita el % de cada alcance; se guardan todos de una vez en la hoja.</p>
+          </div>
+          <div class="proy-panel">
+            <div class="proy-captura-head">
+              <div>
+                <label for="proyFechaCorte">Fecha de corte</label>
+                <input type="date" id="proyFechaCorte" onchange="proyRenderCaptura()">
+                <span class="proy-badge" id="proyCorteAviso"></span>
+              </div>
+              <button class="proy-btn" id="proyBtnGuardarAvances" onclick="proyGuardarAvances()">Guardar avances del corte</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="proy-table" id="proyTablaCaptura">
+                <thead><tr>
+                  <th>Alcance</th><th class="num">% anterior</th><th style="width:130px">% de este corte</th>
+                  <th>Observación</th><th>Estado</th>
+                </tr></thead>
+                <tbody id="proyTablaCapturaBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Historial de cortes</h2>
+            <p>Todo lo digitado, corte por corte. Se puede corregir o borrar una fila.</p>
+          </div>
+          <div class="proy-panel" style="overflow-x:auto">
+            <table class="proy-table" id="proyTablaAvances">
+              <thead><tr>
+                <th>Fecha de corte</th><th>Alcance</th><th style="width:110px">% Completado</th>
+                <th>Observación</th><th>Quién</th><th>Estado</th><th></th>
+              </tr></thead>
+              <tbody id="proyTablaAvancesBody"></tbody>
+            </table>
+            <div id="proyCortesPie" style="padding-top:12px;text-align:center"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══════════ SUB-PESTAÑA: ALCANCES Y CONTRATO ══════════ -->
+      <div id="proySub-alcances" class="proy-subpanel">
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Proyectos</h2>
+            <p>Cada proyecto tiene sus propios alcances, pagos y cortes de avance.</p>
+          </div>
+          <div class="proy-panel">
+            <div style="padding:0 0 12px"><button class="proy-btn" onclick="proyNuevoProyecto()">+ Nuevo proyecto</button></div>
+            <div style="overflow-x:auto">
+              <table class="proy-table" id="proyTablaProyectos">
+                <thead><tr><th>Código</th><th>Nombre</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="proyTablaProyectosBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="proy-sec">
+          <div class="proy-sec-head">
+            <h2>Alcances del proyecto <span class="tag">valor y horas programadas</span></h2>
+            <p>El valor de contrato manda en el flujo de caja; las horas programadas son el peso del avance físico.</p>
+          </div>
+          <div class="proy-panel">
+            <div style="padding:0 0 12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="proy-btn" onclick="proyNuevoAlcance()">+ Agregar alcance</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="proy-table" id="proyTablaAlcances">
+                <thead><tr>
+                  <th>#</th><th>Alcance</th><th class="num">Valor de contrato</th><th class="num">Horas programadas</th>
+                  <th class="num">Peso valor</th><th class="num">Peso horas</th><th></th>
+                </tr></thead>
+                <tbody id="proyTablaAlcancesBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <!-- Contenedor del informe de Novedades, solo visible al imprimir/exportar PDF -->
@@ -3713,6 +4258,7 @@ const VARIABLES_APARTADOS = [
 let variablesApartadoActual = null;
 
 let sidebarGrupoExpandido = {
+  proyectos: false,
   operaciones: !operacionAutenticada,
   variables: !operacionAutenticada,
   inventario: !operacionAutenticada,
@@ -4913,6 +5459,17 @@ function renderSidebarOperaciones() {
       <span style="flex:1;line-height:1.25">Limpiar caché</span>
     </div>
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+    ${_sidebarEncabezadoGrupo('proyectos', 'Proyectos', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 20h20"></path><path d="M5 20V9l5-4 5 4v11"></path><path d="M15 20v-6h4v6"></path><line x1="9" y1="12" x2="11" y2="12"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg>')}
+    ${sidebarGrupoExpandido.proyectos ? `
+      <div onclick="abrirProyectos()"
+        title="Flujo de caja y avance de obra — hoja de Google independiente de las sedes"
+        style="display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:13px;cursor:pointer;
+               color:${document.getElementById('panel-proyectos')?.classList.contains('active') ? 'var(--brand)' : 'var(--text2)'};
+               background:${document.getElementById('panel-proyectos')?.classList.contains('active') ? 'var(--brand-light)' : 'transparent'};
+               font-weight:${document.getElementById('panel-proyectos')?.classList.contains('active') ? '700' : '400'}">
+        <span style="flex:1;line-height:1.25;padding-left:22px">Panel gerencial</span>
+      </div>` : ''}
+    <div style="border-top:1px solid var(--border);margin:8px 0"></div>
     ${_sidebarEncabezadoGrupo('operaciones', 'Operaciones', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>')}
     ${items}
     <div onclick="abrirPoliticaPrivacidad()"
@@ -5118,7 +5675,7 @@ function cerrarSesion() {
    nueva, por ejemplo). Así ninguna se queda por fuera, ni las que se
    agreguen después.
 ══════════════════════════════════════════════ */
-const TABLAS_APILABLES = 'table.ie-table, table.inv-table, table.dyn-table, table.tabla-datos';
+const TABLAS_APILABLES = 'table.ie-table, table.inv-table, table.dyn-table, table.tabla-datos, table.proy-table';
 
 function _rotularCeldasDeTablas(raiz) {
   (raiz || document).querySelectorAll(TABLAS_APILABLES).forEach(tabla => {
@@ -5190,6 +5747,8 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler',
   'eliminarFotoOrden', 'eliminarFotoCronograma', 'confirmarSubidaFotoNovedad',
   'eliminarFechaRacha',
+  'proyGuardarAvances', 'proyNuevoProyecto', 'proyNuevoAlcance', 'proyNuevoPago',
+  'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
 ];
 
 function _protegerContraDobleToque(nombres) {
@@ -19049,6 +19608,1341 @@ function renderHistoricoEquipoSeleccionado() {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PROYECTOS — seguimiento gerencial de obra (flujo de caja + avance)
+
+   Esta sección NO vive en la hoja de la sede: tiene su propio archivo de
+   Google Sheets, porque un proyecto es de la empresa, no de una planta.
+   Por eso aquí no se usa GOOGLE_CONFIG.spreadsheetId (que apunta a la sede
+   activa) sino PROY_SPREADSHEET_ID, y se reutilizan los helpers genéricos
+   que ya reciben el id de forma explícita (_invGet / _invAppend /
+   _invAsegurarHoja), los mismos que usa Inventario.
+══════════════════════════════════════════════════════════════════════ */
+
+const PROY_SPREADSHEET_ID = '1rICqEwDTOjA8cxFIEa7m5rIw0gs2fd7CB682dRUj0nk';
+
+const PROY_SH = {
+  proyectos: 'Proyectos',
+  alcances:  'ProyectosAlcances',
+  pagos:     'ProyectosPagos',
+  avances:   'ProyectosAvances',
+};
+
+// Una fila de pago es (fecha × alcance): un desembolso del 16-sep que cubre
+// tres frentes son tres filas. Así el calendario (agrupado por fecha) y el
+// desglose por alcance salen del mismo dato, sin duplicarlo ni desincronizarse.
+const PROY_COLS = {
+  [PROY_SH.proyectos]: ['Codigo', 'Nombre', 'Cliente', 'Ubicacion', 'FechaInicio', 'FechaFin', 'Estado', 'Moneda', 'Notas'],
+  [PROY_SH.alcances]:  ['Codigo', 'Proyecto', 'Alcance', 'ValorContrato', 'HorasProgramadas', 'FechaInicio', 'FechaFin', 'Orden'],
+  [PROY_SH.pagos]:     ['Codigo', 'Proyecto', 'Fecha', 'Alcance', 'Monto', 'PctAlcance', 'Estado', 'Nota', 'Usuario', 'FechaRegistro'],
+  [PROY_SH.avances]:   ['Codigo', 'Proyecto', 'FechaCorte', 'Alcance', 'PctAvance', 'Observacion', 'Usuario', 'FechaRegistro'],
+};
+
+let proyDatos      = { proyectos: [], alcances: [], pagos: [], avances: [] };
+let proyHojaIds    = {};        // nombre de pestaña → sheetId numérico (para borrar filas)
+let proyActual     = '';        // código del proyecto seleccionado
+let proyFiltro     = 'ALL';     // alcance filtrado en Flujo de Caja
+// El avance físico se pondera por horas programadas (así se lleva la obra);
+// si todavía no se han cargado horas, proyPesos() cae solo al valor de
+// contrato para no dejar todos los pesos en cero.
+let proyPonderarPor = 'horas';
+let proyCargado    = false;
+
+/* ── Acceso a la hoja ─────────────────────────────────────────────── */
+
+/** Lee qué pestañas existen ya (y su sheetId), y crea las que falten.
+ *  Una sola petición para las cuatro, en vez de una por pestaña. */
+async function _proyPrepararHojas() {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}?fields=sheets(properties(sheetId,title))`;
+  const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (resp.status === 403 || resp.status === 404) {
+    throw new Error('No se pudo abrir la hoja de Proyectos. Comparte el archivo de Google Sheets con la cuenta con la que entraste al sistema.');
+  }
+  if (!resp.ok) throw new Error('No se pudo abrir la hoja de Proyectos (HTTP ' + resp.status + ')');
+  const data = await resp.json();
+  proyHojaIds = {};
+  (data.sheets || []).forEach(s => { proyHojaIds[s.properties.title] = s.properties.sheetId; });
+
+  const faltantes = Object.values(PROY_SH).filter(t => !(t in proyHojaIds));
+  for (const nombre of faltantes) {
+    await _invAsegurarHoja(PROY_SPREADSHEET_ID, nombre, PROY_COLS[nombre]);
+  }
+  if (faltantes.length) {
+    // Volver a pedir los sheetId de las recién creadas
+    const r2 = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+    if (r2.ok) {
+      const d2 = await r2.json();
+      (d2.sheets || []).forEach(s => { proyHojaIds[s.properties.title] = s.properties.sheetId; });
+    }
+  }
+}
+
+/** Convierte una matriz de Sheets (primera fila = encabezados) en objetos,
+ *  guardando en _row el número de fila real para poder editarla después. */
+function _proyFilasAObjetos(valores, cols) {
+  const filas = valores || [];
+  const enc = (filas[0] || []).map(c => String(c || '').trim());
+  const encabezados = enc.length ? enc : cols;
+  return filas.slice(1).map((fila, i) => {
+    const obj = { _row: i + 2 };
+    encabezados.forEach((col, j) => { if (col) obj[col] = fila[j] !== undefined ? fila[j] : ''; });
+    return obj;
+  }).filter(o => encabezados.some(c => c && String(o[c] || '').trim() !== ''));
+}
+
+/** Trae las cuatro pestañas en UNA sola petición (values:batchGet). */
+async function proyCargarTodo() {
+  await _proyPrepararHojas();
+  const rangos = Object.values(PROY_SH).map(t => `ranges=${encodeURIComponent(t + '!A1:Z100000')}`).join('&');
+  // UNFORMATTED_VALUE: los montos y porcentajes llegan como números de
+  // verdad, sin el formato de moneda de la hoja, para no tener que adivinar
+  // si un punto es separador de miles o de decimales. Las fechas sí se
+  // quieren como texto 'YYYY-MM-DD' y no como número de serie de Sheets.
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchGet?${rangos}` +
+    '&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING';
+  const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!resp.ok) throw new Error('No se pudieron leer los datos de Proyectos (HTTP ' + resp.status + ')');
+  const data = await resp.json();
+  const rangosLeidos = data.valueRanges || [];
+  const nombres = Object.values(PROY_SH);
+  const porNombre = {};
+  nombres.forEach((n, i) => { porNombre[n] = _proyFilasAObjetos(rangosLeidos[i] && rangosLeidos[i].values, PROY_COLS[n]); });
+
+  proyDatos = {
+    proyectos: porNombre[PROY_SH.proyectos],
+    alcances:  porNombre[PROY_SH.alcances],
+    pagos:     porNombre[PROY_SH.pagos],
+    avances:   porNombre[PROY_SH.avances],
+  };
+  proyCargado = true;
+
+  if (!proyActual || !proyDatos.proyectos.some(p => p.Codigo === proyActual)) {
+    proyActual = (proyDatos.proyectos[0] || {}).Codigo || '';
+  }
+}
+
+async function _proyAppend(tab, filas) {
+  await _invAsegurarHoja(PROY_SPREADSHEET_ID, tab, PROY_COLS[tab]);
+  await _invAppend(PROY_SPREADSHEET_ID, tab, filas);
+}
+
+/** Sobrescribe una fila completa ya existente (identificada por su _row). */
+async function _proyEscribirFila(tab, row, valores) {
+  const colFin = numToCol(PROY_COLS[tab].length - 1);
+  const rango = `${tab}!A${row}:${colFin}${row}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values/${encodeURIComponent(rango)}?valueInputOption=RAW`;
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [valores] }),
+  });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!resp.ok) throw new Error('No se pudo actualizar la fila (HTTP ' + resp.status + ')');
+}
+
+/** Borra físicamente una fila. Se hace de una en una y siempre releyendo
+ *  después, porque al borrar se corren todos los _row de abajo. */
+async function _proyBorrarFila(tab, row) {
+  const sheetId = proyHojaIds[tab];
+  if (sheetId === undefined) throw new Error('No se encontró la pestaña ' + tab);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}:batchUpdate`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{ deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row } } }],
+    }),
+  });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!resp.ok) throw new Error('No se pudo borrar la fila (HTTP ' + resp.status + ')');
+}
+
+/* ── Cálculo ───────────────────────────────────────────────────────
+   Todo lo que el panel muestra sale de estas funciones puras, para
+   poder probarlas sin tocar Google ni el DOM. */
+
+/** Convierte a número lo que venga de la hoja o de un campo del formulario.
+ *
+ *  Las lecturas piden UNFORMATTED_VALUE, así que Sheets ya devuelve números
+ *  de verdad y los <input type="number"> devuelven siempre estilo JS
+ *  ("15063161.664"). El texto con formato es-CO solo aparece si alguien
+ *  escribió el valor a mano en la hoja, y para ese caso vale la regla:
+ *  UN solo punto es decimal (JS); varios puntos son separadores de miles.
+ *  Antes se trataba "15063161.664" como miles y el valor se multiplicaba
+ *  por mil — un pago de 15 millones se leía como 15 mil millones. */
+function proyNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  let s = String(v).replace(/[^\d.,-]/g, '').trim();
+  if (!s) return 0;
+  const puntos = (s.match(/\./g) || []).length;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');   // es-CO: coma decimal
+  else if (puntos > 1) s = s.replace(/\./g, '');                     // 17.305.277 → miles
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function proyCOP(n) { return '$' + Math.round(proyNum(n)).toLocaleString('es-CO'); }
+
+/** 'YYYY-MM-DD' → '28 ago 2026', siempre en hora local (nunca UTC, para
+ *  que un corte de un viernes no se muestre como jueves). */
+function proyFechaLarga(iso) {
+  if (!iso) return '—';
+  const s = proyIso(iso);
+  if (!s) return String(iso);
+  const d = new Date(s + 'T00:00:00');
+  if (isNaN(d)) return String(iso);
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Normaliza a 'YYYY-MM-DD' desde 'YYYY-MM-DD', 'DD/MM/YYYY' o un Date. */
+function proyIso(v) {
+  if (!v) return '';
+  if (v instanceof Date) return _isoLocal(v);
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  const d = new Date(s);
+  return isNaN(d) ? '' : _isoLocal(d);
+}
+
+function proyDiasEntre(isoA, isoB) {
+  return Math.round((new Date(isoB + 'T00:00:00') - new Date(isoA + 'T00:00:00')) / 86400000);
+}
+
+/* ── Vistas derivadas del proyecto activo ───────────────────────── */
+
+function proyAlcances() {
+  return proyDatos.alcances
+    .filter(a => a.Proyecto === proyActual)
+    .sort((a, b) => (proyNum(a.Orden) - proyNum(b.Orden)) || (proyNum(b.ValorContrato) - proyNum(a.ValorContrato)))
+    .map(a => ({
+      _row: a._row,
+      codigo: a.Codigo,
+      nombre: String(a.Alcance || '').trim(),
+      valor: proyNum(a.ValorContrato),
+      horas: proyNum(a.HorasProgramadas),
+      inicio: proyIso(a.FechaInicio),
+      fin: proyIso(a.FechaFin),
+      orden: proyNum(a.Orden),
+    }))
+    .filter(a => a.nombre);
+}
+
+/** Líneas de pago (fecha × alcance) del proyecto activo, ordenadas. */
+function proyLineasPago() {
+  return proyDatos.pagos
+    .filter(p => p.Proyecto === proyActual)
+    .map(p => ({
+      _row: p._row,
+      codigo: p.Codigo,
+      fecha: proyIso(p.Fecha),
+      alcance: String(p.Alcance || '').trim(),
+      monto: proyNum(p.Monto),
+      pctAlcance: proyNum(p.PctAlcance),
+      estado: String(p.Estado || 'Programado').trim(),
+      nota: p.Nota || '',
+    }))
+    .filter(p => p.fecha)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.alcance.localeCompare(b.alcance));
+}
+
+/** Agrupa las líneas en pagos del calendario: un desembolso por fecha, con
+ *  su monto sumado, acumulado y días desde el pago anterior. Si hay un
+ *  alcance filtrado, el acumulado y los días se recalculan solo dentro de
+ *  ese subconjunto (igual que en el panel gerencial). */
+function proyPagosAgrupados(alcanceFiltro) {
+  const filtro = alcanceFiltro || 'ALL';
+  const lineas = proyLineasPago().filter(l => filtro === 'ALL' || l.alcance === filtro);
+  const porFecha = new Map();
+  lineas.forEach(l => {
+    if (!porFecha.has(l.fecha)) porFecha.set(l.fecha, { fecha: l.fecha, monto: 0, lineas: [], alcances: [] });
+    const g = porFecha.get(l.fecha);
+    g.monto += l.monto;
+    g.lineas.push(l);
+    if (!g.alcances.includes(l.alcance)) g.alcances.push(l.alcance);
+  });
+  const grupos = Array.from(porFecha.values()).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  let acumulado = 0;
+  grupos.forEach((g, i) => {
+    acumulado += g.monto;
+    g.acumulado = acumulado;
+    g.dias = i === 0 ? null : proyDiasEntre(grupos[i - 1].fecha, g.fecha);
+  });
+  return grupos;
+}
+
+/** Peso de cada alcance dentro del proyecto: por valor de contrato o por
+ *  horas programadas, según lo que esté elegido. Si el criterio elegido no
+ *  tiene datos cargados, cae al otro para no dejar todo en cero. */
+function proyPesos(criterio) {
+  const alcances = proyAlcances();
+  const modo = criterio || proyPonderarPor;
+  const sumaHoras = alcances.reduce((s, a) => s + a.horas, 0);
+  const sumaValor = alcances.reduce((s, a) => s + a.valor, 0);
+  const usarHoras = modo === 'horas' && sumaHoras > 0;
+  const total = usarHoras ? sumaHoras : sumaValor;
+  const pesos = {};
+  alcances.forEach(a => {
+    const base = usarHoras ? a.horas : a.valor;
+    pesos[a.nombre] = total > 0 ? base / total : 0;
+  });
+  return { pesos, total, criterio: usarHoras ? 'horas' : 'valor', sumaHoras, sumaValor };
+}
+
+/** Último % de avance registrado para cada alcance (a una fecha de corte
+ *  opcional). Los alcances sin ningún dato cuentan como 0%. */
+function proyAvanceUltimo(hastaIso) {
+  const alcances = proyAlcances();
+  const registros = proyDatos.avances
+    .filter(a => a.Proyecto === proyActual)
+    .map(a => ({ fecha: proyIso(a.FechaCorte), alcance: String(a.Alcance || '').trim(), pct: proyNum(a.PctAvance) }))
+    .filter(a => a.fecha && a.alcance)
+    .filter(a => !hastaIso || a.fecha <= hastaIso)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const ultimo = {};
+  registros.forEach(r => { ultimo[r.alcance] = r; });
+  return alcances.map(a => ({
+    alcance: a.nombre,
+    valor: a.valor,
+    horas: a.horas,
+    pct: ultimo[a.nombre] ? ultimo[a.nombre].pct : 0,
+    fecha: ultimo[a.nombre] ? ultimo[a.nombre].fecha : null,
+  }));
+}
+
+/** Fechas de corte con datos, ordenadas (los viernes que se digitaron). */
+function proySemanas() {
+  const set = new Set(proyDatos.avances
+    .filter(a => a.Proyecto === proyActual)
+    .map(a => proyIso(a.FechaCorte))
+    .filter(Boolean));
+  return Array.from(set).sort();
+}
+
+/** % programado acumulado de un alcance a una fecha: la suma de los
+ *  PctAlcance de sus hitos de pago hasta esa fecha. Es la línea base del
+ *  contrato — de ahí sale la curva S programada. */
+function proyProgramadoPorAlcance(hastaIso) {
+  const acumulado = {};
+  proyAlcances().forEach(a => { acumulado[a.nombre] = 0; });
+  proyLineasPago().forEach(l => {
+    if (hastaIso && l.fecha > hastaIso) return;
+    if (!(l.alcance in acumulado)) return;
+    acumulado[l.alcance] += l.pctAlcance;
+  });
+  Object.keys(acumulado).forEach(k => { acumulado[k] = Math.min(100, acumulado[k]); });
+  return acumulado;
+}
+
+/** Avance físico ponderado a una fecha: Σ (peso del alcance × su % real). */
+function proyAvancePonderado(hastaIso, criterio) {
+  const { pesos } = proyPesos(criterio);
+  return proyAvanceUltimo(hastaIso).reduce((s, d) => s + (pesos[d.alcance] || 0) * (d.pct / 100), 0) * 100;
+}
+
+/** Avance programado ponderado a una fecha, con los mismos pesos. */
+function proyProgramadoPonderado(hastaIso, criterio) {
+  const { pesos } = proyPesos(criterio);
+  const prog = proyProgramadoPorAlcance(hastaIso);
+  return Object.keys(prog).reduce((s, alc) => s + (pesos[alc] || 0) * (prog[alc] / 100), 0) * 100;
+}
+
+/** Los puntos de la curva S: cada corte semanal con su % real y su %
+ *  programado, más las fechas de pago futuras (solo programado) para que
+ *  se vea el plan completo por delante. */
+function proyCurvaS(criterio) {
+  const cortes = proySemanas();
+  const fechasPago = Array.from(new Set(proyLineasPago().map(l => l.fecha))).sort();
+  const ultimoCorte = cortes.length ? cortes[cortes.length - 1] : '';
+  const todas = Array.from(new Set(cortes.concat(fechasPago))).sort();
+  return todas.map(f => ({
+    fecha: f,
+    programado: proyProgramadoPonderado(f, criterio),
+    real: (ultimoCorte && f <= ultimoCorte) ? proyAvancePonderado(f, criterio) : null,
+  }));
+}
+
+/** % pagado de cada alcance a la fecha (lo desembolsado sobre su contrato). */
+function proyCajaPorAlcance(hastaIso) {
+  const corte = hastaIso || _isoLocal(new Date());
+  const pagado = {};
+  proyLineasPago().forEach(l => {
+    if (l.fecha > corte) return;
+    pagado[l.alcance] = (pagado[l.alcance] || 0) + l.monto;
+  });
+  const salida = {};
+  proyAlcances().forEach(a => {
+    salida[a.nombre] = a.valor > 0 ? Math.min(100, (pagado[a.nombre] || 0) / a.valor * 100) : 0;
+  });
+  return salida;
+}
+
+/** Semáforo por alcance: real vs programado a la fecha de hoy. */
+function proySemaforo(hastaIso) {
+  const corte = hastaIso || _isoLocal(new Date());
+  const prog = proyProgramadoPorAlcance(corte);
+  const caja = proyCajaPorAlcance(corte);
+  return proyAvanceUltimo(corte).map(d => {
+    const programado = prog[d.alcance] || 0;
+    const desvio = d.pct - programado;
+    let estado = 'aldia';
+    if (d.pct >= 100) estado = 'completo';
+    else if (desvio <= -15) estado = 'critico';
+    else if (desvio < -5) estado = 'atencion';
+    return {
+      alcance: d.alcance, pct: d.pct, programado, desvio, estado,
+      valor: d.valor, horas: d.horas,
+      pagado: caja[d.alcance] || 0,
+      valorGanado: d.valor * d.pct / 100,
+      horasGanadas: d.horas * d.pct / 100,
+      fecha: d.fecha,
+    };
+  });
+}
+
+/** Alertas de tesorería del calendario de pagos, con los mismos umbrales
+ *  del panel gerencial: pago concentrado, poca antelación, brecha larga. */
+function proyRiesgos(grupos, totalGlobal) {
+  const riesgos = [];
+  (grupos || []).forEach(g => {
+    const peso = totalGlobal > 0 ? (g.monto / totalGlobal) * 100 : 0;
+    if (peso >= 15) riesgos.push({ nivel: 'alto', fecha: g.fecha, monto: g.monto,
+      texto: `Pago concentrado — representa ${peso.toFixed(1)}% del total del proyecto en un solo desembolso.` });
+    if (g.dias !== null && g.dias <= 2) riesgos.push({ nivel: 'medio', fecha: g.fecha, monto: g.monto,
+      texto: `Poca antelación — solo ${g.dias} día(s) desde el pago anterior para reunir los fondos.` });
+    if (g.dias !== null && g.dias >= 14) riesgos.push({ nivel: 'medio', fecha: g.fecha, monto: g.monto,
+      texto: `Brecha larga previa — pasaron ${g.dias} días sin pagos antes de este desembolso.` });
+  });
+  return riesgos.sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+/* ── Panel: navegación y carga ─────────────────────────────────── */
+
+const PROY_PALETA = ['#10233B', '#16304F', '#4A6580', '#B8892B', '#8A6314', '#3F7A5C', '#6B7686', '#C7B08A', '#7C8FA6', '#D8A94E'];
+const PROY_MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+let _proyGraficas = {};
+
+function _proyMsg(texto, tipo) {
+  const el = document.getElementById('proyMsg');
+  if (!el) return;
+  const color = tipo === 'error' ? '#B23A3A' : tipo === 'ok' ? '#3F7A5C' : 'var(--text3)';
+  el.innerHTML = texto ? `<span style="color:${color}">${esc(texto)}</span>` : '';
+}
+
+async function abrirProyectos() {
+  if (!googleAccessToken) {
+    alert('🔒 Primero inicia sesión con Google en el panel izquierdo.');
+    return;
+  }
+  if (_tiempoRealIntervalId) { clearInterval(_tiempoRealIntervalId); _tiempoRealIntervalId = null; }
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-proyectos').classList.add('active');
+  if (typeof renderSidebarOperaciones === 'function') renderSidebarOperaciones();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!proyCargado) await proyRecargar();
+  else proyRenderTodo();
+}
+
+async function proyRecargar() {
+  _proyMsg('Leyendo la hoja de Proyectos…');
+  try {
+    await proyCargarTodo();
+    _proyMsg('');
+    proyRenderTodo();
+  } catch (e) {
+    _proyMsg(e.message, 'error');
+    console.error(e);
+  }
+}
+
+function proyMostrarSubTab(nombre) {
+  const panel = document.getElementById('panel-proyectos');
+  if (!panel) return;
+  panel.querySelectorAll('.proy-subpanel').forEach(p => p.classList.remove('active'));
+  panel.querySelectorAll('.proy-tab').forEach(b => b.classList.remove('active'));
+  const sub = document.getElementById('proySub-' + nombre);
+  const tab = panel.querySelector(`.proy-tab[data-proytab="${nombre}"]`);
+  if (!sub || !tab) return;
+  sub.classList.add('active');
+  tab.classList.add('active');
+  // Chart.js necesita medir el canvas cuando ya es visible: si se dibuja
+  // dentro de un contenedor con display:none queda de 0 px de alto.
+  if (nombre === 'caja')     proyRenderCaja();
+  if (nombre === 'avance')   proyRenderAvance();
+  if (nombre === 'alcances') proyRenderAlcances();
+}
+
+function proyCambiarProyecto(codigo) {
+  proyActual = codigo;
+  proyFiltro = 'ALL';
+  proyRenderTodo();
+}
+
+function proyCambiarFiltro(valor) {
+  proyFiltro = valor;
+  proyRenderCaja();
+}
+
+function proyCambiarPonderacion(valor) {
+  proyPonderarPor = valor;
+  proyRenderAvance();
+}
+
+function proyImprimir() { window.print(); }
+
+/** Qué sub-pestaña está visible ahora mismo. */
+function _proySubActiva() {
+  const activa = document.querySelector('#panel-proyectos .proy-subpanel.active');
+  return activa ? activa.id.replace('proySub-', '') : 'caja';
+}
+
+function proyRenderTodo() {
+  _proyRenderCabecera();
+  const activa = _proySubActiva();
+  if (activa === 'caja')     proyRenderCaja();
+  if (activa === 'avance')   proyRenderAvance();
+  if (activa === 'alcances') proyRenderAlcances();
+}
+
+function _proyRenderCabecera() {
+  const sel = document.getElementById('proySelectProyecto');
+  if (sel) {
+    sel.innerHTML = proyDatos.proyectos.length
+      ? proyDatos.proyectos.map(p => `<option value="${esc(p.Codigo)}" ${p.Codigo === proyActual ? 'selected' : ''}>${esc(p.Nombre || p.Codigo)}</option>`).join('')
+      : '<option value="">— todavía no hay proyectos —</option>';
+  }
+  const p = proyDatos.proyectos.find(x => x.Codigo === proyActual);
+  const titulo = document.getElementById('proyTituloNombre');
+  const sub = document.getElementById('proyTituloSub');
+  if (titulo) titulo.textContent = p ? (p.Nombre || p.Codigo) : 'Panel Gerencial del Proyecto';
+  if (sub) {
+    sub.textContent = p && (p.Cliente || p.Ubicacion)
+      ? [p.Cliente, p.Ubicacion].filter(Boolean).join(' · ') + ' — flujo de caja y avance físico de obra sobre los mismos alcances.'
+      : 'Dos vistas conectadas por los mismos alcances de obra: cuánto se ha pagado (flujo de caja) y cuánto se ha avanzado físicamente en campo (% de ejecución).';
+  }
+
+  const filtro = document.getElementById('proyFiltroAlcance');
+  if (filtro) {
+    const alcances = proyAlcances();
+    filtro.innerHTML = '<option value="ALL">Todos los alcances</option>' +
+      alcances.map(a => `<option value="${esc(a.nombre)}" ${a.nombre === proyFiltro ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('');
+    filtro.value = alcances.some(a => a.nombre === proyFiltro) ? proyFiltro : 'ALL';
+    if (filtro.value === 'ALL') proyFiltro = 'ALL';
+  }
+
+  const selPond = document.getElementById('proySelectPonderacion');
+  if (selPond) selPond.value = proyPonderarPor;
+}
+
+/** Envoltura de Chart.js que destruye la gráfica anterior del mismo id. */
+function _proyChart(id, cfg, plugins) {
+  const canvas = document.getElementById(id);
+  if (!canvas || typeof Chart === 'undefined') return null;
+  if (_proyGraficas[id]) { try { _proyGraficas[id].destroy(); } catch (e) {} }
+  if (plugins) cfg = Object.assign({}, cfg, { plugins: plugins });
+  _proyGraficas[id] = new Chart(canvas, cfg);
+  return _proyGraficas[id];
+}
+
+function _proySinDatos(mensaje) {
+  return `<tr><td colspan="12" class="proy-vacio">${esc(mensaje)}</td></tr>`;
+}
+
+/* ── Sub-pestaña: Flujo de Caja ────────────────────────────────── */
+
+function proyRenderCaja() {
+  const alcances = proyAlcances();
+  const gruposTodos = proyPagosAgrupados('ALL');
+  const totalGlobal = gruposTodos.length ? gruposTodos[gruposTodos.length - 1].acumulado : 0;
+  const grupos = proyPagosAgrupados(proyFiltro);
+  const hoy = _isoLocal(new Date());
+
+  /* Badge del filtro */
+  const badge = document.getElementById('proyFiltroBadge');
+  if (badge) {
+    if (proyFiltro === 'ALL') { badge.style.display = 'none'; badge.innerHTML = ''; }
+    else {
+      badge.style.display = 'inline-flex';
+      badge.innerHTML = `Filtrado: ${esc(proyFiltro)} <span class="cerrar" onclick="proyCambiarFiltro('ALL')">✕</span>`;
+    }
+  }
+
+  /* KPIs */
+  const total = grupos.length ? grupos[grupos.length - 1].acumulado : 0;
+  const mayor = grupos.reduce((a, b) => (!a || b.monto > a.monto ? b : a), null);
+  const brechas = grupos.filter(g => g.dias !== null).map(g => g.dias);
+  const promedio = brechas.length ? brechas.reduce((a, b) => a + b, 0) / brechas.length : 0;
+  const setAlcances = new Set(grupos.flatMap(g => g.alcances));
+
+  _proyTexto('proyKpiTotalLabel', proyFiltro === 'ALL' ? `Total del proyecto (${grupos.length} pagos)` : `Total — ${proyFiltro}`);
+  _proyTexto('proyKpiTotal', proyCOP(total));
+  _proyTexto('proyKpiTotalSub', proyFiltro === 'ALL'
+    ? `${grupos.length} pagos programados`
+    : `${grupos.length} pago(s) · ${totalGlobal > 0 ? (total / totalGlobal * 100).toFixed(1) : '0.0'}% del proyecto`);
+  _proyTexto('proyKpiMax', mayor ? proyCOP(mayor.monto) : '$0');
+  _proyTexto('proyKpiMaxFecha', mayor ? proyFechaLarga(mayor.fecha) : '—');
+  _proyTexto('proyKpiAvgDias', promedio.toFixed(1));
+  _proyTexto('proyKpiBrecha', brechas.length ? String(Math.max.apply(null, brechas)) : '0');
+  _proyTexto('proyKpiAlcances', String(setAlcances.size));
+
+  /* Alertas de riesgo */
+  const riesgos = proyRiesgos(gruposTodos, totalGlobal);
+  const secR = document.getElementById('proySecRiesgos');
+  const panelR = document.getElementById('proyRiesgos');
+  if (secR && panelR) {
+    secR.style.display = riesgos.length ? 'block' : 'none';
+    panelR.innerHTML = riesgos.map(r => `
+      <div class="proy-riesgo">
+        <div class="icono ${r.nivel === 'alto' ? '' : 'medio'}">${r.nivel === 'alto' ? '!' : '~'}</div>
+        <div>
+          <div class="titulo">${esc(proyFechaLarga(r.fecha))} · ${esc(proyCOP(r.monto))}</div>
+          <div class="detalle">${esc(r.texto)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /* Línea de tiempo */
+  const timeline = document.getElementById('proyTimeline');
+  if (timeline) {
+    if (!grupos.length) timeline.innerHTML = '<div class="proy-vacio">Todavía no hay pagos registrados.</div>';
+    else {
+      const maxMonto = Math.max.apply(null, grupos.map(g => g.monto)) || 1;
+      timeline.innerHTML = '<div class="base"></div>' + grupos.map(g => {
+        const tam = 10 + (g.monto / maxMonto) * 20;
+        return `<div class="proy-tseg">
+          <div class="proy-tgap">${g.dias !== null ? '+' + g.dias + ' d' : '<span class="inicio">Inicio</span>'}</div>
+          <div class="proy-tdot-fila"><div class="proy-tdot" style="width:${tam.toFixed(1)}px;height:${tam.toFixed(1)}px"></div></div>
+          <div class="proy-tfecha">${esc(proyFechaLarga(g.fecha))}</div>
+          <div class="proy-tmonto">${esc(proyCOP(g.monto))}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  /* Tabla calendario (agrupada) */
+  const cuerpo = document.getElementById('proyTablaPagosBody');
+  if (cuerpo) {
+    cuerpo.innerHTML = grupos.length ? grupos.map((g, i) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td>${esc(proyFechaLarga(g.fecha))}</td>
+        <td class="num">${esc(proyCOP(g.monto))}</td>
+        <td class="num">${esc(proyCOP(g.acumulado))}</td>
+        <td>${g.dias === null ? '<span class="proy-primero">— primer pago</span>' : `<span class="proy-pill ${g.dias >= 10 ? 'alta' : ''}">${g.dias} d</span>`}</td>
+        <td><div class="proy-chips">${g.alcances.map(a => `<span class="proy-chip">${esc(a)}</span>`).join('')}</div></td>
+      </tr>`).join('') : _proySinDatos('Todavía no hay pagos registrados para este proyecto.');
+  }
+
+  /* Tabla editable de líneas */
+  _proyRenderPagosEditables();
+
+  /* Gráficas */
+  const etiquetas = grupos.map(g => proyFechaLarga(g.fecha));
+  _proyChart('proyChMontoDias', {
+    data: {
+      labels: etiquetas,
+      datasets: [
+        { type: 'bar', label: 'Monto del pago (COP)', data: grupos.map(g => g.monto), backgroundColor: '#B8892B', borderRadius: 4, yAxisID: 'y' },
+        { type: 'line', label: 'Días desde pago anterior', data: grupos.map(g => g.dias === null ? 0 : g.dias), borderColor: '#4A6580', backgroundColor: '#4A6580', tension: .3, yAxisID: 'y1', pointRadius: 4 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            footer: items => {
+              const g = grupos[items[0].dataIndex];
+              const pct = totalGlobal > 0 ? (g.monto / totalGlobal * 100).toFixed(1) : '0.0';
+              return [`% del total del proyecto: ${pct}%`, 'Alcance(s):']
+                .concat(g.lineas.map(l => `• ${l.alcance} (${l.pctAlcance || '—'}% de este alcance)`));
+            },
+          },
+          footerColor: '#E9D6AC', bodySpacing: 4, footerMarginTop: 8, padding: 10,
+        },
+      },
+      scales: {
+        y:  { position: 'left', ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } },
+        x:  { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
+      },
+    },
+  });
+
+  _proyChart('proyChAcumulado', {
+    type: 'line',
+    data: { labels: etiquetas, datasets: [{ label: 'Monto acumulado', data: grupos.map(g => g.acumulado), fill: true, backgroundColor: 'rgba(63,122,92,0.12)', borderColor: '#3F7A5C', tension: .25, pointRadius: 3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
+      },
+    },
+  });
+
+  _proyChart('proyChAlcance', {
+    type: 'bar',
+    data: {
+      labels: alcances.map(a => a.nombre),
+      datasets: [{ label: 'Valor total por alcance (COP)', data: alcances.map(a => a.valor), backgroundColor: alcances.map((a, i) => PROY_PALETA[i % PROY_PALETA.length]), borderRadius: 5 }],
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { ticks: { font: { size: 10.5 } } },
+      },
+    },
+  });
+
+  /* Gauge de caja ejecutada a la fecha (siempre sobre el proyecto completo) */
+  const ejecutado = gruposTodos.filter(g => g.fecha <= hoy).reduce((s, g) => s + g.monto, 0);
+  const pctCaja = totalGlobal > 0 ? Math.min(100, ejecutado / totalGlobal * 100) : 0;
+  _proyGauge('proyChGauge', pctCaja, '#3F7A5C', 'ejecutado a la fecha');
+  _proyHtml('proyGaugeCaption', `${esc(proyCOP(ejecutado))} pagados de ${esc(proyCOP(totalGlobal))} · corte al ${esc(proyFechaLarga(hoy))}`);
+
+  const proximo = gruposTodos.filter(g => g.fecha > hoy)[0];
+  const elProximo = document.getElementById('proyProximoPago');
+  if (elProximo) {
+    if (proximo) {
+      const faltan = proyDiasEntre(hoy, proximo.fecha);
+      elProximo.innerHTML = `
+        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--proy-muted);margin-bottom:4px">Próximo pago</div>
+        <div style="font-weight:800;font-size:17px;color:var(--proy-ink)">${esc(proyCOP(proximo.monto))}</div>
+        <div style="font-size:11.5px;color:var(--proy-slate);margin-top:2px">${esc(proyFechaLarga(proximo.fecha))} · en ${faltan} día${faltan === 1 ? '' : 's'}</div>
+        <div style="font-size:11px;color:var(--proy-muted);margin-top:4px">${esc(proximo.alcances.join(', '))}</div>`;
+    } else {
+      elProximo.innerHTML = gruposTodos.length
+        ? '<div style="font-size:12px;color:var(--proy-verde);font-weight:600">✓ Todos los pagos programados ya se ejecutaron</div>'
+        : '<div style="font-size:12px;color:var(--proy-muted)">Sin pagos programados</div>';
+    }
+  }
+
+  /* Donut de participación por alcance */
+  const totalContrato = alcances.reduce((s, a) => s + a.valor, 0);
+  _proyChart('proyChDonut', {
+    type: 'doughnut',
+    data: {
+      labels: alcances.map(a => a.nombre),
+      datasets: [{ data: alcances.map(a => totalContrato > 0 ? a.valor / totalContrato * 100 : 0), backgroundColor: PROY_PALETA, borderColor: '#fff', borderWidth: 2 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '55%',
+      plugins: {
+        legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.toFixed(1)}%` } },
+      },
+    },
+  });
+
+  /* Histograma de lapsos */
+  const brechasTodas = gruposTodos.filter(g => g.dias !== null).map(g => g.dias);
+  const rangos = [{ l: '1–3 d', min: 1, max: 3 }, { l: '4–7 d', min: 4, max: 7 }, { l: '8–14 d', min: 8, max: 14 }, { l: '15+ d', min: 15, max: Infinity }];
+  _proyChart('proyChHist', {
+    type: 'bar',
+    data: { labels: rangos.map(r => r.l), datasets: [{ label: 'Número de pagos', data: rangos.map(r => brechasTodas.filter(d => d >= r.min && d <= r.max).length), backgroundColor: '#4A6580', borderRadius: 6, maxBarThickness: 60 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.parsed.y} pago(s)` } } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } }, x: { ticks: { font: { size: 10 } } } },
+    },
+  });
+
+  /* Carga mensual */
+  const porMes = {};
+  gruposTodos.forEach(g => {
+    const d = new Date(g.fecha + 'T00:00:00');
+    const clave = `${PROY_MESES[d.getMonth()]} ${d.getFullYear()}`;
+    porMes[clave] = (porMes[clave] || 0) + g.monto;
+  });
+  _proyChart('proyChMes', {
+    type: 'bar',
+    data: { labels: Object.keys(porMes), datasets: [{ label: 'Monto pagado (COP)', data: Object.values(porMes), backgroundColor: '#B8892B', borderRadius: 6, maxBarThickness: 70 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + proyCOP(c.parsed.y) } } },
+      scales: { y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } }, x: { ticks: { font: { size: 10 } } } },
+    },
+  });
+}
+
+function _proyTexto(id, texto) { const el = document.getElementById(id); if (el) el.textContent = texto; }
+function _proyHtml(id, html)  { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+/** El medidor de media luna con el % dibujado en el centro. */
+function _proyGauge(id, pct, color, leyenda) {
+  const valor = Math.max(0, Math.min(100, pct || 0));
+  _proyChart(id, {
+    type: 'doughnut',
+    data: { labels: ['Ejecutado', 'Pendiente'], datasets: [{ data: [valor, 100 - valor], backgroundColor: [color, 'rgba(16,35,59,0.08)'], borderWidth: 0, circumference: 180, rotation: 270, cutout: '75%' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+  }, [{
+    id: id + 'Etiqueta',
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      ctx.save();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '800 26px system-ui, sans-serif'; ctx.fillStyle = '#10233B';
+      ctx.fillText(valor.toFixed(1) + '%', chartArea.width / 2 + chartArea.left, chartArea.top + chartArea.height * 0.62);
+      ctx.font = '500 11px system-ui, sans-serif'; ctx.fillStyle = '#69758A';
+      ctx.fillText(leyenda, chartArea.width / 2 + chartArea.left, chartArea.top + chartArea.height * 0.62 + 22);
+      ctx.restore();
+    },
+  }]);
+}
+
+/* ── Sub-pestaña: Avance de Obra ───────────────────────────────── */
+
+function proyRenderAvance() {
+  const alcances = proyAlcances();
+  const hoy = _isoLocal(new Date());
+  const info = proyPesos();
+  const semanas = proySemanas();
+  const ultimoCorte = semanas.length ? semanas[semanas.length - 1] : '';
+
+  /* Aviso si el criterio pedido no tiene datos */
+  const nota = document.getElementById('proyPonderacionNota');
+  if (nota) {
+    if (proyPonderarPor === 'horas' && info.criterio !== 'horas') {
+      nota.style.display = 'inline-flex';
+      nota.textContent = 'Sin horas programadas cargadas — se pondera por valor de contrato';
+    } else if (info.criterio === 'horas') {
+      nota.style.display = 'inline-flex';
+      nota.textContent = `${Math.round(info.sumaHoras).toLocaleString('es-CO')} h programadas en total`;
+    } else {
+      nota.style.display = 'none'; nota.textContent = '';
+    }
+  }
+
+  const real = proyAvancePonderado(ultimoCorte || hoy);
+  const programado = proyProgramadoPonderado(hoy);
+  const desvio = real - programado;
+  const ultimos = proyAvanceUltimo(ultimoCorte || hoy);
+  const completos = ultimos.filter(d => d.pct >= 100).length;
+  const sinIniciar = ultimos.filter(d => d.pct <= 0).length;
+  const totalContrato = alcances.reduce((s, a) => s + a.valor, 0);
+  const totalHoras = alcances.reduce((s, a) => s + a.horas, 0);
+  const valorGanado = ultimos.reduce((s, d) => s + d.valor * d.pct / 100, 0);
+  const horasGanadas = ultimos.reduce((s, d) => s + d.horas * d.pct / 100, 0);
+
+  _proyTexto('proyAvKpiGlobal', real.toFixed(1) + '%');
+  _proyTexto('proyAvKpiGlobalSub', info.criterio === 'horas' ? 'ponderado por horas programadas' : 'ponderado por valor de contrato');
+  _proyTexto('proyAvKpiDesvio', (desvio >= 0 ? '+' : '') + desvio.toFixed(1) + ' pp');
+  _proyTexto('proyAvKpiDesvioSub', `programado a hoy: ${programado.toFixed(1)}%`);
+  const elDesvio = document.getElementById('proyAvKpiDesvio');
+  if (elDesvio) elDesvio.style.color = desvio < -5 ? '#B23A3A' : desvio >= 0 ? '#3F7A5C' : '#8A6314';
+  _proyTexto('proyAvKpiCompletos', `${completos} / ${alcances.length}`);
+  _proyTexto('proyAvKpiSinIniciar', `${sinIniciar} sin iniciar`);
+  _proyTexto('proyAvKpiValor', proyCOP(valorGanado));
+  _proyTexto('proyAvKpiValorSub', `de ${proyCOP(totalContrato)} en contrato`);
+  _proyTexto('proyAvKpiHoras', Math.round(horasGanadas).toLocaleString('es-CO') + ' h');
+  _proyTexto('proyAvKpiHorasSub', totalHoras > 0 ? `de ${Math.round(totalHoras).toLocaleString('es-CO')} h programadas` : 'sin horas programadas cargadas');
+
+  _proyGauge('proyChAvGauge', real, '#B8892B', 'ejecutado en obra');
+  _proyHtml('proyAvGaugeCaption', `${esc(proyCOP(valorGanado))} ejecutados de ${esc(proyCOP(totalContrato))} en valor de contrato${semanas.length ? ' · último corte ' + esc(proyFechaLarga(ultimoCorte)) : ''}`);
+
+  /* Caja vs avance por alcance */
+  const caja = proyCajaPorAlcance(hoy);
+  _proyChart('proyChCajaVsAvance', {
+    type: 'bar',
+    data: {
+      labels: alcances.map(a => a.nombre),
+      datasets: [
+        { label: '% Pagado (caja)', data: alcances.map(a => caja[a.nombre] || 0), backgroundColor: '#4A6580', borderRadius: 4, maxBarThickness: 16 },
+        { label: '% Ejecutado (obra)', data: ultimos.map(d => d.pct), backgroundColor: '#B8892B', borderRadius: 4, maxBarThickness: 16 },
+      ],
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10.5 } } } },
+      scales: {
+        x: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { ticks: { font: { size: 9.5 } } },
+      },
+    },
+  });
+
+  /* Curva S: programado vs ejecutado */
+  const curva = proyCurvaS();
+  _proyChart('proyChCurvaS', {
+    type: 'line',
+    data: {
+      labels: curva.map(p => proyFechaLarga(p.fecha)),
+      datasets: [
+        { label: 'Programado (línea base)', data: curva.map(p => p.programado), borderColor: '#4A6580', backgroundColor: 'rgba(74,101,128,0.08)', borderDash: [6, 4], tension: .3, pointRadius: 3, fill: true },
+        { label: 'Ejecutado real', data: curva.map(p => p.real), borderColor: '#B8892B', backgroundColor: 'rgba(184,137,43,0.14)', tension: .3, pointRadius: 4, borderWidth: 2.5, fill: true, spanGaps: false },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 10.5 }, usePointStyle: true, boxWidth: 8 } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y === null ? '—' : c.parsed.y.toFixed(1) + '%'}` } },
+      },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 }, grid: { display: false } },
+      },
+    },
+  });
+
+  /* Curva por alcance (una línea por frente de obra) */
+  const porAlcance = {};
+  proyDatos.avances.filter(a => a.Proyecto === proyActual).forEach(a => {
+    const f = proyIso(a.FechaCorte), alc = String(a.Alcance || '').trim();
+    if (!f || !alc) return;
+    porAlcance[alc] = porAlcance[alc] || {};
+    porAlcance[alc][f] = proyNum(a.PctAvance);
+  });
+  _proyChart('proyChCurvaAlcances', {
+    type: 'line',
+    data: {
+      labels: semanas.map(proyFechaLarga),
+      datasets: alcances.map((a, i) => ({
+        label: a.nombre,
+        data: semanas.map(s => (porAlcance[a.nombre] && porAlcance[a.nombre][s] !== undefined) ? porAlcance[a.nombre][s] : null),
+        borderColor: PROY_PALETA[i % PROY_PALETA.length], backgroundColor: PROY_PALETA[i % PROY_PALETA.length],
+        tension: .3, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.25,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 10.5 }, usePointStyle: true, boxWidth: 8 } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.formattedValue}%` } },
+      },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+      },
+    },
+  });
+
+  /* Barras del % actual */
+  _proyChart('proyChAvBarras', {
+    type: 'bar',
+    data: {
+      labels: ultimos.map(d => d.alcance),
+      datasets: [{ data: ultimos.map(d => d.pct), backgroundColor: ultimos.map(d => d.pct >= 100 ? '#3F7A5C' : d.pct > 0 ? '#B8892B' : '#C7CDD4'), borderRadius: 5, maxBarThickness: 36 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.formattedValue + '%' } } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 }, grid: { display: false } },
+      },
+    },
+  });
+
+  /* Semáforo */
+  const semaforo = proySemaforo(hoy);
+  const etiquetaEstado = { completo: 'Completado', aldia: 'Al día', atencion: 'Atención', critico: 'Crítico' };
+  _proyHtml('proyTablaSemaforoBody', semaforo.length ? semaforo.map(s => `
+    <tr>
+      <td>${esc(s.alcance)}</td>
+      <td class="num">${s.pct.toFixed(1)}%</td>
+      <td class="num">${s.programado.toFixed(1)}%</td>
+      <td class="num"><span class="${s.desvio < 0 ? 'proy-desvio-neg' : 'proy-desvio-pos'}">${(s.desvio >= 0 ? '+' : '') + s.desvio.toFixed(1)} pp</span></td>
+      <td class="num">${s.pagado.toFixed(1)}%</td>
+      <td class="num">${esc(proyCOP(s.valorGanado))}</td>
+      <td class="num">${Math.round(s.horasGanadas).toLocaleString('es-CO')} h</td>
+      <td><span class="proy-estado ${s.estado}">${esc(etiquetaEstado[s.estado] || s.estado)}</span></td>
+    </tr>`).join('') : _proySinDatos('Agrega los alcances del proyecto para ver el semáforo.'));
+
+  proyRenderCaptura();
+  _proyRenderHistorialAvances();
+}
+
+/** Precarga el formulario de captura semanal con el último % de cada
+ *  alcance, para que el viernes solo haya que corregir lo que cambió. */
+function proyRenderCaptura() {
+  const input = document.getElementById('proyFechaCorte');
+  if (!input) return;
+  if (!input.value) input.value = _proyViernesMasCercano();
+  const corte = proyIso(input.value);
+
+  const aviso = document.getElementById('proyCorteAviso');
+  if (aviso) {
+    const d = new Date(corte + 'T00:00:00');
+    const yaExiste = proySemanas().includes(corte);
+    aviso.style.display = 'inline-flex';
+    aviso.textContent = isNaN(d) ? 'Elige una fecha'
+      : (d.getDay() !== 5 ? 'Ojo: no es viernes' : '') + (yaExiste ? (d.getDay() !== 5 ? ' · ' : '') + 'Ya hay datos de este corte — se sobrescriben' : '');
+    if (!aviso.textContent) aviso.style.display = 'none';
+  }
+
+  // El "anterior" es el último dato ESTRICTAMENTE antes de este corte, para
+  // que reabrir un corte ya digitado no se compare consigo mismo.
+  const anteriores = {};
+  proyAvanceUltimo(_proyDiaAnterior(corte)).forEach(d => { anteriores[d.alcance] = d.pct; });
+  const deEsteCorte = {};
+  proyDatos.avances
+    .filter(a => a.Proyecto === proyActual && proyIso(a.FechaCorte) === corte)
+    .forEach(a => { deEsteCorte[String(a.Alcance || '').trim()] = { pct: proyNum(a.PctAvance), obs: a.Observacion || '' }; });
+
+  const alcances = proyAlcances();
+  _proyHtml('proyTablaCapturaBody', alcances.length ? alcances.map(a => {
+    const previo = anteriores[a.nombre] || 0;
+    const ya = deEsteCorte[a.nombre];
+    const valor = ya ? ya.pct : previo;
+    const estado = valor >= 100 ? 'completo' : valor > 0 ? 'progreso' : 'sininiciar';
+    const texto = valor >= 100 ? 'Completado' : valor > 0 ? 'En progreso' : 'Sin iniciar';
+    return `<tr>
+      <td>${esc(a.nombre)}</td>
+      <td class="num">${previo.toFixed(0)}%</td>
+      <td><input class="num" type="number" min="0" max="100" step="0.1" value="${valor}" data-proy-captura="${esc(a.nombre)}" oninput="proyPintarEstadoCaptura(this)"></td>
+      <td><input type="text" placeholder="opcional" value="${esc(ya ? ya.obs : '')}" data-proy-captura-obs="${esc(a.nombre)}"></td>
+      <td><span class="proy-estado ${estado}">${texto}</span></td>
+    </tr>`;
+  }).join('') : _proySinDatos('Primero agrega los alcances del proyecto en la pestaña "Alcances y contrato".'));
+}
+
+/** Refresca el chip de estado mientras se digita, sin volver a dibujar todo. */
+function proyPintarEstadoCaptura(input) {
+  const fila = input.closest('tr');
+  if (!fila) return;
+  const chip = fila.querySelector('.proy-estado');
+  if (!chip) return;
+  const v = proyNum(input.value);
+  chip.className = 'proy-estado ' + (v >= 100 ? 'completo' : v > 0 ? 'progreso' : 'sininiciar');
+  chip.textContent = v >= 100 ? 'Completado' : v > 0 ? 'En progreso' : 'Sin iniciar';
+}
+
+function _proyDiaAnterior(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return iso;
+  d.setDate(d.getDate() - 1);
+  return _isoLocal(d);
+}
+
+/** El viernes de esta semana (o el de hoy, si hoy es viernes). */
+function _proyViernesMasCercano() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7));
+  return _isoLocal(d);
+}
+
+// Cada corte deja una fila por alcance: con 10 alcances, un año de viernes
+// son más de 500 filas. Por defecto se muestran los últimos cortes y se
+// puede desplegar todo.
+const PROY_CORTES_VISIBLES = 4;
+let proyVerTodosLosCortes = false;
+
+function proyAlternarCortes() {
+  proyVerTodosLosCortes = !proyVerTodosLosCortes;
+  _proyRenderHistorialAvances();
+}
+
+function _proyRenderHistorialAvances() {
+  const semanas = proySemanas().slice().reverse();
+  const visibles = proyVerTodosLosCortes ? semanas : semanas.slice(0, PROY_CORTES_VISIBLES);
+  const ocultos = semanas.length - visibles.length;
+
+  const pie = document.getElementById('proyCortesPie');
+  if (pie) {
+    pie.innerHTML = semanas.length > PROY_CORTES_VISIBLES
+      ? `<button class="proy-btn-ghost" onclick="proyAlternarCortes()">${proyVerTodosLosCortes
+          ? 'Mostrar solo los últimos ' + PROY_CORTES_VISIBLES + ' cortes'
+          : 'Ver los ' + ocultos + ' cortes anteriores'}</button>`
+      : '';
+  }
+
+  const filas = proyDatos.avances
+    .filter(a => visibles.includes(proyIso(a.FechaCorte)))
+    .filter(a => a.Proyecto === proyActual)
+    .map(a => ({ _row: a._row, codigo: a.Codigo, fecha: proyIso(a.FechaCorte), alcance: String(a.Alcance || '').trim(), pct: proyNum(a.PctAvance), obs: a.Observacion || '', usuario: a.Usuario || '' }))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || a.alcance.localeCompare(b.alcance));
+
+  _proyHtml('proyTablaAvancesBody', filas.length ? filas.map(f => {
+    const estado = f.pct >= 100 ? 'completo' : f.pct > 0 ? 'progreso' : 'sininiciar';
+    const texto = f.pct >= 100 ? 'Completado' : f.pct > 0 ? 'En progreso' : 'Sin iniciar';
+    return `<tr>
+      <td>${esc(proyFechaLarga(f.fecha))}</td>
+      <td>${esc(f.alcance)}</td>
+      <td><input class="num" type="number" min="0" max="100" step="0.1" value="${f.pct}" onchange="proyEditarAvance(${f._row}, 'PctAvance', this.value)"></td>
+      <td><input type="text" value="${esc(f.obs)}" onchange="proyEditarAvance(${f._row}, 'Observacion', this.value)"></td>
+      <td>${esc(f.usuario || '—')}</td>
+      <td><span class="proy-estado ${estado}">${texto}</span></td>
+      <td><button class="proy-borrar" title="Eliminar este registro" onclick="proyBorrarAvance(${f._row})">✕</button></td>
+    </tr>`;
+  }).join('') : _proySinDatos('Todavía no se ha digitado ningún corte de avance.'));
+}
+
+/* ── Sub-pestaña: Alcances y contrato ──────────────────────────── */
+
+function proyRenderAlcances() {
+  _proyHtml('proyTablaProyectosBody', proyDatos.proyectos.length ? proyDatos.proyectos.map(p => `
+    <tr${p.Codigo === proyActual ? ' style="background:rgba(184,137,43,.08)"' : ''}>
+      <td>${esc(p.Codigo)}</td>
+      <td><input type="text" value="${esc(p.Nombre || '')}" onchange="proyEditarProyecto(${p._row}, 'Nombre', this.value)"></td>
+      <td><input type="text" value="${esc(p.Cliente || '')}" onchange="proyEditarProyecto(${p._row}, 'Cliente', this.value)"></td>
+      <td><input type="date" value="${esc(proyIso(p.FechaInicio))}" onchange="proyEditarProyecto(${p._row}, 'FechaInicio', this.value)"></td>
+      <td><input type="date" value="${esc(proyIso(p.FechaFin))}" onchange="proyEditarProyecto(${p._row}, 'FechaFin', this.value)"></td>
+      <td><input type="text" value="${esc(p.Estado || '')}" onchange="proyEditarProyecto(${p._row}, 'Estado', this.value)"></td>
+      <td>${p.Codigo === proyActual ? '<span class="proy-estado aldia">Activo</span>' : `<button class="proy-btn-ghost" onclick="proyCambiarProyecto('${esc(p.Codigo)}')">Ver</button>`}</td>
+    </tr>`).join('') : _proySinDatos('Todavía no hay proyectos. Crea el primero con "+ Nuevo proyecto".'));
+
+  const alcances = proyAlcances();
+  const sumaValor = alcances.reduce((s, a) => s + a.valor, 0);
+  const sumaHoras = alcances.reduce((s, a) => s + a.horas, 0);
+  _proyHtml('proyTablaAlcancesBody', alcances.length ? alcances.map((a, i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td><input type="text" value="${esc(a.nombre)}" onchange="proyEditarAlcance(${a._row}, 'Alcance', this.value)"></td>
+      <td><input class="num" type="number" step="0.01" min="0" value="${a.valor}" onchange="proyEditarAlcance(${a._row}, 'ValorContrato', this.value)"></td>
+      <td><input class="num" type="number" step="0.5" min="0" value="${a.horas}" onchange="proyEditarAlcance(${a._row}, 'HorasProgramadas', this.value)"></td>
+      <td class="num">${sumaValor > 0 ? (a.valor / sumaValor * 100).toFixed(1) : '0.0'}%</td>
+      <td class="num">${sumaHoras > 0 ? (a.horas / sumaHoras * 100).toFixed(1) : '—'}</td>
+      <td><button class="proy-borrar" title="Eliminar alcance" onclick="proyBorrarAlcance(${a._row})">✕</button></td>
+    </tr>`).join('') +
+    `<tr style="font-weight:700;background:var(--proy-paper)">
+      <td></td><td>Total</td>
+      <td class="num">${esc(proyCOP(sumaValor))}</td>
+      <td class="num">${Math.round(sumaHoras).toLocaleString('es-CO')} h</td>
+      <td class="num">100%</td><td class="num">${sumaHoras > 0 ? '100%' : '—'}</td><td></td>
+    </tr>`
+    : _proySinDatos('Este proyecto todavía no tiene alcances. Agrégalos con "+ Agregar alcance".'));
+}
+
+function _proyRenderPagosEditables() {
+  const lineas = proyLineasPago();
+  const alcances = proyAlcances();
+  const opciones = alc => alcances.map(a => `<option value="${esc(a.nombre)}" ${a.nombre === alc ? 'selected' : ''}>${esc(a.nombre)}</option>`).join('') +
+    (alcances.some(a => a.nombre === alc) || !alc ? '' : `<option value="${esc(alc)}" selected>${esc(alc)} (no está en la lista)</option>`);
+
+  _proyHtml('proyTablaPagosEditBody', lineas.length ? lineas.map(l => `
+    <tr>
+      <td><input type="date" value="${esc(l.fecha)}" onchange="proyEditarPago(${l._row}, 'Fecha', this.value)"></td>
+      <td><select onchange="proyEditarPago(${l._row}, 'Alcance', this.value)">${opciones(l.alcance)}</select></td>
+      <td><input class="num" type="number" step="0.01" min="0" value="${l.monto}" onchange="proyEditarPago(${l._row}, 'Monto', this.value)"></td>
+      <td><input class="num" type="number" step="0.1" min="0" max="100" value="${l.pctAlcance}" onchange="proyEditarPago(${l._row}, 'PctAlcance', this.value)"></td>
+      <td><select onchange="proyEditarPago(${l._row}, 'Estado', this.value)">
+        ${['Programado', 'Pagado'].map(e => `<option value="${e}" ${e === l.estado ? 'selected' : ''}>${e}</option>`).join('')}
+      </select></td>
+      <td><input type="text" value="${esc(l.nota)}" onchange="proyEditarPago(${l._row}, 'Nota', this.value)"></td>
+      <td><button class="proy-borrar" title="Eliminar línea" onclick="proyBorrarPago(${l._row})">✕</button></td>
+    </tr>`).join('') : _proySinDatos('Todavía no hay líneas de pago para este proyecto.'));
+}
+
+/* ── Escritura ─────────────────────────────────────────────────────
+   Todo cambio se manda a la hoja de una vez: no hay copia local que se
+   pueda quedar desfasada entre dos personas editando el mismo proyecto. */
+
+function _proyUsuario() { return (currentUser && currentUser.name) || 'Sistema'; }
+function _proyAhora()   { return new Date().toISOString(); }
+
+/** La lista de objetos de una pestaña (para buscar por _row y para que
+ *  _codigoConsecutivoUnico vea los códigos ya usados). */
+function _proyListaDe(tab) {
+  if (tab === PROY_SH.proyectos) return proyDatos.proyectos;
+  if (tab === PROY_SH.alcances)  return proyDatos.alcances;
+  if (tab === PROY_SH.pagos)     return proyDatos.pagos;
+  return proyDatos.avances;
+}
+
+function _proyFilaDeObjeto(tab, obj) {
+  return PROY_COLS[tab].map(c => (obj[c] === undefined || obj[c] === null) ? '' : obj[c]);
+}
+
+/** Cambia UN campo de una fila ya existente y la reescribe completa. */
+async function _proyEditarCampo(tab, row, campo, valor) {
+  const obj = _proyListaDe(tab).find(o => o._row === row);
+  if (!obj) { _proyMsg('No se encontró la fila; vuelve a actualizar.', 'error'); return; }
+  const anterior = obj[campo];
+  obj[campo] = valor;
+  try {
+    _proyMsg('Guardando…');
+    await _proyEscribirFila(tab, row, _proyFilaDeObjeto(tab, obj));
+    _proyMsg('Guardado.', 'ok');
+    proyRenderTodo();
+  } catch (e) {
+    obj[campo] = anterior;               // deshacer para no mentirle a la pantalla
+    _proyMsg(e.message, 'error');
+    proyRenderTodo();
+  }
+}
+
+async function _proyAgregarFila(tab, obj) {
+  try {
+    _proyMsg('Guardando…');
+    await _proyAppend(tab, [_proyFilaDeObjeto(tab, obj)]);
+    await proyCargarTodo();
+    _proyMsg('Guardado.', 'ok');
+    proyRenderTodo();
+  } catch (e) { _proyMsg(e.message, 'error'); }
+}
+
+/** Borrar corre las filas de abajo, así que hay que releer siempre después. */
+async function _proyEliminarFila(tab, row, pregunta) {
+  if (!confirm(pregunta)) return;
+  try {
+    _proyMsg('Eliminando…');
+    await _proyBorrarFila(tab, row);
+    await proyCargarTodo();
+    _proyMsg('Eliminado.', 'ok');
+    proyRenderTodo();
+  } catch (e) { _proyMsg(e.message, 'error'); }
+}
+
+/* ── Proyectos ─────────────────────────────────────────────────── */
+
+async function proyNuevoProyecto() {
+  const nombre = prompt('Nombre del proyecto:');
+  if (!nombre || !nombre.trim()) return;
+  const cliente = prompt('Cliente (opcional):') || '';
+  const codigo = _codigoConsecutivoUnico('PRY', proyDatos.proyectos, 3);
+  await _proyAgregarFila(PROY_SH.proyectos, {
+    Codigo: codigo, Nombre: nombre.trim(), Cliente: cliente.trim(), Ubicacion: '',
+    FechaInicio: _isoLocal(new Date()), FechaFin: '', Estado: 'En ejecución', Moneda: 'COP', Notas: '',
+  });
+  proyActual = codigo;
+  proyRenderTodo();
+}
+
+function proyEditarProyecto(row, campo, valor) { return _proyEditarCampo(PROY_SH.proyectos, row, campo, valor); }
+
+/* ── Alcances ──────────────────────────────────────────────────── */
+
+async function proyNuevoAlcance() {
+  if (!proyActual) { alert('Primero crea un proyecto.'); return; }
+  const nombre = prompt('Nombre del alcance (frente de obra):');
+  if (!nombre || !nombre.trim()) return;
+  const valor = prompt('Valor de contrato del alcance (solo números):', '0');
+  if (valor === null) return;
+  const horas = prompt('Horas programadas del alcance (para ponderar el avance físico):', '0');
+  if (horas === null) return;
+  const mios = proyDatos.alcances.filter(a => a.Proyecto === proyActual);
+  await _proyAgregarFila(PROY_SH.alcances, {
+    Codigo: _codigoConsecutivoUnico('ALC', proyDatos.alcances, 3),
+    Proyecto: proyActual, Alcance: nombre.trim(),
+    ValorContrato: proyNum(valor), HorasProgramadas: proyNum(horas),
+    FechaInicio: '', FechaFin: '', Orden: mios.length + 1,
+  });
+}
+
+function proyEditarAlcance(row, campo, valor) {
+  const limpio = (campo === 'ValorContrato' || campo === 'HorasProgramadas') ? proyNum(valor) : valor;
+  return _proyEditarCampo(PROY_SH.alcances, row, campo, limpio);
+}
+
+function proyBorrarAlcance(row) {
+  const a = proyDatos.alcances.find(o => o._row === row);
+  return _proyEliminarFila(PROY_SH.alcances, row,
+    `¿Eliminar el alcance "${a ? a.Alcance : ''}"?\n\nSus pagos y avances ya registrados NO se borran, pero dejarán de contarse en los totales.`);
+}
+
+/* ── Pagos ─────────────────────────────────────────────────────── */
+
+async function proyNuevoPago() {
+  if (!proyActual) { alert('Primero crea un proyecto.'); return; }
+  const alcances = proyAlcances();
+  if (!alcances.length) { alert('Primero agrega los alcances del proyecto.'); return; }
+  await _proyAgregarFila(PROY_SH.pagos, {
+    Codigo: _codigoConsecutivoUnico('PAG', proyDatos.pagos, 4),
+    Proyecto: proyActual, Fecha: _isoLocal(new Date()), Alcance: alcances[0].nombre,
+    Monto: 0, PctAlcance: 0, Estado: 'Programado', Nota: '',
+    Usuario: _proyUsuario(), FechaRegistro: _proyAhora(),
+  });
+}
+
+function proyEditarPago(row, campo, valor) {
+  const limpio = (campo === 'Monto' || campo === 'PctAlcance') ? proyNum(valor)
+               : campo === 'Fecha' ? proyIso(valor) : valor;
+  return _proyEditarCampo(PROY_SH.pagos, row, campo, limpio);
+}
+
+function proyBorrarPago(row) {
+  const p = proyDatos.pagos.find(o => o._row === row);
+  return _proyEliminarFila(PROY_SH.pagos, row,
+    `¿Eliminar la línea de pago de ${p ? proyFechaLarga(proyIso(p.Fecha)) : ''} (${p ? p.Alcance : ''})?`);
+}
+
+/* ── Avances ───────────────────────────────────────────────────── */
+
+/** Guarda TODO el corte de una vez: los alcances nuevos se agregan y los
+ *  que ya tenían un dato en esa misma fecha se corrigen en su fila, para
+ *  que digitar dos veces el mismo viernes no deje el corte duplicado. */
+async function proyGuardarAvances() {
+  if (!proyActual) { alert('Primero crea un proyecto.'); return; }
+  const input = document.getElementById('proyFechaCorte');
+  const corte = proyIso(input && input.value);
+  if (!corte) { alert('Elige la fecha de corte.'); return; }
+
+  const celdas = Array.from(document.querySelectorAll('#proyTablaCapturaBody [data-proy-captura]'));
+  if (!celdas.length) { alert('No hay alcances que capturar.'); return; }
+
+  const boton = document.getElementById('proyBtnGuardarAvances');
+  if (boton) boton.disabled = true;
+  try {
+    const existentes = {};
+    proyDatos.avances
+      .filter(a => a.Proyecto === proyActual && proyIso(a.FechaCorte) === corte)
+      .forEach(a => { existentes[String(a.Alcance || '').trim()] = a; });
+
+    const nuevas = [];
+    let corregidas = 0;
+    for (const celda of celdas) {
+      const alcance = celda.getAttribute('data-proy-captura');
+      const pct = Math.max(0, Math.min(100, proyNum(celda.value)));
+      const obsEl = document.querySelector(`#proyTablaCapturaBody [data-proy-captura-obs="${CSS.escape(alcance)}"]`);
+      const obs = obsEl ? obsEl.value : '';
+      const ya = existentes[alcance];
+      if (ya) {
+        if (proyNum(ya.PctAvance) === pct && String(ya.Observacion || '') === obs) continue;
+        ya.PctAvance = pct; ya.Observacion = obs;
+        ya.Usuario = _proyUsuario(); ya.FechaRegistro = _proyAhora();
+        _proyMsg(`Guardando… (${++corregidas} corregidos)`);
+        await _proyEscribirFila(PROY_SH.avances, ya._row, _proyFilaDeObjeto(PROY_SH.avances, ya));
+      } else {
+        nuevas.push({
+          Codigo: _codigoConsecutivoUnico('AVA', proyDatos.avances.concat(nuevas), 5),
+          Proyecto: proyActual, FechaCorte: corte, Alcance: alcance, PctAvance: pct,
+          Observacion: obs, Usuario: _proyUsuario(), FechaRegistro: _proyAhora(),
+        });
+      }
+    }
+
+    if (nuevas.length) {
+      _proyMsg('Guardando…');
+      await _proyAppend(PROY_SH.avances, nuevas.map(o => _proyFilaDeObjeto(PROY_SH.avances, o)));
+    }
+    if (!nuevas.length && !corregidas) { _proyMsg('No hubo cambios que guardar.', 'ok'); return; }
+    await proyCargarTodo();
+    _proyMsg(`Corte del ${proyFechaLarga(corte)} guardado (${nuevas.length} nuevos, ${corregidas} corregidos).`, 'ok');
+    proyRenderTodo();
+  } catch (e) {
+    _proyMsg(e.message, 'error');
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+function proyEditarAvance(row, campo, valor) {
+  const limpio = campo === 'PctAvance' ? Math.max(0, Math.min(100, proyNum(valor))) : valor;
+  return _proyEditarCampo(PROY_SH.avances, row, campo, limpio);
+}
+
+function proyBorrarAvance(row) {
+  const a = proyDatos.avances.find(o => o._row === row);
+  return _proyEliminarFila(PROY_SH.avances, row,
+    `¿Eliminar el avance de ${a ? a.Alcance : ''} del corte ${a ? proyFechaLarga(proyIso(a.FechaCorte)) : ''}?`);
+}
+
 </script>
 </body>
 </html>
