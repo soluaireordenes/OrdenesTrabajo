@@ -872,7 +872,11 @@ function _textoLectura(texto) {
   }
 
   let msg = '*' + (lec.codigo || lec.equipo) + '*';
-  if (lec.equipo && lec.equipo !== lec.codigo) msg += ' · ' + lec.equipo;
+  // El " · nombre largo" solo tiene sentido cuando el título es el código
+  // corto (CB1). Las variables auxiliares como el consumo de agua no tienen
+  // código, así que el título ya es el nombre completo y repetirlo daba
+  // "*Sistema de agua* · Sistema de agua".
+  if (lec.codigo && lec.equipo && lec.equipo !== lec.codigo) msg += ' · ' + lec.equipo;
   msg += '\n' + _fecha(lec.fecha) + (lec.hora ? ' · ' + lec.hora : '');
   if (lec.tecnico) msg += '\nTomó la lectura: ' + lec.tecnico;
 
