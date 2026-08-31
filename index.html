@@ -3748,7 +3748,18 @@ body.inv-activo .container { max-width: 1800px; }
             <p>Cada proyecto tiene sus propios alcances, pagos y cortes de avance.</p>
           </div>
           <div class="proy-panel">
-            <div style="padding:0 0 12px"><button class="proy-btn" onclick="proyNuevoProyecto()">+ Nuevo proyecto</button></div>
+            <div style="padding:0 0 12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="proy-btn" onclick="proyNuevoProyecto()">+ Nuevo proyecto</button>
+              <button class="proy-btn-ghost" id="proyBtnSembrar" onclick="proySembrarPanelGerencial()" style="display:none">
+                ↧ Cargar la ampliación de planta (10 alcances y 21 líneas de pago)
+              </button>
+            </div>
+            <div id="proySembrarNota" style="display:none;font-size:12.5px;color:var(--proy-muted);padding:0 0 14px;line-height:1.5">
+              La hoja está vacía. Este botón deja cargados el contrato y el calendario de pagos del panel gerencial
+              que se venía manejando por fuera, para no digitarlos a mano. Las <strong>horas programadas</strong> quedan
+              en cero: llénalas en la tabla de abajo y el avance físico pasa a ponderarse por horas. Los avances de obra
+              no se cargan — esos se digitan cada viernes.
+            </div>
             <div style="overflow-x:auto">
               <table class="proy-table" id="proyTablaProyectos">
                 <thead><tr><th>Código</th><th>Nombre</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr></thead>
@@ -20685,7 +20696,89 @@ function _proyRenderHistorialAvances() {
 
 /* ── Sub-pestaña: Alcances y contrato ──────────────────────────── */
 
+/* ── Carga inicial del contrato ─────────────────────────────────────
+   El contrato y el calendario de pagos del panel gerencial que se venía
+   manejando por fuera del sistema, para no tener que digitar 31 filas a
+   mano la primera vez. Cada línea es (fecha, monto, % de ese alcance).
+   Las horas programadas van en cero a propósito: no estaban en el panel
+   y hay que definirlas para que el avance se pondere por horas. */
+const PROY_CONTRATO_INICIAL = [
+  { alcance: 'ALCANCE (ESTRUCTURAL)', valor: 350200000, pagos: [
+    ['2026-09-16', 105060000, 30], ['2026-10-16', 105060000, 30], ['2026-11-03', 140080000, 40]] },
+  { alcance: 'ALCANCE (ELECTRICO)', valor: 308829643, pagos: [
+    ['2026-09-16', 92648892.9, 30], ['2026-11-03', 92648892.9, 30], ['2026-11-10', 123531857.2, 40]] },
+  { alcance: 'ALCANCE (BOMBAS Y TK EXPANSION)', valor: 213402700, pagos: [
+    ['2026-09-16', 106701350, 50], ['2026-10-23', 85361080, 40], ['2026-11-11', 21340270, 10]] },
+  { alcance: 'ALCANCE (INSTALACION TUBERIAS)', valor: 205000000, pagos: [
+    ['2026-10-16', 61500000, 30], ['2026-11-04', 61500000, 30], ['2026-11-10', 82000000, 40]] },
+  { alcance: 'ALCANCE (COMPRA TUBERIAS)', valor: 184508597, pagos: [
+    ['2026-10-09', 184508597, 100]] },
+  { alcance: 'ALCANCE (CIVIL)', valor: 50210538.88, pagos: [
+    ['2026-10-02', 15063161.664, 30], ['2026-10-16', 15063161.664, 30], ['2026-10-20', 20084215.552, 40]] },
+  { alcance: 'ALCANCE (IZAJES INSTALACION GRUA 120 TON)', valor: 39000000, pagos: [
+    ['2026-10-30', 39000000, 100]] },
+  { alcance: 'ESTUDIOS CIVILES Y ESTRUCTURALES', valor: 34610555, pagos: [
+    ['2026-08-28', 17305277, 50], ['2026-10-07', 17305277, 50]] },
+  { alcance: 'VALIDACION SISTEMA HIDR CON DINSO', valor: 16668225, pagos: [
+    ['2026-09-11', 16668225, 100]] },
+  { alcance: 'CARRO TANQUE ARRANQUE DE EQUIPOS', valor: 10948000, pagos: [
+    ['2026-11-06', 10948000, 100]] },
+];
+
+/** Deja el proyecto, sus alcances y su calendario de pagos escritos en la
+ *  hoja de una sola vez. Solo se ofrece con la hoja vacía, así que no hay
+ *  riesgo de duplicar un proyecto que ya exista. */
+async function proySembrarPanelGerencial() {
+  if (proyDatos.proyectos.length) { alert('La hoja ya tiene proyectos; esta carga inicial es solo para una hoja vacía.'); return; }
+  const nombre = prompt('Nombre del proyecto:', 'Ampliación de planta');
+  if (!nombre || !nombre.trim()) return;
+  const boton = document.getElementById('proyBtnSembrar');
+  if (boton) boton.disabled = true;
+  try {
+    _proyMsg('Cargando el contrato en la hoja…');
+    const codigo = _codigoConsecutivoUnico('PRY', proyDatos.proyectos, 3);
+    const fechas = PROY_CONTRATO_INICIAL.flatMap(a => a.pagos.map(p => p[0])).sort();
+
+    await _proyAppend(PROY_SH.proyectos, [_proyFilaDeObjeto(PROY_SH.proyectos, {
+      Codigo: codigo, Nombre: nombre.trim(), Cliente: '', Ubicacion: '',
+      FechaInicio: fechas[0], FechaFin: '', Estado: 'En ejecución', Moneda: 'COP', Notas: '',
+    })]);
+
+    const alcances = [], pagos = [];
+    PROY_CONTRATO_INICIAL.forEach((a, i) => {
+      alcances.push({
+        Codigo: _codigoConsecutivoUnico('ALC', alcances, 3),
+        Proyecto: codigo, Alcance: a.alcance, ValorContrato: a.valor,
+        HorasProgramadas: 0, FechaInicio: '', FechaFin: '', Orden: i + 1,
+      });
+      a.pagos.forEach(([fecha, monto, pct]) => pagos.push({
+        Codigo: _codigoConsecutivoUnico('PAG', pagos, 4),
+        Proyecto: codigo, Fecha: fecha, Alcance: a.alcance, Monto: monto, PctAlcance: pct,
+        Estado: 'Programado', Nota: '', Usuario: _proyUsuario(), FechaRegistro: _proyAhora(),
+      }));
+    });
+    await _proyAppend(PROY_SH.alcances, alcances.map(o => _proyFilaDeObjeto(PROY_SH.alcances, o)));
+    await _proyAppend(PROY_SH.pagos, pagos.map(o => _proyFilaDeObjeto(PROY_SH.pagos, o)));
+
+    await proyCargarTodo();
+    proyActual = codigo;
+    _proyMsg(`Cargado: ${alcances.length} alcances y ${pagos.length} líneas de pago. Ahora llena las horas programadas de cada alcance.`, 'ok');
+    proyRenderTodo();
+  } catch (e) {
+    _proyMsg(e.message + ' — revisa la hoja antes de volver a intentar, puede haber quedado a medias.', 'error');
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
 function proyRenderAlcances() {
+  // La carga inicial solo tiene sentido con la hoja recién creada.
+  const vacia = proyDatos.proyectos.length === 0;
+  const boton = document.getElementById('proyBtnSembrar');
+  const nota  = document.getElementById('proySembrarNota');
+  if (boton) boton.style.display = vacia ? 'inline-block' : 'none';
+  if (nota)  nota.style.display  = vacia ? 'block' : 'none';
+
   _proyHtml('proyTablaProyectosBody', proyDatos.proyectos.length ? proyDatos.proyectos.map(p => `
     <tr${p.Codigo === proyActual ? ' style="background:rgba(184,137,43,.08)"' : ''}>
       <td>${esc(p.Codigo)}</td>
