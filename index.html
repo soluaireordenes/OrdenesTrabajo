@@ -18531,7 +18531,13 @@ async function _leerReportesDelRango(nombre, desde, hasta) {
     if (completa) return filas;
 
     const fechas = filas.map(f => _aIsoFecha(f.Fecha)).filter(Boolean).sort();
-    if (!fechas.length) return filas;              // cola vacía: no hay más atrás
+    // Cola vacía o sin fechas NO significa "no hay más atrás": el rowCount que
+    // reporta Google es el tamaño de la CUADRÍCULA (1000 filas por defecto en
+    // una hoja nueva), no cuántos reportes hay. Si la hoja tiene 150 reportes
+    // en una cuadrícula de 1000, pedir "las últimas 200 filas" cae en filas
+    // 801-1000, todas vacías — y el dashboard salía en blanco. En ese caso hay
+    // que leer la hoja entera (los datos están arriba, no en la cola).
+    if (!fechas.length) return await _leerHojaGenerica(nombre);
     const masVieja = fechas[0];
     if (masVieja <= desde) return filas;           // el rango quedó cubierto
 
