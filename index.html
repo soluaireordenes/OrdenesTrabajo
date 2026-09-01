@@ -11528,7 +11528,41 @@ function _auxDibujarPromedio() {
     },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+        // El tooltip muestra de dónde sale el número: así se puede reconciliar
+        // con la gráfica del contador de abajo. La clave es "Horas": el
+        // consumo por hora NO siempre se divide entre 8 — se divide entre las
+        // horas REALES que pasaron entre las dos lecturas. Si un turno no se
+        // registró, el tramo cubre 16 horas (o más) y el por-hora baja, aunque
+        // la barra parezca un solo turno.
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const n2 = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+              if (ctx.datasetIndex !== 0) return ' Promedio del periodo: ' + n2(ctx.parsed.y) + ' m³/h';
+              const p = serie[ctx.dataIndex];
+              if (modo === 'contador') {
+                const anterior = p.valor - p.consumo;
+                const lineas = [
+                  ' Lectura anterior: ' + n2(anterior) + ' m³',
+                  ' Lectura de este corte: ' + n2(p.valor) + ' m³',
+                  ' Diferencia: ' + n2(p.consumo) + ' m³',
+                  ' Horas transcurridas: ' + n2(p.horas) + ' h',
+                  ' Consumo por hora: ' + n2(p.porHora) + ' m³/h',
+                ];
+                if (p.horas > 8.5) lineas.push(' ⚠ Cubre más de un turno (faltó registrar alguno)');
+                return lineas;
+              }
+              return [
+                ' Consumo de este turno: ' + n2(p.consumo) + ' m³',
+                ' Horas del turno: ' + n2(p.horas) + ' h',
+                ' Consumo por hora: ' + n2(p.porHora) + ' m³/h',
+              ];
+            },
+          },
+        },
+      },
       scales: {
         x: { ticks: { maxTicksLimit: 24, maxRotation: 60, minRotation: 0, font: { size: 9 } }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: 'rgba(128,128,128,.15)' } },
