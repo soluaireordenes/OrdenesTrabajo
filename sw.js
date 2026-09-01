@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v23';
+const CACHE_VERSION = 'v24';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.

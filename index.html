@@ -11343,50 +11343,106 @@ function _auxModoDetectado(puntos) {
   return (subeSiempre && alguoSubio) ? 'contador' : 'turno';
 }
 
-/** Convierte cada lectura en el consumo por hora que le corresponde.
- *
- *  El agua no se consume en negativo. Si un cálculo da menos de cero es un
- *  error de digitación, y hay que descartarlo, no promediarlo: un dedazo en
- *  una lectura de contador (900 donde iba 1090) producía de una vez dos
- *  cifras falsas —un consumo de −150 m³ y otro de +200— que además
- *  aplastaban la escala de la gráfica. Se descarta el tramo y se avisa
- *  cuántos, para que quede claro que hay algo que corregir en la hoja. */
-function _auxConsumoPorHora(puntos, modo) {
-  const descartar = (p) => Object.assign({}, p, { consumo: null, horas: null, porHora: null, sospechoso: true });
-  const sinCalcular = (p) => Object.assign({}, p, { consumo: null, horas: null, porHora: null });
+// Los tres turnos, en orden dentro del día. La ranura siguiente a turno3
+// es el turno1 del día siguiente.
+const _AUX_ORDEN_TURNOS = ['turno1', 'turno2', 'turno3'];
 
-  if (modo !== 'contador') {
-    return puntos.map(p => {
-      if (p.valor < 0) return descartar(p);
-      const horas = _auxHorasDeTurno(p.turnoId);
-      return Object.assign({}, p, { consumo: p.valor, horas, porHora: horas > 0 ? p.valor / horas : null });
+function _auxNombreTurnoId(turnoId) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const t = cfg && cfg.turnos && cfg.turnos.find(x => x.id === turnoId);
+  return (t && t.nombre) || turnoId || '—';
+}
+
+/** La ranura (fecha × turno) que sigue a la dada, cada 8 horas. */
+function _auxSiguienteRanura(fecha, turnoId) {
+  const i = _AUX_ORDEN_TURNOS.indexOf(turnoId);
+  if (i < 0) return null;
+  if (i < _AUX_ORDEN_TURNOS.length - 1) return { fecha, turnoId: _AUX_ORDEN_TURNOS[i + 1] };
+  const d = new Date(fecha + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return { fecha: _isoLocal(d), turnoId: 'turno1' };
+}
+
+/** Consumo por hora de cada turno, recorriendo TODAS las ranuras (fecha ×
+ *  turno) entre la primera y la última lectura, no solo las que tienen dato.
+ *
+ *  Reglas pedidas por la operación:
+ *   · Cada turno dura 8 horas fijas, así que el consumo por hora es siempre
+ *     "lo consumido ÷ 8", no dividido entre las horas que pasaron.
+ *   · Un turno sin registro se muestra en 0 (no hubo lectura, no hubo dato).
+ *   · Con un contador, la diferencia se toma contra la última lectura BUENA;
+ *     lo consumido durante los turnos que no se registraron queda recogido en
+ *     el primer turno que sí se registró (los sin registro van en 0). Así el
+ *     total del periodo se conserva.
+ *   · Una lectura de contador que aparece por debajo de la anterior es un
+ *     error de digitación: se muestra en 0 y se marca como sospechosa para
+ *     avisar que hay algo que corregir en la hoja. */
+function _auxConsumoPorHora(puntos, modo) {
+  if (!puntos.length) return [];
+
+  const porRanura = new Map();
+  puntos.forEach(p => porRanura.set(p.fecha + '|' + p.turnoId, p));
+
+  // Lecturas de contador que retroceden: dedazos. Se apartan.
+  const malas = new Set();
+  if (modo === 'contador') {
+    let ultimaBuena = null;
+    puntos.forEach(p => {
+      if (ultimaBuena && p.valor < ultimaBuena.valor) { malas.add(p); return; }
+      ultimaBuena = p;
     });
   }
 
-  // Con un contador, una lectura mal digitada echa a perder DOS tramos: el
-  // que termina en ella y el que arranca desde ella. Por eso primero se
-  // apartan las lecturas malas —las que aparecen por debajo de la última
-  // buena— y recién después se restan las que quedan, midiendo las horas
-  // que de verdad pasaron entre ellas. Así el tramo se calcula contra la
-  // última lectura confiable en vez de contra el dedazo.
-  const malas = new Set();
-  let ultimaBuena = null;
-  puntos.forEach(p => {
-    if (ultimaBuena && p.valor < ultimaBuena.valor) { malas.add(p); return; }
-    ultimaBuena = p;
-  });
+  const primero = puntos[0], ultimo = puntos[puntos.length - 1];
+  const claveFin = ultimo.fecha + '|' + ultimo.turnoId;
+  const salida = [];
+  let ranura = { fecha: primero.fecha, turnoId: primero.turnoId };
+  let prevBuena = null;       // última lectura de contador confiable
+  let vaciosSeguidos = 0;     // turnos sin registro desde la última lectura buena
+  let guardia = 0;
 
-  let previo = null;
-  return puntos.map(p => {
-    if (malas.has(p)) return descartar(p);
-    if (!previo) { previo = p; return sinCalcular(p); }
-    const horas = (previo.momento && p.momento)
-      ? (p.momento - previo.momento) / 3600000
-      : _auxHorasDeTurno(p.turnoId);
-    const consumo = p.valor - previo.valor;
-    previo = p;
-    return Object.assign({}, p, { consumo, horas, porHora: horas > 0 ? consumo / horas : null });
-  });
+  while (guardia++ < 5000) {
+    const clave = ranura.fecha + '|' + ranura.turnoId;
+    const lect = porRanura.get(clave);
+    const nombre = _auxNombreTurnoId(ranura.turnoId);
+    const horas = _auxHorasDeTurno(ranura.turnoId);
+    const base = { fecha: ranura.fecha, turnoId: ranura.turnoId, turno: nombre };
+
+    if (!lect) {
+      // Turno sin registro → 0.
+      salida.push(Object.assign(base, { consumo: 0, horas, porHora: 0, faltante: true }));
+      vaciosSeguidos++;
+    } else if (modo === 'contador') {
+      if (malas.has(lect)) {
+        salida.push(Object.assign(base, { valor: lect.valor, consumo: 0, horas, porHora: 0, sospechoso: true }));
+        vaciosSeguidos++;
+      } else if (!prevBuena) {
+        // Primera lectura: es la línea de base, todavía no hay diferencia.
+        salida.push(Object.assign(base, { valor: lect.valor, consumo: null, horas: null, porHora: null }));
+        prevBuena = lect;
+        vaciosSeguidos = 0;
+      } else {
+        const consumo = lect.valor - prevBuena.valor;
+        salida.push(Object.assign(base, {
+          valor: lect.valor, consumo, horas, porHora: horas > 0 ? consumo / horas : null,
+          absorbe: vaciosSeguidos,   // cuántos turnos sin registro recoge esta barra
+        }));
+        prevBuena = lect;
+        vaciosSeguidos = 0;
+      }
+    } else {
+      // Modo "consumo del turno": cada lectura es su propio turno.
+      if (lect.valor < 0) salida.push(Object.assign(base, { valor: lect.valor, consumo: null, horas: null, porHora: null, sospechoso: true }));
+      else salida.push(Object.assign(base, { valor: lect.valor, consumo: lect.valor, horas, porHora: horas > 0 ? lect.valor / horas : null }));
+      vaciosSeguidos = 0;
+    }
+
+    if (clave === claveFin) break;
+    const sig = _auxSiguienteRanura(ranura.fecha, ranura.turnoId);
+    if (!sig) break;
+    ranura = sig;
+  }
+  return salida;
 }
 
 function _auxiliaresPromedioPorHora(bloques) {
@@ -11412,6 +11468,7 @@ function _auxHtmlPromedio() {
   const modo = _auxModoForzado || _auxModoDetectado(puntos);
   const calculada = _auxConsumoPorHora(puntos, modo);
   const sospechosos = calculada.filter(p => p.sospechoso);
+  const faltantes = calculada.filter(p => p.faltante).length;
   const serie = calculada.filter(p => p.porHora !== null && isFinite(p.porHora));
 
   if (!serie.length) {
@@ -11454,15 +11511,18 @@ function _auxHtmlPromedio() {
     </div>
     <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px;line-height:1.5">
       ${modo === 'contador'
-        ? 'Se toma la diferencia con la lectura anterior y se reparte entre las horas que pasaron entre las dos.'
-        : 'Se reparte lo anotado entre las horas que dura el turno.'}
+        ? 'Se toma la diferencia con la lectura anterior y se divide entre las 8 horas del turno. El turno que no se registró se muestra en 0, y lo consumido durante él queda recogido en el siguiente turno con lectura.'
+        : 'Se reparte lo anotado entre las 8 horas del turno. El turno que no se registró se muestra en 0.'}
       ${_auxModoForzado ? '' : ' Deducido del dato; si no es así, cámbialo arriba.'}
     </div>
+    ${faltantes ? `<div style="font-size:11.5px;color:#8a6314;margin:-6px 0 12px;line-height:1.5">
+      ${faltantes} ${faltantes === 1 ? 'turno' : 'turnos'} sin registro en este rango ${faltantes === 1 ? 'se muestra' : 'se muestran'} en 0.
+    </div>` : ''}
     ${sospechosos.length ? `<div style="font-size:11.5px;color:#b91c1c;margin:-6px 0 12px;line-height:1.5">
-      Se dejaron por fuera ${sospechosos.length} ${sospechosos.length === 1 ? 'lectura' : 'lecturas'}
-      (${esc(sospechosos.map(x => x.turno + ' del ' + x.fecha).join(', '))}):
-      ${modo === 'contador' ? 'el contador aparece más bajo que la lectura anterior' : 'el consumo aparece en negativo'},
-      así que hay un dato mal digitado en la hoja. Corrígelo y el promedio se recalcula.
+      ${sospechosos.length} ${sospechosos.length === 1 ? 'lectura' : 'lecturas'}
+      (${esc(sospechosos.map(x => x.turno + ' del ' + x.fecha).join(', '))})
+      ${modo === 'contador' ? 'aparecen por debajo de la anterior' : 'aparecen en negativo'}:
+      hay un dato mal digitado en la hoja. Se muestran en 0; corrígelo y el promedio se recalcula.
     </div>` : ''}
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
@@ -11530,28 +11590,28 @@ function _auxDibujarPromedio() {
       responsive: true, maintainAspectRatio: false, animation: false,
       plugins: {
         legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
-        // El tooltip muestra de dónde sale el número: así se puede reconciliar
-        // con la gráfica del contador de abajo. La clave es "Horas": el
-        // consumo por hora NO siempre se divide entre 8 — se divide entre las
-        // horas REALES que pasaron entre las dos lecturas. Si un turno no se
-        // registró, el tramo cubre 16 horas (o más) y el por-hora baja, aunque
-        // la barra parezca un solo turno.
+        // El tooltip muestra de dónde sale el número, para poder reconciliarlo
+        // con la gráfica del contador de abajo. Cada turno son 8 horas fijas.
+        // Un turno sin registro se muestra en 0; la barra que sí tiene lectura
+        // recoge lo consumido durante los turnos que no se registraron antes.
         tooltip: {
           callbacks: {
             label: (ctx) => {
               const n2 = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
               if (ctx.datasetIndex !== 0) return ' Promedio del periodo: ' + n2(ctx.parsed.y) + ' m³/h';
               const p = serie[ctx.dataIndex];
+              if (p.faltante) return [' Sin registro en este turno', ' Se muestra en 0'];
+              if (p.sospechoso) return [' Lectura mal digitada (más baja que la anterior)', ' Se muestra en 0 — corrígela en la hoja'];
               if (modo === 'contador') {
                 const anterior = p.valor - p.consumo;
                 const lineas = [
                   ' Lectura anterior: ' + n2(anterior) + ' m³',
                   ' Lectura de este corte: ' + n2(p.valor) + ' m³',
                   ' Diferencia: ' + n2(p.consumo) + ' m³',
-                  ' Horas transcurridas: ' + n2(p.horas) + ' h',
+                  ' Horas del turno: ' + n2(p.horas) + ' h',
                   ' Consumo por hora: ' + n2(p.porHora) + ' m³/h',
                 ];
-                if (p.horas > 8.5) lineas.push(' ⚠ Cubre más de un turno (faltó registrar alguno)');
+                if (p.absorbe) lineas.push(' Incluye ' + p.absorbe + ' turno' + (p.absorbe === 1 ? '' : 's') + ' sin registro antes de este (mostrados en 0)');
                 return lineas;
               }
               return [
