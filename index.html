@@ -4287,18 +4287,22 @@ const VARIABLES_APARTADOS = [
       // rotulado como en los demás apartados.
       preparar: (filas) => (filas || []).map(f =>
         Object.assign({}, f, { Hora: ENTREGA_TURNO_HORA_DE_TURNO[f.TurnoId] || '' })),
-      campos: () => ENTREGA_TURNO_CAMPOS_GRAFICA,
+      // Cada "equipo" auxiliar grafica su propio campo de la Entrega de Turno.
+      campos: (equipo) => ENTREGA_TURNO_CAMPOS_GRAFICA[equipo] || [],
     }],
+    // El bloque extra de "consumo por hora" solo aplica al agua; para los
+    // indicadores no se muestra (ver _auxiliaresPromedioPorHora).
     extra: (bloques) => _auxiliaresPromedioPorHora(bloques),
     extraDibujar: () => _auxDibujarPromedio(),
   },
 ];
 
 /* ── Variables auxiliares ──────────────────────────────────────────
-   El consumo de agua se anota una vez por turno en la Entrega de Turno.
-   Aquí se grafica igual que las variables de los compresores, y además se
-   calcula cuánta agua se está gastando por hora. */
-const AUXILIARES_LISTA = ['Sistema de agua (Dry Cooler)'];
+   Variables que no las anota un formulario de equipo sino la Entrega de
+   Turno: el consumo de agua y los indicadores de alta y baja. Cada una se
+   grafica igual que las variables de los compresores; el agua además lleva
+   el cálculo de consumo por hora. */
+const AUXILIARES_LISTA = ['Sistema de agua (Dry Cooler)', 'Indicador de Alta', 'Indicador de Baja'];
 
 // Los tres turnos, con la hora de inicio que se usa para ordenar y rotular.
 const ENTREGA_TURNO_HORA_DE_TURNO = {
@@ -4306,9 +4310,14 @@ const ENTREGA_TURNO_HORA_DE_TURNO = {
 };
 const ENTREGA_TURNO_HORAS_GRAFICA = ['6:00 a.m.', '2:00 p.m.', '10:00 p.m.'];
 
-const ENTREGA_TURNO_CAMPOS_GRAFICA = [
-  { grupo: 'Dry Cooler', id: 'consumoAguaGraf', label: 'Consumo de agua [m³]', col: 'ConsumoAgua' },
-];
+// Un juego de campos por cada "equipo" auxiliar. La Entrega de Turno guarda
+// todas las columnas en la misma fila (colEquipo null), así que se elige el
+// campo según el equipo seleccionado.
+const ENTREGA_TURNO_CAMPOS_GRAFICA = {
+  'Sistema de agua (Dry Cooler)': [{ grupo: 'Dry Cooler', id: 'consumoAguaGraf', label: 'Consumo de agua [m³]', col: 'ConsumoAgua' }],
+  'Indicador de Alta':            [{ grupo: 'Compresores de Alta', id: 'indicadorAltaGraf', label: 'Indicador de Alta', col: 'IndicadorAlta' }],
+  'Indicador de Baja':            [{ grupo: 'Compresores de Baja', id: 'indicadorBajaGraf', label: 'Indicador de Baja', col: 'IndicadorBaja' }],
+};
 
 /** Variable de estado del panel: que apartado se esta viendo. Sirve para
  *  que el menu lateral pueda resaltar el que esta abierto. */
@@ -11447,6 +11456,14 @@ function _auxConsumoPorHora(puntos, modo) {
 
 function _auxiliaresPromedioPorHora(bloques) {
   const bloque = (bloques || [])[0];
+  // El cálculo de consumo por hora solo tiene sentido para el agua (un
+  // contador acumulado). Los indicadores de alta/baja son texto libre y no
+  // se restan, así que para ellos no se muestra este bloque.
+  const esAgua = (bloque && bloque.campos || []).some(c => c.col === 'ConsumoAgua');
+  if (!esAgua) {
+    _auxPuntosConsumo = null;
+    return '';
+  }
   const lecturas = (bloque && bloque.lecturas) || [];
   _auxPuntosConsumo = lecturas.map(f => ({
     fecha: f.Fecha,
