@@ -5941,12 +5941,13 @@ window.addEventListener('load', async () => {
           // llegaban las ordenes nuevas, asi que no aparecian hasta la
           // siguiente recarga y parecia que la generacion no funcionaba.
           //
-          // Van EN SERIE y de MAYOR a menor (anual → semestral → trimestral),
-          // compartiendo un set de equipos ya atendidos: si al registrar las
-          // horas se cruzan varias marcas de golpe, el equipo recibe una sola
-          // orden —la de mayor jerarquia, que ya incluye las menores— en vez
-          // de una por cada frecuencia. Por eso la anual tiene que correr
-          // primero y reclamar el equipo antes que las menores.
+          // Van EN SERIE compartiendo un set de equipos ya atendidos: si al
+          // registrar las horas se cruzan varias marcas de golpe, cada equipo
+          // recibe una sola orden —la de la marca MÁS RECIENTE en horas, la
+          // que toca "ahora"— en vez de una por cada frecuencia. Cuál gana no
+          // depende del orden en que corran (lo decide la marca más reciente,
+          // ver _verificarInformePeriodicoYGenerar), el set es solo una
+          // salvaguarda extra contra dobles.
           const equiposYaConOrden = new Set();
           const res = [];
           res.push(await verificarInformeAnualYGenerar(equiposYaConOrden).catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }));
@@ -19662,16 +19663,24 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       yaGeneradas.add(origen);
 
       // Este equipo cumplió una marca nueva de esta frecuencia: su estado
-      // avanza SIEMPRE, se cree la orden o no. Así, cuando una frecuencia
-      // mayor ya cubrió el trabajo, la menor no vuelve a dispararse después.
+      // avanza SIEMPRE, se cree la orden o no. Así, cuando la orden la genera
+      // otra frecuencia (ver abajo), esta no vuelve a dispararse después.
       cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
 
-      // Los mantenimientos están anidados: el anual incluye el semestral y
-      // este el trimestral (21 ⊃ 10 ⊃ 8 tareas). Si al registrar las horas se
-      // cruzan varias marcas de golpe, las tres frecuencias querrían generar
-      // orden para el mismo equipo — pero eso es repetir el mismo trabajo. Se
-      // revisan de mayor a menor y, si una mayor ya generó la orden de este
-      // equipo en esta revisión, la menor solo avanza su estado y no crea otra.
+      // Las marcas de las tres frecuencias NUNCA coinciden (2.000+4.000k /
+      // 4.000+8.000k / 8.000k son valores distintos entre sí), así que en cada
+      // momento hay una sola marca que toca: la MÁS RECIENTE que cruzó el
+      // equipo. Si al registrar las horas se cruzan varias de golpe, manda la
+      // de más horas —la que corresponde "ahora"—, no la de mayor jerarquía:
+      // a las 27.770 h la marca más reciente es 26.000 (trimestral), no la
+      // anual de 24.000 (esa ya pasó) ni la anual siguiente de 32.000 (aún no
+      // llega). Las demás frecuencias solo avanzan su estado (arriba) y
+      // dispararán cuando su propia marca sea la más reciente.
+      const metaMasReciente = Math.max(...Object.values(INFORME_MARCAS)
+        .map(mk => _ultimaMarcaCumplida(horasActuales, mk) ?? -Infinity));
+      if (meta !== metaMasReciente) continue;
+      // Salvaguarda extra: nunca dos órdenes para el mismo equipo en una
+      // misma revisión (la marca más reciente ya es única, esto solo blinda).
       if (equiposYaConOrden.has(equipo)) continue;
       equiposYaConOrden.add(equipo);
 
