@@ -5940,18 +5940,24 @@ window.addEventListener('load', async () => {
           // antes se lanzaban sin esperar y la lista ya estaba dibujada cuando
           // llegaban las ordenes nuevas, asi que no aparecian hasta la
           // siguiente recarga y parecia que la generacion no funcionaba.
-          Promise.all([
-            verificarInformeTrimestralYGenerar().catch(e => { console.warn('Informe Cada Trimestral:', e.message); return null; }),
-            verificarInformeSemestralYGenerar().catch(e => { console.warn('Informe Cada Semestral:', e.message); return null; }),
-            verificarInformeAnualYGenerar().catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }),
-          ]).then(res => {
-            const creadas = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
-            if (creadas) {
-              renderPendientes();
-              actualizarContadorTab && actualizarContadorTab();
-            }
-            _recordarRevisionInformes(huella, res);
-          });
+          //
+          // Van EN SERIE y de MAYOR a menor (anual → semestral → trimestral),
+          // compartiendo un set de equipos ya atendidos: si al registrar las
+          // horas se cruzan varias marcas de golpe, el equipo recibe una sola
+          // orden —la de mayor jerarquia, que ya incluye las menores— en vez
+          // de una por cada frecuencia. Por eso la anual tiene que correr
+          // primero y reclamar el equipo antes que las menores.
+          const equiposYaConOrden = new Set();
+          const res = [];
+          res.push(await verificarInformeAnualYGenerar(equiposYaConOrden).catch(e => { console.warn('Informe Cada Anual:', e.message); return null; }));
+          res.push(await verificarInformeSemestralYGenerar(equiposYaConOrden).catch(e => { console.warn('Informe Cada Semestral:', e.message); return null; }));
+          res.push(await verificarInformeTrimestralYGenerar(equiposYaConOrden).catch(e => { console.warn('Informe Cada Trimestral:', e.message); return null; }));
+          const creadas = res.reduce((n, x) => n + ((x && x.creadas) || 0), 0);
+          if (creadas) {
+            renderPendientes();
+            actualizarContadorTab && actualizarContadorTab();
+          }
+          _recordarRevisionInformes(huella, res);
         });
       }
     });
@@ -19529,8 +19535,14 @@ async function _resolverActividadesInforme(frecuencia, defaultsPorTipo) {
   return out;
 }
 
-async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado }) {
+async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado, equiposYaConOrden }) {
   if (operacionActual !== 'zipaquira') return { creadas: 0, sembradas: 0, error: 'Los informes por horas solo aplican a Zipaquirá (operación actual: ' + operacionActual + ').' };
+
+  // Set compartido entre las tres frecuencias en una misma revisión: guarda
+  // los equipos a los que YA se les generó una orden de mayor jerarquía en
+  // este arranque, para no crearles otra menor encima (ver más abajo). Si se
+  // llama la función suelta, cada frecuencia trae el suyo y no cambia nada.
+  if (!equiposYaConOrden) equiposYaConOrden = new Set();
 
   let horasEquipos, estado;
   try {
@@ -19621,6 +19633,20 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       if (yaGeneradas.has(origen)) continue;
       yaGeneradas.add(origen);
 
+      // Este equipo cumplió una marca nueva de esta frecuencia: su estado
+      // avanza SIEMPRE, se cree la orden o no. Así, cuando una frecuencia
+      // mayor ya cubrió el trabajo, la menor no vuelve a dispararse después.
+      cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
+
+      // Los mantenimientos están anidados: el anual incluye el semestral y
+      // este el trimestral (21 ⊃ 10 ⊃ 8 tareas). Si al registrar las horas se
+      // cruzan varias marcas de golpe, las tres frecuencias querrían generar
+      // orden para el mismo equipo — pero eso es repetir el mismo trabajo. Se
+      // revisan de mayor a menor y, si una mayor ya generó la orden de este
+      // equipo en esta revisión, la menor solo avanza su estado y no crea otra.
+      if (equiposYaConOrden.has(equipo)) continue;
+      equiposYaConOrden.add(equipo);
+
       const numOrden = generarNumeroOrdenUnico(numerosDelLote);
       nuevasOrdenes.push({
         id: numOrden, NumeroOrden: numOrden,
@@ -19637,7 +19663,6 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
         repuestos: [], insumos: [],
         _metaHoras: meta,   // solo para el texto de la notificación
       });
-      cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
     }
   }
 
@@ -19738,7 +19763,7 @@ function _recordarRevisionInformes(huella, resultados) {
   try { localStorage.setItem(HUELLA_HORAS_CLAVE + ':' + operacionActual, huella); } catch (_) {}
 }
 
-function verificarInformeTrimestralYGenerar() {
+function verificarInformeTrimestralYGenerar(equiposYaConOrden) {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Trimestral',
     frecuencia: 'trimestral',
@@ -19747,10 +19772,11 @@ function verificarInformeTrimestralYGenerar() {
     marcas: INFORME_MARCAS.trimestral,
     hojaEstado: SH.informeTrimestralEstado,
     colsEstado: INFORME_TRIMESTRAL_ESTADO_COLS,
+    equiposYaConOrden,
   });
 }
 
-function verificarInformeSemestralYGenerar() {
+function verificarInformeSemestralYGenerar(equiposYaConOrden) {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Semestral',
     frecuencia: 'semestral',
@@ -19759,10 +19785,11 @@ function verificarInformeSemestralYGenerar() {
     marcas: INFORME_MARCAS.semestral,
     hojaEstado: SH.informeSemestralEstado,
     colsEstado: INFORME_SEMESTRAL_ESTADO_COLS,
+    equiposYaConOrden,
   });
 }
 
-function verificarInformeAnualYGenerar() {
+function verificarInformeAnualYGenerar(equiposYaConOrden) {
   return _verificarInformePeriodicoYGenerar({
     nombre: 'Informe Cada Anual',
     frecuencia: 'anual',
@@ -19771,6 +19798,7 @@ function verificarInformeAnualYGenerar() {
     marcas: INFORME_MARCAS.anual,
     hojaEstado: SH.informeAnualEstado,
     colsEstado: INFORME_ANUAL_ESTADO_COLS,
+    equiposYaConOrden,
   });
 }
 
