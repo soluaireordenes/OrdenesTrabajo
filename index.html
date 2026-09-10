@@ -7910,6 +7910,22 @@ function _ultimaMarcaCumplida(horas, { primeraHora, cadaHoras }) {
   return Math.floor((horas - primeraHora) / cadaHoras) * cadaHoras + primeraHora;
 }
 
+/** La base de mantenimiento (UltimaGeneracionHoras) es la última marca en la
+ *  que se generó orden para el equipo, y NUNCA puede estar por encima de las
+ *  horas reales del equipo: una orden solo se genera en una marca que el
+ *  equipo YA cumplió. Si la base quedó más alta que las horas actuales
+ *  —típico cuando se tecleó de más el horómetro y luego se corrigió hacia
+ *  abajo— el sistema anunciaría la próxima orden en un número lejano (y
+ *  taparía las que sí tocan). En ese caso se la baja a la última marca real
+ *  que el equipo cumplió; si todavía no llega ni a la primera, a 0. En
+ *  operación normal la base siempre está por debajo de las horas, así que
+ *  esto no toca nada. */
+function _baseMantenimientoSaneada(baseHoras, horasActuales, marcas) {
+  if (!(baseHoras > horasActuales)) return baseHoras;
+  const ultima = _ultimaMarcaCumplida(horasActuales, marcas);
+  return ultima === null ? 0 : ultima;
+}
+
 /** Siguiente marca de esa frecuencia despues de las horas dadas. */
 function _proximaMarca(horas, marcas) {
   const ultima = _ultimaMarcaCumplida(horas, marcas);
@@ -13011,7 +13027,12 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecu
   const filasEquipos = equiposDelTipo.map(equipo => {
     const horasActuales = horasDe(equipo);
     const filaEstado = estado.find(f => f.Equipo === equipo);
-    const baseHoras = filaEstado && filaEstado.UltimaGeneracionHoras !== '' ? Number(filaEstado.UltimaGeneracionHoras) : 0;
+    const baseGuardada = filaEstado && filaEstado.UltimaGeneracionHoras !== '' ? Number(filaEstado.UltimaGeneracionHoras) : 0;
+    // Una base pegada por encima de las horas reales (horómetro tecleado de
+    // más y corregido luego) haría anunciar la próxima orden en un número
+    // lejano — se sanea a la última marca real cumplida. Mismo criterio que
+    // usa la generación automática, para que pantalla y orden coincidan.
+    const baseHoras = _baseMantenimientoSaneada(baseGuardada, horasActuales, marcas);
     // La proxima orden cae en la siguiente marca DE ESTA frecuencia. Tiene
     // que coincidir con lo que decide la generacion automatica: si aqui se
     // sumara un intervalo fijo, la pantalla anunciaria una meta distinta de
@@ -19603,9 +19624,16 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
 
       const filaEstado = estado.find(f => f.Equipo === equipo);
       const tieneBaseGuardada = !!(filaEstado && filaEstado.UltimaGeneracionHoras !== '' && filaEstado.UltimaGeneracionHoras !== undefined);
-      const baseHoras = tieneBaseGuardada ? Number(filaEstado.UltimaGeneracionHoras) : 0;
+      const baseGuardada = tieneBaseGuardada ? Number(filaEstado.UltimaGeneracionHoras) : 0;
       const horaBaseUsuario = horaBaseDe(equipo);
       const meta = _ultimaMarcaCumplida(horasActuales, marcas);
+
+      // Si la base quedó pegada por encima de las horas reales (horómetro
+      // tecleado de más y corregido luego), se baja a la última marca real
+      // cumplida y se persiste la corrección — así el próximo mantenimiento
+      // vuelve a caer donde toca en vez de en un número lejano.
+      const baseHoras = _baseMantenimientoSaneada(baseGuardada, horasActuales, marcas);
+      if (baseHoras !== baseGuardada) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(baseHoras) };
 
       // Primera vez que el sistema ve este equipo y el usuario no le puso
       // hora base: se SIEMBRA la base con las horas que ya trae y no se
