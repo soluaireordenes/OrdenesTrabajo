@@ -13033,7 +13033,15 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecu
     // más y corregido luego) haría anunciar la próxima orden en un número
     // lejano — se sanea a la última marca real cumplida. Mismo criterio que
     // usa la generación automática, para que pantalla y orden coincidan.
-    const baseHoras = _baseMantenimientoSaneada(baseGuardada, horasActuales, marcas);
+    let baseHoras = _baseMantenimientoSaneada(baseGuardada, horasActuales, marcas);
+    // Y al revés: un equipo sin sembrar (base vacía) o con una base tan vieja
+    // que quedaría a más de un ciclo de atraso hacía anunciar la próxima orden
+    // en la PRIMERA marca (ej. CA2 en 21.426 h mostraba "8.000 h · ¡Toca ya!").
+    // No se puede estar más de un ciclo atrasado si el mantenimiento se venía
+    // haciendo, así que se asume al día hasta la última marca cumplida —
+    // igual que la siembra del generador y que muestran los demás equipos.
+    const marcaCumplida = _ultimaMarcaCumplida(horasActuales, marcas);
+    if (marcaCumplida !== null && baseHoras < marcaCumplida - marcas.cadaHoras) baseHoras = marcaCumplida;
     // La proxima orden cae en la siguiente marca DE ESTA frecuencia. Tiene
     // que coincidir con lo que decide la generacion automatica: si aqui se
     // sumara un intervalo fijo, la pantalla anunciaria una meta distinta de
