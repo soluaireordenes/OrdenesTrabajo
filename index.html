@@ -14521,12 +14521,15 @@ function seleccionarPdfNovedad(inputEl) {
 async function subirInformePdfNovedad(file, codigo) {
   const base64 = await _archivoABase64(file);
   const nombreArchivo = codigo + '_' + Date.now() + '_' + (file.name || 'informe.pdf');
+  // Se usa el MISMO tipo que las fotos ('novedad'): es el que el Apps Script
+  // de la sede sabe manejar (guarda el archivo en Drive y devuelve su id/enlace).
+  // El mimeType 'application/pdf' hace que quede como PDF.
   const resp = await fetch(_fotosUrlSede(), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       accion: 'subirFoto',
-      tipo: 'informe-novedad',
+      tipo: 'novedad',
       codigo,
       nombreArchivo,
       mimeType: 'application/pdf',
@@ -14539,18 +14542,24 @@ async function subirInformePdfNovedad(file, codigo) {
   });
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir el PDF');
-  return { driveFileId: data.driveFileId, urlVer: data.urlVer, nombre: file.name || 'informe.pdf' };
+  const driveFileId = data.driveFileId || '';
+  // Enlace de vista: el que devuelva el script o, si no, se arma con el id.
+  const urlVer = data.urlVer || (driveFileId ? 'https://drive.google.com/file/d/' + driveFileId + '/view' : '');
+  if (!driveFileId && !urlVer) throw new Error('el servidor no devolvió el enlace del archivo');
+  return { driveFileId, urlVer, nombre: file.name || 'informe.pdf' };
 }
 
 /** Abre el PDF adjunto de un informe (link de Drive: se ve bien también en
  *  celular, a diferencia de un blob). */
 function verInformePdf(codigo) {
   const n = allNovedades.find(x => x.Codigo === codigo);
-  if (!n || !n.InformeUrlVer) {
+  const url = n && (n.InformeUrlVer ||
+    (n.InformeDriveFileId ? 'https://drive.google.com/file/d/' + n.InformeDriveFileId + '/view' : ''));
+  if (!url) {
     alert('Este informe no tiene un PDF adjunto. Ábrelo con "editar" y sube el archivo.');
     return;
   }
-  window.open(n.InformeUrlVer, '_blank');
+  window.open(url, '_blank');
 }
 
 /** Recalcula los tiempos auto-calculados (siempre de solo lectura) según el
