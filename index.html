@@ -13874,8 +13874,30 @@ const NOVEDADES_COLS = [
   'DescripcionProblema','AnalisisEvento','Consecuencias','AccionesEjecutadas','AccionesCorrectivas','AccionesMejora',
   'ElaboradoNombre','ElaboradoCargo','ElaboradoTel','RevisadoNombre','RevisadoCargo','RevisadoTel',
   'Correo','FechaRegistro','Estado','HoraFin','TiempoInicioFinMin','TiempoFinEstabilizacionMin',
-  'FechaFin','FechaEstabilizacion'
+  'FechaFin','FechaEstabilizacion',
+  // Columnas del rediseño 2026: los informes ahora se digitan con año y
+  // número manuales (para poder cargar históricos) y se adjunta el PDF real
+  // del informe en vez de llenar los campos. Se agregan al final para que las
+  // filas viejas se sigan leyendo sin tocar nada.
+  'Anio','NumeroInforme','InformeDriveFileId','InformeUrlVer','InformeArchivoNombre'
 ];
+
+// Tipos de informe del rediseño: reemplazan a INF-N/INF-E para los informes
+// nuevos (los viejos siguen viéndose como histórico). El label es lo que se
+// muestra en el menú; el prefijo arma el código PREFIJO-AÑO-NÚMERO.
+const NOVEDADES_TIPOS = [
+  { prefijo: 'INF-OI',  label: 'INF-OI' },
+  { prefijo: 'INF-SA',  label: 'INF-SA' },
+  { prefijo: 'INF-EXT', label: 'INF-EXT' },
+];
+// Primer año que se puede elegir al cargar informes (de 2024 en adelante).
+const NOVEDADES_ANIO_MINIMO = 2024;
+
+/** Código de un informe nuevo: PREFIJO-AÑO-NÚMERO (ej. INF-OI-2024-05). */
+function _codigoNovedadManual(prefijo, anio, numero) {
+  const n = String(numero).replace(/\D/g, '');
+  return prefijo + '-' + anio + '-' + n.padStart(2, '0');
+}
 
 // Fecha por defecto desde la que se cuentan los "Días sin Novedades" —
 // solo se usa mientras todavía no se haya registrado ninguna fecha en la
@@ -14270,8 +14292,8 @@ function filtrarNovedadesUI() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Título</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha evento</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">T. Recuperación</th>
-      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Elaborado por</th>
-      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Registrado por</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)" title="PDF adjunto">PDF</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
 
@@ -14285,11 +14307,11 @@ function filtrarNovedadesUI() {
       <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(n.Titulo)}">${esc(n.Titulo)}</td>
       <td style="padding:7px 10px">${esc(n.FechaEvento)}</td>
       <td style="padding:7px 10px;text-align:center">${esc(n.TiempoTotalMin)} min</td>
-      <td style="padding:7px 10px">${esc(n.ElaboradoNombre)}</td>
-      <td style="padding:7px 10px;text-align:center">${n.fotos.length || 0}</td>
+      <td style="padding:7px 10px">${esc(n.ElaboradoNombre || n.Correo || '')}</td>
+      <td style="padding:7px 10px;text-align:center">${n.InformeDriveFileId ? '📄' : '—'}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="abrirModalNovedad('${esc(n.Codigo)}')">${iconoEditar}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarInformeIndividual('${esc(n.Codigo)}')">${iconoExportar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verInformePdf('${esc(n.Codigo)}')" title="Ver PDF del informe">${iconoExportar}</button>
         <button class="btn btn-ghost btn-sm" onclick="eliminarNovedad('${esc(n.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
@@ -14366,11 +14388,26 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
       <input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>`;
 }
 
-/** Abre el modal de Nuevo Informe, o edición si se pasa un código existente */
+/** Abre el modal de Nuevo Informe, o edición si se pasa un código existente.
+ *  Rediseño 2026: el informe se digita con tipo (INF-OI/SA/EXT), año y número
+ *  manuales, sus tiempos (inicio → fin) y el PDF real adjunto. Los campos
+ *  largos (descripción, análisis, acciones, firmas, fotos) ya no van aquí. */
 function abrirModalNovedad(codigo) {
   const existente = codigo ? allNovedades.find(n => n.Codigo === codigo) : null;
-  const tipoInicial = existente ? (existente.Codigo.startsWith('INF-E') ? 'INF-E' : 'INF-N') : 'INF-N';
-  const codigoNuevo = existente ? existente.Codigo : _siguienteCodigo(tipoInicial);
+  const tipoInicial = existente
+    ? (NOVEDADES_TIPOS.find(t => (existente.Codigo || '').startsWith(t.prefijo))?.prefijo || NOVEDADES_TIPOS[0].prefijo)
+    : NOVEDADES_TIPOS[0].prefijo;
+  const anioActual = new Date().getFullYear();
+  const anioExistente = existente ? (existente.Anio || (existente.FechaEvento || '').slice(0, 4) || String(anioActual)) : String(anioActual);
+  const numeroExistente = existente ? (existente.NumeroInforme || '') : '';
+  const codigoNuevo = existente ? existente.Codigo : _codigoNovedadManual(tipoInicial, anioExistente, numeroExistente || '');
+
+  const anios = [];
+  for (let a = anioActual; a >= NOVEDADES_ANIO_MINIMO; a--) anios.push(a);
+
+  const pdfExistente = existente && existente.InformeDriveFileId
+    ? { driveFileId: existente.InformeDriveFileId, urlVer: existente.InformeUrlVer, nombre: existente.InformeArchivoNombre || 'informe.pdf' }
+    : null;
 
   const overlay = document.createElement('div');
   overlay.id = 'modalNovedadOverlay';
@@ -14384,15 +14421,25 @@ function abrirModalNovedad(codigo) {
       <div style="padding:20px">
 
         ${!existente ? `
-        <div class="field" style="margin-bottom:14px">
-          <label>Tipo de Informe *</label>
-          <select id="nov_tipoInforme" onchange="actualizarCodigoPorTipo()">
-            <option value="INF-N">Informe por Novedad (INF-N-XX)</option>
-            <option value="INF-E">Informe por Energía (INF-E-XX)</option>
-          </select>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field"><label>Tipo de Informe *</label>
+            <select id="nov_tipoInforme" onchange="actualizarCodigoNovedadManual()">
+              ${NOVEDADES_TIPOS.map(t => `<option value="${t.prefijo}">${esc(t.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Año *</label>
+            <select id="nov_anio" onchange="actualizarCodigoNovedadManual()">
+              ${anios.map(a => `<option value="${a}"${a === anioActual ? ' selected' : ''}>${a}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>N.º de informe *</label>
+            <input id="nov_numero" type="number" min="1" placeholder="Ej: 5" oninput="actualizarCodigoNovedadManual()"></div>
         </div>` : `
         <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
-          Tipo: <b>${existente.Codigo.startsWith('INF-E') ? 'Informe por Energía' : 'Informe por Novedad'}</b>
+          Tipo: <b>${esc(tipoInicial)}</b> · Año: <b>${esc(anioExistente)}</b> · N.º: <b>${esc(numeroExistente || '—')}</b>
+          <input type="hidden" id="nov_tipoInforme" value="${esc(tipoInicial)}">
+          <input type="hidden" id="nov_anio" value="${esc(anioExistente)}">
+          <input type="hidden" id="nov_numero" value="${esc(numeroExistente)}">
         </div>`}
 
         <div class="field" style="margin-bottom:12px"><label>Título del informe *</label>
@@ -14400,74 +14447,100 @@ function abrirModalNovedad(codigo) {
 
         <div id="nov_camposTiempoWrap">${_htmlCamposTiempoNovedad(tipoInicial, existente)}</div>
 
-        <div class="field" style="margin-bottom:12px"><label>Descripción del problema *</label>
-          <textarea id="nov_descripcionProblema" rows="3" placeholder="Describe qué pasó, cuándo y cómo se originó...">${esc(existente?.DescripcionProblema||'')}</textarea></div>
-
-        <div class="field" style="margin-bottom:12px"><label>Análisis del evento</label>
-          <textarea id="nov_analisisEvento" rows="3" placeholder="Análisis técnico de las causas y desarrollo del evento...">${esc(existente?.AnalisisEvento||'')}</textarea></div>
-
-        <div class="field" style="margin-bottom:12px"><label>Consecuencias del evento <span style="color:var(--text3);font-weight:400">(una por línea)</span></label>
-          <textarea id="nov_consecuencias" rows="3" placeholder="- Caída de presión en el sistema...&#10;- Paro de máquinas...">${esc(existente?.Consecuencias||'')}</textarea></div>
-
-        <div class="field" style="margin-bottom:12px"><label>Acciones ejecutadas durante la contingencia <span style="color:var(--text3);font-weight:400">(una por línea)</span></label>
-          <textarea id="nov_accionesEjecutadas" rows="3" placeholder="- Verificación inmediata...&#10;- Cierre de válvulas...">${esc(existente?.AccionesEjecutadas||'')}</textarea></div>
-
-        <div class="field" style="margin-bottom:12px"><label>Acciones correctivas <span style="color:var(--text3);font-weight:400">(una por línea)</span></label>
-          <textarea id="nov_accionesCorrectivas" rows="3" placeholder="- Inspección de integridad mecánica...">${esc(existente?.AccionesCorrectivas||'')}</textarea></div>
-
-        <div class="field" style="margin-bottom:16px"><label>Acciones de mejora <span style="color:var(--text3);font-weight:400">(una por línea)</span></label>
-          <textarea id="nov_accionesMejora" rows="3" placeholder="- Actualizar el procedimiento...">${esc(existente?.AccionesMejora||'')}</textarea></div>
-
         <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
-          <div style="font-weight:700;color:var(--brand);margin-bottom:8px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg> Firmas</div>
-          <div class="grid-2" style="gap:14px">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Elaborado por</div>
-              <div class="field" style="margin-bottom:8px"><input id="nov_elaboradoNombre" placeholder="Nombre" value="${esc(existente?.ElaboradoNombre || currentUser?.name || '')}"></div>
-              <div class="field" style="margin-bottom:8px"><input id="nov_elaboradoCargo" placeholder="Cargo" value="${esc(existente?.ElaboradoCargo||'')}"></div>
-              <div class="field"><input id="nov_elaboradoTel" placeholder="Teléfono" value="${esc(existente?.ElaboradoTel||'')}"></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Revisado por</div>
-              <div class="field" style="margin-bottom:8px"><input id="nov_revisadoNombre" placeholder="Nombre" value="${esc(existente?.RevisadoNombre||'')}"></div>
-              <div class="field" style="margin-bottom:8px"><input id="nov_revisadoCargo" placeholder="Cargo" value="${esc(existente?.RevisadoCargo||'')}"></div>
-              <div class="field"><input id="nov_revisadoTel" placeholder="Teléfono" value="${esc(existente?.RevisadoTel||'')}"></div>
-            </div>
-          </div>
+          <div style="font-weight:700;color:var(--brand);margin-bottom:8px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> Informe en PDF</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Adjunta el PDF del informe (opcional). Es el archivo que se abrirá al dar "ver".</div>
+          <label style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:white;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Elegir PDF
+            <input type="file" accept="application/pdf" style="display:none" onchange="seleccionarPdfNovedad(this)">
+          </label>
+          <div id="nov_pdf_nombre" style="font-size:12px;color:var(--text2);margin-top:8px">${pdfExistente ? '📄 ' + esc(pdfExistente.nombre) + ' (ya adjunto)' : 'Ningún archivo seleccionado.'}</div>
         </div>
 
         <div id="nov_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
         <button class="btn btn-primary" style="width:100%" onclick="guardarNovedad()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Informe</button>
-
-        <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px">
-          <div style="font-weight:700;color:var(--brand);margin-bottom:8px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Evidencias gráficas del evento</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Puedes agregar fotos/gráficas ya mismo, antes de guardar el informe. Cada una lleva su propio título y descripción.</div>
-          <label style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:white;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:white"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto/gráfica
-            <input type="file" accept="image/*" style="display:none" onchange="abrirFormFotoNovedad(this)">
-          </label>
-          <div id="nov_galeria_fotos"></div>
-        </div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   overlay._codigoActual = codigoNuevo;
   overlay._tipoActual = tipoInicial;
   overlay._esEdicion = !!existente;
-  overlay._fotosLocal = existente ? [...(existente.fotos || [])] : [];
-  renderGaleriaFotosNovedadLocal(overlay._fotosLocal);
+  overlay._pdfPendiente = null;               // File nuevo elegido en esta sesión
+  overlay._pdfExistente = pdfExistente;        // el que ya tenía (se conserva si no se cambia)
 }
 
-/** Al cambiar el Tipo de Informe (Novedad/Energía), recalcula el código correlativo
- *  y reconstruye el bloque de campos de hora (2 horas para INF-N, 3 para INF-E) */
-function actualizarCodigoPorTipo() {
+/** Al cambiar tipo, año o número, rearma el código PREFIJO-AÑO-NÚMERO que se
+ *  muestra en el encabezado. Los tres tipos usan el mismo bloque de tiempos
+ *  (inicio → fin), así que no hay que reconstruirlo. */
+function actualizarCodigoNovedadManual() {
   const overlay = document.getElementById('modalNovedadOverlay');
+  if (!overlay) return;
   const tipo = document.getElementById('nov_tipoInforme').value;
-  const nuevoCodigo = _siguienteCodigo(tipo);
+  const anio = document.getElementById('nov_anio').value;
+  const numero = document.getElementById('nov_numero').value;
+  const nuevoCodigo = _codigoNovedadManual(tipo, anio, numero || '');
   overlay._codigoActual = nuevoCodigo;
   overlay._tipoActual = tipo;
   document.getElementById('nov_codigoDisplay').textContent = nuevoCodigo;
-  document.getElementById('nov_camposTiempoWrap').innerHTML = _htmlCamposTiempoNovedad(tipo, null);
+}
+
+/** Muestra el nombre del PDF elegido y lo deja pendiente de subir al guardar. */
+function seleccionarPdfNovedad(inputEl) {
+  const overlay = document.getElementById('modalNovedadOverlay');
+  const file = inputEl.files && inputEl.files[0];
+  const lbl = document.getElementById('nov_pdf_nombre');
+  if (!file) return;
+  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name || '')) {
+    lbl.innerHTML = '<span style="color:var(--danger)">El archivo debe ser un PDF.</span>';
+    inputEl.value = '';
+    return;
+  }
+  // Tope prudente: el PDF viaja en base64 (≈+33%) al Apps Script. 12 MB de
+  // archivo real es ya un informe muy pesado; por encima conviene comprimirlo.
+  if (file.size > 12 * 1024 * 1024) {
+    lbl.innerHTML = '<span style="color:var(--danger)">El PDF supera 12 MB. Comprímelo antes de subirlo.</span>';
+    inputEl.value = '';
+    return;
+  }
+  overlay._pdfPendiente = file;
+  lbl.textContent = '📄 ' + (file.name || 'informe.pdf') + ' (' + Math.round(file.size / 1024) + ' KB)';
+}
+
+/** Sube el PDF de un informe al Drive de la sede (mismo Apps Script que las
+ *  fotos) y devuelve su referencia. */
+async function subirInformePdfNovedad(file, codigo) {
+  const base64 = await _archivoABase64(file);
+  const nombreArchivo = codigo + '_' + Date.now() + '_' + (file.name || 'informe.pdf');
+  const resp = await fetch(_fotosUrlSede(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      accion: 'subirFoto',
+      tipo: 'informe-novedad',
+      codigo,
+      nombreArchivo,
+      mimeType: 'application/pdf',
+      base64,
+      titulo: 'Informe ' + codigo,
+      descripcion: '',
+      subidoPor: currentUser?.email || 'Usuario',
+      correo: currentUser?.email || ''
+    })
+  });
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.mensaje || 'Error al subir el PDF');
+  return { driveFileId: data.driveFileId, urlVer: data.urlVer, nombre: file.name || 'informe.pdf' };
+}
+
+/** Abre el PDF adjunto de un informe (link de Drive: se ve bien también en
+ *  celular, a diferencia de un blob). */
+function verInformePdf(codigo) {
+  const n = allNovedades.find(x => x.Codigo === codigo);
+  if (!n || !n.InformeUrlVer) {
+    alert('Este informe no tiene un PDF adjunto. Ábrelo con "editar" y sube el archivo.');
+    return;
+  }
+  window.open(n.InformeUrlVer, '_blank');
 }
 
 /** Recalcula los tiempos auto-calculados (siempre de solo lectura) según el
@@ -14495,65 +14568,82 @@ function actualizarTiemposNovedad() {
 
 async function guardarNovedad() {
   const overlay = document.getElementById('modalNovedadOverlay');
-  const codigo = overlay._codigoActual;
   const esEdicion = overlay._esEdicion;
+  const existente = esEdicion ? allNovedades.find(n => n.Codigo === overlay._codigoActual) : null;
+  const msg = document.getElementById('nov_msg');
 
-  const tipo = overlay._tipoActual || (codigo.startsWith('INF-E') ? 'INF-E' : 'INF-N');
+  const tipo = document.getElementById('nov_tipoInforme').value;
+  const anio = document.getElementById('nov_anio').value;
+  const numero = document.getElementById('nov_numero').value.trim();
   const titulo = document.getElementById('nov_titulo').value.trim();
   const fechaEvento = document.getElementById('nov_fechaEvento').value;
   const horaInicio = document.getElementById('nov_horaInicio').value;
   const fechaFin = document.getElementById('nov_fechaFin').value;
   const horaFin = document.getElementById('nov_horaFin').value;
-  const fechaEstabilizacion = tipo === 'INF-E' ? document.getElementById('nov_fechaEstabilizacion').value : '';
-  const horaEstabilizacion = tipo === 'INF-E' ? document.getElementById('nov_horaEstabilizacion').value : '';
   const tiempoTotal = document.getElementById('nov_tiempoTotal').value;
-  const tiempoIF = tipo === 'INF-E' ? document.getElementById('nov_tiempoIF').value : '';
-  const tiempoFE = tipo === 'INF-E' ? document.getElementById('nov_tiempoFE').value : '';
-  const descripcionProblema = document.getElementById('nov_descripcionProblema').value.trim();
-  const analisisEvento = document.getElementById('nov_analisisEvento').value.trim();
-  const consecuencias = document.getElementById('nov_consecuencias').value.trim();
-  const accionesEjecutadas = document.getElementById('nov_accionesEjecutadas').value.trim();
-  const accionesCorrectivas = document.getElementById('nov_accionesCorrectivas').value.trim();
-  const accionesMejora = document.getElementById('nov_accionesMejora').value.trim();
-  const elaboradoNombre = document.getElementById('nov_elaboradoNombre').value.trim();
-  const elaboradoCargo = document.getElementById('nov_elaboradoCargo').value.trim();
-  const elaboradoTel = document.getElementById('nov_elaboradoTel').value.trim();
-  const revisadoNombre = document.getElementById('nov_revisadoNombre').value.trim();
-  const revisadoCargo = document.getElementById('nov_revisadoCargo').value.trim();
-  const revisadoTel = document.getElementById('nov_revisadoTel').value.trim();
-  const msg = document.getElementById('nov_msg');
 
-  if (!titulo || !fechaEvento || !horaInicio || !fechaFin || !horaFin ||
-      (tipo === 'INF-E' && (!fechaEstabilizacion || !horaEstabilizacion)) ||
-      !descripcionProblema || tiempoTotal === '') {
-    msg.textContent = 'Completa al menos: título, fechas/horas del evento y la descripción (*).';
-    return;
+  msg.style.color = 'var(--danger)';
+  if (!esEdicion && (!tipo || !anio || !numero)) {
+    msg.textContent = 'Elige el tipo, el año y escribe el número del informe.'; return;
+  }
+  if (!titulo || !fechaEvento || !horaInicio || !fechaFin || !horaFin || tiempoTotal === '') {
+    msg.textContent = 'Completa el título y las fechas/horas de inicio y fin (*).'; return;
+  }
+
+  const codigo = esEdicion ? overlay._codigoActual : _codigoNovedadManual(tipo, anio, numero);
+  if (!esEdicion && allNovedades.some(n => n.Codigo === codigo && n.Estado !== 'Eliminada')) {
+    msg.textContent = 'Ya existe un informe con el código ' + codigo + '. Cambia el número o el año.'; return;
   }
 
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
+    // Si se eligió un PDF nuevo se sube; si no, se conserva el que ya tenía.
+    // Que el PDF falle NO debe impedir guardar el informe (los tiempos son lo
+    // importante): si no sube, se guarda sin él y se avisa para reintentar.
+    let pdfRef = overlay._pdfExistente;
+    let avisoPdf = '';
+    if (overlay._pdfPendiente) {
+      msg.textContent = 'Subiendo el PDF del informe...';
+      try {
+        pdfRef = await subirInformePdfNovedad(overlay._pdfPendiente, codigo);
+      } catch (ePdf) {
+        avisoPdf = 'El informe se guardó, pero el PDF no se pudo subir (' + ePdf.message + '). Vuelve a abrirlo con "editar" para adjuntarlo.';
+      }
+    }
+
     await asegurarHoja(SH.novedades, NOVEDADES_COLS);
 
+    // Se parte de lo que ya había (al editar un informe viejo no se borran sus
+    // campos de texto) y se sobreescriben solo los que maneja este formulario.
+    const fila = {};
+    NOVEDADES_COLS.forEach(c => { fila[c] = existente ? (existente[c] ?? '') : ''; });
+    Object.assign(fila, {
+      Codigo: codigo, Titulo: titulo,
+      FechaEvento: fechaEvento, HoraInicio: horaInicio, HoraFin: horaFin, FechaFin: fechaFin,
+      TiempoTotalMin: tiempoTotal,
+      Anio: anio, NumeroInforme: numero || fila.NumeroInforme || '',
+      InformeDriveFileId: pdfRef?.driveFileId || '',
+      InformeUrlVer: pdfRef?.urlVer || '',
+      InformeArchivoNombre: pdfRef?.nombre || '',
+      Estado: 'Activa',
+    });
+    if (!existente) {
+      fila.Correo = currentUser?.email || '';
+      fila.FechaRegistro = new Date().toISOString();
+    }
+    const valores = NOVEDADES_COLS.map(c => fila[c] ?? '');
+
     if (esEdicion) {
-      const fila = allNovedades.find(n => n.Codigo === codigo);
-      const valores = [codigo, titulo, fechaEvento, fila.HoraEvento || '', horaInicio, horaEstabilizacion, tiempoTotal,
-        descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
-        elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        fila.Correo, fila.FechaRegistro, 'Activa', horaFin, tiempoIF, tiempoFE, fechaFin, fechaEstabilizacion];
       const colFin = numToCol(NOVEDADES_COLS.length - 1);
-      const rango = SH.novedades + '!A' + fila._row + ':' + colFin + fila._row;
-      await sheetsRequest('UPDATE', rango, [valores]);
+      await sheetsRequest('UPDATE', SH.novedades + '!A' + existente._row + ':' + colFin + existente._row, [valores]);
     } else {
-      const valores = [codigo, titulo, fechaEvento, '', horaInicio, horaEstabilizacion, tiempoTotal,
-        descripcionProblema, analisisEvento, consecuencias, accionesEjecutadas, accionesCorrectivas, accionesMejora,
-        elaboradoNombre, elaboradoCargo, elaboradoTel, revisadoNombre, revisadoCargo, revisadoTel,
-        currentUser?.email || '', new Date().toISOString(), 'Activa', horaFin, tiempoIF, tiempoFE, fechaFin, fechaEstabilizacion];
       await appendHoja(SH.novedades, [valores]);
     }
 
     document.getElementById('modalNovedadOverlay').remove();
     await inicializarPanelNovedades();
+    if (avisoPdf) alert(avisoPdf);
   } catch (e) {
     msg.style.color = 'var(--danger)';
     msg.textContent = 'Error al guardar: ' + e.message;
