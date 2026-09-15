@@ -6920,12 +6920,13 @@ function exportarRealizadasCSV() {
 /* ══════════════════════════════════════════════
    FILAS DINÁMICAS
 ══════════════════════════════════════════════ */
-/** Crea la fila de "observación fantasma" que va debajo de cada tarea, SOLO
- *  en el editor (donde también se cierra la orden). Se llama "fantasma"
- *  porque sirve para anotar por qué una tarea puntual no se pudo ejecutar
- *  (ej. no llegó el repuesto a tiempo) mientras se revisa/cierra la orden —
- *  pero nunca aparece en el PDF, en la impresión, ni en la vista de una
- *  orden ya cerrada. Es una nota de trabajo, no parte del reporte final. */
+/** Crea la fila de "observación fantasma" que va debajo de cada tarea, en el
+ *  editor (donde también se cierra la orden). Sirve para anotar por qué una
+ *  tarea puntual no se pudo ejecutar (ej. no llegó el repuesto a tiempo).
+ *  Es una nota INTERNA: se guarda y queda como constancia en la vista de la
+ *  orden (incluso ya cerrada, ver verDetalle), pero NO se incluye en el PDF ni
+ *  en la impresión, que son el reporte para compartir. Antes desaparecía de la
+ *  vista al cerrar; ahora se conserva. */
 function _crearFilaObservacionFantasma(valor) {
   const tr = document.createElement('tr');
   tr.className = 'tr-tarea-obs';
@@ -10386,6 +10387,12 @@ async function verDetalle(id) {
       </td>`;
       html += '<td style="padding:6px 10px">' + esc(t.responsable||'—') + '</td>';
       html += '</tr>';
+      // La observación interna ("por qué no se ejecutó esta tarea") ya no se
+      // borra al cerrar: se muestra aquí, en la vista de la orden, para que
+      // quede como constancia. Sigue siendo interna (no va al PDF externo).
+      if ((t.observacionFantasma||'').trim()) {
+        html += `<tr style="background:#fffbea"><td colspan="4" style="padding:2px 10px 9px 10px;font-size:11.5px;color:#8a6314;font-style:italic;border-bottom:1px solid var(--border)">👻 Observación interna: ${esc(t.observacionFantasma)}</td></tr>`;
+      }
     });
     html += '</tbody></table></div>';
   } else {
