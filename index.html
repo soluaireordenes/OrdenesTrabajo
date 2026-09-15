@@ -14549,17 +14549,37 @@ async function subirInformePdfNovedad(file, codigo) {
   return { driveFileId, urlVer, nombre: file.name || 'informe.pdf' };
 }
 
-/** Abre el PDF adjunto de un informe (link de Drive: se ve bien también en
- *  celular, a diferencia de un blob). */
-function verInformePdf(codigo) {
+/** Convierte un base64 (sin el prefijo data:) en un Blob del tipo dado. */
+function _base64ABlob(base64, mime) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime || 'application/pdf' });
+}
+
+/** Abre el PDF adjunto de un informe. El Apps Script de la sede no entrega un
+ *  enlace visible sino el archivo en base64 (igual que las fotos), así que se
+ *  pide por su id, se arma el PDF y se abre. Se abre la pestaña ANTES del
+ *  await para que el navegador no la bloquee como pop-up. */
+async function verInformePdf(codigo) {
   const n = allNovedades.find(x => x.Codigo === codigo);
-  const url = n && (n.InformeUrlVer ||
-    (n.InformeDriveFileId ? 'https://drive.google.com/file/d/' + n.InformeDriveFileId + '/view' : ''));
-  if (!url) {
+  const id = n && n.InformeDriveFileId;
+  if (!id) {
     alert('Este informe no tiene un PDF adjunto. Ábrelo con "editar" y sube el archivo.');
     return;
   }
-  window.open(url, '_blank');
+  const win = window.open('', '_blank');
+  try {
+    const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(id));
+    const data = await resp.json();
+    if (!data.ok || !data.base64) throw new Error(data.mensaje || 'no se pudo obtener el archivo');
+    const url = URL.createObjectURL(_base64ABlob(data.base64, data.mimeType || 'application/pdf'));
+    if (win) win.location.href = url; else window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    if (win) { try { win.close(); } catch (_) {} }
+    alert('No se pudo abrir el PDF: ' + e.message);
+  }
 }
 
 /** Recalcula los tiempos auto-calculados (siempre de solo lectura) según el
