@@ -14384,15 +14384,18 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
         <div class="field"><label>Tiempo total de recuperación (min)</label><input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>
       </div>`;
   }
+  // Tope de fecha = hoy: una novedad es un evento pasado/actual, así que
+  // bloquea de raíz los años absurdos por dedazo (31212) en el calendario.
   return `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px">
-      <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" max="${hoy}" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
       <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
-      <div class="field"><label>Fecha final del evento *</label><input id="nov_fechaFin" type="date" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label>Fecha final del evento *</label><input id="nov_fechaFin" type="date" max="${hoy}" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
       <div class="field"><label>Hora final del evento *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
     </div>
-    <div class="field" style="margin-bottom:14px;max-width:220px"><label>Tiempo total (min)</label>
-      <input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>`;
+    <div class="field" style="margin-bottom:4px;max-width:220px"><label>Tiempo total (min)</label>
+      <input id="nov_tiempoTotal" type="number" readonly style="background:#f3f4f6" value="${esc(existente?.TiempoTotalMin||'')}"></div>
+    <div id="nov_tiempoAviso" style="font-size:12px;color:var(--danger);margin-bottom:14px"></div>`;
 }
 
 /** Abre el modal de Nuevo Informe, o edición si se pasa un código existente.
@@ -14569,7 +14572,21 @@ function actualizarTiemposNovedad() {
     document.getElementById('nov_tiempoFE').value = tFE;
     document.getElementById('nov_tiempoTotal').value = total;
   } else {
-    document.getElementById('nov_tiempoTotal').value = _minutosEntre(ini, fin, fechaIni, fechaFin);
+    const mins = _minutosEntre(ini, fin, fechaIni, fechaFin);
+    document.getElementById('nov_tiempoTotal').value = mins === '' || mins < 0 ? '' : mins;
+    // Aviso claro en vez de dejar el tiempo en blanco sin explicación: pasa
+    // sobre todo con un dedazo en el año de la fecha (ej. 31212), que hace la
+    // fecha inválida, o cuando la fecha/hora final quedó antes que la inicial.
+    const aviso = document.getElementById('nov_tiempoAviso');
+    if (aviso) {
+      if (ini && fin && fechaIni && fechaFin && mins === '') {
+        aviso.textContent = '⚠️ Revisa las fechas: alguna no es válida (¿el año quedó mal escrito?).';
+      } else if (mins !== '' && mins < 0) {
+        aviso.textContent = '⚠️ La fecha/hora final es anterior a la inicial.';
+      } else {
+        aviso.textContent = '';
+      }
+    }
   }
 }
 
