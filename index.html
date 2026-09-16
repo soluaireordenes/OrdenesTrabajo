@@ -1991,19 +1991,12 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
-    <!-- Tiempo de recuperación individual, separado por tipo de informe -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo Informes por Novedad</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionN"></canvas></div>
-          <div id="novTotalTiempoN" style="text-align:center;font-size:13px;font-weight:700;color:var(--brand);margin-top:8px"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo Informes por Energía</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiempoRecuperacionE"></canvas></div>
-          <div id="novTotalTiempoE" style="text-align:center;font-size:13px;font-weight:700;color:var(--brand);margin-top:8px"></div>
-        </div>
+    <!-- Tiempo de recuperación por informe, separado por TIPO (una mini-gráfica
+         por cada tipo que tenga informes en el filtro; se llena por JS). -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación por Tipo de Informe</div>
+      <div class="card-body" style="padding:14px">
+        <div id="novTiemposPorTipoWrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px"></div>
       </div>
     </div>
 
@@ -2013,8 +2006,11 @@ body.inv-activo .container { max-width: 1800px; }
         <span style="display:flex;align-items:center;gap:8px;flex:1"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informes Registrados</span>
         <select id="novFiltroTipo" onchange="filtrarNovedadesUI()" style="min-width:190px">
           <option value="">Todos los tipos</option>
-          <option value="INF-N">Informe por Novedad</option>
-          <option value="INF-E">Informe por Energía</option>
+          <option value="INF-OI">INF-OI</option>
+          <option value="INF-SA">INF-SA</option>
+          <option value="INF-EXT">INF-EXT</option>
+          <option value="INF-N">INF-N (histórico)</option>
+          <option value="INF-E">INF-E (histórico)</option>
         </select>
       </div>
       <div class="card-body" style="padding:0;overflow-x:auto">
@@ -13893,10 +13889,22 @@ const NOVEDADES_COLS = [
 // nuevos (los viejos siguen viéndose como histórico). El label es lo que se
 // muestra en el menú; el prefijo arma el código PREFIJO-AÑO-NÚMERO.
 const NOVEDADES_TIPOS = [
-  { prefijo: 'INF-OI',  label: 'INF-OI' },
-  { prefijo: 'INF-SA',  label: 'INF-SA' },
-  { prefijo: 'INF-EXT', label: 'INF-EXT' },
+  { prefijo: 'INF-OI',  label: 'INF-OI',  color: '#2563eb' },
+  { prefijo: 'INF-SA',  label: 'INF-SA',  color: '#f97316' },
+  { prefijo: 'INF-EXT', label: 'INF-EXT', color: '#16a34a' },
 ];
+
+/** Devuelve el prefijo de tipo de un informe a partir de su código. Se compara
+ *  con el prefijo + '-' para que 'INF-EXT-...' no se confunda con el histórico
+ *  'INF-E'. Los códigos viejos caen en INF-N / INF-E; cualquier otro, 'Otro'. */
+function _tipoNovedadPrefijo(codigo) {
+  const c = String(codigo || '');
+  const t = NOVEDADES_TIPOS.find(t => c.startsWith(t.prefijo + '-'));
+  if (t) return t.prefijo;
+  if (c.startsWith('INF-E')) return 'INF-E';
+  if (c.startsWith('INF-N')) return 'INF-N';
+  return 'Otro';
+}
 // Primer año que se puede elegir al cargar informes (de 2024 en adelante).
 const NOVEDADES_ANIO_MINIMO = 2024;
 
@@ -14065,10 +14073,11 @@ async function renderGraficaRachaDiasSinNovedades() {
   const leyenda = document.getElementById('rachaLeyendaEventos');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  // Solo eventos de tipo "Informe por Novedad" (INF-N) — los de "Informe
-  // por Energía" (INF-E) son otro tipo de reporte, no una novedad.
+  // Cuentan como "novedad" los tres tipos nuevos (INF-OI/SA/EXT) y el
+  // histórico INF-N; se excluye el histórico INF-E (Energía), que es otro
+  // tipo de reporte, no una novedad.
   const eventos = allNovedades
-    .filter(n => n.FechaEvento && !n.Codigo.startsWith('INF-E'))
+    .filter(n => n.FechaEvento && _tipoNovedadPrefijo(n.Codigo) !== 'INF-E')
     .slice()
     .sort((a, b) => (a.FechaEvento + (a.HoraInicio || '')).localeCompare(b.FechaEvento + (b.HoraInicio || '')));
 
@@ -14277,7 +14286,7 @@ function filtrarNovedadesUI() {
   let lista = allNovedades.slice();
   if (anio) lista = lista.filter(n => (n.FechaEvento || '').slice(0, 4) === anio);
   if (mes)  lista = lista.filter(n => (n.FechaEvento || '').slice(5, 7) === mes);
-  if (tipo) lista = lista.filter(n => (tipo === 'INF-E') === n.Codigo.startsWith('INF-E'));
+  if (tipo) lista = lista.filter(n => _tipoNovedadPrefijo(n.Codigo) === tipo);
   if (texto) lista = lista.filter(n =>
     (n.Codigo||'').toLowerCase().includes(texto) ||
     (n.Titulo||'').toLowerCase().includes(texto) ||
@@ -14840,22 +14849,27 @@ function renderGraficasNovedades() {
     window[key] = new Chart(ctx.getContext('2d'), cfg);
   }
 
-  // Comparativo por tipo de informe: cuántos INF-N vs INF-E, en barras y dona (con %)
+  // ── Comparativo por tipo: los tres tipos nuevos (INF-OI/SA/EXT) y, si hay,
+  //    los históricos (INF-N/INF-E). Se arma dinámico para no volver a quedar
+  //    amarrado a dos tipos fijos. ──
   const totalTipo = novedadesFiltradasActual.length;
-  const countINFN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).length;
-  const countINFE = novedadesFiltradasActual.filter(n => n.Codigo.startsWith('INF-E')).length;
-  const coloresTipo = ['#2563eb', '#f97316'];
+  const defsTipo = NOVEDADES_TIPOS.map(t => ({ prefijo: t.prefijo, label: t.label, color: t.color }));
+  [['INF-N', '#6b7280'], ['INF-E', '#9ca3af']].forEach(([pre, color]) => {
+    if (novedadesFiltradasActual.some(n => _tipoNovedadPrefijo(n.Codigo) === pre))
+      defsTipo.push({ prefijo: pre, label: pre + ' (histórico)', color });
+  });
+  const conteoTipo = defsTipo.map(d => novedadesFiltradasActual.filter(n => _tipoNovedadPrefijo(n.Codigo) === d.prefijo).length);
+  const labelsTipo = defsTipo.map(d => d.label);
+  const coloresTipo = defsTipo.map(d => d.color);
   makeChart('chartNovTipoBarras', '_chartNovTipoBarras', {
     type: 'bar',
-    data: { labels: ['Informe por Novedad (INF-N)', 'Informe por Energía (INF-E)'],
-      datasets: [{ label: 'Cantidad', data: [countINFN, countINFE], backgroundColor: coloresTipo, borderRadius: 5 }] },
+    data: { labels: labelsTipo, datasets: [{ label: 'Cantidad', data: conteoTipo, backgroundColor: coloresTipo, borderRadius: 5 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
       scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
   makeChart('chartNovTipoDona', '_chartNovTipoDona', {
     type: 'doughnut',
-    data: { labels: ['Informe por Novedad (INF-N)', 'Informe por Energía (INF-E)'],
-      datasets: [{ data: [countINFN, countINFE], backgroundColor: coloresTipo }] },
+    data: { labels: labelsTipo, datasets: [{ data: conteoTipo, backgroundColor: coloresTipo }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
       tooltip: { callbacks: { label: (ctx) => {
         const pct = totalTipo ? Math.round(ctx.parsed / totalTipo * 100) : 0;
@@ -14864,45 +14878,51 @@ function renderGraficasNovedades() {
   });
   const leyendaTipoDiv = document.getElementById('novLeyendaTipo');
   if (leyendaTipoDiv) {
-    const pctN = totalTipo ? Math.round(countINFN / totalTipo * 100) : 0;
-    const pctE = totalTipo ? Math.round(countINFE / totalTipo * 100) : 0;
-    leyendaTipoDiv.innerHTML = `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px">
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
-        <span style="width:16px;height:10px;background:${coloresTipo[0]};border-radius:2px;display:inline-block"></span>
-        <span>Informe por Novedad: ${countINFN} (${pctN}%)</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
-        <span style="width:16px;height:10px;background:${coloresTipo[1]};border-radius:2px;display:inline-block"></span>
-        <span>Informe por Energía: ${countINFE} (${pctE}%)</span>
-      </div>
-    </div>`;
+    leyendaTipoDiv.innerHTML = '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:10px">' +
+      defsTipo.map((d, i) => {
+        const pct = totalTipo ? Math.round(conteoTipo[i] / totalTipo * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333">
+          <span style="width:16px;height:10px;background:${d.color};border-radius:2px;display:inline-block"></span>
+          <span>${esc(d.label)}: ${conteoTipo[i]} (${pct}%)</span></div>`;
+      }).join('') + '</div>';
   }
 
-  // Tiempo de recuperación individual, cada tipo en su propia gráfica (mismo orden y colores por rango que chartNovTiemposBarras)
-  const ordenadasN = novedadesFiltradasActual.filter(n => !n.Codigo.startsWith('INF-E')).sort((a,b)=>(a.FechaEvento||'').localeCompare(b.FechaEvento||''));
-  const ordenadasE = novedadesFiltradasActual.filter(n => n.Codigo.startsWith('INF-E')).sort((a,b)=>(a.FechaEvento||'').localeCompare(b.FechaEvento||''));
-  makeChart('chartNovTiempoRecuperacionN', '_chartNovTiempoRecuperacionN', {
-    type: 'bar',
-    data: { labels: ordenadasN.map(n => n.Codigo), datasets: [{ label: 'Minutos',
-      data: ordenadasN.map(n => Number(n.TiempoTotalMin) || 0),
-      backgroundColor: ordenadasN.map(n => _colorPorMinutos(n.TiempoTotalMin)), borderRadius: 5 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-  });
-  makeChart('chartNovTiempoRecuperacionE', '_chartNovTiempoRecuperacionE', {
-    type: 'bar',
-    data: { labels: ordenadasE.map(n => n.Codigo), datasets: [{ label: 'Minutos',
-      data: ordenadasE.map(n => Number(n.TiempoTotalMin) || 0),
-      backgroundColor: ordenadasE.map(n => _colorPorMinutos(n.TiempoTotalMin)), borderRadius: 5 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-  });
-  const totalMinN = ordenadasN.reduce((s, n) => s + (Number(n.TiempoTotalMin) || 0), 0);
-  const totalMinE = ordenadasE.reduce((s, n) => s + (Number(n.TiempoTotalMin) || 0), 0);
-  const totalTiempoNDiv = document.getElementById('novTotalTiempoN');
-  const totalTiempoEDiv = document.getElementById('novTotalTiempoE');
-  if (totalTiempoNDiv) totalTiempoNDiv.textContent = 'Tiempo total: ' + totalMinN + ' min';
-  if (totalTiempoEDiv) totalTiempoEDiv.textContent = 'Tiempo total: ' + totalMinE + ' min';
+  // ── Tiempo de recuperación por tipo: una mini-gráfica por cada tipo que tenga
+  //    informes. Los tiempos que se digitan (TiempoTotalMin) son los que se
+  //    grafican, coloreados por su rango. Las gráficas se crean dinámicas, así
+  //    que se destruyen a mano en cada render. ──
+  if (Array.isArray(window._novChartsPorTipo)) window._novChartsPorTipo.forEach(c => { try { c.destroy(); } catch (_) {} });
+  window._novChartsPorTipo = [];
+  const wrapPorTipo = document.getElementById('novTiemposPorTipoWrap');
+  if (wrapPorTipo) {
+    const conDatos = defsTipo.filter((d, i) => conteoTipo[i] > 0);
+    if (!conDatos.length) {
+      wrapPorTipo.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">No hay informes en el filtro actual.</div>';
+    } else {
+      wrapPorTipo.innerHTML = '';
+      conDatos.forEach((d, k) => {
+        const informes = novedadesFiltradasActual
+          .filter(n => _tipoNovedadPrefijo(n.Codigo) === d.prefijo)
+          .sort((a, b) => (a.FechaEvento || '').localeCompare(b.FechaEvento || ''));
+        const totalMin = informes.reduce((s, n) => s + (Number(n.TiempoTotalMin) || 0), 0);
+        const cid = 'chartNovTiempoTipo_' + k;
+        const card = document.createElement('div');
+        card.innerHTML = `<div style="font-size:13px;font-weight:700;color:${d.color};text-align:center;margin-bottom:6px">${esc(d.label)}</div>
+          <div style="position:relative;height:230px"><canvas id="${cid}"></canvas></div>
+          <div style="text-align:center;font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">Tiempo total: ${totalMin} min</div>`;
+        wrapPorTipo.appendChild(card);
+        const ctx = document.getElementById(cid);
+        if (ctx) window._novChartsPorTipo.push(new Chart(ctx.getContext('2d'), {
+          type: 'bar',
+          data: { labels: informes.map(n => n.Codigo), datasets: [{ label: 'Minutos',
+            data: informes.map(n => Number(n.TiempoTotalMin) || 0),
+            backgroundColor: informes.map(n => _colorPorMinutos(n.TiempoTotalMin)), borderRadius: 5 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        }));
+      });
+    }
+  }
 
   // Dona: distribución de novedades por rango de tiempo de recuperación
   const conteoRangos = RANGOS_NOVEDAD.map(r => 0);
@@ -15120,8 +15140,14 @@ async function generarInformeConsolidado() {
   const imgBarras  = document.getElementById('chartNovTiemposBarras')?.toDataURL('image/png') || '';
   const imgTipoBarras = document.getElementById('chartNovTipoBarras')?.toDataURL('image/png') || '';
   const imgTipoDona   = document.getElementById('chartNovTipoDona')?.toDataURL('image/png') || '';
-  const imgTiempoRecN = document.getElementById('chartNovTiempoRecuperacionN')?.toDataURL('image/png') || '';
-  const imgTiempoRecE = document.getElementById('chartNovTiempoRecuperacionE')?.toDataURL('image/png') || '';
+  // Una tarjeta por cada tipo con datos (se leen del dashboard ya dibujado).
+  const wrapPorTipo = document.getElementById('novTiemposPorTipoWrap');
+  const tarjetasTipo = wrapPorTipo ? Array.from(wrapPorTipo.children).map(card => {
+    const canvas = card.querySelector('canvas');
+    const divs = card.querySelectorAll(':scope > div');
+    return { img: canvas ? canvas.toDataURL('image/png') : '',
+      titulo: divs[0]?.textContent || '', total: divs[divs.length - 1]?.textContent || '' };
+  }).filter(t => t.img) : [];
 
   const mesNombres = { '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio',
     '07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre' };
@@ -15142,11 +15168,11 @@ async function generarInformeConsolidado() {
     ${document.getElementById('novLeyendaTipo')?.innerHTML || ''}
 
     <h2 style="color:var(--brand);font-size:16px;margin:18px 0 10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación por Tipo de Informe</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
-      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Novedad</div><img src="${imgTiempoRecN}" style="width:100%;height:auto">
-        <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">${document.getElementById('novTotalTiempoN')?.textContent || ''}</div></div>
-      <div style="text-align:center"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Tiempo Informes por Energía</div><img src="${imgTiempoRecE}" style="width:100%;height:auto">
-        <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">${document.getElementById('novTotalTiempoE')?.textContent || ''}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:6px">
+      ${tarjetasTipo.map(t => `<div style="text-align:center">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">${esc(t.titulo)}</div>
+        <img src="${t.img}" style="width:100%;height:auto">
+        <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:6px">${esc(t.total)}</div></div>`).join('')}
     </div>
     <div style="page-break-after:always"></div>
 
