@@ -1938,15 +1938,9 @@ body.inv-activo .container { max-width: 1800px; }
       </div>
     </div>
 
-    <!-- Gráfica: un punto/barra por cada evento de novedad registrado, mostrando
-         cuántos días pasaron desde el evento anterior (los que se vayan
-         registrando a futuro aparecen solos, es la misma lista en vivo) -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Días entre Eventos de Novedad</div>
-      <div class="card-body" style="padding:14px"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div><div id="rachaLeyendaEventos" style="margin-top:10px"></div></div>
-    </div>
-
-    <!-- Filtro de mes/año (arriba del dashboard) -->
+    <!-- Filtro (búsqueda + mes + año) — va ARRIBA de todas las gráficas para
+         que filtre a todas por igual (días entre eventos, novedades por mes,
+         comparativos, tiempos) y también la lista de abajo. -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px">
         <input id="novBuscar" placeholder="Buscar por código, título o descripción..." oninput="filtrarNovedadesUI()" style="flex:1;min-width:200px">
@@ -1965,6 +1959,21 @@ body.inv-activo .container { max-width: 1800px; }
           <option value="2035">2035</option>
         </select>
       </div>
+    </div>
+
+    <!-- Gráfica: un punto/barra por cada evento de novedad registrado, mostrando
+         cuántos días pasaron desde el evento anterior (los que se vayan
+         registrando a futuro aparecen solos, es la misma lista en vivo) -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Días entre Eventos de Novedad</div>
+      <div class="card-body" style="padding:14px"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div><div id="rachaLeyendaEventos" style="margin-top:10px"></div></div>
+    </div>
+
+    <!-- Gráfica de barras: cuántas novedades cayeron en cada mes, para ver en
+         qué mes se presentan más. Respeta el filtro de arriba. -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Novedades por Mes</div>
+      <div class="card-body" style="padding:14px"><div style="position:relative;height:240px"><canvas id="chartNovPorMes"></canvas></div><div id="novPorMesResumen" style="margin-top:8px;text-align:center;font-size:12px;color:var(--text3)"></div></div>
     </div>
 
     <!-- Dashboard: comparativo de informes por tipo -->
@@ -14086,7 +14095,10 @@ async function renderGraficaRachaDiasSinNovedades() {
   // Cuentan como "novedad" los tres tipos nuevos (INF-OI/SA/EXT) y el
   // histórico INF-N; se excluye el histórico INF-E (Energía), que es otro
   // tipo de reporte, no una novedad.
-  const eventos = allNovedades
+  // Usa la lista YA filtrada (mes/año/tipo/búsqueda) para que el filtro de
+  // arriba mueva también esta gráfica; se excluye INF-E (Energía), que no es
+  // una novedad.
+  const eventos = novedadesFiltradasActual
     .filter(n => n.FechaEvento && _tipoNovedadPrefijo(n.Codigo) !== 'INF-E')
     .slice()
     .sort((a, b) => (a.FechaEvento + (a.HoraInicio || '')).localeCompare(b.FechaEvento + (b.HoraInicio || '')));
@@ -14098,30 +14110,58 @@ async function renderGraficaRachaDiasSinNovedades() {
     return;
   }
 
-  const labels = [], dias = [];
-  let anterior = _fechaLocalDesdeString(NOVEDADES_DIAS_SIN_BASE_DEFAULT);
-  eventos.forEach(n => {
-    const fecha = _fechaLocalDesdeString(n.FechaEvento);
-    const gap = Math.max(0, Math.round((fecha - anterior) / 86400000));
-    labels.push(fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }));
-    dias.push(gap);
-    anterior = fecha;
+  // Serie DIARIA en forma de "sierra": el contador de días sin novedad sube
+  // de a un día con el paso del tiempo y cae a 0 el día en que se registra
+  // una novedad, para luego volver a subir hasta la siguiente — así cada
+  // tramo entre novedades se ve como un pico. Antes era un punto por evento
+  // (la altura = días desde el anterior); ahora es una línea continua día a
+  // día que hace visible el "subir y caer".
+  const MS = 86400000;
+  const primer = _fechaLocalDesdeString(eventos[0].FechaEvento); primer.setHours(0, 0, 0, 0);
+  const ultimo = _fechaLocalDesdeString(eventos[eventos.length - 1].FechaEvento); ultimo.setHours(0, 0, 0, 0);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  // La sierra llega hasta hoy (o hasta la última novedad si fuera futura),
+  // para que el tramo que está creciendo AHORA también se vea.
+  const fin = new Date(Math.max(hoy.getTime(), ultimo.getTime()));
+  const fechasEvento = new Set(eventos.map(n => (n.FechaEvento || '').slice(0, 10)));
+
+  const labels = [], dias = [], esEvento = [];
+  let ultimoReset = primer;  // la primera novedad es el arranque de la sierra
+  for (let t = primer.getTime(); t <= fin.getTime(); t += MS) {
+    const d = new Date(t);
+    const evento = fechasEvento.has(_isoLocal(d));
+    if (evento) ultimoReset = d;
+    labels.push(d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }));
+    dias.push(evento ? 0 : Math.round((d - ultimoReset) / MS));
+    esEvento.push(evento);
+  }
+
+  // Solo se dibuja un punto marcado en los vértices de la sierra: el día de
+  // cada novedad (la caída a 0) y la cima justo antes de la siguiente novedad
+  // (y la punta de hoy). El resto de los días van sin punto para no saturar.
+  const radios = dias.map((v, i) => {
+    const cima = i < dias.length - 1 && v > dias[i + 1];       // día previo a una caída
+    const puntaHoy = i === dias.length - 1;
+    return (esEvento[i] || cima || puntaHoy) ? 4 : 0;
   });
+  const coloresPunto = dias.map((v, i) => esEvento[i] ? '#b91c1c' : '#15803d');
 
   window._chartRachaDiasSinNovedades = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [{
-      label: 'Días desde el evento anterior', data: dias,
+      label: 'Días sin novedad', data: dias,
       borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,.18)',
       fill: true, tension: 0.35, borderWidth: 2.5,
-      pointRadius: 4, pointHoverRadius: 6,
-      pointBackgroundColor: '#15803d', pointBorderColor: '#fff', pointBorderWidth: 1.5,
+      pointRadius: radios, pointHoverRadius: 6,
+      pointBackgroundColor: coloresPunto, pointBorderColor: '#fff', pointBorderWidth: 1.5,
     }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + ' día(s) desde el evento anterior' } },
+        tooltip: { callbacks: { label: ctx => esEvento[ctx.dataIndex]
+          ? ' Novedad registrada (el contador vuelve a 0)'
+          : ' ' + ctx.raw + ' día(s) sin novedad' } },
       },
       scales: {
         y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Días' } },
@@ -14131,10 +14171,18 @@ async function renderGraficaRachaDiasSinNovedades() {
   });
 
   if (leyenda) {
+    // Las etiquetas de abajo siguen resumiendo cada novedad con los días que
+    // pasaron desde la anterior (el alto del pico correspondiente).
+    let anterior = primer;
     leyenda.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">' +
-      eventos.map((n, i) => `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
-        ${esc(fmtFecha(n.FechaEvento))}: <b>${dias[i]}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
-      </span>`).join('') + '</div>';
+      eventos.map((n, i) => {
+        const f = _fechaLocalDesdeString(n.FechaEvento); f.setHours(0, 0, 0, 0);
+        const gap = Math.max(0, Math.round((f - anterior) / MS));
+        anterior = f;
+        return `<span style="background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 10px;font-size:11.5px">
+          ${esc(fmtFecha(n.FechaEvento))}: <b>${gap}</b> día(s) desde ${i === 0 ? 'el punto de partida' : 'la anterior'}
+        </span>`;
+      }).join('') + '</div>';
   }
 }
 const FOTOS_NOVEDADES_COLS = ['Codigo','#','DriveFileId','UrlVer','UrlDescarga','Titulo','Descripcion','SubidoPor','Fecha'];
@@ -14300,7 +14348,9 @@ async function inicializarPanelNovedades() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando informes...</div>';
   try {
     await cargarNovedadesDeSheets();
-    renderGraficaRachaDiasSinNovedades().catch(() => {});
+    // Las gráficas (sierra de días, novedades por mes, tipos, tiempos) las
+    // dibuja filtrarNovedadesUI() → renderGraficasNovedades() con la lista ya
+    // filtrada, así el filtro de arriba las mueve a todas por igual.
   } catch (e) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--danger);display:flex;align-items:center;justify-content:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ' + esc(e.message) + '</div>';
     return;
@@ -14870,11 +14920,58 @@ function renderGaleriaFotosNovedadLocal(fotos) {
   fotos.forEach((f, i) => _cargarFotoEnImg(f.driveFileId, document.getElementById('nov_foto_img_' + i)));
 }
 
+/** Gráfica de barras: cuántas novedades cayeron en cada mes del año
+ *  (Ene–Dic), sobre la lista YA filtrada, para ver en qué mes se presentan
+ *  más. Cuando el filtro es "Todos los años", agrupa por mes de todos los
+ *  años juntos (así se ve el mes que históricamente tiene más); con un año
+ *  puesto, muestra ese año. Se excluye INF-E (Energía). */
+function renderGraficaNovedadesPorMes() {
+  const canvas = document.getElementById('chartNovPorMes');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const resumen = document.getElementById('novPorMesResumen');
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const conteo = new Array(12).fill(0);
+  novedadesFiltradasActual
+    .filter(n => n.FechaEvento && _tipoNovedadPrefijo(n.Codigo) !== 'INF-E')
+    .forEach(n => {
+      const mm = parseInt((n.FechaEvento || '').slice(5, 7), 10);
+      if (mm >= 1 && mm <= 12) conteo[mm - 1]++;
+    });
+
+  // El mes (o meses) con más novedades se pinta más fuerte para que resalte.
+  const maxVal = Math.max(0, ...conteo);
+  const colores = conteo.map(v => (v > 0 && v === maxVal) ? '#b45309' : '#2563eb');
+
+  if (window._chartNovPorMes) { window._chartNovPorMes.destroy(); window._chartNovPorMes = null; }
+  window._chartNovPorMes = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels: MESES, datasets: [{ label: 'Novedades', data: conteo, backgroundColor: colores, borderRadius: 5 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + ' novedad(es)' } } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Novedades' } } },
+    },
+  });
+
+  if (resumen) {
+    const total = conteo.reduce((a, b) => a + b, 0);
+    if (!total) { resumen.textContent = 'Sin novedades para el filtro seleccionado.'; }
+    else {
+      const nombresPico = MESES.filter((_, i) => conteo[i] === maxVal);
+      resumen.innerHTML = `Total: <b>${total}</b> · Mes con más novedades: <b>${nombresPico.join(', ')}</b> (${maxVal})`;
+    }
+  }
+}
+
 /* ── Gráficas del dashboard: SOLO tiempos (dona + barras) ── */
 function renderGraficasNovedades() {
   // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
   // del panel (tablas, totales) sí tiene que seguir funcionando.
   if (typeof Chart === 'undefined') return;
+  // Estas dos siguen el mismo filtro que el resto del dashboard.
+  renderGraficaRachaDiasSinNovedades().catch(() => {});
+  renderGraficaNovedadesPorMes();
   function destroyChart(key) { if (window[key]) { window[key].destroy(); window[key] = null; } }
   function makeChart(id, key, cfg) {
     destroyChart(key);
