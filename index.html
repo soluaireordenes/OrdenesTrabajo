@@ -14214,7 +14214,31 @@ async function cargarNovedadesDeSheets() {
   });
 
   allNovedades = novedades.sort((a, b) => (b.FechaEvento || '').localeCompare(a.FechaEvento || ''));
+  _poblarFiltroAnioNovedades();
   return allNovedades;
+}
+
+/** Llena el menú de años del filtro de Novedades con los años que de verdad
+ *  aparecen en los informes, más un margen hacia adelante — antes estaba fijo
+ *  en 2026–2035 y dejaba por fuera los informes de 2024/2025. Conserva la
+ *  selección que el usuario ya tuviera puesta. */
+function _poblarFiltroAnioNovedades() {
+  const sel = document.getElementById('novFiltroAnio');
+  if (!sel) return;
+  const seleccionActual = sel.value;
+  const anioActual = new Date().getFullYear();
+  const aniosDato = allNovedades
+    .map(n => (n.FechaEvento || '').slice(0, 4))
+    .filter(a => /^\d{4}$/.test(a))
+    .map(Number);
+  // 2024 es el año de arranque de los informes; hacia adelante se mantiene el
+  // mismo tope que traía el listado fijo (año actual + 9).
+  const minAnio = Math.min(2024, anioActual, ...aniosDato);
+  const maxAnio = Math.max(anioActual + 9, ...aniosDato);
+  let opts = '<option value="">Todos los años</option>';
+  for (let a = minAnio; a <= maxAnio; a++) opts += `<option value="${a}">${a}</option>`;
+  sel.innerHTML = opts;
+  sel.value = seleccionActual;
 }
 
 /** Genera el siguiente código (INF-N-XX o INF-E-XX), cada prefijo con su propia numeración */
