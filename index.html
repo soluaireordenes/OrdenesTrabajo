@@ -2387,7 +2387,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
           <div id="rc_camposMediciones"></div>
           <div id="rc_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rc_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rc_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2462,7 +2463,8 @@ body.inv-activo .container { max-width: 1800px; }
           <div id="rs_bloqueFriulair"></div>
 
           <div id="rs_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rs_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rs_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2540,7 +2542,8 @@ body.inv-activo .container { max-width: 1800px; }
             <textarea id="rd_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
           </div>
           <div id="rd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rd_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rd_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2612,7 +2615,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
 
           <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rdec_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rdec_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2701,7 +2705,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
 
           <div id="re_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="re_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="re_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -16049,6 +16054,22 @@ function _actualizarCronometrosCheckpoints() {
         if (aviso) aviso.style.display = '';
       }
     }
+    // Chip de un formulario de reporte (rc_cronTimer, rs_cronTimer, …): al
+    // cerrarse la ventana se deshabilita el botón "Guardar Reporte" de esa
+    // sección y se muestra el aviso; mientras siga abierta (o antes de la
+    // hora) el botón queda activo.
+    else if (el.id && /_cronTimer$/.test(el.id)) {
+      const prefijo = el.id.slice(0, -('_cronTimer'.length));
+      const btn = document.getElementById(prefijo + '_btnGuardar');
+      if (btn) {
+        const cerrada = now >= fin;
+        btn.disabled = cerrada;
+        btn.style.opacity = cerrada ? '.5' : '';
+        btn.style.cursor = cerrada ? 'not-allowed' : '';
+        const aviso = document.getElementById(prefijo + '_avisoCerrado');
+        if (aviso) aviso.style.display = cerrada ? '' : 'none';
+      }
+    }
   });
 }
 
@@ -16066,6 +16087,13 @@ function _iniciarCronometrosCheckpoints() {
  *  mueve los cronómetros del cronograma) se encarga de la cuenta regresiva.
  *  Presión Drycooler no tiene franjas horarias (es un reporte por día), así
  *  que no lleva cronómetro. */
+/** ¿La franja elegida en un formulario de reporte ya se pasó de su hora?
+ *  (backstop de guardado, además del botón deshabilitado en vivo). */
+function _reporteFueraDeHora(horaValue) {
+  const hhmm = HORA_REPORTE_A_24H[horaValue] || '';
+  return !!hhmm && _estadoVentanaReporte(hhmm) === 'cerrada';
+}
+
 function _onCambioHoraReporte(prefijo) {
   const chip = document.getElementById(prefijo + '_cronTimer');
   if (!chip) return;
@@ -16074,10 +16102,17 @@ function _onCambioHoraReporte(prefijo) {
   if (hhmm) {
     chip.setAttribute('data-hora', hhmm);
   } else {
+    // Sin franja elegida no hay contra qué medir: se muestra el aviso de
+    // "elige la hora" y se libera el formulario (el botón queda activo; la
+    // validación normal ya exige elegir la hora antes de guardar).
     chip.setAttribute('data-hora', '');
     chip.textContent = '⏳ Selecciona la hora del reporte';
     chip.style.background = '#eef3f9';
     chip.style.color = 'var(--brand)';
+    const btn = document.getElementById(prefijo + '_btnGuardar');
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+    const aviso = document.getElementById(prefijo + '_avisoCerrado');
+    if (aviso) aviso.style.display = 'none';
   }
   _iniciarCronometrosCheckpoints();
 }
@@ -17122,6 +17157,12 @@ async function guardarReporteCompresor() {
     return;
   }
 
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    return;
+  }
+
   const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
   const porColumna = {};
   for (const c of campos) {
@@ -17416,6 +17457,12 @@ async function guardarReporteSecador() {
 
   if (!tecnico || !fecha || !hora || !secador) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora y secador.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -17722,6 +17769,12 @@ async function guardarReporteDrycooler() {
     return;
   }
 
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    return;
+  }
+
   const porColumna = {};
   for (const c of REPORTE_DRYCOOLERS_CAMPOS) {
     const valor = document.getElementById('rd_' + c.id).value.trim();
@@ -17990,6 +18043,12 @@ async function guardarReporteDecorado() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !nivelAceite) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y nivel de aceite.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -18268,6 +18327,12 @@ async function guardarReporteEmergencia() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo || !nivelAceite) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor, estado del equipo y nivel de aceite.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
