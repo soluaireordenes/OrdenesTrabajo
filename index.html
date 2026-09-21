@@ -2364,9 +2364,10 @@ body.inv-activo .container { max-width: 1800px; }
             <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
-              <select id="rc_hora">
+              <select id="rc_hora" onchange="_onCambioHoraReporte('rc')">
                 <option value="">Seleccionar...</option>
               </select>
+              <div id="rc_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:#eef3f9;color:var(--brand);white-space:nowrap;display:inline-block">⏳ Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Compresor *</label>
@@ -2386,7 +2387,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
           <div id="rc_camposMediciones"></div>
           <div id="rc_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rc_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rc_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2422,7 +2424,8 @@ body.inv-activo .container { max-width: 1800px; }
             <div class="field"><label>Fecha *</label><input type="date" id="rs_fecha"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
-              <select id="rs_hora"><option value="">Seleccionar...</option></select>
+              <select id="rs_hora" onchange="_onCambioHoraReporte('rs')"><option value="">Seleccionar...</option></select>
+              <div id="rs_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:#eef3f9;color:var(--brand);white-space:nowrap;display:inline-block">⏳ Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Secador *</label>
@@ -2460,7 +2463,8 @@ body.inv-activo .container { max-width: 1800px; }
           <div id="rs_bloqueFriulair"></div>
 
           <div id="rs_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rs_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rs_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2500,7 +2504,8 @@ body.inv-activo .container { max-width: 1800px; }
             <div class="field"><label>Fecha *</label><input type="date" id="rd_fecha"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
-              <select id="rd_hora"><option value="">Seleccionar...</option></select>
+              <select id="rd_hora" onchange="_onCambioHoraReporte('rd')"><option value="">Seleccionar...</option></select>
+              <div id="rd_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:#eef3f9;color:var(--brand);white-space:nowrap;display:inline-block">⏳ Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Drycooler a reportar *</label>
@@ -2537,7 +2542,8 @@ body.inv-activo .container { max-width: 1800px; }
             <textarea id="rd_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
           </div>
           <div id="rd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rd_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rd_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2577,7 +2583,8 @@ body.inv-activo .container { max-width: 1800px; }
             <div class="field"><label>Fecha *</label><input type="date" id="rdec_fecha"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
-              <select id="rdec_hora"><option value="">Seleccionar...</option></select>
+              <select id="rdec_hora" onchange="_onCambioHoraReporte('rdec')"><option value="">Seleccionar...</option></select>
+              <div id="rdec_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:#eef3f9;color:var(--brand);white-space:nowrap;display:inline-block">⏳ Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Seleccione compresor *</label>
@@ -2608,7 +2615,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
 
           <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rdec_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="rdec_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -2648,7 +2656,8 @@ body.inv-activo .container { max-width: 1800px; }
             <div class="field"><label>Fecha *</label><input type="date" id="re_fecha"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
-              <select id="re_hora"><option value="">Seleccionar...</option></select>
+              <select id="re_hora" onchange="_onCambioHoraReporte('re')"><option value="">Seleccionar...</option></select>
+              <div id="re_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:#eef3f9;color:var(--brand);white-space:nowrap;display:inline-block">⏳ Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Seleccionar compresor *</label>
@@ -2696,7 +2705,8 @@ body.inv-activo .container { max-width: 1800px; }
           </div>
 
           <div id="re_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="re_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:#fde8e8;color:#b91c1c;font-size:12.5px;font-weight:700">⏱ La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
+          <button id="re_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
@@ -15796,7 +15806,7 @@ function _textoDeActividadCronograma(actividadId, fecha) {
  *  checkpoint. "Realizado" guarda directo con la hora real del clic (no es
  *  editable). "No realizado" abre un espacio de texto EN LA MISMA PÁGINA
  *  (no un modal) para explicar el motivo, obligatorio para guardar. */
-function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable, grande) {
+function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable, grande, hora) {
   let marcaTxt = '';
   if (reg?.realizado) {
     marcaTxt = `<span style="color:#15803d">✓ Realizado — ${esc(reg.realizadoPor || '')} · ${esc(reg.horaRealizada || '')}</span>`;
@@ -15811,15 +15821,22 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
   // Una vez que ya quedó una decisión guardada (Realizado o No realizado)
   // ambos botones se bloquean para siempre — no hay forma de desmarcar ni
   // de cambiar lo ya reportado.
-  const puedeMarcar = editable && !reg;
-  const deshabilitado = puedeMarcar ? '' : 'disabled';
+  //
+  // Además, pasada la hora de la ventana ya no se deja marcar "Realizado"
+  // (lo pidió así: si se pasó la hora, que no lo pueda marcar). "No
+  // realizado" sí sigue disponible, para poder dejar constancia con el
+  // motivo de por qué no se hizo a tiempo.
+  const ventanaCerrada = editable && !reg && hora && _estadoVentanaReporte(hora) === 'cerrada';
+  const puedeMarcarReal = editable && !reg && !ventanaCerrada;
+  const puedeMarcarNoReal = editable && !reg;
   return `<div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <button type="button" id="cronBtnReal_${checkpointId}" ${deshabilitado} style="${estiloBtn};border-color:#15803d;color:#15803d;cursor:${puedeMarcar ? 'pointer' : 'not-allowed'}"
-        onclick="onClickRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}')">✓ Realizado</button>
-      <button type="button" id="cronBtnNoReal_${checkpointId}" ${deshabilitado} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${puedeMarcar ? 'pointer' : 'not-allowed'}"
+      <button type="button" id="cronBtnReal_${checkpointId}" ${puedeMarcarReal ? '' : 'disabled'} style="${estiloBtn};border-color:#15803d;color:#15803d;opacity:${puedeMarcarReal ? '1' : '.5'};cursor:${puedeMarcarReal ? 'pointer' : 'not-allowed'}"
+        onclick="onClickRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}','${esc(hora || '')}')">✓ Realizado</button>
+      <button type="button" id="cronBtnNoReal_${checkpointId}" ${puedeMarcarNoReal ? '' : 'disabled'} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${puedeMarcarNoReal ? 'pointer' : 'not-allowed'}"
         onclick="onClickNoRealizadoCheckpoint('${checkpointId}')">✗ No realizado</button>
       <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
+      <span id="cronCerrada_${checkpointId}" style="display:${ventanaCerrada ? '' : 'none'};font-size:10.5px;font-weight:700;color:#b91c1c;text-transform:none">⏱ Ventana cerrada — ya no se puede marcar como realizado</span>
     </div>
     <div id="cronMotivoWrap_${checkpointId}" style="display:none;margin-top:8px;padding:10px;background:#fff;border:1px solid var(--border);border-radius:6px;text-transform:none">
       <label style="display:block;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--danger)">¿Por qué no se realizó? *</label>
@@ -15834,7 +15851,13 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
 
 /** Click en "Realizado" del checkpoint — guarda directo, sin modal, con la
  *  hora real del momento del clic (no editable). */
-function onClickRealizadoCheckpoint(checkpointId, turnoId, fecha) {
+function onClickRealizadoCheckpoint(checkpointId, turnoId, fecha, horaVentana) {
+  // Guarda extra por si el botón se alcanzó a presionar justo cuando la
+  // ventana ya se cerró (el tick lo deshabilita, pero esto lo blinda).
+  if (horaVentana && _estadoVentanaReporte(horaVentana) === 'cerrada') {
+    alert('La ventana para reportar (' + horaVentana + ' – ' + _horaMasUna(horaVentana) + ') ya se cerró. Marca "No realizado" e indica el motivo.');
+    return;
+  }
   document.getElementById('cronMotivoWrap_' + checkpointId).style.display = 'none';
   const d = new Date();
   const hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -15866,6 +15889,28 @@ function _horaMasUna(hhmm) {
   return String(h).padStart(2, '0') + ':' + String(Number(p[1]) || 0).padStart(2, '0');
 }
 
+/** Estado de la ventana de 1 hora de un reporte para una hora "HH:MM":
+ *  'antes'   → todavía no abre,
+ *  'abierta' → estamos dentro de la hora (se puede reportar),
+ *  'cerrada' → ya se pasó la hora (se bloquea marcar como realizado).
+ *  Usa la misma lógica de "ocurrencia más cercana ±12 h" que el cronómetro,
+ *  para que la ventana de las 2 a.m. no cuente contra la madrugada que ya
+ *  pasó. Si la hora no es válida, no bloquea (devuelve 'abierta'). */
+function _estadoVentanaReporte(hora) {
+  const p = String(hora || '').split(':');
+  const hh = Number(p[0]), mm = Number(p[1]);
+  if (isNaN(hh) || isNaN(mm)) return 'abierta';
+  const now = new Date();
+  const H12 = 12 * 3600000;
+  let inicio = new Date(now); inicio.setHours(hh, mm, 0, 0);
+  if (inicio - now > H12) inicio = new Date(inicio.getTime() - 86400000);
+  else if (now - inicio > H12) inicio = new Date(inicio.getTime() + 86400000);
+  const fin = new Date(inicio.getTime() + 3600000);
+  if (now < inicio) return 'antes';
+  if (now < fin) return 'abierta';
+  return 'cerrada';
+}
+
 /** El chip del cronómetro de un checkpoint: cuenta atrás del tiempo que queda
  *  dentro de la ventana de 1 hora. Solo se muestra vivo en el turno activo y
  *  mientras no se haya reportado; el tick lo actualiza _actualizarCronometros.
@@ -15893,7 +15938,7 @@ function _htmlCheckpointCronograma(checkpoint, diaSemana, registros, editable, t
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           ${_htmlCronometroCheckpoint(checkpointId, checkpoint.hora, reg, editable)}
-          ${_htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable, true)}
+          ${_htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, editable, true, checkpoint.hora)}
         </div>
       </div>
     </div>
@@ -15997,6 +16042,34 @@ function _actualizarCronometrosCheckpoints() {
       txt = '⏱ Tiempo agotado'; bg = '#fde8e8'; color = '#b91c1c';
     }
     el.textContent = txt; el.style.background = bg; el.style.color = color;
+    // Al cerrarse la ventana, bloquear en vivo el botón "Realizado" del
+    // checkpoint correspondiente (si es un cronómetro de checkpoint) y
+    // mostrar el aviso de ventana cerrada — sin tener que recargar el panel.
+    if (el.id && el.id.indexOf('cronTimer_') === 0) {
+      const cpId = el.id.slice('cronTimer_'.length);
+      const btnReal = document.getElementById('cronBtnReal_' + cpId);
+      if (btnReal && now >= fin && !btnReal.disabled) {
+        btnReal.disabled = true; btnReal.style.opacity = '.5'; btnReal.style.cursor = 'not-allowed';
+        const aviso = document.getElementById('cronCerrada_' + cpId);
+        if (aviso) aviso.style.display = '';
+      }
+    }
+    // Chip de un formulario de reporte (rc_cronTimer, rs_cronTimer, …): al
+    // cerrarse la ventana se deshabilita el botón "Guardar Reporte" de esa
+    // sección y se muestra el aviso; mientras siga abierta (o antes de la
+    // hora) el botón queda activo.
+    else if (el.id && /_cronTimer$/.test(el.id)) {
+      const prefijo = el.id.slice(0, -('_cronTimer'.length));
+      const btn = document.getElementById(prefijo + '_btnGuardar');
+      if (btn) {
+        const cerrada = now >= fin;
+        btn.disabled = cerrada;
+        btn.style.opacity = cerrada ? '.5' : '';
+        btn.style.cursor = cerrada ? 'not-allowed' : '';
+        const aviso = document.getElementById(prefijo + '_avisoCerrado');
+        if (aviso) aviso.style.display = cerrada ? '' : 'none';
+      }
+    }
   });
 }
 
@@ -16004,6 +16077,44 @@ function _iniciarCronometrosCheckpoints() {
   if (_cronometroCheckpointsTimer) clearInterval(_cronometroCheckpointsTimer);
   _actualizarCronometrosCheckpoints();
   _cronometroCheckpointsTimer = setInterval(_actualizarCronometrosCheckpoints, 1000);
+}
+
+/** Los formularios de reporte (Compresores, Secadores, Drycoolers, Decorado,
+ *  Emergencia) traen un menú "Hora en la que se realiza el reporte" con las
+ *  franjas en formato a.m./p.m. Este chip muestra, al lado, el mismo
+ *  cronómetro de cuenta atrás del cronograma: al elegir una franja se traduce
+ *  a 24 h y se apunta el data-hora del chip, y el tick global (el mismo que
+ *  mueve los cronómetros del cronograma) se encarga de la cuenta regresiva.
+ *  Presión Drycooler no tiene franjas horarias (es un reporte por día), así
+ *  que no lleva cronómetro. */
+/** ¿La franja elegida en un formulario de reporte ya se pasó de su hora?
+ *  (backstop de guardado, además del botón deshabilitado en vivo). */
+function _reporteFueraDeHora(horaValue) {
+  const hhmm = HORA_REPORTE_A_24H[horaValue] || '';
+  return !!hhmm && _estadoVentanaReporte(hhmm) === 'cerrada';
+}
+
+function _onCambioHoraReporte(prefijo) {
+  const chip = document.getElementById(prefijo + '_cronTimer');
+  if (!chip) return;
+  const sel = document.getElementById(prefijo + '_hora');
+  const hhmm = HORA_REPORTE_A_24H[sel && sel.value] || '';
+  if (hhmm) {
+    chip.setAttribute('data-hora', hhmm);
+  } else {
+    // Sin franja elegida no hay contra qué medir: se muestra el aviso de
+    // "elige la hora" y se libera el formulario (el botón queda activo; la
+    // validación normal ya exige elegir la hora antes de guardar).
+    chip.setAttribute('data-hora', '');
+    chip.textContent = '⏳ Selecciona la hora del reporte';
+    chip.style.background = '#eef3f9';
+    chip.style.color = 'var(--brand)';
+    const btn = document.getElementById(prefijo + '_btnGuardar');
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+    const aviso = document.getElementById(prefijo + '_avisoCerrado');
+    if (aviso) aviso.style.display = 'none';
+  }
+  _iniciarCronometrosCheckpoints();
 }
 
 async function inicializarPanelCronograma() {
@@ -16967,6 +17078,7 @@ async function inicializarReporteCompresores() {
   document.getElementById('rc_compresor').value = '';
   _actualizarCamposMedicionesCompresor();
   _inicializarFiltroFechaReporte('rc');
+  _onCambioHoraReporte('rc');
 
   const wrap = document.getElementById('rc_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
@@ -17042,6 +17154,12 @@ async function guardarReporteCompresor() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoHoraFecha) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y si la hora/fecha del compresor están bien.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -17268,6 +17386,7 @@ async function inicializarReporteSecadores() {
   _actualizarBloqueSecador();
 
   _inicializarFiltroFechaReporte('rs');
+  _onCambioHoraReporte('rs');
   const wrap = document.getElementById('rs_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -17338,6 +17457,12 @@ async function guardarReporteSecador() {
 
   if (!tecnico || !fecha || !hora || !secador) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora y secador.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -17566,6 +17691,7 @@ async function inicializarReporteDrycoolers() {
   document.getElementById('rd_camposMediciones').innerHTML = _htmlCamposReporteDrycooler(null);
 
   _inicializarFiltroFechaReporte('rd');
+  _onCambioHoraReporte('rd');
   const wrap = document.getElementById('rd_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -17640,6 +17766,12 @@ async function guardarReporteDrycooler() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !drycooler || !adiabatico || !entalpico || !bombaRecirculacion) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, drycooler, adiabático, entálpico y bomba de recirculación.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -17840,6 +17972,7 @@ async function inicializarReporteDecorado() {
   document.getElementById('rdec_observaciones').value = '';
 
   _inicializarFiltroFechaReporte('rdec');
+  _onCambioHoraReporte('rdec');
   const wrap = document.getElementById('rdec_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -17910,6 +18043,12 @@ async function guardarReporteDecorado() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !nivelAceite) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y nivel de aceite.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
@@ -18116,6 +18255,7 @@ async function inicializarReporteEmergencia() {
   document.getElementById('re_observacionesSecador').value = '';
 
   _inicializarFiltroFechaReporte('re');
+  _onCambioHoraReporte('re');
   const wrap = document.getElementById('re_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
@@ -18187,6 +18327,12 @@ async function guardarReporteEmergencia() {
 
   if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo || !nivelAceite) {
     msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor, estado del equipo y nivel de aceite.';
+    return;
+  }
+
+  if (_reporteFueraDeHora(hora)) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
     return;
   }
 
