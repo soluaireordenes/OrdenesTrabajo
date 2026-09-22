@@ -7041,7 +7041,9 @@ const EQUIPOS_ZIPAQUIRA = {
   'Infraestructura':             ['INFRAESTRUCTURA PRIMER PISO','INFRAESTRUCTURA SEGUNDO PISO','INFRAESTRUCTURA 3 PISO','INFRAESTRUCTURA EMERGENCIA','INFRAESTRUCTURA DECORADO','INFRAESTRUCTURA GENERAL'],
   'Compresores de Emergencia':   ['COMPRESOR DE EMERGENCIA NX200','COMPRESOR EMERGENCIA IR160','SCEMERGENCIA'],
   'Compresores Decorado':        ['COMPRESOR DECORADO NX55','COMPRESOR DECORADO NX18','SCDECORADO'],
-  'HOC':                         ['HOC 1','HOC 2','HOC 3'],
+  // Los HOC 1/2/3 se retiraron de la lista de equipos (HVD, órdenes e
+  // inventario) por pedido. Sus tareas del Plan de Mantenimiento quedan
+  // aparte (PLAN_MANTENIMIENTO) y no se tocan.
 };
 
 // Lista de equipos activos exclusiva de PAVISA México (no afecta a las demás sedes)
@@ -19395,11 +19397,6 @@ let hvdEquipoActual = null;
 // historial = las observaciones anuales de ese equipo (no hay OT de por medio).
 let hvdModoActual = 'operacion';
 
-// Equipos que NO se muestran en la lista de HVD (solo ahí) aunque sigan
-// existiendo en el resto del sistema (órdenes, inventario, plan de
-// mantenimiento). Se pidió ocultar los HOC de la Hoja de Vida.
-const HVD_EQUIPOS_OCULTOS = ['HOC 1', 'HOC 2', 'HOC 3'];
-
 /** Junta todos los nombres de equipo de la sede activa en una sola lista
  *  plana (sin importar en qué grupo estén), para mostrarlos en el panel
  *  izquierdo de HVD — equipos de OPERACIÓN. */
@@ -19409,7 +19406,7 @@ function _listaEquiposPlanaSede() {
   Object.values(grupos).forEach(items => {
     items.forEach(item => nombres.push(Array.isArray(item) ? item[0] : item));
   });
-  return nombres.filter(n => !HVD_EQUIPOS_OCULTOS.includes(n));
+  return nombres;
 }
 
 /** Equipos de SEGURIDAD: vienen del Inventario de Equipos (Codificacion +
