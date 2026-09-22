@@ -19395,6 +19395,11 @@ let hvdEquipoActual = null;
 // historial = las observaciones anuales de ese equipo (no hay OT de por medio).
 let hvdModoActual = 'operacion';
 
+// Equipos que NO se muestran en la lista de HVD (solo ahí) aunque sigan
+// existiendo en el resto del sistema (órdenes, inventario, plan de
+// mantenimiento). Se pidió ocultar los HOC de la Hoja de Vida.
+const HVD_EQUIPOS_OCULTOS = ['HOC 1', 'HOC 2', 'HOC 3'];
+
 /** Junta todos los nombres de equipo de la sede activa en una sola lista
  *  plana (sin importar en qué grupo estén), para mostrarlos en el panel
  *  izquierdo de HVD — equipos de OPERACIÓN. */
@@ -19404,7 +19409,7 @@ function _listaEquiposPlanaSede() {
   Object.values(grupos).forEach(items => {
     items.forEach(item => nombres.push(Array.isArray(item) ? item[0] : item));
   });
-  return nombres;
+  return nombres.filter(n => !HVD_EQUIPOS_OCULTOS.includes(n));
 }
 
 /** Equipos de SEGURIDAD: vienen del Inventario de Equipos (Codificacion +
