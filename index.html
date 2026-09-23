@@ -19396,6 +19396,36 @@ function _ieRenderTabla(filas) {
    que se cierra una orden — no hay que hacer nada aparte.
 ══════════════════════════════════════════════════════════════ */
 const HVD_EQUIPOS_COLS = ['Equipo','Descripcion','Marca','Modelo','Serie','Fabricante','Voltaje','Potencia','RPM','RangosTrabajo','FechaPuestaMarcha','DatosInteres','FotoDriveFileId'];
+
+// Campos de especificaciones de la Hoja de Vida (los que se muestran/guardan
+// además de la foto y el historial).
+const HVD_CAMPOS_SPECS = [
+  { id: 'hvd_descripcion', col: 'Descripcion',       label: 'Descripción' },
+  { id: 'hvd_marca',       col: 'Marca',             label: 'Marca' },
+  { id: 'hvd_modelo',      col: 'Modelo',            label: 'Modelo' },
+  { id: 'hvd_serie',       col: 'Serie',             label: 'Serie' },
+  { id: 'hvd_fabricante',  col: 'Fabricante',        label: 'Fabricante' },
+  { id: 'hvd_voltaje',     col: 'Voltaje',           label: 'Voltaje [V]' },
+  { id: 'hvd_potencia',    col: 'Potencia',          label: 'Potencia [HP]' },
+  { id: 'hvd_rpm',         col: 'RPM',               label: 'RPM' },
+  { id: 'hvd_rangos',      col: 'RangosTrabajo',     label: 'Rangos de trabajo' },
+  { id: 'hvd_fecha',       col: 'FechaPuestaMarcha', label: 'Fecha puesta en marcha', type: 'date' },
+  { id: 'hvd_datos',       col: 'DatosInteres',      label: 'Datos de interés', full: true },
+];
+
+// En las infraestructuras la hoja de vida solo tiene sentido con Descripción,
+// Modelo y Datos de interés (no tienen marca, serie, voltaje, RPM, etc.). Se
+// detectan por el nombre.
+function _esEquipoInfraestructura(nombre) {
+  return /INFRAESTRUCTURA/i.test(String(nombre || ''));
+}
+function _camposSpecsParaEquipo(nombre) {
+  if (_esEquipoInfraestructura(nombre)) {
+    return HVD_CAMPOS_SPECS.filter(c => ['Descripcion', 'Modelo', 'DatosInteres'].includes(c.col));
+  }
+  return HVD_CAMPOS_SPECS;
+}
+
 let hvdEquipoActual = null;
 // 'operacion' → lista de EQUIPOS_POR_SEDE, historial = órdenes cerradas (como
 // siempre). 'seguridad' → lista de Inventario de Equipos con Tipo=seguridad,
@@ -19512,17 +19542,7 @@ async function hvdSeleccionarEquipo(equipo) {
         <div id="hvdFotoMsg" style="font-size:12px;margin-top:4px"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        <div class="field"><label>Descripción</label><input id="hvd_descripcion" value="${esc(specs.Descripcion||'')}"></div>
-        <div class="field"><label>Marca</label><input id="hvd_marca" value="${esc(specs.Marca||'')}"></div>
-        <div class="field"><label>Modelo</label><input id="hvd_modelo" value="${esc(specs.Modelo||'')}"></div>
-        <div class="field"><label>Serie</label><input id="hvd_serie" value="${esc(specs.Serie||'')}"></div>
-        <div class="field"><label>Fabricante</label><input id="hvd_fabricante" value="${esc(specs.Fabricante||'')}"></div>
-        <div class="field"><label>Voltaje [V]</label><input id="hvd_voltaje" value="${esc(specs.Voltaje||'')}"></div>
-        <div class="field"><label>Potencia [HP]</label><input id="hvd_potencia" value="${esc(specs.Potencia||'')}"></div>
-        <div class="field"><label>RPM</label><input id="hvd_rpm" value="${esc(specs.RPM||'')}"></div>
-        <div class="field"><label>Rangos de trabajo</label><input id="hvd_rangos" value="${esc(specs.RangosTrabajo||'')}"></div>
-        <div class="field"><label>Fecha puesta en marcha</label><input id="hvd_fecha" type="date" value="${esc(specs.FechaPuestaMarcha||'')}"></div>
-        <div class="field" style="grid-column:1/-1"><label>Datos de interés</label><input id="hvd_datos" value="${esc(specs.DatosInteres||'')}"></div>
+        ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label>${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"></div>`).join('')}
       </div>
     </div>
     <button class="btn btn-primary" onclick="hvdGuardarSpecs()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar especificaciones</button>
@@ -19567,19 +19587,14 @@ async function hvdSubirFoto(input) {
 async function hvdGuardarSpecs() {
   const msg = document.getElementById('hvdSpecsMsg');
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
-  const datos = {
-    Descripcion: document.getElementById('hvd_descripcion').value.trim(),
-    Marca: document.getElementById('hvd_marca').value.trim(),
-    Modelo: document.getElementById('hvd_modelo').value.trim(),
-    Serie: document.getElementById('hvd_serie').value.trim(),
-    Fabricante: document.getElementById('hvd_fabricante').value.trim(),
-    Voltaje: document.getElementById('hvd_voltaje').value.trim(),
-    Potencia: document.getElementById('hvd_potencia').value.trim(),
-    RPM: document.getElementById('hvd_rpm').value.trim(),
-    RangosTrabajo: document.getElementById('hvd_rangos').value.trim(),
-    FechaPuestaMarcha: document.getElementById('hvd_fecha').value,
-    DatosInteres: document.getElementById('hvd_datos').value.trim(),
-  };
+  // Solo se guardan los campos que están en pantalla (las infraestructuras
+  // muestran menos). Los que no aparecen no se tocan en la hoja.
+  const datos = {};
+  HVD_CAMPOS_SPECS.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!el) return;
+    datos[c.col] = c.type === 'date' ? el.value : el.value.trim();
+  });
   try {
     await _actualizarFilaPorClave(SH.hvdEquipos, HVD_EQUIPOS_COLS, 'Equipo', hvdEquipoActual, datos);
     msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Especificaciones guardadas.';
