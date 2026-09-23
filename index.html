@@ -6945,10 +6945,15 @@ function exportarRealizadasCSV() {
 function _crearFilaObservacionFantasma(valor) {
   const tr = document.createElement('tr');
   tr.className = 'tr-tarea-obs';
+  // Campo del comentario interno de la tarea. Va bien visible y rotulado
+  // JUSTO debajo de su tarea, para que el comentario ("por qué no se
+  // ejecutó") se escriba aquí y no en la descripción — si se escribe en la
+  // descripción termina saliendo como texto de la foto.
   tr.innerHTML = `
-    <td colspan="6" style="padding:2px 8px 10px 8px;background:#fffbea">
-      <input type="text" class="input-obs-fantasma" placeholder="👻 Observación (solo interna — por qué no se ha ejecutado esta tarea, ej: repuesto no ha llegado)"
-        value="${esc(valor||'')}" style="width:100%;font-size:12px;font-style:italic;border:1px dashed #d4a72c;background:#fffbea">
+    <td colspan="6" style="padding:4px 8px 12px 8px;background:#fffbea;border-left:3px solid #d4a72c">
+      <div style="font-size:10.5px;font-weight:700;color:#8a6314;margin-bottom:3px">👻 Comentario interno de esta tarea (por qué no se ejecutó) — escríbelo aquí, no en la descripción</div>
+      <input type="text" class="input-obs-fantasma" placeholder="Ej: repuesto no ha llegado"
+        value="${esc(valor||'')}" style="width:100%;font-size:12px;border:1px solid #d4a72c;background:#fff">
     </td>`;
   return tr;
 }
