@@ -9622,7 +9622,11 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
         if (!putResp.ok) throw new Error('No se pudo guardar la fila de la orden ' + numeroOrden + ' (HTTP ' + putResp.status + ')');
         // Esta escritura no pasa por appendHoja ni por _actualizarFilaPorClave,
         // así que tiene que invalidar la caché por su cuenta.
-        _invalidarCacheHoja(sheetName);
+        // (Antes decía `sheetName`, variable inexistente en esta función: eso
+        // lanzaba un ReferenceError justo aquí y abortaba el guardado de las
+        // tareas/repuestos/insumos —incluida la observación interna—, que se
+        // perdía al recargar desde Sheets.)
+        _invalidarCacheHoja(SH.ordenes);
       }
     }
 
