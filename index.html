@@ -19419,11 +19419,23 @@ const HVD_CAMPOS_SPECS = [
 function _esEquipoInfraestructura(nombre) {
   return /INFRAESTRUCTURA/i.test(String(nombre || ''));
 }
+// Campos que NO aplican a ciertos equipos y se ocultan de su hoja de vida:
+//  • Drycoolers y SCPISTON: sin Potencia ni RPM.
+//  • Arrancadores y SCEMERGENCIA: sin RPM.
+function _colsOcultasHVD(nombre) {
+  const n = String(nombre || '').toUpperCase();
+  const ocultas = new Set();
+  if (/DRYCOOLER/.test(n) || n === 'SCPISTON') { ocultas.add('Potencia'); ocultas.add('RPM'); }
+  if (/^ARRANCADOR/.test(n) || n === 'SCEMERGENCIA') { ocultas.add('RPM'); }
+  return ocultas;
+}
+
 function _camposSpecsParaEquipo(nombre) {
   if (_esEquipoInfraestructura(nombre)) {
     return HVD_CAMPOS_SPECS.filter(c => ['Descripcion', 'Modelo', 'DatosInteres'].includes(c.col));
   }
-  return HVD_CAMPOS_SPECS;
+  const ocultas = _colsOcultasHVD(nombre);
+  return HVD_CAMPOS_SPECS.filter(c => !ocultas.has(c.col));
 }
 
 let hvdEquipoActual = null;
