@@ -19423,8 +19423,10 @@ function _esEquipoInfraestructura(nombre) {
 function _colsOcultasHVD(nombre) {
   const n = String(nombre || '').toUpperCase();
   const ocultas = new Set();
+  // Todos los SC (secadores) y los arrancadores no llevan RPM.
+  if (/^SC/.test(n) || /^ARRANCADOR/.test(n)) ocultas.add('RPM');
+  // Drycoolers y SCPISTON tampoco llevan Potencia.
   if (/DRYCOOLER/.test(n) || n === 'SCPISTON') { ocultas.add('Potencia'); ocultas.add('RPM'); }
-  if (/^ARRANCADOR/.test(n) || n === 'SCEMERGENCIA') { ocultas.add('RPM'); }
   return ocultas;
 }
 
