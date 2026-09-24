@@ -15630,9 +15630,9 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
         ${conOperarios ? `
         <div class="field" style="margin-bottom:12px">
           <label style="margin-bottom:4px;display:block">¿Quién la realizó? <span style="color:var(--text3);font-weight:400">(máximo 3)</span></label>
-          <select id="cronModalOperarios" multiple size="5" style="width:100%" onchange="_limitarSeleccionOperariosCronModal()">
-            ${OPERARIOS_ZIPAQUIRA.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
-          </select>
+          <div style="border:1px solid var(--border);border-radius:8px;max-height:170px;overflow:auto;padding:2px">
+            ${OPERARIOS_ZIPAQUIRA.map(o => `<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-radius:6px;font-size:13px"><input type="checkbox" class="cronOpChk" value="${esc(o)}" onchange="_limitarOperariosCronCheck()" style="width:18px;height:18px;flex:none;cursor:pointer">${esc(o)}</label>`).join('')}
+          </div>
           <div id="cronModalOperariosMsg" style="color:var(--danger);font-size:11px;margin-top:3px"></div>
         </div>` : ''}
         <div class="field" style="margin-bottom:14px">
@@ -15688,8 +15688,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     const observacion = condTxt
       ? ('⚠️ CONDICIÓN INSEGURA: ' + condTxt + (obsTxt ? ' — ' + obsTxt : ''))
       : obsTxt;
-    const selOperarios = $('cronModalOperarios');
-    const operariosRealizaron = selOperarios ? Array.from(selOperarios.selectedOptions).map(o => o.value).join(', ') : '';
+    const operariosRealizaron = Array.from(overlay.querySelectorAll('.cronOpChk:checked')).map(c => c.value).join(', ');
     cerrar(true);
     marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, observacion, operariosRealizaron);
   };
@@ -15697,22 +15696,15 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   mostrarPaso(1);
 }
 
-/** El <select multiple> de operarios no tiene límite nativo de opciones
- *  seleccionadas — si el usuario supera 3, se revierte a la última
- *  selección válida en vez de dejar guardar una lista más larga. */
-let _cronModalOperariosPrevios = [];
-function _limitarSeleccionOperariosCronModal() {
-  const sel = document.getElementById('cronModalOperarios');
+/** Los operarios se eligen con casillas (checkboxes). Máximo 3: al llegar a
+ *  3 marcadas se deshabilitan las demás; al desmarcar alguna se vuelven a
+ *  habilitar. */
+function _limitarOperariosCronCheck() {
+  const chks = Array.from(document.querySelectorAll('.cronOpChk'));
   const msg = document.getElementById('cronModalOperariosMsg');
-  if (!sel) return;
-  const actuales = Array.from(sel.selectedOptions).map(o => o.value);
-  if (actuales.length > 3) {
-    Array.from(sel.options).forEach(o => { o.selected = _cronModalOperariosPrevios.includes(o.value); });
-    if (msg) msg.textContent = 'Máximo 3 operarios.';
-    return;
-  }
-  _cronModalOperariosPrevios = actuales;
-  if (msg) msg.textContent = '';
+  const marcados = chks.filter(c => c.checked).length;
+  chks.forEach(c => { if (!c.checked) c.disabled = marcados >= 3; });
+  if (msg) msg.textContent = marcados >= 3 ? 'Máximo 3 operarios.' : '';
 }
 
 /** Guarda el estado (realizado / no realizado) de una actividad o de un
