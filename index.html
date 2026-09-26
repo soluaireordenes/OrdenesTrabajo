@@ -319,6 +319,27 @@ body.inv-activo .container { max-width: 1800px; }
   .panel.active { animation: none; }
 }
 
+/* ── Skeletons (placeholders de carga con brillo) ── */
+.skel { position: relative; overflow: hidden; background: var(--surface2, #eef1f5); border-radius: 6px; }
+.skel::after {
+  content: ""; position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  animation: skelBrillo 1.15s ease-in-out infinite;
+}
+@keyframes skelBrillo { 100% { transform: translateX(100%); } }
+.skel-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+.skel-linea { height: 12px; margin: 7px 0; }
+@media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
+
+/* ── Deslizar para actualizar (móvil) ── */
+#ptrIndicador {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 4000;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 0; overflow: hidden; color: var(--brand); font-size: 13px; font-weight: 700;
+  background: var(--brand-light, #eef3f9); transition: height .12s ease;
+}
+
 /* ── Card ── */
 .card {
   background: var(--surface);
@@ -5914,6 +5935,8 @@ window.addEventListener('load', async () => {
   if (operacionAutenticada) {
     cargarOrdenes().then(() => {
       renderPendientes();
+      // Recordar la última pestaña: al abrir la app, volver a donde estaba.
+      _irAPanelInicialRecordado();
       // Si quedaron órdenes sin subir de una sesión anterior sin internet, reintenta ahora.
       intentarSincronizarPendientes();
       // Revisa los planes de mantenimiento de esta sede y genera las
@@ -6034,6 +6057,12 @@ async function showPanel(name) {
   if (t) t.classList.add('active');
   actualizarIndicadorNavTab();
 
+  // Recordar la última pestaña abierta (de la barra superior) para volver a
+  // ella la próxima vez que se entre a la app. No se guarda "inicio".
+  if (name !== 'inicio' && (name in tabs)) {
+    try { localStorage.setItem('ultimoPanel', name); } catch (_) {}
+  }
+
   if (name === 'pendientes')   { cargarOrdenes().then(renderPendientes); }
   if (name === 'realizadas')   { cargarOrdenes().then(renderRealizadas); }
   if (name === 'lista')        cargarOrdenes();
@@ -6043,6 +6072,104 @@ async function showPanel(name) {
   if (name === 'cronograma')   inicializarPanelCronograma();
   if (typeof renderSidebarOperaciones === 'function') renderSidebarOperaciones();
 }
+
+/** Al abrir la app (ya autenticado), lleva a la última pestaña que se estaba
+ *  usando. Pendientes es caso especial: ya se cargó y renderizó en el
+ *  arranque, así que solo se hace visible sin volver a leer Sheets. Para las
+ *  demás se usa showPanel, que las carga/inicializa. Si no hay una guardada
+ *  (o es inválida), se queda en "inicio" como siempre. */
+function _irAPanelInicialRecordado() {
+  let ultimo = null;
+  try { ultimo = localStorage.getItem('ultimoPanel'); } catch (_) {}
+  if (!ultimo || ultimo === 'inicio' || !document.getElementById('panel-' + ultimo)) return;
+  if (ultimo === 'pendientes') {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-pendientes').classList.add('active');
+    const t = document.querySelectorAll('.nav-tab')[1];
+    if (t) t.classList.add('active');
+    actualizarIndicadorNavTab();
+    return;
+  }
+  showPanel(ultimo);
+}
+
+/** Placeholders de carga (skeletons) — dan sensación de rapidez mientras
+ *  llegan los datos, en vez de una pantalla en blanco o un "Cargando…". */
+function _htmlSkeletonOrdenes(n) {
+  let h = '<div style="padding:12px 0" aria-hidden="true">';
+  for (let i = 0; i < (n || 4); i++) {
+    h += `<div class="skel-card">
+      <div class="skel skel-linea" style="width:42%;height:15px"></div>
+      <div class="skel skel-linea" style="width:78%"></div>
+      <div class="skel skel-linea" style="width:60%"></div>
+    </div>`;
+  }
+  return h + '</div>';
+}
+function _htmlSkeletonTabla(filas, cols) {
+  let h = '<div style="padding:12px 14px" aria-hidden="true">';
+  for (let i = 0; i < (filas || 6); i++) {
+    h += '<div style="display:flex;gap:10px;margin-bottom:10px">';
+    for (let j = 0; j < (cols || 4); j++) h += `<div class="skel skel-linea" style="flex:1;height:14px"></div>`;
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+/** Vuelve a cargar el panel que está activo (lo usa el "deslizar para
+ *  actualizar"). Reutiliza showPanel, que ya recarga cada sección. */
+function refrescarPanelActual() {
+  const activo = document.querySelector('.panel.active');
+  if (!activo) return;
+  const name = activo.id.replace('panel-', '');
+  if (name === 'inicio') { if (operacionAutenticada) cargarOrdenes().then(renderPendientes); return; }
+  showPanel(name);
+}
+
+/** Deslizar hacia abajo desde el tope para actualizar (solo táctil/móvil).
+ *  Solo se activa cuando la página está en el tope y se arrastra hacia abajo,
+ *  para no interferir con el desplazamiento normal. */
+(function initPullToRefresh() {
+  if (!('ontouchstart' in window)) return;
+  const UMBRAL = 70, MAX = 90;
+  let startY = 0, pulling = false, dist = 0, ind = null;
+  const scroller = () => document.scrollingElement || document.documentElement;
+  function getInd() {
+    if (!ind) {
+      ind = document.createElement('div');
+      ind.id = 'ptrIndicador';
+      ind.innerHTML = '<span id="ptrTxt">↓ Desliza para actualizar</span>';
+      document.body.appendChild(ind);
+    }
+    return ind;
+  }
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length === 1 && scroller().scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; dist = 0; }
+    else pulling = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    dist = e.touches[0].clientY - startY;
+    if (dist <= 0 || scroller().scrollTop > 0) { pulling = false; getInd().style.height = '0'; return; }
+    e.preventDefault();
+    getInd().style.height = Math.min(MAX, dist * 0.5) + 'px';
+    document.getElementById('ptrTxt').textContent = dist >= UMBRAL ? '↑ Suelta para actualizar' : '↓ Desliza para actualizar';
+  }, { passive: false });
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    const activar = dist >= UMBRAL;
+    if (activar) {
+      getInd().style.height = '38px';
+      document.getElementById('ptrTxt').textContent = '⏳ Actualizando…';
+      try { refrescarPanelActual(); } catch (_) {}
+      setTimeout(() => { getInd().style.height = '0'; }, 800);
+    } else {
+      getInd().style.height = '0';
+    }
+    pulling = false; dist = 0;
+  }, { passive: true });
+})();
 
 /* ══════════════════════════════════════════════
    PANEL PENDIENTES
@@ -10287,7 +10414,14 @@ async function guardarOrden() {
 ══════════════════════════════════════════════ */
 async function cargarOrdenes() {
   document.getElementById('spinnerLista')?.classList.add('show');
-  document.getElementById('listaContainer') && (document.getElementById('listaContainer').innerHTML = '');
+  // Mientras llegan los datos, mostrar skeletons en los contenedores de lista
+  // (se reemplazan al terminar por el render real). Da sensación de rapidez.
+  // Solo en la primera carga (contenedor vacío) — en refrescos posteriores ya
+  // hay contenido y no se pone skeleton, para no parpadear.
+  ['pendientesContainer', 'realizadasContainer', 'listaContainer'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c && c.children.length === 0) c.innerHTML = _htmlSkeletonOrdenes(4);
+  });
   try {
     await detectarNombreHoja(); // ← detectar nombre real de hoja primero
     const sheetsOrdenes = await cargarOrdenesDeSheets();
@@ -14433,7 +14567,7 @@ function _siguienteCodigo(prefijo) {
 async function inicializarPanelNovedades() {
   renderDiasSinNovedades().catch(() => {});
   const wrap = document.getElementById('novTablaWrap');
-  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando informes...</div>';
+  wrap.innerHTML = _htmlSkeletonTabla(6, 5);
   try {
     await cargarNovedadesDeSheets();
     // Las gráficas (sierra de días, novedades por mes, tipos, tiempos) las
