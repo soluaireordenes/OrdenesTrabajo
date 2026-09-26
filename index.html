@@ -5749,6 +5749,10 @@ function cambiarOperacion(key) {
 let currentUser = { name: 'Cargando...', email: '', initials: '...' };
 let currentOrderId = null;
 let allOrdenes = [];
+// Caché-primero: cuándo se refrescó por última vez de Sheets y por cuánto
+// tiempo se considera "fresco" (no se vuelve a leer al cambiar de pestaña).
+let _ultimaCargaOrdenesMs = 0;
+const FRESCURA_ORDENES_MS = 25000; // 25 s
 let ordenDetalleId = null;   // orden abierta en el panel de detalle
 let isTeams = false;
 let sigPad = null;
@@ -6063,14 +6067,27 @@ async function showPanel(name) {
     try { localStorage.setItem('ultimoPanel', name); } catch (_) {}
   }
 
-  if (name === 'pendientes')   { cargarOrdenes().then(renderPendientes); }
-  if (name === 'realizadas')   { cargarOrdenes().then(renderRealizadas); }
-  if (name === 'lista')        cargarOrdenes();
+  if (name === 'pendientes')   _mostrarOrdenesCacheFirst(renderPendientes);
+  if (name === 'realizadas')   _mostrarOrdenesCacheFirst(renderRealizadas);
+  if (name === 'lista')        _mostrarOrdenesCacheFirst(filtrarOrdenes);
   if (name === 'dashboard')    cargarDashboard();
   if (name === 'novedades')    inicializarPanelNovedades();
   if (name === 'historico')    inicializarPanelHistorico();
   if (name === 'cronograma')   inicializarPanelCronograma();
   if (typeof renderSidebarOperaciones === 'function') renderSidebarOperaciones();
+}
+
+/** Caché-primero para las pestañas de órdenes: pinta al instante lo que ya
+ *  está en memoria (allOrdenes viene de localStorage/última carga) y solo
+ *  vuelve a leer Sheets si los datos no están frescos (> FRESCURA_ORDENES_MS)
+ *  o si aún no hay nada. El refresco ocurre por detrás y re-pinta al terminar,
+ *  sin bloquear el cambio de pestaña. */
+function _mostrarOrdenesCacheFirst(render) {
+  const hayDatos = allOrdenes.length > 0;
+  if (hayDatos) render(); // instantáneo desde memoria
+  const fresco = hayDatos && (Date.now() - _ultimaCargaOrdenesMs) < FRESCURA_ORDENES_MS;
+  if (fresco) return; // no releer: los datos están recientes
+  cargarOrdenes().then(render); // refresco en segundo plano
 }
 
 /** Al abrir la app (ya autenticado), lleva a la última pestaña que se estaba
@@ -6123,6 +6140,7 @@ function refrescarPanelActual() {
   const activo = document.querySelector('.panel.active');
   if (!activo) return;
   const name = activo.id.replace('panel-', '');
+  _ultimaCargaOrdenesMs = 0; // forzar relectura de Sheets aunque esté "fresco"
   if (name === 'inicio') { if (operacionAutenticada) cargarOrdenes().then(renderPendientes); return; }
   showPanel(name);
 }
@@ -10472,6 +10490,7 @@ async function cargarOrdenes() {
     filtrarOrdenes();
     actualizarContadorTab && actualizarContadorTab();
     mostrarIndicadorStorage(true);
+    _ultimaCargaOrdenesMs = Date.now(); // marca de frescura: lectura de Sheets exitosa
   } catch(e) {
     console.warn('Google Sheets no disponible, cargando desde localStorage:', e.message);
     allOrdenes = cargarLocal();
