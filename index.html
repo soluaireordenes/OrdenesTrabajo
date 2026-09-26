@@ -340,6 +340,42 @@ body.inv-activo .container { max-width: 1800px; }
   background: var(--brand-light, #eef3f9); transition: height .12s ease;
 }
 
+/* ── Barra de navegación inferior (solo móvil, ya autenticado) ── */
+#bottomNav { display: none; }
+#bottomNav button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; cursor: pointer; padding: 6px 2px;
+  color: var(--text3); font-size: 10.5px; font-weight: 600; line-height: 1;
+}
+#bottomNav button.activo { color: var(--brand); }
+#bottomNav button svg { width: 22px; height: 22px; }
+@media (max-width: 820px) {
+  body.autenticado #bottomNav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    background: var(--surface); border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(0,0,0,.07);
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  body.autenticado { padding-bottom: 64px; }
+}
+
+/* ── Buscador global ── */
+#btnBuscarGlobal { display: none; }
+body.autenticado #btnBuscarGlobal {
+  display: flex; position: fixed; right: 16px; bottom: 24px; z-index: 290;
+  width: 52px; height: 52px; border-radius: 50%; align-items: center; justify-content: center;
+  background: var(--brand); color: #fff; border: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer;
+}
+#btnBuscarGlobal svg { width: 24px; height: 24px; }
+@media (max-width: 820px) { body.autenticado #btnBuscarGlobal { bottom: 78px; } }
+#overlayBuscar { position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,.5); display: none; padding: 16px; }
+#overlayBuscar.abierto { display: block; }
+#overlayBuscar .buscar-caja { background: var(--surface); max-width: 640px; margin: 24px auto 0; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 48px rgba(0,0,0,.3); }
+#buscarResultados { max-height: 62vh; overflow: auto; }
+.buscar-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 14px; background: none; border: none; border-top: 1px solid var(--border); cursor: pointer; font-size: 13px; }
+.buscar-item:hover { background: var(--surface2); }
+.buscar-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+
 /* ── Card ── */
 .card {
   background: var(--surface);
@@ -5937,6 +5973,7 @@ window.addEventListener('load', async () => {
   // Solo precarga datos de Sheets si ya estás autenticado en una sede esta sesión
   // (evita traer datos de la operación sin haber puesto la contraseña primero).
   if (operacionAutenticada) {
+    document.body.classList.add('autenticado'); // habilita la barra inferior móvil
     cargarOrdenes().then(() => {
       renderPendientes();
       // Recordar la última pestaña: al abrir la app, volver a donde estaba.
@@ -6066,6 +6103,7 @@ async function showPanel(name) {
   if (name !== 'inicio' && (name in tabs)) {
     try { localStorage.setItem('ultimoPanel', name); } catch (_) {}
   }
+  _actualizarBottomNav(name);
 
   if (name === 'pendientes')   _mostrarOrdenesCacheFirst(renderPendientes);
   if (name === 'realizadas')   _mostrarOrdenesCacheFirst(renderRealizadas);
@@ -6109,6 +6147,85 @@ function _irAPanelInicialRecordado() {
     return;
   }
   showPanel(ultimo);
+}
+
+/** Resalta el botón de la barra inferior (móvil) según el panel activo. Sus
+ *  botones apuntan a paneles principales; cronograma también resalta cuando
+ *  se está en cualquiera de sus sub-secciones (reportes). */
+function _actualizarBottomNav(name) {
+  const nav = document.getElementById('bottomNav');
+  if (!nav) return;
+  nav.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('activo', b.getAttribute('data-panel') === name);
+  });
+}
+
+/* ── Buscador global: órdenes, equipos y novedades desde un solo campo ── */
+function abrirBuscadorGlobal() {
+  const ov = document.getElementById('overlayBuscar');
+  if (!ov) return;
+  ov.classList.add('abierto');
+  const inp = document.getElementById('buscarInput');
+  if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 30); }
+  document.getElementById('buscarResultados').innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div>';
+}
+function cerrarBuscadorGlobal() {
+  document.getElementById('overlayBuscar')?.classList.remove('abierto');
+}
+
+/** Normaliza para buscar sin importar mayúsculas ni tildes ("presion"
+ *  encuentra "presión"). */
+function _normBuscar(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function _ejecutarBusquedaGlobal(qRaw) {
+  const q = _normBuscar(qRaw).trim();
+  const cont = document.getElementById('buscarResultados');
+  if (!cont) return;
+  if (q.length < 2) { cont.innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div>'; return; }
+
+  const res = [];
+  const listaOrdenes = (typeof allOrdenes !== 'undefined' && Array.isArray(allOrdenes)) ? allOrdenes : [];
+  const listaNovedades = (typeof allNovedades !== 'undefined' && Array.isArray(allNovedades)) ? allNovedades : [];
+  listaOrdenes.forEach(o => {
+    const hay = _normBuscar([o.NumeroOrden, o.Title, o.Equipo].filter(Boolean).join(' '));
+    if (hay.includes(q)) res.push({ tipo: 'orden', chip: 'Orden', color: '#2563eb', valor: o.NumeroOrden || o.id, titulo: (o.NumeroOrden || '') + ' · ' + (o.Title || ''), sub: (o.Equipo || '') + (o.Estado ? ' — ' + o.Estado : '') });
+  });
+  listaNovedades.forEach(n => {
+    const hay = _normBuscar([n.Codigo, n.Titulo].filter(Boolean).join(' '));
+    if (hay.includes(q)) res.push({ tipo: 'novedad', chip: 'Novedad', color: '#b45309', valor: n.Codigo || '', titulo: (n.Codigo || '') + (n.Titulo ? ' · ' + n.Titulo : ''), sub: n.FechaEvento || '' });
+  });
+  (typeof _listaEquiposPlanaSede === 'function' ? _listaEquiposPlanaSede() : []).forEach(e => {
+    if (_normBuscar(e).includes(q)) res.push({ tipo: 'equipo', chip: 'Equipo', color: '#15803d', valor: e, titulo: e, sub: 'Hoja de vida' });
+  });
+
+  if (!res.length) { cont.innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Sin resultados para "' + esc(qRaw) + '".</div>'; return; }
+  const top = res.slice(0, 40);
+  cont.innerHTML = top.map(r => `
+    <button class="buscar-item" data-tipo="${r.tipo}" data-valor="${esc(String(r.valor))}" onclick="_clicResultadoBusqueda(this.dataset.tipo, this.dataset.valor)">
+      <span class="buscar-chip" style="background:${r.color}1a;color:${r.color}">${r.chip}</span>
+      <span style="min-width:0"><span style="font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.titulo)}</span>${r.sub ? `<span style="color:var(--text3);font-size:11.5px">${esc(r.sub)}</span>` : ''}</span>
+    </button>`).join('') + (res.length > top.length ? `<div style="padding:10px 14px;color:var(--text3);font-size:11.5px">Mostrando ${top.length} de ${res.length}. Escribe más para afinar.</div>` : '');
+}
+
+function _clicResultadoBusqueda(tipo, valor) {
+  cerrarBuscadorGlobal();
+  if (tipo === 'orden') { verDetalle(valor); return; }
+  if (tipo === 'novedad') {
+    showPanel('novedades');
+    setTimeout(() => { const el = document.getElementById('novBuscar'); if (el) { el.value = valor; filtrarNovedadesUI(); } }, 120);
+    return;
+  }
+  if (tipo === 'equipo') {
+    showPanel('historico');
+    setTimeout(() => {
+      const s = document.getElementById('histSelectorVista');
+      if (s) { s.value = 'hvd'; histCambiarVista(); }
+      if (typeof hvdSeleccionarEquipo === 'function') hvdSeleccionarEquipo(valor);
+    }, 150);
+    return;
+  }
 }
 
 /** Placeholders de carga (skeletons) — dan sensación de rapidez mientras
@@ -22472,5 +22589,40 @@ function proyBorrarAvance(row) {
 }
 
 </script>
+
+<!-- ════════════ BARRA DE NAVEGACIÓN INFERIOR (solo móvil) ════════════ -->
+<nav id="bottomNav" aria-label="Navegación rápida">
+  <button data-panel="inicio" onclick="showPanel('inicio')" title="Inicio">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    <span>Inicio</span>
+  </button>
+  <button data-panel="pendientes" onclick="showPanel('pendientes')" title="Órdenes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    <span>Órdenes</span>
+  </button>
+  <button data-panel="cronograma" onclick="showPanel('cronograma')" title="Reportes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>
+    <span>Reportes</span>
+  </button>
+  <button data-panel="novedades" onclick="showPanel('novedades')" title="Novedades">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>
+    <span>Novedades</span>
+  </button>
+</nav>
+
+<!-- ════════════ BUSCADOR GLOBAL ════════════ -->
+<button id="btnBuscarGlobal" onclick="abrirBuscadorGlobal()" title="Buscar (órdenes, equipos, novedades)" aria-label="Buscar">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+</button>
+<div id="overlayBuscar" onclick="if(event.target===this)cerrarBuscadorGlobal()">
+  <div class="buscar-caja">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="buscarInput" type="search" placeholder="Buscar órdenes, equipos o novedades…" oninput="_ejecutarBusquedaGlobal(this.value)" style="flex:1;border:none;outline:none;font-size:15px;background:none;color:var(--text)">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarBuscadorGlobal()">✕</button>
+    </div>
+    <div id="buscarResultados"><div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div></div>
+  </div>
+</div>
 </body>
 </html>
