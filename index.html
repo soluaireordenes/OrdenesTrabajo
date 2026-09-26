@@ -6251,6 +6251,100 @@ function _htmlSkeletonTabla(filas, cols) {
   return h + '</div>';
 }
 
+/* ══════════════════════════════════════════════
+   RENDERIZADO INCREMENTAL (rendimiento en listas largas)
+   En vez de pintar de golpe cientos de tarjetas/filas —lo que traba el
+   celular—, se pintan por lotes: un primer bloque de inmediato y el resto
+   a medida que el operario se acerca al final con el scroll. Así la lista
+   aparece al instante aunque tenga años de historia. Cada contenedor
+   recuerda su "observador" para cancelarlo al re-renderizar.
+══════════════════════════════════════════════ */
+const _INCR_LOTE = 30;
+const _incrObservers = new WeakMap();
+
+/**
+ * @param {HTMLElement} contenedor  Elemento donde van los items (div o <tbody>).
+ * @param {Array} items             Datos ya filtrados/ordenados.
+ * @param {(item, i:number)=>string} htmlDeItem  Devuelve el HTML de un item.
+ * @param {{lote?:number, tag?:string, cols?:number}} opts
+ *        tag: 'div' (por defecto) o 'tr' cuando el contenedor es un <tbody>.
+ *        cols: nº de columnas (colspan) para el botón "mostrar más" en tablas.
+ */
+function _montarListaIncremental(contenedor, items, htmlDeItem, opts) {
+  opts = opts || {};
+  const lote = opts.lote || _INCR_LOTE;
+  const tag  = opts.tag || 'div';
+  const cols = opts.cols || 1;
+
+  // Cancela cualquier observador de un render anterior en este contenedor.
+  const prev = _incrObservers.get(contenedor);
+  if (prev && prev.io) { try { prev.io.disconnect(); } catch (_) {} }
+  _incrObservers.delete(contenedor);
+
+  contenedor.innerHTML = '';
+  let idx = 0;
+
+  // Botón/fila "mostrar más": sirve de disparador de scroll y de respaldo
+  // manual si el observador no está disponible.
+  const btn = document.createElement(tag);
+  btn.className = 'incr-mas';
+  function textoBtn() {
+    const restan = items.length - idx;
+    const n = Math.min(lote, restan);
+    const etiqueta = '▾ Mostrar ' + n + ' más (' + restan + ' restantes)';
+    if (tag === 'tr') {
+      btn.innerHTML = '<td colspan="' + cols + '" style="text-align:center;padding:14px;cursor:pointer;color:var(--brand);font-weight:600">' + etiqueta + '</td>';
+    } else {
+      btn.style.cssText = 'text-align:center;padding:12px;margin:8px 0;cursor:pointer;color:var(--brand);font-weight:600;border:1px dashed var(--border);border-radius:10px';
+      btn.textContent = etiqueta;
+    }
+  }
+
+  function pintarLote() {
+    if (idx >= items.length) return;
+    const fin = Math.min(idx + lote, items.length);
+    let buf = '';
+    for (let k = idx; k < fin; k++) buf += htmlDeItem(items[k], k);
+    btn.insertAdjacentHTML('beforebegin', buf);
+    idx = fin;
+    if (idx >= items.length) {
+      if (io) { try { io.disconnect(); } catch (_) {} }
+      _incrObservers.delete(contenedor);
+      btn.remove();
+    } else {
+      textoBtn();
+    }
+  }
+
+  // Sigue pintando lotes mientras el botón siga cerca de la ventana visible
+  // (p. ej. en pantallas grandes que muestran varios lotes de una vez).
+  function rellenarSiVisible() {
+    if (idx >= items.length) return;
+    const r = btn.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (r.top < vh + 400) {
+      pintarLote();
+      if (idx < items.length) requestAnimationFrame(rellenarSiVisible);
+    }
+  }
+
+  contenedor.appendChild(btn);
+  textoBtn();
+  btn.addEventListener('click', () => { pintarLote(); rellenarSiVisible(); });
+
+  let io = null;
+  if ('IntersectionObserver' in window) {
+    io = new IntersectionObserver((entradas) => {
+      if (entradas.some(e => e.isIntersecting)) rellenarSiVisible();
+    }, { rootMargin: '400px 0px' });
+    io.observe(btn);
+  }
+  _incrObservers.set(contenedor, { io, btn });
+
+  pintarLote();        // primer lote inmediato
+  rellenarSiVisible(); // completa si caben más en pantalla
+}
+
 /** Vuelve a cargar el panel que está activo (lo usa el "deslizar para
  *  actualizar"). Reutiliza showPanel, que ya recarga cada sección. */
 function refrescarPanelActual() {
@@ -6337,7 +6431,7 @@ function renderPendientes() {
     return;
   }
 
-  div.innerHTML = items.map(o => {
+  _montarListaIncremental(div, items, o => {
     const isAprobada = o.Estado === 'Aprobada' || o.Estado === 'En ejecución';
     return `
     <div class="pend-item ${isAprobada ? 'aprobada' : ''}" id="pend-${esc(o.id||o.NumeroOrden)}">
@@ -6361,7 +6455,7 @@ function renderPendientes() {
         <button class="btn btn-primary btn-sm" onclick="showPanel('pendientes');abrirModalCompletar('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Completar</button>
       </div>
     </div>`;
-  }).join('');
+  });
 }
 
 /* ══════════════════════════════════════════════
@@ -6394,7 +6488,7 @@ function renderRealizadas() {
     return;
   }
 
-  div.innerHTML = items.map(o => `
+  _montarListaIncremental(div, items, o => `
     <div class="done-item">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap">
@@ -6416,7 +6510,7 @@ function renderRealizadas() {
         <button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
         <button class="btn btn-primary btn-sm" onclick="descargarOrdenPDF('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
       </div>
-    </div>`).join('');
+    </div>`);
 }
 
 function actualizarContadorTab() {
@@ -14753,14 +14847,13 @@ function filtrarNovedadesUI() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Registrado por</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)" title="PDF adjunto">PDF</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
-    </tr></thead><tbody>`;
+    </tr></thead><tbody id="novTbody"></tbody></table>`;
 
   const iconoEditar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>';
   const iconoExportar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
 
-  lista.forEach(n => {
-    html += `<tr style="border-bottom:1px solid var(--border)">
+  const filaNovedad = n => `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(n.Codigo)}</td>
       <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(n.Titulo)}">${esc(n.Titulo)}</td>
       <td style="padding:7px 10px">${esc(n.FechaEvento)}</td>
@@ -14773,10 +14866,9 @@ function filtrarNovedadesUI() {
         <button class="btn btn-ghost btn-sm" onclick="eliminarNovedad('${esc(n.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
-  });
 
-  html += '</tbody></table>';
   wrap.innerHTML = html;
+  _montarListaIncremental(document.getElementById('novTbody'), lista, filaNovedad, { tag: 'tr', cols: 7 });
   renderGraficasNovedades();
 }
 
