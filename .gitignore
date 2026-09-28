@@ -1,0 +1,4 @@
+# Documento interno de seguridad: describe las vulnerabilidades del sistema.
+# NO debe publicarse en este repositorio (es público / GitHub Pages), porque
+# sería un mapa para un atacante. Se mantiene solo como archivo local.
+PLAN_SEGURIDAD.md
