@@ -8682,7 +8682,7 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
    de baja. Publicándolo, la definición sigue viviendo en un solo lugar. */
 const CAMPOS_REPORTES_COLS = ['Hoja', 'ColumnaEquipo', 'Equipo', 'CodigoCorto', 'Orden', 'Grupo', 'Columna', 'Etiqueta', 'RangoNormal', 'Huella'];
 
-const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto'];
+const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto', 'CondicionInsegura'];
 // Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
@@ -16044,7 +16044,7 @@ async function _leerTodosRegistrosCronogramaAgrupados() {
   filas.forEach(f => {
     if (!f.Fecha || !f.ActividadId) return;
     if (!porFecha[f.Fecha]) porFecha[f.Fecha] = {};
-    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '', horaRealizada: f.HoraRealizada || '', observacion: f.Observacion || '', operariosRealizaron: f.OperariosRealizaron || '' };
+    porFecha[f.Fecha][f.ActividadId] = { realizado: f.Realizado === 'SI', realizadoPor: f.RealizadoPor || '', fechaHora: f.FechaHora || '', horaRealizada: f.HoraRealizada || '', observacion: f.Observacion || '', operariosRealizaron: f.OperariosRealizaron || '', condicionInsegura: f.CondicionInsegura || '' };
   });
   return porFecha;
 }
@@ -16245,14 +16245,12 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
     const hora = $('cronModalHora').value || horaDefault;
     const obsTxt = $('cronModalObservacion').value.trim();
     const opt = overlay.querySelector('input[name="cronCondInsegura"]:checked');
+    // La condición insegura ahora se guarda en su PROPIA columna
+    // (CondicionInsegura), separada de la observación general.
     const condTxt = (opt && opt.value === 'si') ? $('cronCondCual').value.trim() : '';
-    // La condición insegura se antepone a la observación, con prefijo claro.
-    const observacion = condTxt
-      ? ('⚠️ CONDICIÓN INSEGURA: ' + condTxt + (obsTxt ? ' — ' + obsTxt : ''))
-      : obsTxt;
     const operariosRealizaron = Array.from(overlay.querySelectorAll('.cronOpChk:checked')).map(c => c.value).join(', ');
     cerrar(true);
-    marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, observacion, operariosRealizaron);
+    marcarActividadCronograma(actividadId, turnoId, fecha, true, hora, obsTxt, operariosRealizaron, condTxt);
   };
 
   mostrarPaso(1);
@@ -16276,7 +16274,7 @@ function _limitarOperariosCronCheck() {
  *  se rechaza igual. Una vez guardado, el checkbox y los botones
  *  "Realizado"/"No realizado" de ese id quedan deshabilitados de forma
  *  PERMANENTE (no hay opción de desmarcar ni de cambiar la decisión). */
-async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado, horaRealizada, observacion, operariosRealizaron) {
+async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado, horaRealizada, observacion, operariosRealizaron, condicionInsegura) {
   const ctx = _contextoCronogramaAhora(operacionActual);
   if (!ctx || ctx.turno.id !== turnoId || ctx.fecha !== fecha) {
     alert('Ese turno ya no está activo — no se puede modificar. Actualiza la página para ver el turno actual.');
@@ -16295,13 +16293,15 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
       observacion || '',
       realizado ? (operariosRealizaron || '') : '',
       _textoDeActividadCronograma(actividadId, fecha),
+      condicionInsegura || '',
     ]]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
     if (marcaEl) {
       const quien = currentUser?.name || currentUser?.email || '';
+      const htmlCondInsegura = condicionInsegura ? `<div style="font-weight:600;color:#b45309;margin-top:2px">⚠️ Condición insegura: ${esc(condicionInsegura)}</div>` : '';
       marcaEl.innerHTML = realizado
-        ? `<span style="color:#15803d">✓ ${esc(quien)} · ${esc(horaRealizada || '')}</span>${operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(operariosRealizaron)}</div>` : ''}${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
+        ? `<span style="color:#15803d">✓ ${esc(quien)} · ${esc(horaRealizada || '')}</span>${operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(operariosRealizaron)}</div>` : ''}${htmlCondInsegura}${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(observacion)}</div>` : ''}`
         : `<span style="color:var(--danger)">✗ No realizada — ${esc(quien)}</span>${observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 Motivo: ${esc(observacion)}</div>` : ''}`;
     }
     // El botón "No realizado" ya no aplica una vez que quedó una decisión
@@ -16583,7 +16583,7 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   const hora = reg?.horaRealizada || (reg?.fechaHora ? new Date(reg.fechaHora).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}) : '');
   let marcaTxt = '';
   if (reg?.realizado) {
-    marcaTxt = `<span style="color:#15803d">✓ ${quien} · ${esc(hora)}</span>${reg.operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(reg.operariosRealizaron)}</div>` : ''}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`;
+    marcaTxt = `<span style="color:#15803d">✓ ${quien} · ${esc(hora)}</span>${reg.operariosRealizaron ? `<div style="font-weight:600;color:var(--text2);margin-top:2px">👥 Realizado por: ${esc(reg.operariosRealizaron)}</div>` : ''}${reg.condicionInsegura ? `<div style="font-weight:600;color:#b45309;margin-top:2px">⚠️ Condición insegura: ${esc(reg.condicionInsegura)}</div>` : ''}${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 ${esc(reg.observacion)}</div>` : ''}`;
   } else if (reg) {
     marcaTxt = `<span style="color:var(--danger)">✗ No realizada — ${quien}</span>${reg.observacion ? `<div style="font-style:italic;font-weight:400;color:var(--text3);margin-top:2px">📝 Motivo: ${esc(reg.observacion)}</div>` : ''}`;
   }
