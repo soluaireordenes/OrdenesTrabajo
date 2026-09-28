@@ -5156,7 +5156,13 @@ async function _prepararFotoParaSubir(file, nombreSugerido) {
      autenticación. El ID correcto (verificado directo del
      panel de la variable en Ubidots) es 698a3fd756b9223308d60918. ══════════════════════════════════════════════ */
 const UBIDOTS_CONFIG = {
-  token:   'BBUS-LTl7hWhMqXx7nN6aQC64ZatI5lV5QY', // token de Ubidots (cuenta Celsia, device falcon-compresores)
+  // El token de Ubidots se retiró del código: al ser un archivo público,
+  // cualquiera podía leerlo. Mientras se rota el token (con el dueño de la
+  // cuenta) y se monta el proxy que lo guarde de forma segura en el servidor,
+  // "Tiempo Real" queda en mantenimiento (token vacío => no se hace ninguna
+  // llamada). Cuando el proxy esté listo, la app pedirá las lecturas al proxy
+  // y el token NUNCA volverá a vivir en este HTML.
+  token:   '',
   baseUrl: 'https://industrial.api.ubidots.com/api/v1.6',
 };
 
@@ -12640,7 +12646,11 @@ function abrirTiempoReal(opKey) {
   // se detiene al volver (volverDeTiempoReal) para no gastar llamadas a
   // Ubidots de fondo sin que nadie lo esté mirando.
   if (_tiempoRealIntervalId) clearInterval(_tiempoRealIntervalId);
-  _tiempoRealIntervalId = setInterval(() => cargarTiempoReal(opKey, true), 10000);
+  // En mantenimiento (sin token) no hay nada que refrescar: se evita el
+  // intervalo para no repintar el aviso cada 10s sin motivo.
+  if (UBIDOTS_CONFIG.token) {
+    _tiempoRealIntervalId = setInterval(() => cargarTiempoReal(opKey, true), 10000);
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -12661,6 +12671,19 @@ function volverDeTiempoReal() {
 async function cargarTiempoReal(sede, silencioso) {
   const cont = document.getElementById('tiempoRealContenido');
   if (!cont) return;
+
+  // Sin token configurado, "Tiempo Real" está en mantenimiento (el token se
+  // retiró del código público por seguridad). Se muestra un aviso tranquilo y
+  // NO se hace ninguna llamada a Ubidots.
+  if (!UBIDOTS_CONFIG.token) {
+    cont.innerHTML = `<div style="padding:22px;border:1px dashed var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;line-height:1.6;text-align:center">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;opacity:.6;margin-bottom:8px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+      <div style="font-weight:700;color:var(--text);margin-bottom:4px">Tiempo Real en mantenimiento</div>
+      La conexión con los sensores se está reconfigurando de forma segura y volverá pronto.
+    </div>`;
+    return;
+  }
+
   if (!silencioso) cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando lecturas…</div>';
 
   let lecturas;
