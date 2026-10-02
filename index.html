@@ -18168,6 +18168,24 @@ async function descargarInformeCronograma(boton) {
       return filas;
     }
 
+    // Cada fecha pudo trabajarse con el cronograma normal o con el temporal
+    // (sus bloques tienen ids distintos: zpq_... vs tmp_...). Se elige el
+    // cronograma cuyos bloques coinciden con los registros de esa fecha, así el
+    // informe sale correcto sin importar cuál esté activo ahora mismo.
+    const _candidatosCrono = (operacionActual === 'zipaquira' && typeof CRONOGRAMA_ZIPAQUIRA_TEMPORAL !== 'undefined')
+      ? [CRONOGRAMA_ZIPAQUIRA_TEMPORAL, CRONOGRAMA_ZIPAQUIRA]
+      : [CRONOGRAMA_POR_SEDE[operacionActual]];
+    const _setsCrono = _candidatosCrono.map(c => {
+      const s = new Set();
+      (c.turnos || []).forEach(t => t.checkpoints.forEach(cp => cp.bloques.forEach(b => s.add(b.id))));
+      return { c, ids: s };
+    });
+    const cronogramaDeFecha = (registros) => {
+      const ids = Object.keys(registros || {});
+      for (const sc of _setsCrono) { if (ids.some(id => sc.ids.has(id))) return sc.c; }
+      return _candidatosCrono[_candidatosCrono.length - 1]; // por defecto, el normal
+    };
+
     let seccionesHtml = '';
     for (const fecha of fechas) {
       const diaSemana = _diaSemanaDe(fecha);
@@ -18175,7 +18193,9 @@ async function descargarInformeCronograma(boton) {
       const fotosFecha = todasLasFotos[fecha] || {};
       const adicionalesFecha = todasLasAdicionales[fecha] || {};
       const entregasFecha = todasLasEntregas[fecha] || {};
-      for (const turno of turnosAIncluir) {
+      const cfgFecha = cronogramaDeFecha(registros);
+      const turnosFecha = turnoIdFiltro ? cfgFecha.turnos.filter(t => t.id === turnoIdFiltro) : cfgFecha.turnos;
+      for (const turno of turnosFecha) {
         const bloques = turno.checkpoints.flatMap(cp => cp.bloques).filter(b => (b.actividad[diaSemana] || '').trim());
         const adicionales = adicionalesFecha[turno.id] || [];
         const entregas = entregasFecha[turno.id] || [];
