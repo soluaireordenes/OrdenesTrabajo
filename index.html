@@ -2310,7 +2310,7 @@ body.autenticado #btnBuscarGlobal {
          Compresores / Observaciones (las dos últimas solo se muestran para
          Zipaquirá, ver cronMostrarSubTab). -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:2px">
-      <button class="inv-subtab" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades</button>
+      <button class="inv-subtab" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
       <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
@@ -3015,13 +3015,22 @@ body.autenticado #btnBuscarGlobal {
       </div>
     </div><!-- /cronSub-condiciones -->
 
-    <!-- Pestaña "Actividades": cronograma NORMAL en modo CONSULTA (ver
-         estados, sin marcar) mientras dura el modo temporal. Va DESPUÉS del
-         panel temporal en el DOM a propósito (ver comentario arriba). Lo
-         llena _renderChecklistCronograma con editable=false. -->
+    <!-- Pestaña "Actividades" DESHABILITADA temporalmente: muestra el aviso. -->
     <div id="cronSub-actividades" class="inv-subpanel">
-      <div id="cronogramaContenidoNormal"></div>
-    </div><!-- /cronSub-actividades -->
+      <div class="card" style="margin:10px 0;border:2px solid #f2b8a3;background:#fff6f2;border-radius:14px">
+        <div class="card-body" style="padding:28px 24px;text-align:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:52px;height:52px;margin:0 auto 14px;display:block"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <div style="font-size:20px;font-weight:800;color:#b45309;margin-bottom:10px">Actividades deshabilitadas temporalmente</div>
+          <p style="font-size:14px;color:var(--text2);line-height:1.6;max-width:620px;margin:0 auto 10px">
+            El cronograma habitual incluye <strong>actividades en alturas</strong> que, por seguridad, <strong>no se pueden ejecutar</strong> mientras se hace una <strong>corrección en campo</strong> de esas condiciones.
+          </p>
+          <p style="font-size:14px;color:var(--text2);line-height:1.6;max-width:620px;margin:0 auto 18px">
+            Mientras tanto, trabaja en la pestaña <strong style="color:var(--brand)">“Actividades Temporales”</strong>, con el cronograma ajustado (sin tareas de alturas). Cuando se resuelvan las condiciones en campo, se volverá a habilitar esta pestaña.
+          </p>
+          <button class="btn btn-primary" style="padding:12px 24px;font-size:14px" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Ir a Actividades Temporales</button>
+        </div>
+      </div>
+    </div><!-- /cronSub-actividades (deshabilitada) -->
 
     <!-- Inventario de herramienta por turno: los operarios revisan y, por
          rapidez, solo marcan lo que falta o está mal (el resto se asume
@@ -17845,15 +17854,9 @@ async function inicializarPanelCronograma() {
   cronMostrarSubTab('temporal');
 
   // Checklist de trabajo (cronograma activo: el temporal si está habilitado).
+  // La pestaña "Actividades" (cronograma normal) está deshabilitada con un
+  // aviso mientras dura el modo temporal, así que no se renderiza nada ahí.
   _renderChecklistCronograma('cronogramaContenido', CRONOGRAMA_POR_SEDE[operacionActual], true);
-
-  // En modo temporal (Zipaquirá), la pestaña "Actividades" muestra el
-  // cronograma NORMAL en modo CONSULTA (ver estados, sin marcar) — así se
-  // puede revisar sin ejecutar las tareas de alturas, que es el motivo de la
-  // pausa. El trabajo se marca en "Actividades Temporales".
-  if (CRONOGRAMA_MODO_TEMPORAL && operacionActual === 'zipaquira') {
-    _renderChecklistCronograma('cronogramaContenidoNormal', CRONOGRAMA_ZIPAQUIRA, false);
-  }
 }
 
 /** Pinta el checklist del turno actual de un cronograma dado en el contenedor
