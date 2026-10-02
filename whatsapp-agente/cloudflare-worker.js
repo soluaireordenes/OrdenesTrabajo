@@ -24,28 +24,40 @@
    2. Workers y Pages → Crear → Worker → ponle un nombre (ej. "bot-whatsapp")
       → Implementar.
    3. Editar código → borra lo que traiga de ejemplo → pega este archivo.
-   4. Cambia las dos constantes de abajo por tus valores.
+   4. Define las dos variables del Worker (NO se escriben en el código, para
+      no dejar secretos a la vista en un repositorio público):
+        Configuración → Variables y secretos → Agregar:
+          • URL_APPS_SCRIPT    (tipo Texto)   = tu URL de Apps Script /exec
+          • TOKEN_VERIFICACION (tipo Secreto)  = tu palabra de verificación
+      La URL de Apps Script la sacas de: Apps Script → Implementar →
+      Administrar implementaciones.
    5. Implementar. Copia la URL que te queda, algo como
       https://bot-whatsapp.TU-USUARIO.workers.dev
    6. En el panel de Meta → WhatsApp → Configuración → Webhooks → Editar:
         URL de devolución de llamada: la URL del Worker
-        Token de verificación: el mismo de siempre
+        Token de verificación: el mismo valor que pusiste en TOKEN_VERIFICACION
       Verificar y guardar, y confirma que "messages" siga suscrito.
    7. Escríbele al bot. Ahora sí debe responder.
+
+   Nota de seguridad: antes estos dos valores estaban escritos aquí. Se
+   movieron a variables del Worker para que el token de verificación no quede
+   expuesto en el código público. Conviene además cambiar (rotar) ese token
+   de verificación en Meta y en el Worker, ya que el anterior estuvo a la vista.
    ═══════════════════════════════════════════════════════════════════ */
-
-
-/* La URL de tu aplicación web de Apps Script, la que termina en /exec.
-   La sacas de: Apps Script → Implementar → Administrar implementaciones. */
-const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/PEGA_AQUI_TU_URL/exec';
-
-/* La misma palabra que tienes en la propiedad TOKEN_VERIFICACION del
-   script y en el webhook de Meta. */
-const TOKEN_VERIFICACION = 'solucionaire2026';
 
 
 export default {
   async fetch(peticion, entorno, contexto) {
+
+    // Los valores sensibles viven en las variables del Worker (entorno), no
+    // en el código. Si faltan, se avisa claro en vez de fallar en silencio.
+    const URL_APPS_SCRIPT = entorno && entorno.URL_APPS_SCRIPT;
+    const TOKEN_VERIFICACION = entorno && entorno.TOKEN_VERIFICACION;
+    if (!URL_APPS_SCRIPT || !TOKEN_VERIFICACION) {
+      return new Response(
+        'Faltan variables del Worker: define URL_APPS_SCRIPT y TOKEN_VERIFICACION en Configuración → Variables y secretos.',
+        { status: 500 });
+    }
 
     // ── Verificación del webhook ──
     // Meta manda un GET una sola vez, al registrar la URL, con un desafío
