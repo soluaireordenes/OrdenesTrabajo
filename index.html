@@ -16096,6 +16096,25 @@ async function obtenerRegistrosCronogramaFecha(fecha) {
 ══════════════════════════════════════════════ */
 let allCondicionesInseguras = [];
 
+/** Devuelve { condicion, observacion } de una fila de CronogramaRegistros.
+ *  Los registros NUEVOS traen la condición en su columna propia. Los VIEJOS
+ *  (anteriores a esa columna) la guardaban dentro de Observacion con el
+ *  prefijo "⚠️ CONDICIÓN INSEGURA: <cond> — <obs>". Aquí se recuperan ambos
+ *  para que la pestaña muestre también el histórico. */
+function _condicionYObsDeRegistro(f) {
+  const col = (f.CondicionInsegura || '').trim();
+  const obs = (f.Observacion || '').trim();
+  if (col) return { condicion: col, observacion: obs };
+  const m = obs.match(/^\s*(?:⚠️\s*)?CONDICI[ÓO]N\s+INSEGURA:\s*([\s\S]*)$/i);
+  if (m) {
+    const resto = m[1];
+    const idx = resto.indexOf(' — ');
+    if (idx >= 0) return { condicion: resto.slice(0, idx).trim(), observacion: resto.slice(idx + 3).trim() };
+    return { condicion: resto.trim(), observacion: '' };
+  }
+  return { condicion: '', observacion: obs };
+}
+
 async function inicializarCondicionesInseguras() {
   const wrap = document.getElementById('cond_historialWrap');
   if (wrap) wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando condiciones inseguras…</div>';
@@ -16103,7 +16122,8 @@ async function inicializarCondicionesInseguras() {
     await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
     const filas = await leerHojaGenericaCacheada(SH.cronogramaRegistros);
     allCondicionesInseguras = (filas || [])
-      .filter(f => (f.CondicionInsegura || '').trim())
+      .map(f => { const d = _condicionYObsDeRegistro(f); return Object.assign({}, f, { _condicion: d.condicion, _obs: d.observacion }); })
+      .filter(f => f._condicion)
       .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.HoraRealizada || '').localeCompare(a.HoraRealizada || ''));
     _poblarFiltroAnioCondiciones();
     renderCondicionesInseguras();
@@ -16153,8 +16173,8 @@ function renderCondicionesInseguras() {
       <td style="padding:7px 10px;white-space:nowrap">${esc(f.HoraRealizada || '')}</td>
       <td style="padding:7px 10px;min-width:150px">${esc(f.ActividadTexto || f.ActividadId || '')}</td>
       <td style="padding:7px 10px;white-space:nowrap">${esc(f.RealizadoPor || '')}</td>
-      <td style="padding:7px 10px;min-width:240px;color:#b45309;font-weight:600">${esc(f.CondicionInsegura)}</td>
-      <td style="padding:7px 10px;min-width:180px;color:var(--text2)">${esc(f.Observacion || '')}</td>
+      <td style="padding:7px 10px;min-width:240px;color:#b45309;font-weight:600">${esc(f._condicion)}</td>
+      <td style="padding:7px 10px;min-width:180px;color:var(--text2)">${esc(f._obs || '')}</td>
     </tr>`;
   });
   html += '</tbody></table>';
