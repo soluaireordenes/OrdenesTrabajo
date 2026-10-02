@@ -2411,6 +2411,13 @@ body.autenticado #btnBuscarGlobal {
     <div id="cronEntregasHistorialWrap" style="display:none">
       <div class="card">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <!-- Por defecto solo las 5 últimas; con el filtro de fechas se ven las
+             anteriores. -->
+        <div style="padding:12px 16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+          <div class="field" style="margin:0;min-width:150px"><label style="margin-bottom:4px;display:block">Desde</label><input type="date" id="et_filtroDesde" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
+          <div class="field" style="margin:0;min-width:150px"><label style="margin-bottom:4px;display:block">Hasta</label><input type="date" id="et_filtroHasta" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('et_filtroDesde').value='';document.getElementById('et_filtroHasta').value='';renderTablaEntregasTurno()">Limpiar filtro</button>
+        </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
           <div id="et_tablaWrap"></div>
         </div>
@@ -18376,18 +18383,46 @@ async function inicializarEntregaTurno() {
   }
 }
 
+const _ENTREGAS_LIMITE_DEFECTO = 5;
+
 function renderTablaEntregasTurno() {
   const wrap = document.getElementById('et_tablaWrap');
   if (!allEntregasTurno.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay entregas de turno registradas.</div>';
     return;
   }
+  // Filtro por fecha: sin filtro se muestran solo las 5 últimas; con filtro se
+  // muestran todas las del rango (así las anteriores quedan accesibles sin
+  // llenar la pantalla todo el tiempo).
+  const desde = document.getElementById('et_filtroDesde')?.value || '';
+  const hasta = document.getElementById('et_filtroHasta')?.value || '';
+  const hayFiltro = !!(desde || hasta);
+  let lista = allEntregasTurno;
+  if (hayFiltro) {
+    lista = allEntregasTurno.filter(e => {
+      const f = e.Fecha || '';
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
+  if (!lista.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay entregas en el rango de fechas seleccionado.</div>';
+    return;
+  }
+  const mostradas = hayFiltro ? lista : lista.slice(0, _ENTREGAS_LIMITE_DEFECTO);
+  const aviso = hayFiltro
+    ? `${mostradas.length} entrega(s) en el rango seleccionado.`
+    : (allEntregasTurno.length > _ENTREGAS_LIMITE_DEFECTO
+        ? `Mostrando las ${_ENTREGAS_LIMITE_DEFECTO} últimas de ${allEntregasTurno.length}. Usa el filtro de fechas para ver las anteriores.`
+        : `${allEntregasTurno.length} entrega(s) registrada(s).`);
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let html = `<div style="padding:8px 14px;font-size:12px;color:var(--text3)">${esc(aviso)}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
@@ -18396,7 +18431,7 @@ function renderTablaEntregasTurno() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Recibido por</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"></th>
     </tr></thead><tbody>`;
-  allEntregasTurno.forEach(e => {
+  mostradas.forEach(e => {
     const turno = cfg?.turnos.find(t => t.id === e.TurnoId);
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(e.Codigo)}</td>
