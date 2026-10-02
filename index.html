@@ -2320,6 +2320,7 @@ body.autenticado #btnBuscarGlobal {
       <button class="inv-subtab" id="cronTabPresionDrycooler" data-crontab="presiondrycooler" onclick="cronMostrarSubTab('presiondrycooler')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presión Drycooler</button>
       <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
       <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
+      <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
     </div>
 
     <div id="cronSub-actividades" class="inv-subpanel active">
@@ -3007,6 +3008,48 @@ body.autenticado #btnBuscarGlobal {
         </div>
       </div>
     </div><!-- /cronSub-condiciones -->
+
+    <!-- Inventario de herramienta por turno: los operarios revisan y, por
+         rapidez, solo marcan lo que falta o está mal (el resto se asume
+         completo). Guarda un reporte por turno y muestra faltantes. -->
+    <div id="cronSub-herramienta" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:16px 18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:6px">
+            <div class="field" style="margin:0"><label>Fecha *</label><input type="date" id="invh_fecha"></div>
+            <div class="field" style="margin:0"><label>Turno *</label>
+              <select id="invh_turno">
+                <option value="Turno 1 (6am-2pm)">Turno 1 (6am-2pm)</option>
+                <option value="Turno 2 (2pm-10pm)">Turno 2 (2pm-10pm)</option>
+                <option value="Turno 3 (10pm-6am)">Turno 3 (10pm-6am)</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0"><label>Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Toca <strong>“Falta / novedad”</strong> solo en las herramientas que falten o estén mal; las demás se guardan como completas.</div>
+        </div>
+      </div>
+
+      <!-- Resumen en vivo + guardar -->
+      <div class="card" style="margin-bottom:16px;position:sticky;top:0;z-index:5">
+        <div class="card-body" style="padding:14px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+          <div id="invh_resumen" style="flex:1;min-width:200px;font-weight:700"></div>
+          <div id="invh_msg" style="font-size:12px;color:var(--danger)"></div>
+          <button class="btn btn-primary" id="invh_btnGuardar" onclick="guardarInventarioHerramienta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar inventario del turno</button>
+        </div>
+      </div>
+
+      <!-- Lista de herramientas (se llena con renderInventarioHerramienta) -->
+      <div id="invh_lista"></div>
+
+      <!-- Historial -->
+      <div class="card" style="margin-bottom:16px;margin-top:8px">
+        <div class="card-head">Historial de inventarios por turno</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="invh_historialWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-herramienta -->
   </div>
 
   <!-- ════════════ PANEL: DETALLE ════════════ -->
@@ -8699,6 +8742,7 @@ const SH = {
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
   reportePresionDrycooler: 'ReportePresionDrycooler',
+  inventarioHerramienta: 'InventarioHerramienta',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
 // novedad, reiniciando desde ahí el conteo de "Días sin Novedades".
@@ -8717,6 +8761,181 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
 const CAMPOS_REPORTES_COLS = ['Hoja', 'ColumnaEquipo', 'Equipo', 'CodigoCorto', 'Orden', 'Grupo', 'Columna', 'Etiqueta', 'RangoNormal', 'Huella'];
 
 const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto', 'CondicionInsegura'];
+
+const INVENTARIO_HERRAMIENTA_COLS = ['Fecha', 'Turno', 'RegistradoPor', 'FechaHora', 'Tipo', 'Completo', 'TotalFaltantes', 'HerramientaN', 'Herramienta', 'Medida', 'CantEsperada', 'CantEncontrada', 'Faltan', 'Problema'];
+
+/* Catálogo de inventario de herramienta (128 ítems, 20 categorías), tomado del
+   Excel del cliente. La cantidad es la esperada de cada herramienta. */
+const INVENTARIO_HERRAMIENTA = [
+  { cat: 'NEUMÁTICA Y PINTURA', items: [
+    { n: 1, nombre: 'Pistola para pintura de gravedad', medida: '', marca: '', cant: 1 },
+    { n: 2, nombre: 'Pistola para sopletear con tanque', medida: '900 ml – 90 PSI – 1/4"', marca: '', cant: 1 },
+    { n: 3, nombre: 'Manómetro tipo lápiz para llantas', medida: '', marca: '', cant: 1 },
+  ] },
+  { cat: 'CORTE', items: [
+    { n: 4, nombre: 'Segueta / arco de sierra', medida: '', marca: 'Total', cant: 1 },
+    { n: 5, nombre: 'Cuchillo de cuchilla retráctil', medida: '', marca: '', cant: 1 },
+    { n: 6, nombre: 'Bisturí', medida: '', marca: '', cant: 1 },
+    { n: 7, nombre: 'Tijera cortalatas (de aviación)', medida: '', marca: '', cant: 1 },
+    { n: 8, nombre: 'Tijera', medida: '', marca: '', cant: 1 },
+    { n: 9, nombre: 'Alicate de corte (cortafrío)', medida: '', marca: '', cant: 1 },
+    { n: 10, nombre: 'Cortatubo / doblador pequeño', medida: '', marca: '', cant: 1 },
+    { n: 11, nombre: 'Lima', medida: '', marca: '', cant: 1 },
+  ] },
+  { cat: 'PINZAS Y ALICATES', items: [
+    { n: 12, nombre: 'Pinza peladora / ponchadora de terminales', medida: '', marca: '', cant: 1 },
+    { n: 13, nombre: 'Ponchadora de RJ45', medida: '', marca: '', cant: 1 },
+    { n: 14, nombre: 'Alicate universal', medida: '', marca: '', cant: 1 },
+    { n: 15, nombre: 'Pinza de presión (hombresolo)', medida: '', marca: '', cant: 1 },
+    { n: 16, nombre: 'Remachadora', medida: '', marca: 'Stanley', cant: 1 },
+  ] },
+  { cat: 'DESTORNILLADORES', items: [
+    { n: 17, nombre: 'Destornillador de estrella', medida: '', marca: '', cant: 5 },
+    { n: 18, nombre: 'Destornillador de pala', medida: '', marca: '', cant: 2 },
+    { n: 19, nombre: 'Juego de perilleros', medida: '', marca: '', cant: 1 },
+  ] },
+  { cat: 'LIMPIEZA Y MEDICIÓN', items: [
+    { n: 20, nombre: 'Cepillo de alambre grande', medida: '', marca: '', cant: 1 },
+    { n: 21, nombre: 'Cepillo de alambre pequeño', medida: '', marca: '', cant: 2 },
+    { n: 22, nombre: 'Espátula', medida: '', marca: '', cant: 1 },
+    { n: 23, nombre: 'Escuadra metálica', medida: '', marca: '', cant: 1 },
+    { n: 24, nombre: 'Galga medidora de brocas (naranja)', medida: '', marca: '', cant: 1 },
+    { n: 25, nombre: 'Flexómetro', medida: '', marca: '', cant: 1 },
+    { n: 26, nombre: 'Nivel (rojo)', medida: '', marca: '', cant: 1 },
+  ] },
+  { cat: 'VARIOS', items: [
+    { n: 27, nombre: 'Martillo', medida: '', marca: '', cant: 1 },
+    { n: 28, nombre: 'Guía pasacables', medida: '', marca: 'Bauker', cant: 1 },
+    { n: 29, nombre: 'Carrete de cordel amarillo', medida: '', marca: '', cant: 1 },
+    { n: 30, nombre: 'Barra / varilla larga', medida: '', marca: '', cant: 1 },
+    { n: 31, nombre: 'Rollo de cinta teflón', medida: '', marca: '', cant: 1 },
+  ] },
+  { cat: 'HERRAMIENTA ELÉCTRICA', items: [
+    { n: 32, nombre: 'Taladro', medida: '', marca: 'Total', cant: 1 },
+    { n: 33, nombre: 'Pulidora', medida: '', marca: 'DeWalt', cant: 1 },
+    { n: 34, nombre: 'Mango auxiliar para taladro o pulidora', medida: '', marca: 'Total', cant: 2 },
+    { n: 35, nombre: 'Cautín', medida: '', marca: '', cant: 2 },
+  ] },
+  { cat: 'SEGURIDAD', items: [
+    { n: 36, nombre: 'Careta de esmerilar', medida: '', marca: '', cant: 2 },
+  ] },
+  { cat: 'ROSCADO', items: [
+    { n: 37, nombre: 'Maneral porta machuelos', medida: '', marca: '', cant: 1 },
+    { n: 38, nombre: 'Kit de tarraja', medida: '', marca: '', cant: 1 },
+    { n: 39, nombre: 'Juego de machos extractores de tornillo', medida: '5 piezas', marca: '', cant: 1 },
+  ] },
+  { cat: 'LLAVES AJUSTABLES Y DE TUBO', items: [
+    { n: 40, nombre: 'Llave expansiva', medida: '300 mm', marca: 'Stanley', cant: 1 },
+    { n: 41, nombre: 'Llave expansiva', medida: '18" / 450 mm', marca: '', cant: 1 },
+    { n: 42, nombre: 'Llave de tubo pequeña', medida: '', marca: '', cant: 1 },
+    { n: 43, nombre: 'Llave de tubo (naranja)', medida: '14"', marca: '', cant: 1 },
+    { n: 44, nombre: 'Llave de tubo (roja)', medida: '24"', marca: '', cant: 1 },
+    { n: 45, nombre: 'Llave de correa para filtros (roja y verde)', medida: '', marca: '', cant: 2 },
+  ] },
+  { cat: 'LLAVES MIXTAS MILIMÉTRICAS', items: [
+    { n: 46, nombre: 'Llave mixta', medida: '36 mm', marca: 'Stanley / SAIRE', cant: 1 },
+    { n: 47, nombre: 'Llave mixta', medida: '30 mm', marca: 'SA', cant: 1 },
+    { n: 48, nombre: 'Llave mixta', medida: '20 mm', marca: '', cant: 2 },
+    { n: 49, nombre: 'Llave mixta', medida: '19 mm', marca: 'Chrome Vanadium (SAIRE)', cant: 1 },
+    { n: 50, nombre: 'Llave mixta', medida: '18 mm', marca: 'Stanley', cant: 2 },
+    { n: 51, nombre: 'Llave mixta', medida: '17 mm', marca: 'Stanley', cant: 2 },
+    { n: 52, nombre: 'Llave mixta', medida: '15 mm', marca: 'Stanley', cant: 1 },
+    { n: 53, nombre: 'Llave mixta', medida: '14 mm', marca: 'Stanley', cant: 2 },
+    { n: 54, nombre: 'Llave mixta', medida: '13 mm', marca: 'Stanley', cant: 1 },
+    { n: 55, nombre: 'Llave mixta', medida: '12 mm', marca: 'Stanley', cant: 3 },
+    { n: 56, nombre: 'Llave mixta', medida: '11 mm', marca: 'Stanley', cant: 1 },
+    { n: 57, nombre: 'Llave mixta', medida: '10 mm', marca: 'Stanley', cant: 1 },
+    { n: 58, nombre: 'Llave mixta', medida: '8 mm', marca: 'Stanley', cant: 1 },
+  ] },
+  { cat: 'LLAVES MIXTAS EN PULGADAS', items: [
+    { n: 59, nombre: 'Llave mixta', medida: '5/16"', marca: 'Stanley', cant: 1 },
+    { n: 60, nombre: 'Llave mixta', medida: '3/8"', marca: 'Stanley', cant: 1 },
+    { n: 61, nombre: 'Llave mixta', medida: '1/2"', marca: 'Stanley', cant: 1 },
+    { n: 62, nombre: 'Llave mixta', medida: '9/16"', marca: 'Chrome Vanadium (SAIRE)', cant: 1 },
+    { n: 63, nombre: 'Llave mixta', medida: '5/8"', marca: 'Stanley', cant: 3 },
+    { n: 64, nombre: 'Llave mixta', medida: '11/16"', marca: 'Stanley', cant: 2 },
+    { n: 65, nombre: 'Llave mixta', medida: '3/4"', marca: 'Stanley', cant: 1 },
+    { n: 66, nombre: 'Llave mixta', medida: '7/8"', marca: 'Stanley', cant: 1 },
+    { n: 67, nombre: 'Llave de boca doble', medida: '', marca: 'Hazet 450', cant: 1 },
+  ] },
+  { cat: 'LLAVES BRISTOL EN L', items: [
+    { n: 68, nombre: 'Llave Bristol en L', medida: '7/64"', marca: '', cant: 1 },
+    { n: 69, nombre: 'Llave Bristol en L', medida: '3 mm', marca: '', cant: 1 },
+    { n: 70, nombre: 'Llave Bristol en L', medida: '1/8"', marca: '', cant: 1 },
+    { n: 71, nombre: 'Llave Bristol en L', medida: '4 mm', marca: '', cant: 1 },
+    { n: 72, nombre: 'Llave Bristol en L', medida: '5 mm', marca: '', cant: 1 },
+    { n: 73, nombre: 'Llave Bristol en L', medida: '1/4"', marca: '', cant: 1 },
+    { n: 74, nombre: 'Llave Bristol en L', medida: '8 mm', marca: '', cant: 2 },
+    { n: 75, nombre: 'Llave Bristol en L', medida: '3/8"', marca: '', cant: 1 },
+    { n: 76, nombre: 'Llave Bristol en L', medida: '10 mm', marca: '', cant: 2 },
+    { n: 77, nombre: 'Llave Bristol en L', medida: '1/2"', marca: '', cant: 1 },
+    { n: 78, nombre: 'Llave Bristol en L', medida: '3/4"', marca: '', cant: 1 },
+  ] },
+  { cat: 'LLAVES BRISTOL EN T', items: [
+    { n: 79, nombre: 'Llave Bristol en T', medida: '0,13"', marca: '', cant: 3 },
+  ] },
+  { cat: 'RACHES Y ACCESORIOS', items: [
+    { n: 80, nombre: 'Rache', medida: '', marca: '', cant: 2 },
+    { n: 81, nombre: 'Extensión', medida: '', marca: '', cant: 2 },
+  ] },
+  { cat: 'COPAS EN PULGADAS', items: [
+    { n: 82, nombre: 'Copa', medida: '1 5/16"', marca: '', cant: 1 },
+    { n: 83, nombre: 'Copa', medida: '1 1/4"', marca: '', cant: 1 },
+    { n: 84, nombre: 'Copa', medida: '15/16"', marca: '', cant: 1 },
+    { n: 85, nombre: 'Copa', medida: '7/8"', marca: '', cant: 1 },
+    { n: 86, nombre: 'Copa', medida: '3/4"', marca: '', cant: 1 },
+    { n: 87, nombre: 'Copa', medida: '11/16"', marca: '', cant: 1 },
+    { n: 88, nombre: 'Copa', medida: '5/8"', marca: '', cant: 1 },
+    { n: 89, nombre: 'Copa', medida: '9/16"', marca: '', cant: 1 },
+    { n: 90, nombre: 'Copa', medida: '1/2"', marca: '', cant: 1 },
+    { n: 91, nombre: 'Copa', medida: '7/16"', marca: '', cant: 1 },
+    { n: 92, nombre: 'Copa', medida: '3/8"', marca: '', cant: 1 },
+    { n: 93, nombre: 'Copa larga', medida: '5/8"', marca: '', cant: 2 },
+  ] },
+  { cat: 'COPAS MILIMÉTRICAS', items: [
+    { n: 94, nombre: 'Copa', medida: '37 mm', marca: '', cant: 1 },
+    { n: 95, nombre: 'Copa', medida: '30 mm', marca: '', cant: 1 },
+    { n: 96, nombre: 'Copa', medida: '24 mm', marca: '', cant: 1 },
+    { n: 97, nombre: 'Copa', medida: '22 mm', marca: '', cant: 1 },
+    { n: 98, nombre: 'Copa', medida: '20 mm', marca: '', cant: 1 },
+    { n: 99, nombre: 'Copa', medida: '19 mm', marca: '', cant: 2 },
+    { n: 100, nombre: 'Copa', medida: '17 mm', marca: '', cant: 3 },
+    { n: 101, nombre: 'Copa', medida: '15 mm', marca: '', cant: 2 },
+    { n: 102, nombre: 'Copa', medida: '14 mm', marca: '', cant: 2 },
+    { n: 103, nombre: 'Copa', medida: '13 mm', marca: '', cant: 1 },
+    { n: 104, nombre: 'Copa', medida: '12 mm', marca: '', cant: 2 },
+    { n: 105, nombre: 'Copa', medida: '11 mm', marca: '', cant: 1 },
+    { n: 106, nombre: 'Copa', medida: '10 mm', marca: '', cant: 1 },
+  ] },
+  { cat: 'COPAS BRISTOL', items: [
+    { n: 107, nombre: 'Copa Bristol', medida: '14 mm', marca: '', cant: 1 },
+    { n: 108, nombre: 'Copa Bristol', medida: '3/8"', marca: '', cant: 1 },
+    { n: 109, nombre: 'Copa Bristol', medida: '5/16"', marca: '', cant: 1 },
+    { n: 110, nombre: 'Copa Bristol', medida: '1/4"', marca: '', cant: 1 },
+    { n: 111, nombre: 'Copa Bristol', medida: '7/32"', marca: '', cant: 1 },
+    { n: 112, nombre: 'Copa Bristol', medida: '3/16"', marca: '', cant: 2 },
+    { n: 113, nombre: 'Copa Bristol', medida: '5/32"', marca: '', cant: 1 },
+    { n: 114, nombre: 'Copa Bristol', medida: '1/8"', marca: '', cant: 1 },
+    { n: 115, nombre: 'Copa Bristol', medida: 'Sin medida', marca: '', cant: 1 },
+  ] },
+  { cat: 'COPAS DE RACHE PEQUEÑO', items: [
+    { n: 116, nombre: 'Copa de rache pequeño', medida: '14 mm', marca: '', cant: 1 },
+    { n: 117, nombre: 'Copa de rache pequeño', medida: '13 mm', marca: '', cant: 1 },
+    { n: 118, nombre: 'Copa de rache pequeño', medida: '12 mm', marca: '', cant: 1 },
+    { n: 119, nombre: 'Copa de rache pequeño', medida: '11 mm', marca: '', cant: 1 },
+    { n: 120, nombre: 'Copa de rache pequeño', medida: '10 mm', marca: '', cant: 1 },
+    { n: 121, nombre: 'Copa de rache pequeño', medida: '9 mm', marca: '', cant: 1 },
+    { n: 122, nombre: 'Copa de rache pequeño', medida: '8 mm', marca: '', cant: 1 },
+    { n: 123, nombre: 'Copa de rache pequeño', medida: '6 mm', marca: '', cant: 1 },
+    { n: 124, nombre: 'Copa de rache pequeño', medida: '4 mm', marca: '', cant: 1 },
+  ] },
+  { cat: 'COPAS SIERRA', items: [
+    { n: 125, nombre: 'Kit de copa sierra', medida: '', marca: '', cant: 1 },
+    { n: 126, nombre: 'Copa sierra', medida: '2"', marca: '', cant: 1 },
+    { n: 127, nombre: 'Copa sierra', medida: '51 mm', marca: '', cant: 1 },
+    { n: 128, nombre: 'Copa sierra', medida: '32 mm', marca: '', cant: 1 },
+  ] },
+];
 // Cada fila = una foto adjunta a una actividad del Cronograma en una fecha
 // concreta. Igual que las fotos de órdenes, se sube al Apps Script de fotos
 // de la sede (mismo Drive), y aquí solo se guarda la referencia.
@@ -16951,6 +17170,182 @@ function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, foto
 /** Cambia entre las pestañas "Actividades" y "Observaciones" del
  *  Cronograma. Observaciones carga sus datos de forma perezosa, solo la
  *  primera vez que se entra a esa pestaña (no en cada click). */
+/* ══════════════════════════════════════════════
+   INVENTARIO DE HERRAMIENTA POR TURNO
+   Los operarios revisan las 128 herramientas; por rapidez solo marcan las
+   que faltan o están mal (el resto se asume completo). Cada guardado deja un
+   reporte del turno (RESUMEN) + una fila por cada faltante, para saber qué
+   hace falta o si quedó completa.
+══════════════════════════════════════════════ */
+let _invhCargado = false;
+let allInventarioHerramientaReg = [];
+
+function _turnoActualPorHora() {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 14) return 'Turno 1 (6am-2pm)';
+  if (h >= 14 && h < 22) return 'Turno 2 (2pm-10pm)';
+  return 'Turno 3 (10pm-6am)';
+}
+
+async function inicializarInventarioHerramienta() {
+  const fechaEl = document.getElementById('invh_fecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = _isoLocal(new Date());
+  const turnoEl = document.getElementById('invh_turno');
+  if (turnoEl && !_invhCargado) turnoEl.value = _turnoActualPorHora();
+  const respEl = document.getElementById('invh_responsable');
+  if (respEl && !respEl.value) respEl.value = currentUser?.name || '';
+  renderInventarioHerramienta();   // pinta la lista (todas completas)
+  _recalcularResumenInvh();
+  _invhCargado = true;
+
+  const wrap = document.getElementById('invh_historialWrap');
+  if (wrap) wrap.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3)">Cargando historial…</div>';
+  try {
+    await asegurarHoja(SH.inventarioHerramienta, INVENTARIO_HERRAMIENTA_COLS);
+    const filas = await _leerHojaGenerica(SH.inventarioHerramienta);
+    allInventarioHerramientaReg = (filas || []).filter(f => f.Tipo === 'RESUMEN')
+      .sort((a, b) => (b.FechaHora || '').localeCompare(a.FechaHora || ''));
+    renderHistorialInvh();
+  } catch (e) {
+    if (wrap) wrap.innerHTML = `<div style="padding:18px;text-align:center;color:var(--danger)">Error al cargar historial: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderInventarioHerramienta() {
+  const cont = document.getElementById('invh_lista');
+  if (!cont) return;
+  let html = '';
+  INVENTARIO_HERRAMIENTA.forEach(grupo => {
+    html += `<div class="card" style="margin-bottom:12px"><div class="card-head" style="font-size:13px">${esc(grupo.cat)} <span style="font-weight:400;color:var(--text3)">(${grupo.items.length})</span></div><div class="card-body" style="padding:0">`;
+    grupo.items.forEach(it => {
+      const sub = [it.medida, it.marca].filter(Boolean).join(' · ');
+      html += `<div id="invh_row_${it.n}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:13px;font-weight:600">${it.n}. ${esc(it.nombre)}</div>
+          <div style="font-size:11px;color:var(--text3)">${sub ? esc(sub) + ' · ' : ''}Esperadas: ${it.cant}</div>
+        </div>
+        <button type="button" id="invh_btn_${it.n}" class="btn btn-ghost btn-sm" onclick="_invhToggleFalta(${it.n})" style="white-space:nowrap">✓ Completa</button>
+        <div id="invh_falta_${it.n}" style="display:none;flex-basis:100%;gap:8px;align-items:center;flex-wrap:wrap;padding-top:6px">
+          <label style="font-size:11px;color:var(--text2)">Encontradas: <input type="number" id="invh_enc_${it.n}" min="0" max="${it.cant}" value="${it.cant > 1 ? it.cant - 1 : 0}" style="width:70px;margin:0" oninput="_recalcularResumenInvh()"></label>
+          <input type="text" id="invh_prob_${it.n}" placeholder="¿Qué pasa? (dañada, perdida…)" style="flex:1;min-width:160px;margin:0">
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  cont.innerHTML = html;
+}
+
+function _invhToggleFalta(n) {
+  const btn = document.getElementById('invh_btn_' + n);
+  const falta = document.getElementById('invh_falta_' + n);
+  const row = document.getElementById('invh_row_' + n);
+  if (!btn || !falta || !row) return;
+  const activar = falta.style.display === 'none';
+  if (activar) {
+    falta.style.display = 'flex';
+    btn.textContent = '⚠️ Falta / novedad';
+    btn.style.background = '#fde8e8'; btn.style.color = '#b91c1c';
+    row.style.background = '#fff6f2';
+  } else {
+    falta.style.display = 'none';
+    btn.textContent = '✓ Completa';
+    btn.style.background = ''; btn.style.color = '';
+    row.style.background = '';
+  }
+  _recalcularResumenInvh();
+}
+
+function _invhFaltantesActuales() {
+  const res = [];
+  INVENTARIO_HERRAMIENTA.forEach(g => g.items.forEach(it => {
+    const falta = document.getElementById('invh_falta_' + it.n);
+    if (!falta || falta.style.display === 'none') return;
+    const enc = Number(document.getElementById('invh_enc_' + it.n)?.value);
+    const encontradas = isNaN(enc) ? 0 : Math.max(0, enc);
+    res.push({ n: it.n, nombre: it.nombre, medida: it.medida, cant: it.cant,
+               encontradas, faltan: Math.max(0, it.cant - encontradas),
+               problema: (document.getElementById('invh_prob_' + it.n)?.value || '').trim() });
+  }));
+  return res;
+}
+
+function _recalcularResumenInvh() {
+  const el = document.getElementById('invh_resumen');
+  if (!el) return;
+  const falt = _invhFaltantesActuales();
+  if (!falt.length) {
+    el.innerHTML = '<span style="color:#15803d">✅ Inventario COMPLETO (128 herramientas)</span>';
+    return;
+  }
+  const unidades = falt.reduce((s, f) => s + f.faltan, 0);
+  el.innerHTML = `<span style="color:#b91c1c">⚠️ ${falt.length} herramienta${falt.length === 1 ? '' : 's'} con novedad · faltan ${unidades} unidad${unidades === 1 ? '' : 'es'}</span>`;
+}
+
+async function guardarInventarioHerramienta() {
+  const msg = document.getElementById('invh_msg');
+  const btn = document.getElementById('invh_btnGuardar');
+  const fecha = document.getElementById('invh_fecha').value;
+  const turno = document.getElementById('invh_turno').value;
+  const responsable = (document.getElementById('invh_responsable').value || '').trim() || currentUser?.name || 'Sistema';
+  msg.style.color = 'var(--danger)'; msg.textContent = '';
+  if (!fecha || !turno) { msg.textContent = 'Completa la fecha y el turno.'; return; }
+  const faltantes = _invhFaltantesActuales();
+  for (const f of faltantes) {
+    if (!f.problema && f.encontradas >= f.cant) {
+      msg.textContent = `En "${f.nombre}": si está completa, quita la marca de novedad; si no, indica cuántas hay o qué pasa.`;
+      return;
+    }
+  }
+  const completo = faltantes.length === 0;
+  btn.disabled = true; const orig = btn.innerHTML; btn.textContent = 'Guardando…';
+  try {
+    await asegurarHoja(SH.inventarioHerramienta, INVENTARIO_HERRAMIENTA_COLS);
+    const fh = new Date().toISOString();
+    const filas = [[fecha, turno, responsable, fh, 'RESUMEN', completo ? 'SI' : 'NO', String(faltantes.length), '', '', '', '', '', '', '']];
+    faltantes.forEach(f => filas.push([fecha, turno, responsable, fh, 'FALTANTE', 'NO', '', String(f.n), f.nombre, f.medida || '', String(f.cant), String(f.encontradas), String(f.faltan), f.problema]));
+    await appendHoja(SH.inventarioHerramienta, filas);
+    _invalidarCacheHoja(SH.inventarioHerramienta);
+    _invhCargado = false; // para que al re-render se reseteen las marcas
+    await inicializarInventarioHerramienta();
+    msg.style.color = '#15803d';
+    msg.textContent = completo ? '✅ Inventario COMPLETO guardado.' : `✅ Guardado con ${faltantes.length} novedad(es).`;
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo guardar: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.innerHTML = orig;
+  }
+}
+
+function renderHistorialInvh() {
+  const wrap = document.getElementById('invh_historialWrap');
+  if (!wrap) return;
+  const filas = allInventarioHerramientaReg;
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3)">Aún no hay inventarios registrados.</div>';
+    return;
+  }
+  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Turno</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Responsable</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Estado</th>
+    </tr></thead><tbody>`;
+  filas.forEach(f => {
+    const completo = f.Completo === 'SI';
+    const n = Number(f.TotalFaltantes || 0);
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;white-space:nowrap">${esc(f.Fecha)}</td>
+      <td style="padding:7px 10px">${esc(f.Turno)}</td>
+      <td style="padding:7px 10px">${esc(f.RegistradoPor || '')}</td>
+      <td style="padding:7px 10px;text-align:center">${completo ? '<span style="color:#15803d;font-weight:700">✅ Completo</span>' : `<span style="color:#b91c1c;font-weight:700">⚠️ ${n} novedad${n === 1 ? '' : 'es'}</span>`}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
 function cronMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
@@ -16959,6 +17354,7 @@ function cronMostrarSubTab(nombre) {
   panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`).classList.add('active');
   if (nombre === 'observaciones') inicializarObservacionesOperarios();
   if (nombre === 'condiciones') inicializarCondicionesInseguras();
+  if (nombre === 'herramienta') inicializarInventarioHerramienta();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'secadores') inicializarReporteSecadores();
@@ -17099,6 +17495,7 @@ async function inicializarPanelCronograma() {
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
   const tabCondiciones = document.getElementById('cronTabCondiciones');
+  const tabHerramienta = document.getElementById('cronTabHerramienta');
   const tabCompresores = document.getElementById('cronTabCompresores');
   const tabSecadores = document.getElementById('cronTabSecadores');
   const tabDrycoolers = document.getElementById('cronTabDrycoolers');
@@ -17110,6 +17507,7 @@ async function inicializarPanelCronograma() {
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabCondiciones) tabCondiciones.style.display = mostrarEntrega ? '' : 'none';
+  if (tabHerramienta) tabHerramienta.style.display = mostrarEntrega ? '' : 'none';
   if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
   if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
   if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
