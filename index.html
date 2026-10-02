@@ -2319,6 +2319,7 @@ body.autenticado #btnBuscarGlobal {
       <button class="inv-subtab" id="cronTabEmergencia" data-crontab="emergencia" onclick="cronMostrarSubTab('emergencia')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reporte Emergencia</button>
       <button class="inv-subtab" id="cronTabPresionDrycooler" data-crontab="presiondrycooler" onclick="cronMostrarSubTab('presiondrycooler')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presión Drycooler</button>
       <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
+      <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
     </div>
 
     <div id="cronSub-actividades" class="inv-subpanel active">
@@ -2973,6 +2974,39 @@ body.autenticado #btnBuscarGlobal {
         </div>
       </div>
     </div><!-- /cronSub-observaciones -->
+
+    <!-- Condiciones inseguras: pestaña independiente que lista TODAS las
+         condiciones inseguras reportadas en el cronograma (columna
+         CondicionInsegura de CronogramaRegistros), con su texto completo. -->
+    <div id="cronSub-condiciones" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:160px">
+            <label style="margin-bottom:4px;display:block">Mes</label>
+            <select id="cond_filtroMes" onchange="renderCondicionesInseguras()" style="margin:0">
+              <option value="">Todos los meses</option>
+              <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+              <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+              <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+              <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;min-width:140px">
+            <label style="margin-bottom:4px;display:block">Año</label>
+            <select id="cond_filtroAnio" onchange="renderCondicionesInseguras()" style="margin:0">
+              <option value="">Todos los años</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones inseguras reportadas</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="cond_historialWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-condiciones -->
   </div>
 
   <!-- ════════════ PANEL: DETALLE ════════════ -->
@@ -16054,6 +16088,79 @@ async function obtenerRegistrosCronogramaFecha(fecha) {
   return todos[fecha] || {};
 }
 
+/* ══════════════════════════════════════════════
+   PESTAÑA "CONDICIONES INSEGURAS"
+   Lista TODAS las condiciones inseguras reportadas en el cronograma (filas
+   de CronogramaRegistros con la columna CondicionInsegura llena), con su
+   texto completo —sin recortar— para poder revisarlas. Filtra por mes/año.
+══════════════════════════════════════════════ */
+let allCondicionesInseguras = [];
+
+async function inicializarCondicionesInseguras() {
+  const wrap = document.getElementById('cond_historialWrap');
+  if (wrap) wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando condiciones inseguras…</div>';
+  try {
+    await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
+    const filas = await leerHojaGenericaCacheada(SH.cronogramaRegistros);
+    allCondicionesInseguras = (filas || [])
+      .filter(f => (f.CondicionInsegura || '').trim())
+      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.HoraRealizada || '').localeCompare(a.HoraRealizada || ''));
+    _poblarFiltroAnioCondiciones();
+    renderCondicionesInseguras();
+  } catch (e) {
+    if (wrap) wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+  }
+}
+
+function _poblarFiltroAnioCondiciones() {
+  const sel = document.getElementById('cond_filtroAnio');
+  if (!sel) return;
+  const anios = new Set([String(new Date().getFullYear())]);
+  allCondicionesInseguras.forEach(f => { if (f.Fecha) anios.add(f.Fecha.slice(0, 4)); });
+  const anterior = sel.value;
+  sel.innerHTML = '<option value="">Todos los años</option>' +
+    Array.from(anios).sort((a, b) => b.localeCompare(a)).map(a => `<option value="${a}">${a}</option>`).join('');
+  if (Array.from(sel.options).some(o => o.value === anterior)) sel.value = anterior;
+}
+
+function renderCondicionesInseguras() {
+  const wrap = document.getElementById('cond_historialWrap');
+  if (!wrap) return;
+  const mes  = document.getElementById('cond_filtroMes')?.value || '';
+  const anio = document.getElementById('cond_filtroAnio')?.value || '';
+  const filas = allCondicionesInseguras.filter(f => {
+    if (!f.Fecha) return false;
+    if (anio && f.Fecha.slice(0, 4) !== anio) return false;
+    if (mes && f.Fecha.slice(5, 7) !== mes) return false;
+    return true;
+  });
+  if (!filas.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay condiciones inseguras registradas en este periodo.</div>';
+    return;
+  }
+  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Hora</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Actividad</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Reportó</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Condición insegura</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Observación</th>
+    </tr></thead><tbody>`;
+  filas.forEach(f => {
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;white-space:nowrap">${esc(f.Fecha)}</td>
+      <td style="padding:7px 10px;white-space:nowrap">${esc(f.HoraRealizada || '')}</td>
+      <td style="padding:7px 10px;min-width:150px">${esc(f.ActividadTexto || f.ActividadId || '')}</td>
+      <td style="padding:7px 10px;white-space:nowrap">${esc(f.RealizadoPor || '')}</td>
+      <td style="padding:7px 10px;min-width:240px;color:#b45309;font-weight:600">${esc(f.CondicionInsegura)}</td>
+      <td style="padding:7px 10px;min-width:180px;color:var(--text2)">${esc(f.Observacion || '')}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
 /** Para el Dashboard de cumplimiento: agrupa CronogramaRegistros por
  *  Fecha+TurnoId y dice si ese turno quedó "cumplido" ese día — basta con
  *  que UNA sola actividad (o el "Reporte de datos de equipos" de un
@@ -16831,6 +16938,7 @@ function cronMostrarSubTab(nombre) {
   document.getElementById('cronSub-' + nombre).classList.add('active');
   panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`).classList.add('active');
   if (nombre === 'observaciones') inicializarObservacionesOperarios();
+  if (nombre === 'condiciones') inicializarCondicionesInseguras();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'secadores') inicializarReporteSecadores();
@@ -16970,6 +17078,7 @@ async function inicializarPanelCronograma() {
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
+  const tabCondiciones = document.getElementById('cronTabCondiciones');
   const tabCompresores = document.getElementById('cronTabCompresores');
   const tabSecadores = document.getElementById('cronTabSecadores');
   const tabDrycoolers = document.getElementById('cronTabDrycoolers');
@@ -16980,6 +17089,7 @@ async function inicializarPanelCronograma() {
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
+  if (tabCondiciones) tabCondiciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
   if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
   if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
