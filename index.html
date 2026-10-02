@@ -2310,7 +2310,7 @@ body.autenticado #btnBuscarGlobal {
          Compresores / Observaciones (las dos últimas solo se muestran para
          Zipaquirá, ver cronMostrarSubTab). -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:2px">
-      <button class="inv-subtab" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
+      <button class="inv-subtab" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades</button>
       <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
@@ -2324,25 +2324,11 @@ body.autenticado #btnBuscarGlobal {
       <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
     </div>
 
-    <!-- Pestaña "Actividades" DESHABILITADA temporalmente: muestra el aviso. -->
-    <div id="cronSub-actividades" class="inv-subpanel">
-      <div class="card" style="margin:10px 0;border:2px solid #f2b8a3;background:#fff6f2;border-radius:14px">
-        <div class="card-body" style="padding:28px 24px;text-align:center">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:52px;height:52px;margin:0 auto 14px;display:block"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          <div style="font-size:20px;font-weight:800;color:#b45309;margin-bottom:10px">Actividades deshabilitadas temporalmente</div>
-          <p style="font-size:14px;color:var(--text2);line-height:1.6;max-width:620px;margin:0 auto 10px">
-            El cronograma habitual incluye <strong>actividades en alturas</strong> que, por seguridad, <strong>no se pueden ejecutar</strong> mientras se hace una <strong>corrección en campo</strong> de esas condiciones.
-          </p>
-          <p style="font-size:14px;color:var(--text2);line-height:1.6;max-width:620px;margin:0 auto 18px">
-            Mientras tanto, trabaja en la pestaña <strong style="color:var(--brand)">“Actividades Temporales”</strong>, con el cronograma ajustado (sin tareas de alturas). Cuando se resuelvan las condiciones en campo, se volverá a habilitar esta pestaña.
-          </p>
-          <button class="btn btn-primary" style="padding:12px 24px;font-size:14px" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Ir a Actividades Temporales</button>
-        </div>
-      </div>
-    </div><!-- /cronSub-actividades (deshabilitada) -->
-
-    <!-- Pestaña "Actividades Temporales": el checklist de trabajo real ahora
-         vive aquí (mismo flujo: procedimiento, condiciones inseguras, quién). -->
+    <!-- Pestaña "Actividades Temporales": el checklist de trabajo real vive
+         aquí (mismo flujo: procedimiento, condiciones inseguras, quién). Va
+         ANTES de la pestaña "Actividades" (consulta) en el DOM para que, como
+         los checkpoints comparten id entre ambos cronogramas, getElementById
+         apunte a los elementos editables (los de esta pestaña). -->
     <div id="cronSub-temporal" class="inv-subpanel active">
 
     <!-- Checklist del turno activo en este momento -->
@@ -3028,6 +3014,14 @@ body.autenticado #btnBuscarGlobal {
         </div>
       </div>
     </div><!-- /cronSub-condiciones -->
+
+    <!-- Pestaña "Actividades": cronograma NORMAL en modo CONSULTA (ver
+         estados, sin marcar) mientras dura el modo temporal. Va DESPUÉS del
+         panel temporal en el DOM a propósito (ver comentario arriba). Lo
+         llena _renderChecklistCronograma con editable=false. -->
+    <div id="cronSub-actividades" class="inv-subpanel">
+      <div id="cronogramaContenidoNormal"></div>
+    </div><!-- /cronSub-actividades -->
 
     <!-- Inventario de herramienta por turno: los operarios revisan y, por
          rapidez, solo marcan lo que falta o está mal (el resto se asume
@@ -16575,8 +16569,8 @@ function _diaSemanaDe(fechaOrDate) {
  *  madrugada. Devuelve null si la sede no tiene cronograma configurado, o
  *  si ningún turno cubre la hora actual (no debería pasar si los turnos
  *  cubren las 24 horas seguidas). */
-function _contextoCronogramaAhora(sede) {
-  const cfg = CRONOGRAMA_POR_SEDE[sede];
+function _contextoCronogramaAhora(sede, cronograma) {
+  const cfg = cronograma || CRONOGRAMA_POR_SEDE[sede];
   if (!cfg) return null;
   const ahora = new Date();
   const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
@@ -17293,16 +17287,26 @@ function _idReporteCheckpoint(turnoId, hora) {
  *  duplicar toda la configuración del cronograma para traducirlos — y
  *  quedaría desactualizado en cuanto el cronograma cambiara. */
 function _textoDeActividadCronograma(actividadId, fecha) {
-  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
-  if (!cfg) return '';
   const dia = _diaSemanaDe(fecha);
-  for (const turno of cfg.turnos) {
-    for (const cp of turno.checkpoints) {
-      if (_idReporteCheckpoint(turno.id, cp.hora) === actividadId) {
-        return 'Reporte de datos de equipos ' + cp.hora;
-      }
-      for (const b of cp.bloques) {
-        if (b.id === actividadId) return (b.actividad[dia] || '').trim();
+  // Se busca en el cronograma activo Y, para Zipaquirá, también en el otro
+  // (normal/temporal), porque sus bloques tienen ids distintos y una
+  // actividad marcada desde cualquiera de las dos pestañas debe guardar su
+  // texto correcto.
+  const candidatos = [CRONOGRAMA_POR_SEDE[operacionActual]];
+  if (operacionActual === 'zipaquira') {
+    if (typeof CRONOGRAMA_ZIPAQUIRA !== 'undefined') candidatos.push(CRONOGRAMA_ZIPAQUIRA);
+    if (typeof CRONOGRAMA_ZIPAQUIRA_TEMPORAL !== 'undefined') candidatos.push(CRONOGRAMA_ZIPAQUIRA_TEMPORAL);
+  }
+  for (const cfg of candidatos) {
+    if (!cfg) continue;
+    for (const turno of cfg.turnos) {
+      for (const cp of turno.checkpoints) {
+        if (_idReporteCheckpoint(turno.id, cp.hora) === actividadId) {
+          return 'Reporte de datos de equipos ' + cp.hora;
+        }
+        for (const b of cp.bloques) {
+          if (b.id === actividadId) return (b.actividad[dia] || '').trim();
+        }
       }
     }
   }
@@ -17840,9 +17844,26 @@ async function inicializarPanelCronograma() {
   // deshabilitada mientras se corrigen en campo las condiciones de alturas).
   cronMostrarSubTab('temporal');
 
-  const cont = document.getElementById('cronogramaContenido');
+  // Checklist de trabajo (cronograma activo: el temporal si está habilitado).
+  _renderChecklistCronograma('cronogramaContenido', CRONOGRAMA_POR_SEDE[operacionActual], true);
+
+  // En modo temporal (Zipaquirá), la pestaña "Actividades" muestra el
+  // cronograma NORMAL en modo CONSULTA (ver estados, sin marcar) — así se
+  // puede revisar sin ejecutar las tareas de alturas, que es el motivo de la
+  // pausa. El trabajo se marca en "Actividades Temporales".
+  if (CRONOGRAMA_MODO_TEMPORAL && operacionActual === 'zipaquira') {
+    _renderChecklistCronograma('cronogramaContenidoNormal', CRONOGRAMA_ZIPAQUIRA, false);
+  }
+}
+
+/** Pinta el checklist del turno actual de un cronograma dado en el contenedor
+ *  indicado. editable=false lo deja en modo consulta (sin casillas/botones).
+ *  El selector de turno del informe solo se llena desde el checklist de
+ *  trabajo (contId 'cronogramaContenido'); los nombres de turno son iguales
+ *  en ambos cronogramas. */
+async function _renderChecklistCronograma(contId, cfg, editable) {
+  const cont = document.getElementById(contId);
   if (!cont) return;
-  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   if (!cfg) {
     cont.innerHTML = `<div class="card"><div class="card-body" style="padding:20px;text-align:center;color:var(--text3)">
       Esta sede todavía no tiene un cronograma de actividades configurado.
@@ -17851,13 +17872,15 @@ async function inicializarPanelCronograma() {
   }
   cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
 
-  const selTurno = document.getElementById('cronInformeTurno');
-  if (selTurno) {
-    selTurno.innerHTML = '<option value="">Todos los turnos</option>' +
-      cfg.turnos.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
+  if (contId === 'cronogramaContenido') {
+    const selTurno = document.getElementById('cronInformeTurno');
+    if (selTurno) {
+      selTurno.innerHTML = '<option value="">Todos los turnos</option>' +
+        cfg.turnos.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
+    }
   }
 
-  const ctx = _contextoCronogramaAhora(operacionActual);
+  const ctx = _contextoCronogramaAhora(operacionActual, cfg);
   if (!ctx) {
     cont.innerHTML = `<div class="card"><div class="card-body" style="padding:20px;text-align:center;color:var(--text3)">
       Ningún turno configurado cubre la hora actual.
@@ -17871,16 +17894,20 @@ async function inicializarPanelCronograma() {
       obtenerFotosCronogramaFecha(ctx.fecha),
       obtenerAdicionalesCronogramaFecha(ctx.fecha),
     ]);
+    const avisoConsulta = !editable
+      ? `<div style="margin-bottom:12px;padding:10px 14px;border:1px solid #f2b8a3;background:#fff6f2;border-radius:10px;font-size:12.5px;color:#b45309"><strong>Solo consulta.</strong> Este es el cronograma normal (incluye actividades en alturas). El trabajo se marca en la pestaña <strong>“Actividades Temporales”</strong>.</div>`
+      : '';
     cont.innerHTML = `
+      ${avisoConsulta}
       <div style="margin-bottom:14px;padding:14px 18px;background:linear-gradient(135deg,var(--brand) 0%,#1a4a8a 100%);border-radius:12px;color:#fff">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Tu turno ahora</div>
         <div style="font-size:20px;font-weight:800">${esc(ctx.turno.nombre)} · ${esc(DIAS_SEMANA_LABEL[ctx.diaSemana])} ${esc(fmtFecha(ctx.fecha))}</div>
       </div>
-      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, true, fotos, adicionalesFecha[ctx.turno.id])}
+      ${_htmlTurnoCronograma(ctx.turno, ctx.diaSemana, ctx.fecha, registros, editable, fotos, adicionalesFecha[ctx.turno.id])}
       ${cfg.nota ? `<div class="card" style="margin-bottom:14px"><div class="card-body" style="padding:12px 16px;font-size:12px;color:var(--text3);font-style:italic">📌 ${esc(cfg.nota)}</div></div>` : ''}
     `;
     _cargarMiniaturasFotosCronograma(Object.values(fotos).flat());
-    _iniciarCronometrosCheckpoints();
+    if (editable) _iniciarCronometrosCheckpoints();
   } catch (e) {
     cont.innerHTML = `<div class="card"><div class="card-body" style="padding:20px;text-align:center;color:#b00">Error cargando el cronograma: ${esc(e.message)}</div></div>`;
   }
