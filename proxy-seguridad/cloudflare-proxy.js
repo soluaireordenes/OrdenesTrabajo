@@ -80,7 +80,7 @@ export default {
       // Prueba la cuenta de servicio y la lectura de la hoja Usuarios, sin
       // exponer datos sensibles. Quitar cuando el login quede funcionando.
       if (url.pathname === '/diag') {
-        return _cors(await _diag(entorno), entorno, origen);
+        return _cors(await _diag(entorno, url), entorno, origen);
       }
 
       if (url.pathname === '/login' && peticion.method === 'POST') {
@@ -183,7 +183,7 @@ async function _login(peticion, entorno) {
    Revisa paso a paso que el Worker pueda: (1) sacar el token de la cuenta
    de servicio, y (2) leer la hoja Usuarios. Devuelve solo OK/ERROR y los
    encabezados de columnas (no datos de usuarios). */
-async function _diag(entorno) {
+async function _diag(entorno, url) {
   const pasos = {};
   pasos.tieneSaEmail = !!entorno.GOOGLE_SA_EMAIL;
   pasos.tieneSaKey = !!entorno.GOOGLE_SA_PRIVATE_KEY;
@@ -214,6 +214,38 @@ async function _diag(entorno) {
     }
   } catch (e) {
     pasos.leerUsuarios = 'ERROR: ' + e.message;
+  }
+
+  // Prueba de login opcional: /diag?doc=XXXX&pin=YYYY (solo para verificar;
+  // no entrega el pase de sesión, solo dice si validaría y con qué rol).
+  const docP = url && url.searchParams.get('doc');
+  const pinP = url && url.searchParams.get('pin');
+  if (docP && pinP) {
+    try {
+      const sheetId = entorno.USUARIOS_SHEET_ID;
+      const tab = entorno.USUARIOS_TAB || 'Usuarios';
+      const r = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab + '!A1:Z100000')}`,
+        { headers: { Authorization: 'Bearer ' + token } });
+      const datos = (await r.json()).values || [];
+      const enc = datos[0].map(h => String(h || '').trim().toLowerCase());
+      const iDoc = _buscarCol(enc, ['documento', 'cedula', 'cédula', 'usuario']);
+      const iPin = _buscarCol(enc, ['pinhash', 'hash', 'pin', 'clave']);
+      const iRol = _buscarCol(enc, ['rol', 'perfil', 'tipo']);
+      const hash = await _sha256HexUpper(String(pinP).trim());
+      let res = 'documento no encontrado';
+      for (let i = 1; i < datos.length; i++) {
+        if (String(datos[i][iDoc] || '').trim() === String(docP).trim()) {
+          const guard = String(datos[i][iPin] || '').trim().toUpperCase();
+          res = (hash === guard)
+            ? 'OK — validaría, rol: ' + (iRol >= 0 ? (datos[i][iRol] || 'operario') : 'operario')
+            : 'PIN incorrecto';
+          break;
+        }
+      }
+      pasos.loginPrueba = res;
+    } catch (e) {
+      pasos.loginPrueba = 'ERROR: ' + e.message;
+    }
   }
 
   return _json({ ok: !/ERROR/.test(JSON.stringify(pasos)), pasos });
