@@ -4321,6 +4321,7 @@ const LOGIN_APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXYJOJkuDp
 ══════════════════════════════════════════════ */
 const OPERACIONES = {
   zipaquira: { nombre: 'O-I ZIPAQUIRA',               bandera: '🇨🇴', spreadsheetId: '1_gIoYzZIZeURojSemB5vTtSQ1k4vw4_YfN-G6AjtaYU' },
+  zipaquira2:{ nombre: 'CO O-I ZIPAQUIRA 2',           bandera: '🇨🇴', spreadsheetId: '1xM4UFaV1fZ5bEYVVNx55UjbPN9CldQ6ObaZl0EGlF8A' },
   soacha:    { nombre: 'O-I SOACHA',                   bandera: '🇨🇴', spreadsheetId: '1Dv4veJWQPP2tZkYXRXLPo0MQmu8cR843TBO3D0uChP8' },
   antioquia: { nombre: 'SERVICIOTECNICO-ANTIOQUIA',   bandera: '🇨🇴', spreadsheetId: '1cqMzlHEBbzKy9d_GDkVTVarvzL0Es2J1_bSXeKpkHYs' },
   mexico:    { nombre: 'PAVISA-MEXICO',                bandera: '🇲🇽', spreadsheetId: '13kf6xZPfdnxDJmCyKJ0q-1z7ijRak7oMNhzemzq2KpI' },
@@ -4632,6 +4633,7 @@ function sidebarToggleGrupo(grupo) {
 // cada una — cada sede tiene el suyo propio, no lo mezcles con el de Órdenes).
 const INVENTARIO_SHEETS = {
   zipaquira: '1cqfk7gKRX4MfnHnPEZy7WGOunwT7kYLfJ14_W10Wh3s',
+  zipaquira2:'14yHP8GGumzc6c4CfAlLjTtnqJoWU8ATfQ3d1DAAafUk',
   soacha:    '1WpunyOSCJDDoIHgz-JKmJ_uNkHCloCQtIM36lm1RWdk',
   antioquia: '1Dj12a7g7s25A6bTb-oR54-FQY9qs0ffFHDtNq64q4fk',
   mexico:    '1TEwFSN-p-XcPiKHqiv-dqp8B2eefB-0Ecui5KcFU_VI',
@@ -5118,6 +5120,7 @@ async function validarClaveSedeDirecto(sede, clave) {
 ══════════════════════════════════════════════ */
 const FOTOS_CONFIG = {
   zipaquira: 'https://script.google.com/macros/s/AKfycbyelRTh-H9IgENKDgKuLjo9SfTnNAoJX09na7rago1vn26Fe2j4K8wPItqGriyHiJxM/exec',
+  // zipaquira2: 'PEGA_AQUI_LA_URL_/exec_DEL_APPS_SCRIPT_DE_FOTOS',  // ← pendiente: crear despliegue de fotos para CO O-I ZIPAQUIRA 2
   soacha:    'https://script.google.com/macros/s/AKfycbxiSDtJ8d1np_M279DB6LS_o6vCfgd-_tHbsPAVdDtCu6WUsFXBh81M_EKhhJSYnHFg/exec',
   antioquia: 'https://script.google.com/macros/s/AKfycbwqrvBJJlVna0_olP62toSJTPi78SLHvBEEbNCVJV4nugzykgu_Gk472jnN5RX5sHsy/exec',
   mexico:    'https://script.google.com/macros/s/AKfycbw0I8dXseBTda-yhrWmvQQiXa_20JXBf21-NPhrT-WFFMrVungmd1XpoG-jDmnhiZg1FA/exec',
