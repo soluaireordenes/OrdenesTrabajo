@@ -12776,8 +12776,24 @@ function _auxiliaresPromedioPorHora(bloques) {
   // se restan, así que para ellos no se muestra este bloque.
   const esAgua = (bloque && bloque.campos || []).some(c => c.col === 'ConsumoAgua');
   if (!esAgua) {
+    // Indicadores de Alta / Baja: no se calcula consumo por hora (no es un
+    // contador acumulado), pero sí el PROMEDIO de los valores del rango de
+    // fechas elegido, junto con el mínimo, el máximo y cuántos datos hay.
     _auxPuntosConsumo = null;
-    return '';
+    const campo = (bloque && bloque.campos && bloque.campos[0]) || null;
+    if (!campo) return '';
+    const valores = ((bloque && bloque.lecturas) || [])
+      .map(f => parseFloat(String(f[campo.col] ?? '').replace(',', '.')))
+      .filter(v => isFinite(v));
+    if (!valores.length) return '';
+    const suma = valores.reduce((s, v) => s + v, 0);
+    return _auxHtmlPromedioIndicador(
+      campo.label || 'Indicador',
+      suma / valores.length,
+      Math.min(...valores),
+      Math.max(...valores),
+      valores.length
+    );
   }
   const lecturas = (bloque && bloque.lecturas) || [];
   _auxPuntosConsumo = lecturas.map(f => ({
@@ -12878,6 +12894,38 @@ function _auxHtmlPromedio() {
     </div>
 
     <div style="height:230px"><canvas id="auxChartPorHora"></canvas></div>
+  </div>`;
+}
+
+/** Tarjeta de promedio para los indicadores de Alta/Baja: muestra el
+ *  promedio de los valores del rango de fechas elegido, con mínimo, máximo y
+ *  cuántos datos entraron. Se arma igual que las tarjetas del agua. */
+function _auxHtmlPromedioIndicador(label, prom, minimo, maximo, cuenta) {
+  const n = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+  const d = document.getElementById('varDesde-auxiliares');
+  const h = document.getElementById('varHasta-auxiliares');
+  const rango = (d && d.value && h && h.value) ? (' · ' + d.value + ' a ' + h.value) : '';
+  return `
+  <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:10px">Promedio de ${esc(label)}${esc(rango)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
+        <div style="font-size:22px;font-weight:800;color:var(--brand)">${n(prom)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Promedio del rango</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #0f766e">
+        <div style="font-size:19px;font-weight:800;color:#0f766e">${n(minimo)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Mínimo</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #b45309">
+        <div style="font-size:19px;font-weight:800;color:#b45309">${n(maximo)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Máximo</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:19px;font-weight:800;color:var(--text)">${cuenta}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Datos en el rango</div>
+      </div>
+    </div>
   </div>`;
 }
 
