@@ -478,6 +478,11 @@ body.autenticado #btnBuscarGlobal {
 .var-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 @media (min-width: 900px) { .var-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .inv-subpanel.active { display: block; }
+/* Acciones solo para administradores: se ocultan cuando el usuario es
+   operario (el body lleva la clase rol-operario). El bloqueo REAL de usuarios
+   y configuración lo hace el proxy del lado del servidor; esto es la capa de
+   interfaz para no mostrarles botones que no les corresponden. */
+body.rol-operario .solo-admin { display: none !important; }
 
 /* Visor de documentos imprimibles (informes, órdenes, reportes). En celular
    la pestaña nueva con blob: se queda en blanco o abre un visor que nunca
@@ -1582,7 +1587,7 @@ body.autenticado #btnBuscarGlobal {
           <span id="editOrdenBadge" style="margin-left:8px"></span>
         </div>
         <button class="btn btn-ghost" style="color:var(--accent2);border-color:var(--accent2)" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
-        <button class="btn btn-success" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como Realizada</button>
+        <button class="btn btn-success solo-admin" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como Realizada</button>
       </div>
 
       <!-- Header con timeline (estado actual de la orden) -->
@@ -1838,7 +1843,7 @@ body.autenticado #btnBuscarGlobal {
       <div style="display:flex;gap:10px;margin-top:4px;margin-bottom:24px;flex-wrap:wrap">
         <button class="btn btn-ghost" onclick="volverListaPendientes()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver sin guardar</button>
         <button class="btn btn-ghost" style="color:var(--accent2);border-color:var(--accent2)" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
-        <button class="btn btn-success" style="flex:1;max-width:320px" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Guardar y Marcar como Realizada</button>
+        <button class="btn btn-success solo-admin" style="flex:1;max-width:320px" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Guardar y Marcar como Realizada</button>
       </div>
 
     </div><!-- /subpanel-pend-editor -->
@@ -3099,7 +3104,7 @@ body.autenticado #btnBuscarGlobal {
       <button class="btn btn-ghost" onclick="showPanel('lista')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
       <button class="btn btn-ghost" onclick="imprimirOrden()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir / PDF</button>
       <button class="btn btn-ghost" onclick="descargarPDF()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
-      <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger);margin-left:auto" onclick="eliminarOrdenCompleta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Eliminar orden</button>
+      <button class="btn btn-ghost solo-admin" style="color:var(--danger);border-color:var(--danger);margin-left:auto" onclick="eliminarOrdenCompleta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Eliminar orden</button>
     </div>
     <div id="detalleContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:visible;min-height:100px;"></div>
   </div>
@@ -3201,7 +3206,7 @@ body.autenticado #btnBuscarGlobal {
       <!-- Sub-navegación del inventario -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-invtab="dashboard" onclick="invMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
-        <button class="inv-subtab" data-invtab="producto" onclick="invMostrarSubTab('producto')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Nuevo Producto</button>
+        <button class="inv-subtab solo-admin" data-invtab="producto" onclick="invMostrarSubTab('producto')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Nuevo Producto</button>
         <button class="inv-subtab" data-invtab="movimiento" onclick="invMostrarSubTab('movimiento')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Movimientos</button>
         <button class="inv-subtab" data-invtab="servicios" onclick="invMostrarSubTab('servicios')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Servicios</button>
         <button class="inv-subtab" data-invtab="stock" onclick="invMostrarSubTab('stock')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Stock</button>
@@ -4323,6 +4328,11 @@ const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleap
 // restaurar la sesión; sirve para ocultar acciones de admin en la interfaz
 // (el bloqueo REAL lo hace el proxy del lado del servidor).
 let usuarioRol = 'operario';
+function esAdmin() { return usuarioRol === 'admin'; }
+// Marca el body según el rol: con rol-operario, el CSS oculta todo lo .solo-admin.
+function _aplicarRolUI() {
+  try { document.body.classList.toggle('rol-operario', !esAdmin()); } catch (e) {}
+}
 
 /* ══════════════════════════════════════════════
    OPERACIONES / SEDES
@@ -6169,6 +6179,7 @@ window.addEventListener('load', async () => {
     googleAccessToken = savedToken; // ahora es el pase de sesión del proxy
     usuarioRol = (sessionStorage.getItem('gRol') === 'admin') ? 'admin' : 'operario';
   }
+  _aplicarRolUI(); // oculta acciones de admin si el usuario es operario
 
   if (!googleAccessToken) {
     mostrarLoginOverlay();
@@ -6771,7 +6782,7 @@ function renderPendientes() {
       </div>
       <div class="item-actions">
         <button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
-        <button class="btn btn-success btn-sm" onclick="marcarRealizada('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
+        <button class="btn btn-success btn-sm solo-admin" onclick="marcarRealizada('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
         <button class="btn btn-primary btn-sm" onclick="showPanel('pendientes');abrirModalCompletar('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Completar</button>
       </div>
     </div>`;
@@ -12765,8 +12776,24 @@ function _auxiliaresPromedioPorHora(bloques) {
   // se restan, así que para ellos no se muestra este bloque.
   const esAgua = (bloque && bloque.campos || []).some(c => c.col === 'ConsumoAgua');
   if (!esAgua) {
+    // Indicadores de Alta / Baja: no se calcula consumo por hora (no es un
+    // contador acumulado), pero sí el PROMEDIO de los valores del rango de
+    // fechas elegido, junto con el mínimo, el máximo y cuántos datos hay.
     _auxPuntosConsumo = null;
-    return '';
+    const campo = (bloque && bloque.campos && bloque.campos[0]) || null;
+    if (!campo) return '';
+    const valores = ((bloque && bloque.lecturas) || [])
+      .map(f => parseFloat(String(f[campo.col] ?? '').replace(',', '.')))
+      .filter(v => isFinite(v));
+    if (!valores.length) return '';
+    const suma = valores.reduce((s, v) => s + v, 0);
+    return _auxHtmlPromedioIndicador(
+      campo.label || 'Indicador',
+      suma / valores.length,
+      Math.min(...valores),
+      Math.max(...valores),
+      valores.length
+    );
   }
   const lecturas = (bloque && bloque.lecturas) || [];
   _auxPuntosConsumo = lecturas.map(f => ({
@@ -12867,6 +12894,38 @@ function _auxHtmlPromedio() {
     </div>
 
     <div style="height:230px"><canvas id="auxChartPorHora"></canvas></div>
+  </div>`;
+}
+
+/** Tarjeta de promedio para los indicadores de Alta/Baja: muestra el
+ *  promedio de los valores del rango de fechas elegido, con mínimo, máximo y
+ *  cuántos datos entraron. Se arma igual que las tarjetas del agua. */
+function _auxHtmlPromedioIndicador(label, prom, minimo, maximo, cuenta) {
+  const n = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+  const d = document.getElementById('varDesde-auxiliares');
+  const h = document.getElementById('varHasta-auxiliares');
+  const rango = (d && d.value && h && h.value) ? (' · ' + d.value + ' a ' + h.value) : '';
+  return `
+  <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:10px">Promedio de ${esc(label)}${esc(rango)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
+        <div style="font-size:22px;font-weight:800;color:var(--brand)">${n(prom)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Promedio del rango</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #0f766e">
+        <div style="font-size:19px;font-weight:800;color:#0f766e">${n(minimo)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Mínimo</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid #b45309">
+        <div style="font-size:19px;font-weight:800;color:#b45309">${n(maximo)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Máximo</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:19px;font-weight:800;color:var(--text)">${cuenta}</div>
+        <div style="font-size:11.5px;color:var(--text3)">Datos en el rango</div>
+      </div>
+    </div>
   </div>`;
 }
 
