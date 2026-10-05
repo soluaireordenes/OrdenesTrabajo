@@ -9061,6 +9061,7 @@ const SH = {
   inventarioEquiposBase: 'InventarioEquiposBase',
   inventarioEquiposObs:  'InventarioEquiposObs',
   hvdEquipos: 'HVDEquipos',
+  hvdRepuestos: 'HVDRepuestos',
   planesMantenimiento: 'PlanesMantenimiento',
   notificaciones: 'Notificaciones',
   horasEquipos: 'HorasEquipos',
@@ -21057,6 +21058,11 @@ function _ieRenderTabla(filas) {
 ══════════════════════════════════════════════════════════════ */
 const HVD_EQUIPOS_COLS = ['Equipo','Descripcion','Marca','Modelo','Serie','Fabricante','Voltaje','Potencia','RPM','RangosTrabajo','FechaPuestaMarcha','DatosInteres','FotoDriveFileId'];
 
+// Repuestos de cada equipo: un CATÁLOGO por equipo (no es movimiento de stock,
+// solo la lista de los repuestos que lleva ese equipo). Una fila por repuesto;
+// al guardar se reemplazan todas las filas de ese equipo.
+const HVD_REPUESTOS_COLS = ['Equipo','#','Codigo','Nombre','Cantidad','Ubicacion','Observacion'];
+
 // Campos de especificaciones de la Hoja de Vida (los que se muestran/guardan
 // además de la foto y el historial).
 const HVD_CAMPOS_SPECS = [
@@ -21201,6 +21207,13 @@ async function hvdSeleccionarEquipo(equipo) {
   }
   specs = specs || {};
 
+  // Repuestos del equipo (solo en modo operación; los de seguridad no llevan).
+  let repuestosHVD = [];
+  if (hvdModoActual !== 'seguridad') {
+    try { repuestosHVD = await _leerRepuestosHVD(equipo); }
+    catch (e) { repuestosHVD = []; }
+  }
+
   const fotoHtml = specs.FotoDriveFileId
     ? `<img id="hvdFotoImg" src="" style="width:100%;max-width:320px;border-radius:8px;border:1px solid var(--border)" alt="Foto del equipo">`
     : `<div id="hvdFotoImg" style="width:100%;max-width:320px;height:180px;background:var(--surface2);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">Sin foto</div>`;
@@ -21219,6 +21232,28 @@ async function hvdSeleccionarEquipo(equipo) {
         ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label>${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"></div>`).join('')}
       </div>
     </div>
+    ${hvdModoActual === 'seguridad' ? '' : `
+    <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden">
+      <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:700;color:var(--brand);font-size:13px">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+        REPUESTOS DEL EQUIPO
+      </div>
+      <div style="padding:14px 16px">
+        <div style="overflow-x:auto">
+          <table class="dyn-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
+            <thead>
+              <tr>
+                ${['Código','Repuesto','Cantidad','Ubicación','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody id="hvd_tbody_repuestos">
+              ${repuestosHVD.map(_htmlFilaRepuestoHVD).join('')}
+            </tbody>
+          </table>
+        </div>
+        <button class="btn-add-row" onclick="hvdAgregarFilaRepuesto()" style="margin-top:10px">+ Agregar repuesto</button>
+      </div>
+    </div>`}
     <button class="btn btn-primary" onclick="hvdGuardarSpecs()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar especificaciones</button>
     <div id="hvdSpecsMsg" style="margin-top:8px;font-size:13px"></div>
 
@@ -21269,12 +21304,84 @@ async function hvdGuardarSpecs() {
     if (!el) return;
     datos[c.col] = c.type === 'date' ? el.value : el.value.trim();
   });
+  // Los repuestos del equipo se guardan junto con las especificaciones (el
+  // mismo botón). _leerRepuestosEditorHVD devuelve null si la tabla no está
+  // en pantalla (modo seguridad), para no tocar la hoja en ese caso.
+  const repuestos = _leerRepuestosEditorHVD();
   try {
     await _actualizarFilaPorClave(SH.hvdEquipos, HVD_EQUIPOS_COLS, 'Equipo', hvdEquipoActual, datos);
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Especificaciones guardadas.';
+    if (repuestos !== null) await _guardarRepuestosHVD(hvdEquipoActual, repuestos);
+    const txtOk = repuestos !== null ? 'Especificaciones y repuestos guardados.' : 'Especificaciones guardadas.';
+    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ' + txtOk;
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
   }
+}
+
+/* ── Repuestos del equipo (catálogo por equipo, hoja HVDRepuestos) ── */
+
+// HTML de una fila de repuesto en el editor. Se usa tanto al pintar los
+// repuestos ya guardados como al agregar una fila nueva (con r = {}).
+function _htmlFilaRepuestoHVD(r) {
+  r = r || {};
+  return `<tr>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.ubicacion||'')}" placeholder="Ej: Bodega A"></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"></td>
+    <td style="padding:3px 4px;text-align:center"><button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button></td>
+  </tr>`;
+}
+
+// Agrega una fila vacía al final de la tabla de repuestos.
+function hvdAgregarFilaRepuesto() {
+  const tb = document.getElementById('hvd_tbody_repuestos');
+  if (!tb) return;
+  tb.insertAdjacentHTML('beforeend', _htmlFilaRepuestoHVD({}));
+}
+
+// Lee los repuestos guardados de un equipo (ordenados por el número de fila).
+async function _leerRepuestosHVD(equipo) {
+  await asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS);
+  const filas = await leerHojaGenerica(SH.hvdRepuestos);
+  return filas
+    .filter(f => f.Equipo === equipo)
+    .sort((a, b) => (Number(a['#']) || 0) - (Number(b['#']) || 0))
+    .map(f => ({ codigo: f.Codigo || '', nombre: f.Nombre || '', cantidad: f.Cantidad || '',
+                 ubicacion: f.Ubicacion || '', observacion: f.Observacion || '' }));
+}
+
+// Lee los repuestos escritos en el editor. Devuelve null si la tabla no está
+// en pantalla (p. ej. modo seguridad), para que el guardado no toque la hoja.
+function _leerRepuestosEditorHVD() {
+  const tb = document.getElementById('hvd_tbody_repuestos');
+  if (!tb) return null;
+  return Array.from(tb.querySelectorAll('tr')).map(tr => {
+    const ins = tr.querySelectorAll('input');
+    return { codigo: (ins[0]?.value || '').trim(), nombre: (ins[1]?.value || '').trim(),
+             cantidad: (ins[2]?.value || '').trim(), ubicacion: (ins[3]?.value || '').trim(),
+             observacion: (ins[4]?.value || '').trim() };
+  }).filter(r => r.codigo || r.nombre); // se descartan las filas en blanco
+}
+
+// Reemplaza TODOS los repuestos de un equipo por la lista dada (borra los
+// viejos y agrega los nuevos), igual que se hace con las filas de una orden.
+async function _guardarRepuestosHVD(equipo, repuestos) {
+  const colsReales = await asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS);
+  await eliminarFilasDondeCumple(SH.hvdRepuestos, r => r.Equipo === equipo);
+  if (!repuestos.length) return;
+  const filas = repuestos.map((r, i) => colsReales.map(c => {
+    if (c === 'Equipo') return equipo;
+    if (c === '#') return i + 1;
+    if (c === 'Codigo') return r.codigo || '';
+    if (c === 'Nombre') return r.nombre || '';
+    if (c === 'Cantidad') return r.cantidad || '';
+    if (c === 'Ubicacion') return r.ubicacion || '';
+    if (c === 'Observacion') return r.observacion || '';
+    return '';
+  }));
+  await appendHoja(SH.hvdRepuestos, filas);
 }
 
 /** Actualiza (o crea, si no existe) una fila de una hoja identificándola
