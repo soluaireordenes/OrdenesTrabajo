@@ -21403,6 +21403,10 @@ async function hvdSeleccionarEquipo(equipo) {
     catch (e) { repuestosHVD = []; }
   }
 
+  // Los operarios ven la Hoja de Vida en SOLO LECTURA: no pueden cambiar la
+  // foto, editar las especificaciones ni los repuestos (solo los admin).
+  const soloLectura = !esAdmin();
+
   const fotoHtml = specs.FotoDriveFileId
     ? `<img id="hvdFotoImg" src="" style="width:100%;max-width:320px;border-radius:8px;border:1px solid var(--border)" alt="Foto del equipo">`
     : `<div id="hvdFotoImg" style="width:100%;max-width:320px;height:180px;background:var(--surface2);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px">Sin foto</div>`;
@@ -21411,14 +21415,14 @@ async function hvdSeleccionarEquipo(equipo) {
     <div class="grid-lista-detalle" style="--lista-w:320px;gap:20px;margin-bottom:20px">
       <div>
         ${fotoHtml}
-        <label class="btn btn-ghost" style="display:inline-flex;margin-top:8px;font-size:12px;cursor:pointer">
+        ${soloLectura ? '' : `<label class="btn btn-ghost" style="display:inline-flex;margin-top:8px;font-size:12px;cursor:pointer">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> ${specs.FotoDriveFileId ? 'Cambiar foto' : 'Agregar foto'}
           <input type="file" accept="image/*" style="display:none" onchange="hvdSubirFoto(this)">
-        </label>
+        </label>`}
         <div id="hvdFotoMsg" style="font-size:12px;margin-top:4px"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label>${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"></div>`).join('')}
+        ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label>${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"${soloLectura ? ' readonly' : ''}></div>`).join('')}
       </div>
     </div>
     ${hvdModoActual === 'seguridad' ? '' : `
@@ -21440,10 +21444,12 @@ async function hvdSeleccionarEquipo(equipo) {
             </tbody>
           </table>
         </div>
-        <button class="btn-add-row" onclick="hvdAgregarFilaRepuesto()" style="margin-top:10px">+ Agregar repuesto</button>
+        ${soloLectura ? '' : `<button class="btn-add-row" onclick="hvdAgregarFilaRepuesto()" style="margin-top:10px">+ Agregar repuesto</button>`}
       </div>
     </div>`}
-    <button class="btn btn-primary" onclick="hvdGuardarSpecs()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar especificaciones</button>
+    ${soloLectura
+      ? `<div style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:6px 14px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Solo lectura — un administrador puede editar la hoja de vida</div>`
+      : `<button class="btn btn-primary" onclick="hvdGuardarSpecs()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar especificaciones</button>`}
     <div id="hvdSpecsMsg" style="margin-top:8px;font-size:13px"></div>
 
     <div style="margin-top:28px">
@@ -21513,13 +21519,15 @@ async function hvdGuardarSpecs() {
 // repuestos ya guardados como al agregar una fila nueva (con r = {}).
 function _htmlFilaRepuestoHVD(r) {
   r = r || {};
+  // Operarios: repuestos en solo lectura (campos bloqueados, sin botón borrar).
+  const ro = !esAdmin() ? ' readonly' : '';
   return `<tr>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.ubicacion||'')}" placeholder="Ej: Bodega A"></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"></td>
-    <td style="padding:3px 4px;text-align:center"><button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"${ro}></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"${ro}></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"${ro}></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.ubicacion||'')}" placeholder="Ej: Bodega A"${ro}></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"${ro}></td>
+    <td style="padding:3px 4px;text-align:center">${!esAdmin() ? '' : `<button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button>`}</td>
   </tr>`;
 }
 
