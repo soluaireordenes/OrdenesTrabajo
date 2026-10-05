@@ -2058,7 +2058,7 @@ body.rol-operario .solo-admin { display: none !important; }
   <div id="panel-novedades" class="panel">
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
       <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Informes de Novedades Operativas de Planta</div>
-      <button class="btn btn-primary" onclick="abrirModalNovedad()">+ Nuevo Informe</button>
+      <button class="btn btn-primary solo-admin" onclick="abrirModalNovedad()">+ Nuevo Informe</button>
       <button class="btn btn-success" onclick="generarInformeConsolidado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Consolidado (PDF)</button>
     </div>
 
@@ -2076,7 +2076,7 @@ body.rol-operario .solo-admin { display: none !important; }
           <label style="margin-bottom:4px;display:block">Fecha de la novedad</label>
           <input type="date" id="novRachaFecha" style="margin:0">
         </div>
-        <button class="btn btn-primary" onclick="registrarNovedadRacha()">Registrar y reiniciar contador</button>
+        <button class="btn btn-primary solo-admin" onclick="registrarNovedadRacha()">Registrar y reiniciar contador</button>
         <div id="novRachaHistorial" style="flex-basis:100%;margin-top:2px"></div>
       </div>
     </div>
@@ -3547,7 +3547,7 @@ body.rol-operario .solo-admin { display: none !important; }
         <button class="inv-subtab" data-pmtab="informetrimestral" onclick="pmMostrarSubTab('informetrimestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Trimestral</button>
         <button class="inv-subtab" data-pmtab="informesemestral" onclick="pmMostrarSubTab('informesemestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Semestral</button>
                 <button class="inv-subtab" data-pmtab="informeanual" onclick="pmMostrarSubTab('informeanual')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Anual</button>
-<button class="inv-subtab" data-pmtab="configinformes" onclick="pmMostrarSubTab('configinformes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> Configuración</button>
+<button class="inv-subtab solo-admin" data-pmtab="configinformes" onclick="pmMostrarSubTab('configinformes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> Configuración</button>
       </div>
 
       <div id="pmSub-registro" class="inv-subpanel active">
@@ -14005,6 +14005,7 @@ async function pmRenderHoraBase() {
 }
 
 async function pmGuardarHoraBase() {
+  if (!esAdmin()) { alert('Solo un administrador puede editar el Plan de Mantenimiento.'); return; }
   const msg = document.getElementById('pmHoraBaseMsg');
   const cambios = {};
   for (const el of document.querySelectorAll('.pm-hora-base')) {
@@ -14132,6 +14133,7 @@ function _pmPintarFilasActividad(lista) {
 }
 
 function pmAgregarActividad() {
+  if (!esAdmin()) return;
   const cont = document.getElementById('pmActLista');
   if (!cont) return;
   if (!cont.querySelector('.pm-act-fila')) cont.innerHTML = '';
@@ -14139,6 +14141,7 @@ function pmAgregarActividad() {
 }
 
 function pmRestaurarActividadesPorDefecto() {
+  if (!esAdmin()) return;
   const frecuencia = document.getElementById('pmActFrecuencia').value;
   const tipo = document.getElementById('pmActTipo').value;
   const def = INFORME_FRECUENCIAS.find(f => f.key === frecuencia).defaults()[tipo] || [];
@@ -14149,6 +14152,7 @@ function pmRestaurarActividadesPorDefecto() {
 }
 
 async function pmGuardarActividades() {
+  if (!esAdmin()) { alert('Solo un administrador puede editar el Plan de Mantenimiento.'); return; }
   const msg = document.getElementById('pmActMsg');
   const frecuencia = document.getElementById('pmActFrecuencia').value;
   const tipo = document.getElementById('pmActTipo').value;
@@ -15437,6 +15441,7 @@ async function registrarFechaRacha(fecha) {
 
 /** Botón "Registrar y reiniciar contador" del calendario de novedades. */
 async function registrarNovedadRacha() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar novedades.'); return; }
   const input = document.getElementById('novRachaFecha');
   const fecha = input.value;
   if (!fecha) { alert('Selecciona primero la fecha de la novedad.'); return; }
@@ -15845,9 +15850,9 @@ function filtrarNovedadesUI() {
       <td style="padding:7px 10px">${esc(n.ElaboradoNombre || n.Correo || '')}</td>
       <td style="padding:7px 10px;text-align:center">${n.InformeDriveFileId ? '📄' : '—'}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="abrirModalNovedad('${esc(n.Codigo)}')">${iconoEditar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="abrirModalNovedad('${esc(n.Codigo)}')">${iconoEditar}</button>
         <button class="btn btn-ghost btn-sm" onclick="verInformePdf('${esc(n.Codigo)}')" title="Ver PDF del informe">${iconoExportar}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarNovedad('${esc(n.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarNovedad('${esc(n.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
 
@@ -15930,6 +15935,7 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
  *  manuales, sus tiempos (inicio → fin) y el PDF real adjunto. Los campos
  *  largos (descripción, análisis, acciones, firmas, fotos) ya no van aquí. */
 function abrirModalNovedad(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede agregar o editar novedades.'); return; }
   const existente = codigo ? allNovedades.find(n => n.Codigo === codigo) : null;
   const tipoInicial = existente
     ? (NOVEDADES_TIPOS.find(t => (existente.Codigo || '').startsWith(t.prefijo))?.prefijo || NOVEDADES_TIPOS[0].prefijo)
@@ -16231,6 +16237,7 @@ async function guardarNovedad() {
 }
 
 async function eliminarNovedad(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar novedades.'); return; }
   if (!confirm('¿Eliminar este informe? Esta acción no se puede deshacer.')) return;
   const fila = allNovedades.find(n => n.Codigo === codigo);
   if (!fila) return;
