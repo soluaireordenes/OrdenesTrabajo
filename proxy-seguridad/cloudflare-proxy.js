@@ -53,6 +53,14 @@ const SESSION_TTL_SEG = 12 * 60 * 60; // el pase de sesión dura 12 horas
 // Token de la cuenta de servicio, cacheado entre peticiones del mismo isolate.
 let _saToken = null;      // { access_token, exp (epoch seg) }
 
+// Bloqueo por intentos fallidos (anti fuerza bruta), igual que el login
+// original: 5 fallos → bloqueo 15 min. Nota: este conteo vive en memoria del
+// isolate (no es 100% durable entre reinicios/instancias de Cloudflare); para
+// un bloqueo totalmente persistente se migraría a Cloudflare KV más adelante.
+const MAX_INTENTOS = 5;
+const BLOQUEO_MS = 15 * 60 * 1000;
+const _intentos = new Map(); // documento -> { intentos, bloqueadoHasta }
+
 export default {
   async fetch(peticion, entorno) {
     const url = new URL(peticion.url);
@@ -95,6 +103,10 @@ async function _login(peticion, entorno) {
   const pin = String(cuerpo.pin || '').trim();
   if (!documento || !pin) return _json({ ok: false, mensaje: 'Falta documento o PIN.' }, 400);
 
+  // Bloqueo por intentos fallidos (anti fuerza bruta).
+  const minBloqueo = _revisarBloqueo(documento);
+  if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
+
   const sheetId = entorno.USUARIOS_SHEET_ID;
   if (!sheetId) return _json({ ok: false, mensaje: 'Falta configurar USUARIOS_SHEET_ID en el Worker.' }, 500);
   const tab = entorno.USUARIOS_TAB || 'Usuarios';
@@ -114,10 +126,11 @@ async function _login(peticion, entorno) {
   // Mapear columnas por encabezado (acepta sinónimos comunes).
   const enc = datos[0].map(h => String(h || '').trim().toLowerCase());
   const idxDoc = _buscarCol(enc, ['documento', 'cedula', 'cédula', 'identificacion', 'identificación', 'usuario']);
-  const idxPin = _buscarCol(enc, ['pin', 'clave', 'contraseña', 'contrasena', 'password']);
+  const idxPin = _buscarCol(enc, ['pinhash', 'pin hash', 'hash', 'pin', 'clave', 'contraseña', 'contrasena', 'password']);
   const idxNom = _buscarCol(enc, ['nombre', 'nombres', 'nombre completo']);
   const idxRol = _buscarCol(enc, ['rol', 'perfil', 'tipo']);
   const idxAct = _buscarCol(enc, ['activo', 'estado', 'habilitado']);
+  const idxSede = _buscarCol(enc, ['sede', 'operacion', 'operación']);
 
   if (idxDoc < 0 || idxPin < 0) {
     return _json({ ok: false, mensaje: 'La hoja Usuarios debe tener columnas de documento y PIN.' }, 500);
@@ -136,17 +149,26 @@ async function _login(peticion, entorno) {
       }
     }
 
-    const pinFila = String(fila[idxPin] || '').trim();
-    if (pinFila !== pin) return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+    // El PIN se guarda como hash SHA-256 (hex mayúsculas), igual que el
+    // Apps Script de login original. Se compara hash contra hash.
+    const pinHash = await _sha256HexUpper(pin);
+    const pinGuardado = String(fila[idxPin] || '').trim().toUpperCase();
+    if (pinHash !== pinGuardado) {
+      _registrarFallo(documento);
+      return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+    }
 
+    _limpiarFallos(documento);
     const nombre = idxNom >= 0 ? String(fila[idxNom] || '').trim() : documento;
+    const sede = idxSede >= 0 ? String(fila[idxSede] || '').trim().toLowerCase() : '';
     let rol = idxRol >= 0 ? String(fila[idxRol] || '').trim().toLowerCase() : 'operario';
     if (rol !== 'admin') rol = 'operario'; // cualquier valor que no sea admin = operario
 
-    const session = await _firmarSesion({ doc: documento, nombre, rol }, entorno);
-    return _json({ ok: true, session, nombre, rol });
+    const session = await _firmarSesion({ doc: documento, nombre, rol, sede }, entorno);
+    return _json({ ok: true, session, nombre, rol, sede });
   }
 
+  _registrarFallo(documento);
   return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
 }
 
@@ -308,6 +330,33 @@ function _pemADer(pem) {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes.buffer;
+}
+
+async function _sha256HexUpper(texto) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  const bytes = new Uint8Array(buf);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+  return hex.toUpperCase();
+}
+
+/* ── Bloqueo por intentos fallidos ────────────────────────────────────── */
+function _revisarBloqueo(documento) {
+  const d = _intentos.get(documento);
+  if (d && d.bloqueadoHasta && Date.now() < d.bloqueadoHasta) {
+    return Math.ceil((d.bloqueadoHasta - Date.now()) / 60000);
+  }
+  return 0;
+}
+function _registrarFallo(documento) {
+  let d = _intentos.get(documento) || { intentos: 0 };
+  if (d.bloqueadoHasta && Date.now() >= d.bloqueadoHasta) d = { intentos: 0 };
+  d.intentos = (d.intentos || 0) + 1;
+  if (d.intentos >= MAX_INTENTOS) { d.bloqueadoHasta = Date.now() + BLOQUEO_MS; d.intentos = 0; }
+  _intentos.set(documento, d);
+}
+function _limpiarFallos(documento) {
+  _intentos.delete(documento);
 }
 
 /* ── Utilidades ───────────────────────────────────────────────────────── */
