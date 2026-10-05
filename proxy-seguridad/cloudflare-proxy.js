@@ -76,6 +76,13 @@ export default {
         return _cors(_json({ ok: true }), entorno, origen);
       }
 
+      // Diagnóstico (temporal): se abre con solo pegar la URL en la barra.
+      // Prueba la cuenta de servicio y la lectura de la hoja Usuarios, sin
+      // exponer datos sensibles. Quitar cuando el login quede funcionando.
+      if (url.pathname === '/diag') {
+        return _cors(await _diag(entorno), entorno, origen);
+      }
+
       if (url.pathname === '/login' && peticion.method === 'POST') {
         return _cors(await _login(peticion, entorno), entorno, origen);
       }
@@ -170,6 +177,46 @@ async function _login(peticion, entorno) {
 
   _registrarFallo(documento);
   return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+}
+
+/* ── DIAGNÓSTICO (temporal) ─────────────────────────────────────────────
+   Revisa paso a paso que el Worker pueda: (1) sacar el token de la cuenta
+   de servicio, y (2) leer la hoja Usuarios. Devuelve solo OK/ERROR y los
+   encabezados de columnas (no datos de usuarios). */
+async function _diag(entorno) {
+  const pasos = {};
+  pasos.tieneSaEmail = !!entorno.GOOGLE_SA_EMAIL;
+  pasos.tieneSaKey = !!entorno.GOOGLE_SA_PRIVATE_KEY;
+  pasos.usuariosSheetId = entorno.USUARIOS_SHEET_ID ? (String(entorno.USUARIOS_SHEET_ID).slice(0, 6) + '…') : 'FALTA';
+  pasos.usuariosTab = entorno.USUARIOS_TAB || 'Usuarios';
+  pasos.allowedOrigin = entorno.ALLOWED_ORIGIN || '(ninguno)';
+
+  let token;
+  try {
+    token = await _tokenCuentaServicio(entorno);
+    pasos.cuentaServicio = token ? 'OK (token obtenido)' : 'sin token';
+  } catch (e) {
+    pasos.cuentaServicio = 'ERROR: ' + e.message;
+    return _json({ ok: false, pasos });
+  }
+
+  try {
+    const sheetId = entorno.USUARIOS_SHEET_ID;
+    const tab = entorno.USUARIOS_TAB || 'Usuarios';
+    const r = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab + '!A1:Z1')}`,
+      { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) {
+      const d = await r.json();
+      pasos.leerUsuarios = 'OK';
+      pasos.encabezados = (d.values && d.values[0]) || [];
+    } else {
+      pasos.leerUsuarios = 'ERROR HTTP ' + r.status + ': ' + (await r.text()).slice(0, 300);
+    }
+  } catch (e) {
+    pasos.leerUsuarios = 'ERROR: ' + e.message;
+  }
+
+  return _json({ ok: !/ERROR/.test(JSON.stringify(pasos)), pasos });
 }
 
 /* ── GATEWAY A GOOGLE SHEETS ────────────────────────────────────────────
