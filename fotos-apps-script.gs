@@ -36,8 +36,17 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 // ⬇️ ID de la carpeta de Drive donde se guardan las fotos de ESTA sede.
-//    (CO/O-I ZIPAQUIRA — carpeta en Workspace)
+//    (CO/O-I ZIPAQUIRA — carpeta en Workspace "solucion aire fotos zipaquira")
 var CARPETA_ID = '1UMMHSC-A5YITjRLkpS5me6s1w-OdwAAZ';
+
+// Cada tipo de foto se guarda en su propia subcarpeta (se crean solas si no
+// existen). El sistema envía el campo "tipo" en cada subida. Las fotos se
+// sirven por su ID, así que la subcarpeta no afecta cómo se ven.
+var SUBCARPETAS = {
+  orden:      'FOTOS OT',
+  cronograma: 'FOTOS REPORTES',
+  novedad:    'FOTOS NOVEDADES'
+};
 
 // ── Mostrar una foto: GET ?id=<driveFileId> ──
 function doGet(e) {
@@ -73,7 +82,7 @@ function doPost(e) {
 function _subirFoto(datos) {
   if (!datos.base64) return _json({ ok: false, mensaje: 'No llegó el contenido de la imagen.' });
 
-  var carpeta  = DriveApp.getFolderById(CARPETA_ID);
+  var carpeta  = _carpetaDestino(datos.tipo);
   var mimeType = datos.mimeType || 'image/jpeg';
   var nombre   = datos.nombreArchivo
               || ((datos.tipo || 'foto') + '_' + (datos.codigo || '') + '_' + Date.now() + '.jpg');
@@ -96,6 +105,17 @@ function _subirFoto(datos) {
     driveFileId: id,
     urlVer: 'https://drive.google.com/file/d/' + id + '/view'
   });
+}
+
+// Devuelve la subcarpeta que le toca a este tipo de foto, creándola dentro de
+// la carpeta raíz si todavía no existe. Si el tipo no está mapeado, guarda en
+// la carpeta raíz (no se pierde nada).
+function _carpetaDestino(tipo) {
+  var raiz = DriveApp.getFolderById(CARPETA_ID);
+  var nombre = SUBCARPETAS[String(tipo || '').toLowerCase()];
+  if (!nombre) return raiz;
+  var it = raiz.getFoldersByName(nombre);
+  return it.hasNext() ? it.next() : raiz.createFolder(nombre);
 }
 
 function _eliminarFoto(datos) {
