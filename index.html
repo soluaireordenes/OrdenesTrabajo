@@ -12778,21 +12778,45 @@ function _auxiliaresPromedioPorHora(bloques) {
   if (!esAgua) {
     // Indicadores de Alta / Baja: no se calcula consumo por hora (no es un
     // contador acumulado), pero sí el PROMEDIO de los valores del rango de
-    // fechas elegido, junto con el mínimo, el máximo y cuántos datos hay.
+    // fechas elegido, con mínimo, máximo, cuántos datos, tendencia, promedio
+    // por turno y comparación con el periodo anterior.
     _auxPuntosConsumo = null;
     const campo = (bloque && bloque.campos && bloque.campos[0]) || null;
     if (!campo) return '';
-    const valores = ((bloque && bloque.lecturas) || [])
-      .map(f => parseFloat(String(f[campo.col] ?? '').replace(',', '.')))
-      .filter(v => isFinite(v));
-    if (!valores.length) return '';
-    const suma = valores.reduce((s, v) => s + v, 0);
+    // Las lecturas vienen ya ordenadas cronológicamente por variablesGraficar.
+    const pares = ((bloque && bloque.lecturas) || [])
+      .map(f => ({ val: parseFloat(String(f[campo.col] ?? '').replace(',', '.')), turno: _auxNombreTurno(f) }))
+      .filter(p => isFinite(p.val));
+    if (!pares.length) return '';
+    const valores = pares.map(p => p.val);
+    const prom = valores.reduce((s, v) => s + v, 0) / valores.length;
+
+    // Tendencia: promedio de la primera mitad vs la segunda (hace falta un
+    // mínimo de datos para que signifique algo).
+    let tendencia = null;
+    if (pares.length >= 4) {
+      const m = Math.floor(pares.length / 2);
+      const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+      const p1 = avg(valores.slice(0, m));
+      const p2 = avg(valores.slice(valores.length - m));
+      tendencia = { dif: p2 - p1, pct: p1 !== 0 ? (p2 - p1) / p1 * 100 : 0 };
+    }
+
+    // Promedio por turno (1/2/3).
+    const grupos = {};
+    pares.forEach(p => { (grupos[p.turno] = grupos[p.turno] || []).push(p.val); });
+    const porTurno = Object.keys(grupos).map(t => ({
+      turno: t, prom: grupos[t].reduce((s, v) => s + v, 0) / grupos[t].length, n: grupos[t].length,
+    }));
+
+    // Dispara (en segundo plano) la comparación con el periodo anterior, que
+    // necesita leer fuera del rango actual, y rellena su espacio al terminar.
+    setTimeout(() => _auxCompararPeriodoAnterior(campo.col, prom), 0);
+
     return _auxHtmlPromedioIndicador(
-      campo.label || 'Indicador',
-      suma / valores.length,
-      Math.min(...valores),
-      Math.max(...valores),
-      valores.length
+      campo.label || 'Indicador', prom,
+      Math.min(...valores), Math.max(...valores), valores.length,
+      tendencia, porTurno
     );
   }
   const lecturas = (bloque && bloque.lecturas) || [];
@@ -12897,17 +12921,39 @@ function _auxHtmlPromedio() {
   </div>`;
 }
 
-/** Tarjeta de promedio para los indicadores de Alta/Baja: muestra el
- *  promedio de los valores del rango de fechas elegido, con mínimo, máximo y
- *  cuántos datos entraron. Se arma igual que las tarjetas del agua. */
-function _auxHtmlPromedioIndicador(label, prom, minimo, maximo, cuenta) {
+/** Tarjeta de promedio para los indicadores de Alta/Baja: promedio del rango,
+ *  mínimo, máximo, cuántos datos, tendencia, promedio por turno y comparación
+ *  con el periodo anterior (esta última se rellena aparte, al terminar su
+ *  lectura). */
+function _auxHtmlPromedioIndicador(label, prom, minimo, maximo, cuenta, tendencia, porTurno) {
   const n = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
   const d = document.getElementById('varDesde-auxiliares');
   const h = document.getElementById('varHasta-auxiliares');
   const rango = (d && d.value && h && h.value) ? (' · ' + d.value + ' a ' + h.value) : '';
+
+  // Badge de tendencia (sube/baja en el rango).
+  let tendHtml = '';
+  if (tendencia) {
+    const subiendo = tendencia.pct > 0.05, bajando = tendencia.pct < -0.05;
+    const color = subiendo ? '#b45309' : (bajando ? '#0f766e' : 'var(--text3)');
+    const flecha = subiendo ? '▲' : (bajando ? '▼' : '→');
+    const txt = (subiendo || bajando) ? `${flecha} ${n(Math.abs(tendencia.pct))}%` : '→ estable';
+    tendHtml = `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;color:${color}">${txt} <span style="color:var(--text3);font-weight:500">tendencia</span></span>`;
+  }
+
+  // Promedio por turno.
+  const turnosHtml = (porTurno || []).map(t => `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:8px 11px">
+        <div style="font-size:16px;font-weight:800;color:var(--text)">${n(t.prom)}</div>
+        <div style="font-size:11px;color:var(--text3)">${esc(t.turno)} · ${t.n} dato(s)</div>
+      </div>`).join('');
+
   return `
   <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);margin-bottom:18px">
-    <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:10px">Promedio de ${esc(label)}${esc(rango)}</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:var(--brand);flex:1">Promedio de ${esc(label)}${esc(rango)}</div>
+      ${tendHtml}
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
       <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;border-left:4px solid var(--brand)">
         <div style="font-size:22px;font-weight:800;color:var(--brand)">${n(prom)}</div>
@@ -12926,7 +12972,48 @@ function _auxHtmlPromedioIndicador(label, prom, minimo, maximo, cuenta) {
         <div style="font-size:11.5px;color:var(--text3)">Datos en el rango</div>
       </div>
     </div>
+    ${turnosHtml ? `
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Promedio por turno</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">${turnosHtml}</div>` : ''}
+    <div id="auxCompPrevio" style="margin-top:12px;font-size:12.5px;color:var(--text3)">Comparando con el periodo anterior…</div>
   </div>`;
+}
+
+/** Compara el promedio actual con el del PERIODO ANTERIOR equivalente (mismo
+ *  número de días, justo antes) y rellena #auxCompPrevio. Se hace aparte
+ *  porque necesita leer datos fuera del rango que ya se cargó para la gráfica. */
+async function _auxCompararPeriodoAnterior(col, promedioActual) {
+  const el = document.getElementById('auxCompPrevio');
+  if (!el) return;
+  try {
+    const desde = (document.getElementById('varDesde-auxiliares') || {}).value;
+    const hasta = (document.getElementById('varHasta-auxiliares') || {}).value;
+    if (!desde || !hasta) { el.textContent = ''; return; }
+    const d1 = new Date(desde + 'T00:00:00'), d2 = new Date(hasta + 'T00:00:00');
+    const dias = Math.round((d2 - d1) / 86400000) + 1;
+    const pHasta = new Date(d1); pHasta.setDate(pHasta.getDate() - 1);
+    const pDesde = new Date(pHasta); pDesde.setDate(pDesde.getDate() - (dias - 1));
+    const fmt = dt => { const z = x => String(x).padStart(2, '0'); return dt.getFullYear() + '-' + z(dt.getMonth() + 1) + '-' + z(dt.getDate()); };
+    const pD = fmt(pDesde), pH = fmt(pHasta);
+
+    const filas = await leerHojaGenericaCacheada(SH.entregaTurno);
+    const vals = (filas || [])
+      .filter(f => f.Estado !== 'Eliminada' && f.Fecha >= pD && f.Fecha <= pH)
+      .map(f => parseFloat(String(f[col] ?? '').replace(',', '.')))
+      .filter(v => isFinite(v));
+
+    const n = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+    if (!vals.length) { el.innerHTML = `Periodo anterior (${esc(pD)} a ${esc(pH)}): <span style="color:var(--text3)">sin datos para comparar.</span>`; return; }
+    const promPrev = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const pct = promPrev !== 0 ? (promedioActual - promPrev) / promPrev * 100 : 0;
+    const subiendo = pct > 0.05, bajando = pct < -0.05;
+    const color = subiendo ? '#b45309' : (bajando ? '#0f766e' : 'var(--text3)');
+    const flecha = subiendo ? '▲' : (bajando ? '▼' : '→');
+    const cambio = (subiendo || bajando) ? `<span style="color:${color};font-weight:700">${flecha} ${n(Math.abs(pct))}%</span>` : '<span style="color:var(--text3)">sin cambio</span>';
+    el.innerHTML = `Periodo anterior (${esc(pD)} a ${esc(pH)}): <strong>${n(promPrev)}</strong> &nbsp;·&nbsp; cambio ${cambio}`;
+  } catch (e) {
+    el.textContent = '';
+  }
 }
 
 /** Redibuja solo el bloque del promedio cuando se cambia cómo se anota. */
@@ -13151,6 +13238,20 @@ function _variablesDibujar(contId, bloques) {
         borderDash: [4, 3], pointRadius: 0, fill: false,
       });
     });
+    // Línea de PROMEDIO (punteada) para los indicadores de Alta/Baja: así se
+    // ve de un vistazo qué lecturas quedaron por encima o por debajo del
+    // promedio del rango.
+    if (campo.col === 'IndicadorAlta' || campo.col === 'IndicadorBaja') {
+      const nums = valores.filter(v => v !== null && isFinite(v));
+      if (nums.length) {
+        const promLinea = nums.reduce((a, b) => a + b, 0) / nums.length;
+        datasets.push({
+          label: 'Promedio', data: valores.map(() => promLinea),
+          borderColor: '#7c3aed', borderWidth: 1.4, borderDash: [6, 4],
+          pointRadius: 0, fill: false, tension: 0,
+        });
+      }
+    }
     _variablesChartsGrupo.push(campo.grupo);
     _variablesCharts.push(new Chart(canvas.getContext('2d'), {
       type: 'line',
