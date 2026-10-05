@@ -4312,6 +4312,18 @@ const GENERAR_ORDENES_PLANES_MANTENIMIENTO = false;
 // operario nunca inicia sesión con su propia cuenta de Google.
 const LOGIN_APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXYJOJkuDpILDZgnh11bsmbxmk8OYgpUeLKwkfodqdVPA3Pwra6lunhia1PdE3_VTN5g/exec';
 
+// ── PROXY DE SEGURIDAD (Cloudflare Worker) ──────────────────────────────
+// El sistema ya NO habla directo con Google ni recibe token de Google: todo
+// pasa por este proxy, que guarda la cuenta de servicio (secreta) y revisa el
+// rol antes de cada operación. El login entrega un "pase de sesión" firmado,
+// que es lo que viaja como Bearer en cada llamada a /sheets.
+const PROXY_URL  = 'https://solucionaire-proxy.soluaire-ordenes.workers.dev';
+const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleapis.com
+// Rol del usuario autenticado (operario | admin). Se llena en el login y al
+// restaurar la sesión; sirve para ocultar acciones de admin en la interfaz
+// (el bloqueo REAL lo hace el proxy del lado del servidor).
+let usuarioRol = 'operario';
+
 /* ══════════════════════════════════════════════
    OPERACIONES / SEDES
    Cada operación tiene su PROPIA Google Sheet, para
@@ -4458,7 +4470,7 @@ async function publicarCatalogoVariablesSiCambio() {
   // antes), se limpia lo que sobra debajo. Borrar filas que ya no
   // corresponden se puede repetir sin consecuencia.
   if (yaGuardado.length > filas.length) {
-    const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
     await fetch(base + '/values/'
       + encodeURIComponent(SH.camposReportes + '!A' + (filas.length + 2) + ':ZZ') + ':clear',
       { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' } });
@@ -4663,7 +4675,7 @@ function _invSpreadsheetId(sede) {
 //    spreadsheetId de forma explícita, porque cada sede usa una hoja distinta
 //    (a diferencia de Órdenes, que siempre usa GOOGLE_CONFIG.spreadsheetId). ──
 async function _invGet(spreadsheetId, rango) {
-  const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(rango)}`,
+  const resp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(rango)}`,
     { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!resp.ok) {
@@ -4679,7 +4691,7 @@ async function _invGet(spreadsheetId, rango) {
 async function _invAppend(spreadsheetId, hoja, rows) {
   if (!rows || !rows.length) return;
   const colFin = numToCol(rows[0].length - 1);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(hoja + '!A:' + colFin)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+  const url = `${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(hoja + '!A:' + colFin)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
   const resp = await fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ values: rows }) });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!resp.ok) { const t = await resp.text(); throw new Error('Error guardando en inventario: ' + t); }
@@ -4706,7 +4718,7 @@ async function _invAsegurarHoja(spreadsheetId, nombre, cols) {
 
   if (existing.length === 0) {
     // La pestaña no existe todavía — crearla con todos los encabezados
-    const addResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    const addResp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: [{ addSheet: { properties: { title: nombre } } }] })
@@ -4722,7 +4734,7 @@ async function _invAsegurarHoja(spreadsheetId, nombre, cols) {
       }
     }
     const colFin = numToCol(cols.length - 1);
-    const putResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!A1:' + colFin + '1')}?valueInputOption=RAW`, {
+    const putResp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!A1:' + colFin + '1')}?valueInputOption=RAW`, {
       method: 'PUT', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [cols] })
     });
@@ -4732,7 +4744,7 @@ async function _invAsegurarHoja(spreadsheetId, nombre, cols) {
     // agregadas después (ej. cuando el sistema evoluciona) — se completan
     // solo los que faltan, sin tocar los que ya estaban.
     const colFin = numToCol(cols.length - 1);
-    const putResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!A1:' + colFin + '1')}?valueInputOption=RAW`, {
+    const putResp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!A1:' + colFin + '1')}?valueInputOption=RAW`, {
       method: 'PUT', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [cols] })
     });
@@ -4968,7 +4980,7 @@ function _tokenAleatorio() {
 }
 
 async function _invSetCelda(spreadsheetId, rango, valor) {
-  const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(rango)}?valueInputOption=RAW`, {
+  const resp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(rango)}?valueInputOption=RAW`, {
     method: 'PUT',
     headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
     body: JSON.stringify({ values: [[valor]] }),
@@ -6154,7 +6166,8 @@ window.addEventListener('load', async () => {
   const savedToken = sessionStorage.getItem('gToken');
   if (savedUser && savedToken) {
     currentUser = JSON.parse(savedUser);
-    googleAccessToken = savedToken;
+    googleAccessToken = savedToken; // ahora es el pase de sesión del proxy
+    usuarioRol = (sessionStorage.getItem('gRol') === 'admin') ? 'admin' : 'operario';
   }
 
   if (!googleAccessToken) {
@@ -9867,7 +9880,7 @@ async function sheetsRequest(method, range, body) {
   // Usar el nombre de hoja detectado si está disponible
   const sheetName = window._detectedSheetName || GOOGLE_CONFIG.sheetName;
   range = range.replace(GOOGLE_CONFIG.sheetName, sheetName);
-  const base = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}`;
+  const base = `${SHEETS_API}/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}`;
 
   let url, options;
   if (method === 'GET') {
@@ -9908,7 +9921,7 @@ async function sheetsRequest(method, range, body) {
 async function detectarNombreHoja() {
   try {
     const resp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}?fields=sheets.properties.title`,
+      `${SHEETS_API}/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}?fields=sheets.properties.title`,
       { headers: { Authorization: 'Bearer ' + googleAccessToken } }
     );
     if (!resp.ok) return;
@@ -9943,7 +9956,7 @@ async function repararHoja() {
   let hojas = [];
   try {
     const resp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}?fields=sheets.properties.title`,
+      `${SHEETS_API}/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}?fields=sheets.properties.title`,
       { headers: { Authorization: 'Bearer ' + googleAccessToken } }
     );
     if (!resp.ok) {
@@ -9981,7 +9994,7 @@ async function repararHoja() {
     window._detectedSheetName = hojaActual;
     const colFin = numToCol(SHEETS_COLS.length - 1);
     const rango  = encodeURIComponent(hojaActual + '!A1:' + colFin + '1');
-    const url    = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId + '/values/' + rango + '?valueInputOption=RAW';
+    const url    = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId + '/values/' + rango + '?valueInputOption=RAW';
 
     const resp = await fetch(url, {
       method: 'PUT',
@@ -10049,7 +10062,7 @@ const _asegurarHojaEnVuelo = {};      // { [hoja]: Promise<string[]> }
 
 // ── Helper: crear hoja si no existe ──
 async function crearHojaSiNoExiste(nombre) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   if (!_hojasExistentesCache) {
     // Leer metadata del spreadsheet para ver qué hojas existen. Una sola
@@ -10096,7 +10109,7 @@ async function asegurarHoja(nombre, cols) {
 }
 
 async function _asegurarHojaReal(nombre, cols) {
-  const base   = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base   = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const colFin = numToCol(cols.length - 1);
   // Primero asegurarse de que la hoja exista
@@ -10136,7 +10149,7 @@ async function _asegurarHojaReal(nombre, cols) {
 // ── Helper: append filas a una hoja ──
 async function appendHoja(nombre, rows) {
   if (!rows || rows.length === 0) return;
-  const base   = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base   = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const colFin = numToCol(rows[0].length - 1);
   const url    = base + '/values/' + encodeURIComponent(nombre + '!A:' + colFin) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
@@ -10364,7 +10377,7 @@ function renderFotosOrden(orden, contId, readonly) {
 }
 
 async function guardarOrdenEnSheets(datos) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
 
   // ── 1. Hoja Ordenes (datos principales, sin arrays) ──
   const hOrdenes = await asegurarHoja(SH.ordenes, SHEETS_COLS);
@@ -10589,7 +10602,7 @@ function numToCol(n) {
  *  asi que en ese caso se crean las que falten y se reintenta una vez.
  */
 async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
   const url = base + '/values:batchGet?'
     + nombres.map(n => 'ranges=' + encodeURIComponent(n + '!A:ZZ')).join('&');
@@ -10624,7 +10637,7 @@ async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
 }
 
 async function cargarOrdenesDeSheets() {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
 
   // Función auxiliar para leer una hoja completa. Si la petición falla por
@@ -10792,7 +10805,7 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
   try {
     const headers = window._sheetsHeaders || SHEETS_COLS;
     const colFin  = numToCol(headers.length - 1);
-    const base    = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    const base    = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
     const hdrs    = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
 
     // ── 1. Actualizar fila en hoja principal (todos los campos, arrays como JSON) ──
@@ -10998,11 +11011,17 @@ function mostrarLoginOverlay() {
  *  Órdenes, Inventario) sigue funcionando exactamente igual sin saber que
  *  el origen del token cambió. */
 async function _loginAppsScript(documento, pin) {
-  const resp = await fetch(LOGIN_APPSCRIPT_URL, {
+  // Ahora el login lo valida el PROXY (Cloudflare Worker), que devuelve un
+  // "pase de sesión" firmado con el rol — ya no un token de Google. Los
+  // códigos 401/403/429 traen un JSON con el motivo, así que no se lanzan
+  // como error de red: se devuelve el JSON para mostrar el mensaje.
+  const resp = await fetch(PROXY_URL + '/login', {
     method: 'POST',
-    body: JSON.stringify({ accion: 'login', documento, pin }),
+    body: JSON.stringify({ documento, pin }),
   });
-  if (!resp.ok) throw new Error('No se pudo contactar el servicio de login (Error ' + resp.status + ').');
+  if (!resp.ok && ![400, 401, 403, 429].includes(resp.status)) {
+    throw new Error('No se pudo contactar el servicio de login (Error ' + resp.status + ').');
+  }
   return resp.json();
 }
 
@@ -11018,15 +11037,19 @@ async function loginConDocumentoPinClick() {
   btn.disabled = true; btn.textContent = 'Verificando…';
   try {
     const data = await _loginAppsScript(documento, pin);
-    if (!data.ok) { errorEl.textContent = data.error || 'Documento o PIN incorrecto.'; return; }
+    if (!data.ok) { errorEl.textContent = data.error || data.mensaje || 'Documento o PIN incorrecto.'; return; }
 
     currentUser = {
       name: data.nombre || documento,
       email: documento, // no hay correo de Google — se usa el documento como identificador
       initials: (data.nombre || documento).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
     };
+    usuarioRol = (data.rol === 'admin') ? 'admin' : 'operario';
     sessionStorage.setItem('gUser', JSON.stringify(currentUser));
-    sessionStorage.setItem('gToken', data.accessToken);
+    // El "token" que guarda la app ahora es el PASE DE SESIÓN del proxy
+    // (firmado, con el rol), no un token de Google.
+    sessionStorage.setItem('gToken', data.session);
+    sessionStorage.setItem('gRol', usuarioRol);
     location.reload();
   } catch (e) {
     errorEl.textContent = e.message;
@@ -13509,7 +13532,7 @@ async function eliminarOrdenCompleta() {
 }
 
 async function eliminarFilasDondeCumple(hoja, predicado) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:ZZ'), { headers: hdrs });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
@@ -14424,7 +14447,7 @@ async function obtenerRepuestosComprometidos(sede) {
   const spreadsheetId = OPERACIONES[sede]?.spreadsheetId;
   if (!spreadsheetId) return [];
 
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
 
   async function leer(hoja) {
@@ -15278,7 +15301,7 @@ async function eliminarFechaRacha(fecha) {
   if (!confirm('¿Eliminar el registro del ' + fmtFecha(fecha) + '?')) return;
   try {
     const restantes = (await obtenerRachaNovedades()).filter(r => r.fecha !== fecha);
-    const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
     const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
     const resp = await fetch(base + '/values/' + encodeURIComponent(SH.rachaNovedades + '!A2:B10000') + ':clear', { method: 'POST', headers: hdrs });
     if (!resp.ok) {
@@ -15449,7 +15472,7 @@ let allNovedades = [];
  *  Sheets. inicializarPanelNovedades() ya tiene un catch que muestra el
  *  error en pantalla en vez de una lista vacía silenciosa. */
 async function _leerHojaGenerica(nombre) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:ZZ'),
     { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
@@ -17025,7 +17048,7 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
  *  de filas viejas en reemplazarFilasOrden, pero genérico por nombre de
  *  columna en vez de por NumeroOrden en la columna A). */
 async function _eliminarFilasPorValorColumna(sheetName, nombreColumna, valor) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const r = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:ZZ'), { headers: hdrs });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
@@ -20672,7 +20695,7 @@ function _poblarSelectAnioInventarioEquipos() {
 /** Lee cualquier pestaña de la hoja de cálculo de la sede activa y la
  *  devuelve como una lista de objetos (clave = nombre de columna). */
 async function leerHojaGenerica(nombre) {
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const resp = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:ZZ'), {
     headers: { Authorization: 'Bearer ' + googleAccessToken }
   });
@@ -20797,7 +20820,7 @@ async function _filasPorHoja() {
   if (_cacheFilasPorHoja && (Date.now() - _cacheFilasPorHoja.timestamp) < CACHE_LECTURAS_TTL_MS) {
     return _cacheFilasPorHoja.data;
   }
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const campos = 'sheets(properties(title,gridProperties(rowCount)))';
   const data = {};
   try {
@@ -20829,7 +20852,7 @@ async function _leerColaDeHoja(nombre, cuantas) {
   const inicio = Math.max(2, totales - cuantas + 1);
   if (inicio <= 2) return { filas: await _leerHojaGenerica(nombre), completa: true };
 
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const rangos = ['ranges=' + encodeURIComponent(nombre + '!A1:ZZ1'),
                   'ranges=' + encodeURIComponent(nombre + '!A' + inicio + ':ZZ')];
   const r = await fetch(base + '/values:batchGet?' + rangos.join('&'),
@@ -21401,7 +21424,7 @@ async function _actualizarFilaPorClave(hoja, cols, colClave, valorClave, datosPa
   // de la constante — indexar por posición contra la constante desalinearía
   // los datos silenciosamente.
   const colsReales = await asegurarHoja(hoja, cols);
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
   const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:ZZ'), { headers: hdrs });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
@@ -21456,7 +21479,7 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
   if (!claves.length) return;
 
   const colsReales = await asegurarHoja(hoja, cols);
-  const base = 'https://sheets.googleapis.com/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
   const resp = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:ZZ'), { headers: { Authorization: hdrs.Authorization } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
@@ -22507,7 +22530,7 @@ let proyCargado    = false;
 /** Lee qué pestañas existen ya (y su sheetId), y crea las que falten.
  *  Una sola petición para las cuatro, en vez de una por pestaña. */
 async function _proyPrepararHojas() {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}?fields=sheets(properties(sheetId,title))`;
+  const url = `${SHEETS_API}/v4/spreadsheets/${PROY_SPREADSHEET_ID}?fields=sheets(properties(sheetId,title))`;
   const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (resp.status === 403 || resp.status === 404) {
@@ -22553,7 +22576,7 @@ async function proyCargarTodo() {
   // verdad, sin el formato de moneda de la hoja, para no tener que adivinar
   // si un punto es separador de miles o de decimales. Las fechas sí se
   // quieren como texto 'YYYY-MM-DD' y no como número de serie de Sheets.
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchGet?${rangos}` +
+  const url = `${SHEETS_API}/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchGet?${rangos}` +
     '&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING';
   const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
@@ -22614,7 +22637,7 @@ async function _proyEscribirFilas(tab, cambios) {
   });
 
   const colFin = numToCol(PROY_COLS[tab].length - 1);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchUpdate`;
+  const url = `${SHEETS_API}/v4/spreadsheets/${PROY_SPREADSHEET_ID}/values:batchUpdate`;
   const resp = await fetch(url, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
@@ -22640,7 +22663,7 @@ async function _proyBorrarFila(tab, row, codigo) {
   // el registro de al lado si alguien más ya movió la hoja.
   const codigos = await _proyCodigosPorFila(tab);
   if (codigos[row - 1] !== String(codigo || '').trim()) throw _proyDesfase();
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${PROY_SPREADSHEET_ID}:batchUpdate`;
+  const url = `${SHEETS_API}/v4/spreadsheets/${PROY_SPREADSHEET_ID}:batchUpdate`;
   const resp = await fetch(url, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },

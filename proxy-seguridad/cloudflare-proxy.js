@@ -310,15 +310,13 @@ function _requiereAdmin(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno)
   if (metodo !== 'GET' && /Config!/i.test(decodeURIComponent(rutaGoogle))) {
     return 'configuración de sede';
   }
-  // batchUpdate que borra filas/hojas/rangos → admin.
-  if (/:batchUpdate/.test(rutaGoogle) && cuerpoTexto) {
-    try {
-      const body = JSON.parse(cuerpoTexto);
-      const reqs = (body && body.requests) || [];
-      const borra = reqs.some(r => r && (r.deleteDimension || r.deleteSheet || r.deleteRange || r.deleteDuplicates));
-      if (borra) return 'borrar filas o pestañas';
-    } catch (_) { /* si no se puede parsear, no se bloquea por esto */ }
-  }
+  // NOTA: no se bloquea deleteDimension de forma genérica. El sistema lo usa
+  // internamente al EDITAR una orden (reemplaza las filas de tareas/repuestos),
+  // algo que también hace un operario; distinguir "borrar una orden" de
+  // "reescribir filas al editar" no es posible a este nivel. Por eso la
+  // restricción de borrar/cerrar para operarios se hará ocultando esos botones
+  // en la interfaz (y, más adelante, con endpoints dedicados). Del lado del
+  // servidor queda protegido lo inequívoco: usuarios y configuración.
   return null;
 }
 
