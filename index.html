@@ -17798,14 +17798,22 @@ function _invhPintarEstado(n, estado) {
   const falta = document.getElementById('invh_falta_' + n);
   const row = document.getElementById('invh_row_' + n);
   if (!btnC || !btnI || !falta || !row) return;
+  // Ambos botones siempre se ven como recuadros; el seleccionado se rellena
+  // con su color (verde = completa, rojo = incompleta) y el otro queda en su
+  // versión clara, para que la diferencia sea evidente de un vistazo.
+  const compO = 'background:#15803d;color:#fff;border:1px solid #15803d';
+  const compOff = 'background:#eaf7ee;color:#15803d;border:1px solid #9ad3ab';
+  const incO = 'background:#b91c1c;color:#fff;border:1px solid #b91c1c';
+  const incOff = 'background:#fdeaea;color:#b91c1c;border:1px solid #e8a3a3';
+  const base = 'white-space:nowrap;';
   if (estado === 'incompleta') {
-    btnC.style.background = ''; btnC.style.color = ''; btnC.style.borderColor = '';
-    btnI.style.background = '#b91c1c'; btnI.style.color = '#fff'; btnI.style.borderColor = '#b91c1c';
+    btnC.style.cssText = base + compOff;
+    btnI.style.cssText = base + incO;
     falta.style.display = 'flex';
     row.style.background = '#fff6f2';
   } else {
-    btnC.style.background = '#15803d'; btnC.style.color = '#fff'; btnC.style.borderColor = '#15803d';
-    btnI.style.background = ''; btnI.style.color = ''; btnI.style.borderColor = '';
+    btnC.style.cssText = base + compO;
+    btnI.style.cssText = base + incOff;
     falta.style.display = 'none';
     row.style.background = '';
   }
