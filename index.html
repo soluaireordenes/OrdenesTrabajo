@@ -17727,6 +17727,7 @@ function _htmlTurnoCronograma(turno, diaSemana, fecha, registros, editable, foto
 ══════════════════════════════════════════════ */
 let _invhCargado = false;
 let allInventarioHerramientaReg = [];
+let allInventarioHerramientaDet = [];   // filas de detalle (FALTANTE) para "Ver inspección"
 
 function _turnoActualPorHora() {
   const h = new Date().getHours();
@@ -17753,6 +17754,7 @@ async function inicializarInventarioHerramienta() {
     const filas = await _leerHojaGenerica(SH.inventarioHerramienta);
     allInventarioHerramientaReg = (filas || []).filter(f => f.Tipo === 'RESUMEN')
       .sort((a, b) => (b.FechaHora || '').localeCompare(a.FechaHora || ''));
+    allInventarioHerramientaDet = (filas || []).filter(f => f.Tipo === 'FALTANTE');
     renderHistorialInvh();
   } catch (e) {
     if (wrap) wrap.innerHTML = `<div style="padding:18px;text-align:center;color:var(--danger)">Error al cargar historial: ${esc(e.message)}</div>`;
@@ -17906,6 +17908,7 @@ function renderHistorialInvh() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Turno</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Responsable</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Estado</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Inspección</th>
     </tr></thead><tbody>`;
   filas.forEach(f => {
     const completo = f.Completo === 'SI';
@@ -17915,10 +17918,70 @@ function renderHistorialInvh() {
       <td style="padding:7px 10px">${esc(f.Turno)}</td>
       <td style="padding:7px 10px">${esc(f.RegistradoPor || '')}</td>
       <td style="padding:7px 10px;text-align:center">${completo ? '<span style="color:#15803d;font-weight:700">✅ Completo</span>' : `<span style="color:#b91c1c;font-weight:700">⚠️ ${n} novedad${n === 1 ? '' : 'es'}</span>`}</td>
+      <td style="padding:7px 10px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" onclick="verInventarioInvh('${esc(f.FechaHora)}')" style="white-space:nowrap">👁 Ver</button></td>
     </tr>`;
   });
   html += '</tbody></table>';
   wrap.innerHTML = html;
+}
+
+/** Abre una ventana con el detalle de una inspección de inventario del turno:
+ *  qué herramientas tuvieron novedad, cuántas faltaron y qué pasó con cada una. */
+function verInventarioInvh(fechaHora) {
+  const resumen = allInventarioHerramientaReg.find(f => f.FechaHora === fechaHora);
+  if (!resumen) { alert('No se encontró esa inspección.'); return; }
+  const completo = resumen.Completo === 'SI';
+  const dets = allInventarioHerramientaDet
+    .filter(f => f.FechaHora === fechaHora)
+    .sort((a, b) => Number(a.HerramientaN || 0) - Number(b.HerramientaN || 0));
+
+  let cuerpo;
+  if (completo || !dets.length) {
+    cuerpo = `<div style="padding:22px;text-align:center;color:#15803d;font-weight:600">✅ Inventario COMPLETO<div style="color:var(--text3);font-weight:400;font-size:13px;margin-top:4px">Todas las herramientas estaban completas en este turno.</div></div>`;
+  } else {
+    let filas = '';
+    dets.forEach(d => {
+      filas += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;text-align:center;white-space:nowrap">${esc(d.HerramientaN)}</td>
+        <td style="padding:7px 10px">${esc(d.Herramienta)}${d.Medida ? ` <span style="color:var(--text3)">· ${esc(d.Medida)}</span>` : ''}</td>
+        <td style="padding:7px 10px;text-align:center">${esc(d.CantEsperada)}</td>
+        <td style="padding:7px 10px;text-align:center">${esc(d.CantEncontrada)}</td>
+        <td style="padding:7px 10px;text-align:center;color:#b91c1c;font-weight:700">${esc(d.Faltan)}</td>
+        <td style="padding:7px 10px">${esc(d.Problema || '—')}</td>
+      </tr>`;
+    });
+    cuerpo = `<div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">#</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Herramienta</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Esperadas</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Encontradas</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Faltan</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Novedad</th>
+        </tr></thead><tbody>${filas}</tbody>
+      </table></div>`;
+  }
+
+  const estado = completo
+    ? '<span style="color:#15803d;font-weight:700">✅ Completo</span>'
+    : `<span style="color:#b91c1c;font-weight:700">⚠️ ${esc(resumen.TotalFaltantes || dets.length)} novedad(es)</span>`;
+
+  const ov = document.createElement('div');
+  ov.className = 'invh-modal-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow-y:auto';
+  ov.innerHTML = `<div style="background:var(--surface);border-radius:14px;max-width:760px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);margin:auto">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:800;color:var(--brand)">Inspección de inventario</div>
+          <div style="font-size:12.5px;color:var(--text3);margin-top:2px">${esc(resumen.Fecha)} · ${esc(resumen.Turno)} · ${esc(resumen.RegistradoPor || '')} · ${estado}</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.invh-modal-ov').remove()" style="white-space:nowrap">✕ Cerrar</button>
+      </div>
+      <div style="padding:10px 14px 16px">${cuerpo}</div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 function cronMostrarSubTab(nombre) {
