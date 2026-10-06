@@ -17941,13 +17941,17 @@ function verInventarioInvh(fechaHora) {
   } else {
     let filas = '';
     dets.forEach(d => {
+      const prob = (d.Problema || '').trim();
+      const estado = prob
+        ? `<span style="color:#b91c1c;font-weight:700">⚠️ ${esc(prob)}</span>`
+        : '<span style="color:#15803d;font-weight:700">✓ Sin novedad reportada</span>';
       filas += `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:7px 10px;text-align:center;white-space:nowrap">${esc(d.HerramientaN)}</td>
         <td style="padding:7px 10px">${esc(d.Herramienta)}${d.Medida ? ` <span style="color:var(--text3)">· ${esc(d.Medida)}</span>` : ''}</td>
         <td style="padding:7px 10px;text-align:center">${esc(d.CantEsperada)}</td>
         <td style="padding:7px 10px;text-align:center">${esc(d.CantEncontrada)}</td>
         <td style="padding:7px 10px;text-align:center;color:#b91c1c;font-weight:700">${esc(d.Faltan)}</td>
-        <td style="padding:7px 10px">${esc(d.Problema || '—')}</td>
+        <td style="padding:7px 10px">${estado}</td>
       </tr>`;
     });
     cuerpo = `<div style="overflow-x:auto">
@@ -17958,7 +17962,7 @@ function verInventarioInvh(fechaHora) {
           <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Esperadas</th>
           <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Encontradas</th>
           <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Faltan</th>
-          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Novedad</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Estado</th>
         </tr></thead><tbody>${filas}</tbody>
       </table></div>`;
   }
