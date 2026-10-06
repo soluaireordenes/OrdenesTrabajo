@@ -3072,7 +3072,7 @@ body.rol-operario .solo-admin { display: none !important; }
             </div>
             <div class="field" style="margin:0"><label>Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
           </div>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px">Toca <strong>“Falta / novedad”</strong> solo en las herramientas que falten o estén mal; las demás se guardan como completas.</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px">Cada herramienta arranca en <strong>“✓ Completa”</strong>. Toca <strong>“✗ Incompleta”</strong> en las que falten o estén mal e indica cuántas faltan.</div>
         </div>
       </div>
 
@@ -17772,9 +17772,13 @@ function renderInventarioHerramienta() {
           <div style="font-size:13px;font-weight:600">${it.n}. ${esc(it.nombre)}</div>
           <div style="font-size:11px;color:var(--text3)">${sub ? esc(sub) + ' · ' : ''}Esperadas: ${it.cant}</div>
         </div>
-        <button type="button" id="invh_btn_${it.n}" class="btn btn-ghost btn-sm" onclick="_invhToggleFalta(${it.n})" style="white-space:nowrap">✓ Completa</button>
+        <div style="display:flex;gap:6px;white-space:nowrap">
+          <button type="button" id="invh_btnC_${it.n}" class="btn btn-sm" onclick="_invhMarcarCompleta(${it.n})" style="white-space:nowrap">✓ Completa</button>
+          <button type="button" id="invh_btnI_${it.n}" class="btn btn-sm" onclick="_invhMarcarIncompleta(${it.n})" style="white-space:nowrap">✗ Incompleta</button>
+        </div>
         <div id="invh_falta_${it.n}" style="display:none;flex-basis:100%;gap:8px;align-items:center;flex-wrap:wrap;padding-top:6px">
-          <label style="font-size:11px;color:var(--text2)">Encontradas: <input type="number" id="invh_enc_${it.n}" min="0" max="${it.cant}" value="${it.cant > 1 ? it.cant - 1 : 0}" style="width:70px;margin:0" oninput="_recalcularResumenInvh()"></label>
+          <label style="font-size:11px;color:var(--text2)">Faltan: <input type="number" id="invh_faltan_${it.n}" min="1" max="${it.cant}" value="${it.cant}" style="width:70px;margin:0" oninput="_recalcularResumenInvh()"></label>
+          <span style="font-size:11px;color:var(--text3)">de ${it.cant}</span>
           <input type="text" id="invh_prob_${it.n}" placeholder="¿Qué pasa? (dañada, perdida…)" style="flex:1;min-width:160px;margin:0">
         </div>
       </div>`;
@@ -17782,25 +17786,40 @@ function renderInventarioHerramienta() {
     html += `</div></div>`;
   });
   cont.innerHTML = html;
+  // Todas arrancan marcadas como "Completa".
+  INVENTARIO_HERRAMIENTA.forEach(g => g.items.forEach(it => _invhPintarEstado(it.n, 'completa')));
 }
 
-function _invhToggleFalta(n) {
-  const btn = document.getElementById('invh_btn_' + n);
+/** Pinta los dos botones (Completa / Incompleta) de una herramienta según el
+ *  estado elegido y muestra u oculta el campo de "cuántas faltan". */
+function _invhPintarEstado(n, estado) {
+  const btnC = document.getElementById('invh_btnC_' + n);
+  const btnI = document.getElementById('invh_btnI_' + n);
   const falta = document.getElementById('invh_falta_' + n);
   const row = document.getElementById('invh_row_' + n);
-  if (!btn || !falta || !row) return;
-  const activar = falta.style.display === 'none';
-  if (activar) {
+  if (!btnC || !btnI || !falta || !row) return;
+  if (estado === 'incompleta') {
+    btnC.style.background = ''; btnC.style.color = ''; btnC.style.borderColor = '';
+    btnI.style.background = '#b91c1c'; btnI.style.color = '#fff'; btnI.style.borderColor = '#b91c1c';
     falta.style.display = 'flex';
-    btn.textContent = '⚠️ Falta / novedad';
-    btn.style.background = '#fde8e8'; btn.style.color = '#b91c1c';
     row.style.background = '#fff6f2';
   } else {
+    btnC.style.background = '#15803d'; btnC.style.color = '#fff'; btnC.style.borderColor = '#15803d';
+    btnI.style.background = ''; btnI.style.color = ''; btnI.style.borderColor = '';
     falta.style.display = 'none';
-    btn.textContent = '✓ Completa';
-    btn.style.background = ''; btn.style.color = '';
     row.style.background = '';
   }
+}
+
+function _invhMarcarCompleta(n) {
+  _invhPintarEstado(n, 'completa');
+  _recalcularResumenInvh();
+}
+
+function _invhMarcarIncompleta(n) {
+  _invhPintarEstado(n, 'incompleta');
+  const inp = document.getElementById('invh_faltan_' + n);
+  if (inp) { try { inp.focus(); inp.select(); } catch (e) {} }
   _recalcularResumenInvh();
 }
 
@@ -17809,10 +17828,10 @@ function _invhFaltantesActuales() {
   INVENTARIO_HERRAMIENTA.forEach(g => g.items.forEach(it => {
     const falta = document.getElementById('invh_falta_' + it.n);
     if (!falta || falta.style.display === 'none') return;
-    const enc = Number(document.getElementById('invh_enc_' + it.n)?.value);
-    const encontradas = isNaN(enc) ? 0 : Math.max(0, enc);
+    const f = Number(document.getElementById('invh_faltan_' + it.n)?.value);
+    const faltan = isNaN(f) ? 0 : Math.min(it.cant, Math.max(0, f));
     res.push({ n: it.n, nombre: it.nombre, medida: it.medida, cant: it.cant,
-               encontradas, faltan: Math.max(0, it.cant - encontradas),
+               encontradas: Math.max(0, it.cant - faltan), faltan,
                problema: (document.getElementById('invh_prob_' + it.n)?.value || '').trim() });
   }));
   return res;
@@ -17840,8 +17859,8 @@ async function guardarInventarioHerramienta() {
   if (!fecha || !turno) { msg.textContent = 'Completa la fecha y el turno.'; return; }
   const faltantes = _invhFaltantesActuales();
   for (const f of faltantes) {
-    if (!f.problema && f.encontradas >= f.cant) {
-      msg.textContent = `En "${f.nombre}": si está completa, quita la marca de novedad; si no, indica cuántas hay o qué pasa.`;
+    if (f.faltan < 1) {
+      msg.textContent = `En "${f.nombre}": si marcaste Incompleta, indica cuántas faltan (1 o más) o vuelve a marcarla como Completa.`;
       return;
     }
   }
