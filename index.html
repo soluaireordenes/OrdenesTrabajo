@@ -3629,71 +3629,6 @@ body.rol-operario .solo-admin { display: none !important; }
     </div>
   </div>
 
-  <!-- ════════════ PANEL: ENCARGADOS TURNOS ════════════ -->
-  <div id="panel-encargadosturnos" class="panel">
-    <div style="max-width:1100px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <div id="etTitulo" style="font-weight:700;color:var(--brand);font-size:15px;flex:1;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Encargados Turnos</div>
-        <button class="btn btn-ghost" onclick="volverDeEncargadosTurnos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
-      </div>
-
-      <!-- Sub-navegación de Encargados Turnos -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
-        <button class="inv-subtab active" data-ettab="operarios" onclick="etMostrarSubTab('operarios')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Operarios</button>
-        <button class="inv-subtab" data-ettab="alertas" onclick="etMostrarSubTab('alertas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Alertas</button>
-      </div>
-
-      <div id="etSub-operarios" class="inv-subpanel active">
-        <div class="card" style="margin-bottom:14px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Registrar Operario</div>
-          <div class="card-body" style="padding:18px">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Registra aquí al operario solo con su nombre y WhatsApp. El turno y el estado (Activo/Inactivo) los coloca cada uno manualmente en la tabla de abajo, directamente cuando entra o cambia de turno.</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Nombre *</label><input id="op_nombre" type="text" placeholder="Ej: Juan Pérez"></div>
-              <div class="field"><label>WhatsApp *</label><input id="op_numero" type="text" placeholder="Ej: 573001234567"></div>
-            </div>
-            <button class="btn btn-primary" onclick="operarioAgregarClick()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Agregar Operario</button>
-            <div id="opMsg" style="margin-top:10px;font-size:13px"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Operarios</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderOperarios()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
-          </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Cada operario selecciona su turno y se marca Activo cuando entra a trabajar, e Inactivo cuando termina — así el sistema sabe a quién enviarle las alertas de WhatsApp en cada momento.</div>
-          <div class="card-body" style="padding:18px" id="pmOperariosContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
-        </div>
-      </div>
-
-      <div id="etSub-alertas" class="inv-subpanel">
-        <div class="card" style="margin-bottom:14px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Crear Alerta</div>
-          <div class="card-body" style="padding:18px">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Define a qué hora del día debe llegar un recordatorio por WhatsApp (ej. cada 4 horas: 06:00, 10:00, 14:00, 18:00, 22:00, 02:00) y qué mensaje debe decir. Se envía a los operarios cuyo turno esté vigente a esa hora (ver pestaña Operarios).</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Hora *</label><input id="al_hora" type="time"></div>
-              <div class="field" style="grid-column:span 2"><label>Mensaje *</label><input id="al_mensaje" type="text" placeholder="Ej: Realiza tu reporte de horas de los equipos"></div>
-            </div>
-            <button class="btn btn-primary" onclick="alertaAgregarClick()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Crear Alerta</button>
-            <div id="alMsg" style="margin-top:10px;font-size:13px"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Alertas Programadas</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderAlertas()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
-          </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">El envío real por WhatsApp lo hace un Google Apps Script (con acceso a la API de WhatsApp Business) que revisa esta lista — aquí solo se define el horario y el mensaje.</div>
-          <div class="card-body" style="padding:18px" id="pmAlertasContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
   <!-- ════════════════════════════════════════════════════
        PANEL PROYECTOS — seguimiento gerencial de obra
   ════════════════════════════════════════════════════ -->
@@ -4599,7 +4534,6 @@ let sidebarGrupoExpandido = {
   variables: !operacionAutenticada,
   inventario: !operacionAutenticada,
   planmantenimiento: !operacionAutenticada,
-  encargadosturnos: !operacionAutenticada,
 };
 
 function sidebarToggleGrupo(grupo) {
@@ -5261,7 +5195,6 @@ async function _prepararFotoParaSubir(file, nombreSugerido) {
 let inventarioOperacionActual = null; // qué OPERACIÓN de inventario está abierta
 let _tiempoRealIntervalId      = null; // (obsoleto) se conserva solo para las limpiezas defensivas de intervalos al cambiar de panel
 let planMantOperacionActual    = null; // qué OPERACIÓN de plan de mantenimiento está abierta
-let encargadosTurnosOperacionActual = null; // qué OPERACIÓN de Encargados Turnos está abierta
 
 /* ══════════════════════════════════════════════
    AUTOCOMPLETADO DE REPUESTOS/INSUMOS EN LA ORDEN
@@ -5780,25 +5713,6 @@ function renderSidebarOperaciones() {
           ${habilitado ? `onmouseover="this.style.background='var(--brand-light)'" onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'transparent'}'"` : ''}>
           <span style="font-size:16px">${op.bandera}</span>
           <span style="flex:1;line-height:1.25">PLAN ${esc(op.nombre)}</span>
-          ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
-        </div>`;
-    }).join('')}
-    <div style="border-top:1px solid var(--border);margin:8px 0"></div>
-    ${_sidebarEncabezadoGrupo('encargadosturnos', 'Encargados Turnos', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>')}
-    ${_sidebarClavesVisibles('encargadosturnos').map(key => {
-      const op = OPERACIONES[key];
-      const habilitado = key === operacionActual && operacionAutenticada;
-      const activo = key === encargadosTurnosOperacionActual && document.getElementById('panel-encargadosturnos')?.classList.contains('active');
-      return `
-        <div ${habilitado ? `onclick="abrirEncargadosTurnos('${key}')"` : ''}
-          title="${habilitado ? '' : 'Primero entra a esa operación con su contraseña en la sección de arriba'}"
-          style="display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:13px;
-                 cursor:${habilitado ? 'pointer' : 'not-allowed'};
-                 color:${habilitado ? (activo ? 'var(--brand)' : 'var(--text2)') : 'var(--text3)'};
-                 background:${activo ? 'var(--brand-light)' : 'transparent'};font-weight:${activo ? '700' : '400'}"
-          ${habilitado ? `onmouseover="this.style.background='var(--brand-light)'" onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'transparent'}'"` : ''}>
-          <span style="font-size:16px">${op.bandera}</span>
-          <span style="flex:1;line-height:1.25">ENCARGADOS TURNOS ${esc(op.nombre)}</span>
           ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
         </div>`;
     }).join('')}`;
@@ -9702,8 +9616,6 @@ const ENTREGA_TURNO_CAMPOS = [
   { grupo: 'Bypass', id: 'presionBypassAbajoIzq', label: 'Presión abajo izquierda', col: 'PresionBypassAbajoIzq' },
   { grupo: 'Bypass', id: 'presionBypassAbajoDer', label: 'Presión abajo derecha', col: 'PresionBypassAbajoDer' },
 ];
-const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
-const ALERTAS_COLS = ['ID', 'Hora', 'Mensaje', 'Activo'];
 // Tipo: 'operacion' (por defecto) o 'seguridad' (extintores, arneses,
 // escaleras, etc.) — Serial solo aplica a equipos de seguridad.
 const INVENTARIO_EQUIPOS_BASE_COLS = ['Codificacion','Equipo','Marca','DescripcionEspecifica','Ubicacion','Tipo','Serial'];
@@ -13316,51 +13228,6 @@ function volverDePlanMantenimiento() {
   renderSidebarOperaciones();
 }
 
-/** Abre el panel de Encargados Turnos (Operarios + Alertas de WhatsApp)
- *  de una sede — mismo patrón de acceso que abrirPlanMantenimiento(). */
-function abrirEncargadosTurnos(opKey) {
-  if (!operacionAutenticada) {
-    alert('Primero selecciona e ingresa la contraseña de una operación en el panel izquierdo.');
-    showPanel('inicio');
-    return;
-  }
-  if (opKey !== operacionActual) {
-    alert('Solo puedes abrir Encargados Turnos de la sede activa: ' + OPERACIONES[operacionActual].nombre);
-    return;
-  }
-  if (_tiempoRealIntervalId) { clearInterval(_tiempoRealIntervalId); _tiempoRealIntervalId = null; } // por si venía de Tiempo Real
-  encargadosTurnosOperacionActual = opKey;
-
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-encargadosturnos').classList.add('active');
-  document.getElementById('etTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Encargados Turnos — ' + esc(OPERACIONES[opKey].nombre);
-
-  document.body.classList.add('inv-activo');
-
-  etMostrarSubTab('operarios');
-  renderSidebarOperaciones();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function volverDeEncargadosTurnos() {
-  encargadosTurnosOperacionActual = null;
-  document.body.classList.remove('inv-activo');
-  showPanel('pendientes');
-  renderSidebarOperaciones();
-}
-
-/** Sub-navegación del panel Encargados Turnos (Operarios / Alertas). */
-function etMostrarSubTab(nombre) {
-  const panel = document.getElementById('panel-encargadosturnos');
-  panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
-  panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
-  document.getElementById('etSub-' + nombre).classList.add('active');
-  panel.querySelector(`.inv-subtab[data-ettab="${nombre}"]`).classList.add('active');
-  if (nombre === 'operarios') pmRenderOperarios();
-  if (nombre === 'alertas') pmRenderAlertas();
-}
-
 /** Grupos de equipo que se muestran en el cuadro de "Horas de Operación
  *  de Equipos" — la misma clasificación que usa el filtro "Tipo de
  *  equipo" de los informes periódicos, ya que es de ahí de donde se
@@ -13530,155 +13397,6 @@ async function limpiarOrdenesAutomaticas() {
   return numeros.size;
 }
 
-
-async function operarioAgregarClick() {
-  const nombre = document.getElementById('op_nombre').value.trim();
-  const numero = document.getElementById('op_numero').value.trim();
-  const msg = document.getElementById('opMsg');
-
-  if (!nombre || !numero) {
-    msg.style.color = 'var(--danger)';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Nombre y WhatsApp son obligatorios.';
-    return;
-  }
-
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
-  try {
-    await registrarOperario({ Nombre: nombre, Numero: numero });
-    msg.style.color = '#15803d';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Operario registrado.';
-    document.getElementById('op_nombre').value = '';
-    document.getElementById('op_numero').value = '';
-    pmRenderOperarios();
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
-  }
-}
-
-async function operarioCambiarTurnoClick(id, turno) {
-  try {
-    await operarioCambiarTurno(id, turno);
-  } catch (e) {
-    alert('No se pudo cambiar el turno: ' + e.message);
-    pmRenderOperarios();
-  }
-}
-
-async function operarioToggleActivoClick(id, activoActual) {
-  try {
-    await operarioToggleActivo(id, !activoActual);
-    pmRenderOperarios();
-  } catch (e) {
-    alert('No se pudo cambiar el estado: ' + e.message);
-  }
-}
-
-async function pmRenderOperarios() {
-  const cont = document.getElementById('pmOperariosContenido');
-  if (!cont) return;
-  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
-
-  let operarios;
-  try {
-    operarios = await cargarOperarios();
-  } catch (e) {
-    cont.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
-    return;
-  }
-
-  if (!operarios.length) {
-    cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Todavía no hay operarios registrados.</div>';
-    return;
-  }
-
-  const opcionesTurno = (turnoActual) => ['', 'Mañana', 'Tarde', 'Noche'].map(t =>
-    `<option value="${t}" ${t === (turnoActual || '') ? 'selected' : ''}>${t || 'Sin turno'}</option>`).join('');
-
-  cont.innerHTML = `<table class="ie-table"><thead><tr><th>Nombre</th><th>WhatsApp</th><th>Turno</th><th>Estado</th></tr></thead><tbody>` +
-    operarios.map(o => {
-      const activo = o.Activo === 'SI';
-      return `<tr>
-        <td><strong>${esc(o.Nombre)}</strong></td>
-        <td>${esc(o.Numero)}</td>
-        <td><select onchange="operarioCambiarTurnoClick('${esc(o.ID)}', this.value)" style="padding:4px 8px;font-size:12.5px">${opcionesTurno(o.Turno)}</select></td>
-        <td style="display:flex;align-items:center;gap:8px">
-          <label class="toggle-switch">
-            <input type="checkbox" ${activo ? 'checked' : ''} onchange="operarioToggleActivoClick('${esc(o.ID)}', ${activo})">
-            <span class="toggle-slider"></span>
-          </label>
-          <span style="font-size:12px;color:${activo ? '#15803d' : 'var(--text3)'};font-weight:600">${activo ? 'Activo' : 'Inactivo'}</span>
-        </td>
-      </tr>`;
-    }).join('') +
-    `</tbody></table>`;
-}
-
-async function alertaAgregarClick() {
-  const hora = document.getElementById('al_hora').value;
-  const mensaje = document.getElementById('al_mensaje').value.trim();
-  const msg = document.getElementById('alMsg');
-
-  if (!hora || !mensaje) {
-    msg.style.color = 'var(--danger)';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Hora y Mensaje son obligatorios.';
-    return;
-  }
-
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
-  try {
-    await registrarAlerta({ Hora: hora, Mensaje: mensaje });
-    msg.style.color = '#15803d';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Alerta creada.';
-    document.getElementById('al_hora').value = '';
-    document.getElementById('al_mensaje').value = '';
-    pmRenderAlertas();
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
-  }
-}
-
-async function alertaToggleActivoClick(id, activoActual) {
-  try {
-    await alertaToggleActivo(id, !activoActual);
-    pmRenderAlertas();
-  } catch (e) {
-    alert('No se pudo cambiar el estado: ' + e.message);
-  }
-}
-
-async function pmRenderAlertas() {
-  const cont = document.getElementById('pmAlertasContenido');
-  if (!cont) return;
-  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
-
-  let alertas;
-  try {
-    alertas = await cargarAlertas();
-  } catch (e) {
-    cont.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
-    return;
-  }
-
-  if (!alertas.length) {
-    cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Todavía no hay alertas creadas.</div>';
-    return;
-  }
-
-  alertas.sort((a, b) => (a.Hora || '').localeCompare(b.Hora || ''));
-
-  cont.innerHTML = `<table class="ie-table"><thead><tr><th>Hora</th><th>Mensaje</th><th>Estado</th></tr></thead><tbody>` +
-    alertas.map(a => {
-      const activa = a.Activo === 'SI';
-      return `<tr>
-        <td><strong>${esc(a.Hora)}</strong></td>
-        <td>${esc(a.Mensaje)}</td>
-        <td><button class="btn ${activa ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:4px 10px" onclick="alertaToggleActivoClick('${esc(a.ID)}', ${activa})">${activa ? 'Activa' : 'Inactiva'}</button></td>
-      </tr>`;
-    }).join('') +
-    `</tbody></table>`;
-}
 
 /** Sub-navegación del panel Plan de Mantenimiento (Registro / Horas de
  *  Mantenimiento) — con querySelectorAll acotado a este panel para no
@@ -21711,60 +21429,6 @@ async function _sincronizarHorasDesdeReporte(equipoReporte, horas) {
     console.warn('No se pudieron actualizar las horas del equipo:', e.message);
     return '';
   }
-}
-
-/* ── Operarios y Alertas (recordatorios por WhatsApp) ──
- * Los operarios rotan de turno cada semana (mañana/tarde/noche) — se
- * registran una sola vez con nombre y WhatsApp; el turno y el estado
- * Activo/Inactivo los coloca cada uno manualmente en la tabla, al entrar
- * o cambiar de turno, en vez de quedar fijos desde el registro. El envío
- * (un Google Apps Script aparte, con la API de WhatsApp Business) le
- * manda cada alerta a los operarios que estén Activo en ese momento.
- * Aquí solo se administran los datos. */
-async function cargarOperarios() {
-  await asegurarHoja(SH.operarios, OPERARIOS_COLS);
-  return leerHojaGenerica(SH.operarios);
-}
-
-async function registrarOperario(datos) {
-  const cols = await asegurarHoja(SH.operarios, OPERARIOS_COLS);
-  const id = 'OP-' + Date.now();
-  const fila = cols.map(c => {
-    if (c === 'ID') return id;
-    if (c === 'Activo') return 'NO';
-    return datos[c] || '';
-  });
-  await appendHoja(SH.operarios, [fila]);
-  return id;
-}
-
-async function operarioCambiarTurno(id, turno) {
-  await _actualizarFilaPorClave(SH.operarios, OPERARIOS_COLS, 'ID', id, { Turno: turno });
-}
-
-async function operarioToggleActivo(id, activo) {
-  await _actualizarFilaPorClave(SH.operarios, OPERARIOS_COLS, 'ID', id, { Activo: activo ? 'SI' : 'NO' });
-}
-
-async function cargarAlertas() {
-  await asegurarHoja(SH.alertas, ALERTAS_COLS);
-  return leerHojaGenerica(SH.alertas);
-}
-
-async function registrarAlerta(datos) {
-  const cols = await asegurarHoja(SH.alertas, ALERTAS_COLS);
-  const id = 'ALERT-' + Date.now();
-  const fila = cols.map(c => {
-    if (c === 'ID') return id;
-    if (c === 'Activo') return 'SI';
-    return datos[c] || '';
-  });
-  await appendHoja(SH.alertas, [fila]);
-  return id;
-}
-
-async function alertaToggleActivo(id, activo) {
-  await _actualizarFilaPorClave(SH.alertas, ALERTAS_COLS, 'ID', id, { Activo: activo ? 'SI' : 'NO' });
 }
 
 /** Importa de una sola vez el Programa de Mantenimiento 2026 real de
