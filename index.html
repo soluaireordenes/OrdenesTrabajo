@@ -10301,17 +10301,26 @@ const _fotoDataUrlCache = {};
 async function _obtenerDataUrlFoto(driveFileId) {
   if (!driveFileId) return '';
   if (_fotoDataUrlCache[driveFileId]) return _fotoDataUrlCache[driveFileId];
-  try {
-    const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(driveFileId));
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
-    const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
-    _fotoDataUrlCache[driveFileId] = dataUrl;
-    return dataUrl;
-  } catch (e) {
-    console.warn('No se pudo cargar la foto', driveFileId, e.message);
-    return '';
+  // Se reintenta un par de veces: cuando hay muchas fotos en pantalla, el
+  // Apps Script a veces rechaza una petición por saturación momentánea, y sin
+  // reintento esa foto quedaba marcada "No se pudo cargar" para siempre.
+  let ultimoError = '';
+  for (let intento = 0; intento < 3; intento++) {
+    try {
+      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(driveFileId));
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
+      const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
+      _fotoDataUrlCache[driveFileId] = dataUrl;
+      return dataUrl;
+    } catch (e) {
+      ultimoError = e.message;
+      if (intento < 2) await new Promise(r => setTimeout(r, 500 * (intento + 1)));
+    }
   }
+  console.warn('No se pudo cargar la foto', driveFileId, ultimoError);
+  return '';
 }
 
 /** Baja varias fotos a la vez y las deja en caché, en lotes para no
@@ -17447,8 +17456,14 @@ function _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, conBorrar) {
 }
 
 /** Dispara la carga real (data:URL vía Apps Script) de cada miniatura ya
- *  insertada en el DOM — llamar después de pintar el HTML que las contiene. */
-function _cargarMiniaturasFotosCronograma(fotos) {
+ *  insertada en el DOM — llamar después de pintar el HTML que las contiene.
+ *  Se cargan en lotes pequeños (no todas a la vez): cuando una vista del día
+ *  tiene decenas de fotos, pedirlas todas al tiempo satura el Apps Script
+ *  (que limita las ejecuciones simultáneas) y entonces fallaban casi todas.
+ *  Primero se precargan los datos en lotes y luego se pintan desde el caché. */
+async function _cargarMiniaturasFotosCronograma(fotos) {
+  const ids = [...new Set(fotos.map(f => f.driveFileId).filter(Boolean))];
+  await _precargarFotosEnLotes(ids, null, 5);
   fotos.forEach(f => {
     const imgEl = document.getElementById('cronFotoImg_' + f.driveFileId);
     const aEl   = document.getElementById('cronFotoA_' + f.driveFileId);
@@ -21537,7 +21552,7 @@ async function hvdSeleccionarEquipo(equipo) {
           <table class="dyn-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
             <thead>
               <tr>
-                ${['Código','Repuesto','Cantidad','Ubicación','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
+                ${['Código','Repuesto','Cantidad','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
               </tr>
             </thead>
             <tbody id="hvd_tbody_repuestos">
@@ -21626,7 +21641,6 @@ function _htmlFilaRepuestoHVD(r) {
     <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"${ro}></td>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"${ro}></td>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"${ro}></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.ubicacion||'')}" placeholder="Ej: Bodega A"${ro}></td>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"${ro}></td>
     <td style="padding:3px 4px;text-align:center">${!esAdmin() ? '' : `<button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button>`}</td>
   </tr>`;
@@ -21658,8 +21672,8 @@ function _leerRepuestosEditorHVD() {
   return Array.from(tb.querySelectorAll('tr')).map(tr => {
     const ins = tr.querySelectorAll('input');
     return { codigo: (ins[0]?.value || '').trim(), nombre: (ins[1]?.value || '').trim(),
-             cantidad: (ins[2]?.value || '').trim(), ubicacion: (ins[3]?.value || '').trim(),
-             observacion: (ins[4]?.value || '').trim() };
+             cantidad: (ins[2]?.value || '').trim(), ubicacion: '',
+             observacion: (ins[3]?.value || '').trim() };
   }).filter(r => r.codigo || r.nombre); // se descartan las filas en blanco
 }
 
