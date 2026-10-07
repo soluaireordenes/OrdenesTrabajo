@@ -3517,19 +3517,6 @@ body.rol-operario .solo-admin { display: none !important; }
     </div>
   </div>
 
-  <!-- ════════════ PANEL: TIEMPO REAL (SENSORES UBIDOTS) ════════════ -->
-  <div id="panel-tiemporeal" class="panel">
-    <div style="max-width:900px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <div id="tiempoRealTitulo" style="font-weight:700;color:var(--brand);font-size:15px;flex:1;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Tiempo Real</div>
-        <button class="btn btn-ghost" onclick="volverDeTiempoReal()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
-      </div>
-      <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Lecturas en Vivo (Ubidots)</div>
-        <div class="card-body" style="padding:16px" id="tiempoRealContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
-      </div>
-    </div>
-  </div>
 
   <!-- ════════════ PANEL: PLAN DE MANTENIMIENTO ════════════ -->
   <div id="panel-planmantenimiento" class="panel">
@@ -4611,7 +4598,6 @@ let sidebarGrupoExpandido = {
   operaciones: !operacionAutenticada,
   variables: !operacionAutenticada,
   inventario: !operacionAutenticada,
-  tiemporeal: !operacionAutenticada,
   planmantenimiento: !operacionAutenticada,
   encargadosturnos: !operacionAutenticada,
 };
@@ -5272,105 +5258,8 @@ async function _prepararFotoParaSubir(file, nombreSugerido) {
   };
 }
 
-/* ══════════════════════════════════════════════
-   SENSORES EN TIEMPO REAL (Ubidots — proveedor Celsia)
-   Lee las últimas lecturas directo de la API de Ubidots
-   (sin backend intermedio, igual que el resto de
-   integraciones de este archivo), identificando cada
-   variable por su ID real de Ubidots.
-
-   ► UBIDOTS_SEDES_MAP: agrega aquí cada sede con sensores
-     conectados, con el ID real de cada variable en Ubidots
-     (se ve en la URL de la variable dentro de Ubidots). Las
-     sedes que no aparezcan aquí simplemente muestran "sin
-     sensores conectados" en su panel de Tiempo Real — no
-     rompen nada.
-   ► umbralMin/umbralMax quedan en null a propósito: sin
-     rango configurado no se puede saber si algo está "fuera
-     de rango", así que nunca se marca enAlerta hasta que se
-     configuren con los rangos seguros reales.
-   ► Unidad de flujo_baja confirmada como 'SCFM' directo del
-     panel de la variable en Ubidots.
-   ► baseUrl: se probó 'stem.api.ubidots.com' y dio "Failed to
-     fetch" (ni siquiera conecta — típico de CORS/dominio
-     equivocado para esta cuenta), mientras que
-     'industrial.api.ubidots.com' sí conecta. Por eso se dejó
-     en 'industrial'.
-   ► El ID de flujo_baja usado antes (68ac6f88e46503001115de60)
-     era incorrecto — no correspondía a esta variable, lo que
-     causaba los 401/403 sin importar el token o el formato de
-     autenticación. El ID correcto (verificado directo del
-     panel de la variable en Ubidots) es 698a3fd756b9223308d60918. ══════════════════════════════════════════════ */
-const UBIDOTS_CONFIG = {
-  // El token de Ubidots se retiró del código: al ser un archivo público,
-  // cualquiera podía leerlo. Mientras se rota el token (con el dueño de la
-  // cuenta) y se monta el proxy que lo guarde de forma segura en el servidor,
-  // "Tiempo Real" queda en mantenimiento (token vacío => no se hace ninguna
-  // llamada). Cuando el proxy esté listo, la app pedirá las lecturas al proxy
-  // y el token NUNCA volverá a vivir en este HTML.
-  token:   '',
-  baseUrl: 'https://industrial.api.ubidots.com/api/v1.6',
-};
-
-const UBIDOTS_SEDES_MAP = {
-  zipaquira: {
-    variables: [
-      { id: '698a3fd756b9223308d60918', label: 'flujo_baja_scmf', nombre: 'Flujo (Baja)', unidad: 'SCFM', umbralMin: null, umbralMax: null },
-    ],
-  },
-};
-
-/** Pide el último valor de una variable de Ubidots. Prueba primero con el
- *  header clásico 'X-Auth-Token'; si esa cuenta lo rechaza (401 o 403),
- *  reintenta una sola vez con 'Authorization: Bearer' (algunas cuentas/
- *  tokens de Ubidots usan ese formato en vez del clásico) antes de darse
- *  por vencido. */
-async function _fetchUbidotsValor(variableId) {
-  const url = `${UBIDOTS_CONFIG.baseUrl}/variables/${variableId}/values/?page_size=1`;
-
-  let resp = await fetch(url, { headers: { 'X-Auth-Token': UBIDOTS_CONFIG.token } });
-  if (resp.status === 401 || resp.status === 403) {
-    resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + UBIDOTS_CONFIG.token } });
-  }
-  if (!resp.ok) throw new Error('Ubidots respondió ' + resp.status);
-  return resp.json();
-}
-
-/** Trae la última lectura de cada variable Ubidots configurada para una
- *  sede. Devuelve null si esa sede no tiene sensores conectados (no está
- *  en UBIDOTS_SEDES_MAP). Si una variable puntual falla, no tumba a las
- *  demás — queda con valor null y su mensaje de error. */
-async function obtenerLecturasSede(sede) {
-  const cfg = UBIDOTS_SEDES_MAP[sede];
-  if (!cfg) return null;
-
-  return Promise.all(cfg.variables.map(async (v) => {
-    try {
-      const data = await _fetchUbidotsValor(v.id);
-      const ultimo = (data.results || [])[0];
-      const valor = (ultimo && typeof ultimo.value === 'number') ? ultimo.value : null;
-      const enAlerta = valor !== null && (
-        (v.umbralMin !== null && valor < v.umbralMin) ||
-        (v.umbralMax !== null && valor > v.umbralMax)
-      );
-      return {
-        label: v.label, nombre: v.nombre, unidad: v.unidad, valor,
-        ultimaActualizacion: ultimo ? new Date(ultimo.timestamp).toLocaleString('es-CO') : null,
-        umbralMin: v.umbralMin, umbralMax: v.umbralMax, enAlerta,
-      };
-    } catch (e) {
-      return {
-        label: v.label, nombre: v.nombre, unidad: v.unidad, valor: null,
-        ultimaActualizacion: null, umbralMin: v.umbralMin, umbralMax: v.umbralMax,
-        enAlerta: false, error: e.message,
-      };
-    }
-  }));
-}
-
 let inventarioOperacionActual = null; // qué OPERACIÓN de inventario está abierta
-let tiempoRealOperacionActual  = null; // qué OPERACIÓN de tiempo real (sensores) está abierta
-let _tiempoRealIntervalId      = null; // id del setInterval que refresca las lecturas en vivo
+let _tiempoRealIntervalId      = null; // (obsoleto) se conserva solo para las limpiezas defensivas de intervalos al cambiar de panel
 let planMantOperacionActual    = null; // qué OPERACIÓN de plan de mantenimiento está abierta
 let encargadosTurnosOperacionActual = null; // qué OPERACIÓN de Encargados Turnos está abierta
 
@@ -5891,25 +5780,6 @@ function renderSidebarOperaciones() {
           ${habilitado ? `onmouseover="this.style.background='var(--brand-light)'" onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'transparent'}'"` : ''}>
           <span style="font-size:16px">${op.bandera}</span>
           <span style="flex:1;line-height:1.25">PLAN ${esc(op.nombre)}</span>
-          ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
-        </div>`;
-    }).join('')}
-    <div style="border-top:1px solid var(--border);margin:8px 0"></div>
-    ${_sidebarEncabezadoGrupo('tiemporeal', 'Tiempo Real', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>')}
-    ${_sidebarClavesVisibles('tiemporeal').map(key => {
-      const op = OPERACIONES[key];
-      const habilitado = key === operacionActual && operacionAutenticada;
-      const activo = key === tiempoRealOperacionActual && document.getElementById('panel-tiemporeal')?.classList.contains('active');
-      return `
-        <div ${habilitado ? `onclick="abrirTiempoReal('${key}')"` : ''}
-          title="${habilitado ? '' : 'Primero entra a esa operación con su contraseña en la sección de arriba'}"
-          style="display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:13px;
-                 cursor:${habilitado ? 'pointer' : 'not-allowed'};
-                 color:${habilitado ? (activo ? 'var(--brand)' : 'var(--text2)') : 'var(--text3)'};
-                 background:${activo ? 'var(--brand-light)' : 'transparent'};font-weight:${activo ? '700' : '400'}"
-          ${habilitado ? `onmouseover="this.style.background='var(--brand-light)'" onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'transparent'}'"` : ''}>
-          <span style="font-size:16px">${op.bandera}</span>
-          <span style="flex:1;line-height:1.25">TIEMPO REAL ${esc(op.nombre)}</span>
           ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
         </div>`;
     }).join('')}
@@ -13410,103 +13280,8 @@ function volverDeInventario() {
   renderSidebarOperaciones();
 }
 
-/** Abre el panel de Tiempo Real (lecturas Ubidots en vivo) de una sede —
- *  mismo patrón de acceso que abrirInventario(): solo se puede abrir el
- *  de la sede activa y ya autenticada. */
-function abrirTiempoReal(opKey) {
-  if (!operacionAutenticada) {
-    alert('Primero selecciona e ingresa la contraseña de una operación en el panel izquierdo.');
-    showPanel('inicio');
-    return;
-  }
-  if (opKey !== operacionActual) {
-    alert('Solo puedes abrir el tiempo real de la sede activa: ' + OPERACIONES[operacionActual].nombre);
-    return;
-  }
-  tiempoRealOperacionActual = opKey;
-
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-tiemporeal').classList.add('active');
-  document.getElementById('tiempoRealTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Tiempo Real — ' + esc(OPERACIONES[opKey].nombre);
-
-  document.body.classList.add('inv-activo');
-
-  renderSidebarOperaciones();
-  cargarTiempoReal(opKey);
-
-  // Refresca las lecturas solo mientras se está viendo esta pantalla —
-  // se detiene al volver (volverDeTiempoReal) para no gastar llamadas a
-  // Ubidots de fondo sin que nadie lo esté mirando.
-  if (_tiempoRealIntervalId) clearInterval(_tiempoRealIntervalId);
-  // En mantenimiento (sin token) no hay nada que refrescar: se evita el
-  // intervalo para no repintar el aviso cada 10s sin motivo.
-  if (UBIDOTS_CONFIG.token) {
-    _tiempoRealIntervalId = setInterval(() => cargarTiempoReal(opKey, true), 10000);
-  }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function volverDeTiempoReal() {
-  tiempoRealOperacionActual = null;
-  if (_tiempoRealIntervalId) { clearInterval(_tiempoRealIntervalId); _tiempoRealIntervalId = null; }
-  document.body.classList.remove('inv-activo');
-  showPanel('pendientes');
-  renderSidebarOperaciones();
-}
-
-/** Pinta las lecturas en vivo de Ubidots para una sede. Si la sede no
- *  tiene sensores conectados (no está en UBIDOTS_SEDES_MAP), muestra un
- *  aviso tranquilo en vez de romper algo. El parámetro "silencioso" evita
- *  el parpadeo de "Cargando…" en los refrescos automáticos — solo se usa
- *  la primera vez que se abre la pantalla. */
-async function cargarTiempoReal(sede, silencioso) {
-  const cont = document.getElementById('tiempoRealContenido');
-  if (!cont) return;
-
-  // Sin token configurado, "Tiempo Real" está en mantenimiento (el token se
-  // retiró del código público por seguridad). Se muestra un aviso tranquilo y
-  // NO se hace ninguna llamada a Ubidots.
-  if (!UBIDOTS_CONFIG.token) {
-    cont.innerHTML = `<div style="padding:22px;border:1px dashed var(--border);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:13px;line-height:1.6;text-align:center">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;opacity:.6;margin-bottom:8px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-      <div style="font-weight:700;color:var(--text);margin-bottom:4px">Tiempo Real en mantenimiento</div>
-      La conexión con los sensores se está reconfigurando de forma segura y volverá pronto.
-    </div>`;
-    return;
-  }
-
-  if (!silencioso) cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando lecturas…</div>';
-
-  let lecturas;
-  try {
-    lecturas = await obtenerLecturasSede(sede);
-  } catch (e) {
-    cont.innerHTML = `<div style="color:var(--danger);font-size:13px;display:flex;align-items:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ${esc(e.message)}</div>`;
-    return;
-  }
-
-  if (!lecturas) {
-    cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Esta sede todavía no tiene sensores conectados.</div>';
-    return;
-  }
-
-  cont.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px">
-    ${lecturas.map(l => {
-      const valorFmt = l.valor === null ? '—' : Math.round(l.valor * 100) / 100;
-      return `
-      <div style="padding:14px 16px;border-radius:8px;border:1px solid ${l.enAlerta ? '#fecaca' : 'var(--border)'};background:${l.enAlerta ? '#fef2f2' : 'var(--surface)'}">
-        <div style="font-size:11px;font-weight:700;color:${l.enAlerta ? '#b91c1c' : 'var(--text3)'};text-transform:uppercase;letter-spacing:.5px">${esc(l.nombre)}</div>
-        <div style="font-size:24px;font-weight:800;color:${l.enAlerta ? '#b91c1c' : 'var(--brand)'};margin:4px 0">${valorFmt} <span style="font-size:13px;font-weight:600">${esc(l.unidad||'')}</span></div>
-        <div style="font-size:11px;color:var(--text3)">${l.ultimaActualizacion ? 'Actualizado: ' + esc(l.ultimaActualizacion) : (l.error ? 'Error: ' + esc(l.error) : 'Sin fecha')}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
-}
-
 /** Abre el panel de Plan de Mantenimiento de una sede — mismo patrón de
- *  acceso que abrirInventario()/abrirTiempoReal(): solo se puede abrir el
+ *  acceso que abrirInventario(): solo se puede abrir el
  *  de la sede activa y ya autenticada. */
 function abrirPlanMantenimiento(opKey) {
   if (!operacionAutenticada) {
