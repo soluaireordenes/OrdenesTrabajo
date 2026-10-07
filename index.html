@@ -21537,7 +21537,7 @@ async function hvdSeleccionarEquipo(equipo) {
           <table class="dyn-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
             <thead>
               <tr>
-                ${['Código','Repuesto','Ubicación','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
+                ${['Código','Repuesto','Cantidad','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
               </tr>
             </thead>
             <tbody id="hvd_tbody_repuestos">
@@ -21625,7 +21625,7 @@ function _htmlFilaRepuestoHVD(r) {
   return `<tr>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"${ro}></td>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"${ro}></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.ubicacion||'')}" placeholder="Ej: Bodega A"${ro}></td>
+    <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"${ro}></td>
     <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"${ro}></td>
     <td style="padding:3px 4px;text-align:center">${!esAdmin() ? '' : `<button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button>`}</td>
   </tr>`;
@@ -21657,7 +21657,7 @@ function _leerRepuestosEditorHVD() {
   return Array.from(tb.querySelectorAll('tr')).map(tr => {
     const ins = tr.querySelectorAll('input');
     return { codigo: (ins[0]?.value || '').trim(), nombre: (ins[1]?.value || '').trim(),
-             cantidad: '', ubicacion: (ins[2]?.value || '').trim(),
+             cantidad: (ins[2]?.value || '').trim(), ubicacion: '',
              observacion: (ins[3]?.value || '').trim() };
   }).filter(r => r.codigo || r.nombre); // se descartan las filas en blanco
 }
