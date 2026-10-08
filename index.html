@@ -10122,84 +10122,19 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
   return '';
 }
 
-/** Baja varias fotos a la vez y las deja en caché, en lotes para no
- *  disparar cientos de peticiones simultáneas al Apps Script (que las
- *  rechazaría). `alAvanzar(hechas, total)` sirve para mostrar el progreso.
- *  Los errores no interesan aquí: _obtenerDataUrlFoto ya devuelve '' y lo
- *  deja anotado en consola, y el documento se arma igual sin esa foto. */
-/** null = aún no se probó; true = el Apps Script entiende el modo batch
- *  (varias fotos por petición); false = Apps Script viejo (una por una). */
-let _fotosBatchSoportado = null;
-
-/** Pide VARIAS fotos en una sola petición (?ids=a,b,c). Devuelve true si el
- *  servidor respondió en modo batch; false si es un Apps Script viejo que no
- *  lo soporta (para caer al modo una-por-una). Las que lleguen quedan en caché. */
-async function _traerLoteFotosServidor(ids, thumb) {
-  if (!ids.length) return true;
-  try {
-    const url = _fotosUrlSede() + '?ids=' + encodeURIComponent(ids.join(',')) + (thumb ? '&thumb=1' : '');
-    const resp = await _fetchFotoConTimeout(url, 20000);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if (data && data.ok && data.fotos) {
-      for (const id of ids) {
-        const f = data.fotos[id];
-        if (f && f.base64) _fotoDataUrlCache[thumb ? id + '|thumb' : id] = `data:${f.mimeType};base64,${f.base64}`;
-      }
-      return true;
-    }
-    return false; // respondió pero sin 'fotos' => Apps Script sin soporte batch
-  } catch (e) {
-    return false;
-  }
-}
-
-/** Precarga fotos en caché. Usa el endpoint batch (muchas fotos por petición,
- *  varias peticiones en paralelo) cuando el Apps Script lo soporta — así un
- *  informe con decenas de fotos se arma en pocas idas y vueltas en vez de
- *  cientos. Si el Apps Script es viejo, cae automáticamente a pedirlas una por
- *  una. `tamLote` = cuántas fotos por petición (o cuántas en paralelo en el
- *  modo viejo). `thumb` pide miniaturas livianas (para informes). */
+/** Precarga fotos en caché pidiéndolas UNA POR UNA pero en paralelo (de a
+ *  `tamLote` a la vez). Cada petición trae una sola foto, así el Apps Script
+ *  responde rápido y liviano — a diferencia de pedir muchas en un mismo
+ *  request, que lo hacía tardar o cortarse por tope de tiempo. `thumb` pide la
+ *  miniatura (mucho más liviana, ideal para informes). Los errores no importan:
+ *  _obtenerDataUrlFoto ya devuelve '' y el documento se arma igual sin esa foto.
+ *  `alAvanzar(hechas, total)` reporta el progreso. */
 async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10, thumb) {
-  const unicas = [...new Set(ids)].filter(Boolean);
-  const claveCache = id => (thumb ? id + '|thumb' : id);
-  const pendientes = unicas.filter(id => !_fotoDataUrlCache[claveCache(id)]);
-  const totalRep = ids.length;
-  let hechas = totalRep - pendientes.length;
-  if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
-  if (!pendientes.length) return;
-
-  // Probar una vez si el servidor soporta batch (y de paso cargar ese grupo).
-  if (_fotosBatchSoportado === null) {
-    const prueba = pendientes.splice(0, tamLote);
-    _fotosBatchSoportado = await _traerLoteFotosServidor(prueba, thumb);
-    if (!_fotosBatchSoportado) {
-      await Promise.all(prueba.map(id => _obtenerDataUrlFoto(id, thumb)));
-    }
-    hechas += prueba.length;
-    if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
-  }
-
-  if (_fotosBatchSoportado) {
-    // Batch: lotes de `tamLote` fotos por petición, hasta 3 peticiones a la vez.
-    const lotes = [];
-    for (let i = 0; i < pendientes.length; i += tamLote) lotes.push(pendientes.slice(i, i + tamLote));
-    const CONC = 3;
-    for (let i = 0; i < lotes.length; i += CONC) {
-      await Promise.all(lotes.slice(i, i + CONC).map(async grupo => {
-        await _traerLoteFotosServidor(grupo, thumb);
-        hechas += grupo.length;
-        if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
-      }));
-    }
-  } else {
-    // Apps Script viejo: una por una, en paralelo de a `tamLote`.
-    for (let i = 0; i < pendientes.length; i += tamLote) {
-      const grupo = pendientes.slice(i, i + tamLote);
-      await Promise.all(grupo.map(id => _obtenerDataUrlFoto(id, thumb)));
-      hechas += grupo.length;
-      if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
-    }
+  const total = ids.length;
+  if (!total) return;
+  for (let i = 0; i < total; i += tamLote) {
+    await Promise.all(ids.slice(i, i + tamLote).map(id => _obtenerDataUrlFoto(id, thumb)));
+    if (alAvanzar) alAvanzar(Math.min(i + tamLote, total), total);
   }
 }
 
@@ -18062,13 +17997,13 @@ async function descargarInformeCronograma(boton) {
     // informe se arme más rápido en el celular. Sigue por debajo del límite
     // de ejecuciones simultáneas del Apps Script, y _obtenerDataUrlFoto
     // reintenta si alguna se cae por saturación momentánea.
-    // Se bajan en lotes de 12 por petición (modo batch del Apps Script), que
-    // es lo que de verdad acelera: pocas idas y vueltas en vez de cientos. No
-    // se piden miniaturas porque generarlas en el servidor resultó lento y
-    // dejaba el informe "pensando"; la imagen va completa.
+    // Miniaturas (livianas), UNA por petición y 10 en paralelo: cada request
+    // es pequeño y rápido. (Pedirlas en lote o a resolución completa tardaba
+    // tanto que se cortaba por tope de tiempo y solo salía 1 foto.) Si alguna
+    // miniatura falla, al armar la actividad se intenta con la foto completa.
     await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
       if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    }, 12);
+    }, 10, true);
     if (btn) btn.innerHTML = 'Generando informe…';
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
@@ -18090,7 +18025,7 @@ async function descargarInformeCronograma(boton) {
       const fotosActividad = fotosFecha[id] || [];
       const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
       const sobrantes = fotosActividad.length - fotosMostradas.length;
-      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+      const fotosDataUrls = await Promise.all(fotosMostradas.map(async f => (await _obtenerDataUrlFoto(f.driveFileId, true)) || (await _obtenerDataUrlFoto(f.driveFileId))));
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:var(--text2)">${detalle}</td><td style="font-size:10px;color:var(--text2);font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.
