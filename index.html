@@ -10110,14 +10110,37 @@ const _fotoDataUrlCache = {};
  *  completa servida por el Apps Script puede tardar bastante (con varias
  *  pidiéndose a la vez); con 12 s se cortaban TODAS y el informe salía sin
  *  fotos. Por eso es amplio (90 s). */
-async function _fetchFotoConTimeout(url, ms) {
+async function _fetchFotoConTimeout(url, ms, init) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    return await fetch(url, { signal: ctrl.signal });
+    return await fetch(url, Object.assign({}, init || {}, { signal: ctrl.signal }));
   } finally {
     clearTimeout(t);
   }
+}
+
+/** null = aún no se probó; true = el proxy entrega fotos; false = el proxy
+ *  no está listo (Worker sin la ruta /foto, API de Drive sin habilitar o
+ *  carpeta sin compartir con la cuenta de servicio) → se usa el Apps Script. */
+let _fotosProxyEstado = null;
+
+/** Trae una foto por el proxy (Cloudflare Worker → Google Drive con la cuenta
+ *  de servicio) y la devuelve como data:URL. No pasa por el Apps Script, cuya
+ *  respuesta se queda a veces atascada en script.googleusercontent.com. */
+async function _fotoDesdeProxy(driveFileId) {
+  const resp = await _fetchFotoConTimeout(
+    PROXY_URL + '/foto?id=' + encodeURIComponent(driveFileId), 30000,
+    { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (!resp.ok) throw new Error('Proxy de fotos respondió ' + resp.status);
+  const blob = await resp.blob();
+  if (!/^image\//i.test(blob.type)) throw new Error('El proxy no devolvió una imagen');
+  return await new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(lector.result);
+    lector.onerror = () => reject(lector.error || new Error('No se pudo leer la imagen'));
+    lector.readAsDataURL(blob);
+  });
 }
 
 async function _obtenerDataUrlFoto(driveFileId, thumb) {
@@ -10126,6 +10149,21 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
   // mezclar la versión liviana (informes) con la de resolución completa.
   const cacheKey = thumb ? driveFileId + '|thumb' : driveFileId;
   if (_fotoDataUrlCache[cacheKey]) return _fotoDataUrlCache[cacheKey];
+  // 1) Primero por el proxy (más rápido y confiable). Si el proxy no está
+  //    listo, la PRIMERA falla lo marca como no disponible y de ahí en
+  //    adelante se va directo al Apps Script, sin pedir dos veces cada foto.
+  if (_fotosProxyEstado !== false && googleAccessToken) {
+    try {
+      const dataUrl = await _fotoDesdeProxy(driveFileId);
+      _fotosProxyEstado = true;
+      _fotoDataUrlCache[cacheKey] = dataUrl;
+      return dataUrl;
+    } catch (e) {
+      if (_fotosProxyEstado === null) _fotosProxyEstado = false;
+      console.warn('Foto por proxy falló, se intenta con el Apps Script:', driveFileId, e.message);
+    }
+  }
+  // 2) Respaldo: el Apps Script de fotos de la sede.
   // Se reintenta un par de veces: cuando hay muchas fotos en pantalla, el
   // Apps Script a veces rechaza una petición por saturación momentánea, y sin
   // reintento esa foto quedaba marcada "No se pudo cargar" para siempre.

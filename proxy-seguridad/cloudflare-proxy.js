@@ -91,6 +91,10 @@ export default {
         return _cors(await _gatewaySheets(peticion, entorno, url), entorno, origen);
       }
 
+      if (url.pathname === '/foto' && peticion.method === 'GET') {
+        return _cors(await _foto(peticion, entorno, url), entorno, origen);
+      }
+
       return _cors(_json({ ok: false, mensaje: 'Ruta no encontrada.' }, 404), entorno, origen);
     } catch (err) {
       return _cors(_json({ ok: false, mensaje: 'Error del proxy: ' + err.message }, 500), entorno, origen);
@@ -249,6 +253,41 @@ async function _diag(entorno, url) {
   }
 
   return _json({ ok: !/ERROR/.test(JSON.stringify(pasos)), pasos });
+}
+
+/* ── FOTOS DESDE DRIVE ──────────────────────────────────────────────────
+   GET /foto?id=<driveFileId>  (con el pase de sesión en Authorization)
+   Devuelve la imagen directo desde Google Drive usando la cuenta de
+   servicio. Reemplaza la lectura de fotos por el Apps Script, cuya
+   respuesta pasa por script.googleusercontent.com y en Workspace a veces
+   no llega ("No se pudo abrir el archivo en este momento").
+   Requiere: la API de Google Drive habilitada en el proyecto de la cuenta
+   de servicio, y la carpeta de fotos compartida (Lector) con esa cuenta. */
+async function _foto(peticion, entorno, url) {
+  const sesion = await _sesionDeLaPeticion(peticion, entorno);
+  if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+
+  const id = String(url.searchParams.get('id') || '');
+  if (!/^[A-Za-z0-9_-]{10,200}$/.test(id)) return _json({ ok: false, mensaje: 'id de foto inválido.' }, 400);
+
+  const token = await _tokenCuentaServicio(entorno);
+  const respDrive = await fetch(
+    'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) + '?alt=media&supportsAllDrives=true',
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  if (!respDrive.ok) {
+    const detalle = (await respDrive.text()).slice(0, 300);
+    return _json({ ok: false, mensaje: 'Drive respondió ' + respDrive.status, detalle }, respDrive.status === 404 ? 404 : 502);
+  }
+  // Una foto nunca cambia (mismo id = misma imagen): el navegador puede
+  // guardarla en caché mucho tiempo y no volver a pedirla.
+  return new Response(respDrive.body, {
+    status: 200,
+    headers: {
+      'Content-Type': respDrive.headers.get('Content-Type') || 'image/jpeg',
+      'Cache-Control': 'private, max-age=31536000, immutable',
+    },
+  });
 }
 
 /* ── GATEWAY A GOOGLE SHEETS ────────────────────────────────────────────
