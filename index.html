@@ -4246,6 +4246,28 @@ const LOGIN_APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXYJOJkuDp
 // que es lo que viaja como Bearer en cada llamada a /sheets.
 const PROXY_URL  = 'https://solucionaire-proxy.soluaire-ordenes.workers.dev';
 const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleapis.com
+
+// Reintento automático ante el límite de cuota de Google Sheets (HTTP 429).
+// Con el proxy, todos los usuarios comparten la misma cuenta de servicio, y
+// por eso también el cupo de "lecturas por minuto por usuario". Si Google
+// responde 429, la petición NO se procesó, así que reintentarla es seguro:
+// se espera 2 s, 4 s, 8 s y 16 s (con algo de azar para no chocar entre
+// pestañas) antes de rendirse. Aplica solo a llamadas a SHEETS_API.
+(function instalarReintentoCuotaSheets() {
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = async function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (!url.startsWith(SHEETS_API)) return fetchOriginal(input, init);
+    let resp;
+    for (let intento = 0; intento <= 4; intento++) {
+      resp = await fetchOriginal(input, init);
+      if (resp.status !== 429 || intento === 4) return resp;
+      const espera = 2000 * Math.pow(2, intento) + Math.random() * 1000;
+      await new Promise(r => setTimeout(r, espera));
+    }
+    return resp;
+  };
+})();
 // Rol del usuario autenticado (operario | admin). Se llena en el login y al
 // restaurar la sesión; sirve para ocultar acciones de admin en la interfaz
 // (el bloqueo REAL lo hace el proxy del lado del servidor).
