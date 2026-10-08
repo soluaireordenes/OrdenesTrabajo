@@ -324,7 +324,13 @@ async function _gatewaySheets(peticion, entorno, url) {
   const ct = peticion.headers.get('Content-Type');
   if (ct) cabeceras['Content-Type'] = ct;
 
-  const respGoogle = await fetch(GOOGLE_SHEETS_BASE + rutaGoogle, {
+  // quotaUser: Google cuenta el cupo "por usuario" (60 lecturas/min) por la
+  // identidad que llama. Como TODO pasa por la misma cuenta de servicio, todos
+  // los técnicos compartían esos 60. Con quotaUser = documento de la sesión,
+  // cada persona vuelve a tener su propio cupo (el tope del proyecto sigue).
+  const destino = new URL(GOOGLE_SHEETS_BASE + rutaGoogle);
+  destino.searchParams.set('quotaUser', 'u-' + String(sesion.doc || 'anon').slice(0, 30));
+  const respGoogle = await fetch(destino.toString(), {
     method: peticion.method,
     headers: cabeceras,
     body: esEscritura ? cuerpoTexto : undefined,
