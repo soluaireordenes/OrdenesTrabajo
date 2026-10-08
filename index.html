@@ -10080,6 +10080,19 @@ const _fotoDataUrlCache = {};
  *  contenido en base64, porque un Web App de Apps Script no puede
  *  devolver una imagen binaria directa desde doGet) y arma un
  *  data:URL listo para usar como src de una imagen. */
+/** fetch con tope de tiempo: si el Apps Script no responde dentro de `ms`,
+ *  se aborta y se trata como error, para que la carga de fotos (y con ella la
+ *  generación de un informe) NUNCA se quede colgada esperando al servidor. */
+async function _fetchFotoConTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function _obtenerDataUrlFoto(driveFileId, thumb) {
   if (!driveFileId) return '';
   // Las miniaturas se guardan en caché aparte de la imagen completa, para no
@@ -10092,7 +10105,7 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
   let ultimoError = '';
   for (let intento = 0; intento < 3; intento++) {
     try {
-      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(driveFileId) + (thumb ? '&thumb=1' : ''));
+      const resp = await _fetchFotoConTimeout(_fotosUrlSede() + "?id=" + encodeURIComponent(driveFileId) + (thumb ? "&thumb=1" : ""), 12000);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
@@ -10101,6 +10114,7 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
       return dataUrl;
     } catch (e) {
       ultimoError = e.message;
+      if (e.name === 'AbortError') break; // se agotó el tiempo: no reintentar
       if (intento < 2) await new Promise(r => setTimeout(r, 500 * (intento + 1)));
     }
   }
@@ -10124,7 +10138,7 @@ async function _traerLoteFotosServidor(ids, thumb) {
   if (!ids.length) return true;
   try {
     const url = _fotosUrlSede() + '?ids=' + encodeURIComponent(ids.join(',')) + (thumb ? '&thumb=1' : '');
-    const resp = await fetch(url);
+    const resp = await _fetchFotoConTimeout(url, 20000);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     if (data && data.ok && data.fotos) {
@@ -18048,9 +18062,13 @@ async function descargarInformeCronograma(boton) {
     // informe se arme más rápido en el celular. Sigue por debajo del límite
     // de ejecuciones simultáneas del Apps Script, y _obtenerDataUrlFoto
     // reintenta si alguna se cae por saturación momentánea.
+    // Se bajan en lotes de 12 por petición (modo batch del Apps Script), que
+    // es lo que de verdad acelera: pocas idas y vueltas en vez de cientos. No
+    // se piden miniaturas porque generarlas en el servidor resultó lento y
+    // dejaba el informe "pensando"; la imagen va completa.
     await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
       if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    }, 18, true);
+    }, 12);
     if (btn) btn.innerHTML = 'Generando informe…';
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
@@ -18072,7 +18090,7 @@ async function descargarInformeCronograma(boton) {
       const fotosActividad = fotosFecha[id] || [];
       const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
       const sobrantes = fotosActividad.length - fotosMostradas.length;
-      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId, true)));
+      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId)));
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:var(--text2)">${detalle}</td><td style="font-size:10px;color:var(--text2);font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.
