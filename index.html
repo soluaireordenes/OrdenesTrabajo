@@ -17959,6 +17959,30 @@ async function consultarCronogramaFecha() {
  *  cosa: las demás siempre se pueden ver en el sistema. */
 const INFORME_MAX_FOTOS_POR_ACTIVIDAD = 3;
 
+/** Achica una foto (data:URL) a `maxLado` px por su lado mayor y la
+ *  re-comprime como JPEG, en el propio navegador. Si algo falla, devuelve la
+ *  original para no perder la foto. */
+function _reducirFotoParaInforme(dataUrl, maxLado) {
+  return new Promise(resolve => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * escala));
+          const h = Math.max(1, Math.round(img.height * escala));
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL('image/jpeg', 0.75));
+        } catch (e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch (e) { resolve(dataUrl); }
+  });
+}
+
 /** Descarga un informe PDF (nueva pestaña + imprimir, igual patrón que
  *  descargarOrdenPDF) con lo marcado/no marcado en un rango de fechas. */
 async function descargarInformeCronograma(boton) {
@@ -18015,17 +18039,24 @@ async function descargarInformeCronograma(boton) {
         }
       }
     }
-    // Lote amplio (18 a la vez): baja muchas fotos en paralelo para que el
-    // informe se arme más rápido en el celular. Sigue por debajo del límite
-    // de ejecuciones simultáneas del Apps Script, y _obtenerDataUrlFoto
-    // reintenta si alguna se cae por saturación momentánea.
-    // Miniaturas (livianas), UNA por petición y 10 en paralelo: cada request
-    // es pequeño y rápido. (Pedirlas en lote o a resolución completa tardaba
-    // tanto que se cortaba por tope de tiempo y solo salía 1 foto.) Si alguna
-    // miniatura falla, al armar la actividad se intenta con la foto completa.
-    await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
+    // Se bajan UNA sola vez, a resolución completa (las miniaturas del Apps
+    // Script resultaron lentas y trababan el informe), 10 en paralelo.
+    const idsUnicos = [...new Set(idsFotos)];
+    await _precargarFotosEnLotes(idsUnicos, (hechas, total) => {
       if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    }, 10, true);
+    }, 10);
+    // Luego se achican en el propio navegador (en el informe se ven a 160 px):
+    // el documento queda liviano y se abre/imprime rápido, en vez de cargar
+    // decenas de fotos de varios MB cada una. Armar las actividades usa SOLO
+    // este mapa — ya no vuelve a pedir nada al servidor (antes, una foto que
+    // había fallado se volvía a pedir en cada actividad, con su tope de
+    // tiempo, y el informe parecía colgado).
+    if (btn) btn.innerHTML = 'Generando informe… (preparando fotos)';
+    const fotosInforme = {};
+    await Promise.all(idsUnicos.map(async id => {
+      const original = _fotoDataUrlCache[id];
+      if (original) fotosInforme[id] = await _reducirFotoParaInforme(original, 480);
+    }));
     if (btn) btn.innerHTML = 'Generando informe…';
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
@@ -18047,7 +18078,7 @@ async function descargarInformeCronograma(boton) {
       const fotosActividad = fotosFecha[id] || [];
       const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
       const sobrantes = fotosActividad.length - fotosMostradas.length;
-      const fotosDataUrls = await Promise.all(fotosMostradas.map(async f => (await _obtenerDataUrlFoto(f.driveFileId, true)) || (await _obtenerDataUrlFoto(f.driveFileId))));
+      const fotosDataUrls = fotosMostradas.map(f => fotosInforme[f.driveFileId] || '');
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:var(--text2)">${detalle}</td><td style="font-size:10px;color:var(--text2);font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.
