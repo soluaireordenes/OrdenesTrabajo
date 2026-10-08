@@ -10080,21 +10080,24 @@ const _fotoDataUrlCache = {};
  *  contenido en base64, porque un Web App de Apps Script no puede
  *  devolver una imagen binaria directa desde doGet) y arma un
  *  data:URL listo para usar como src de una imagen. */
-async function _obtenerDataUrlFoto(driveFileId) {
+async function _obtenerDataUrlFoto(driveFileId, thumb) {
   if (!driveFileId) return '';
-  if (_fotoDataUrlCache[driveFileId]) return _fotoDataUrlCache[driveFileId];
+  // Las miniaturas se guardan en caché aparte de la imagen completa, para no
+  // mezclar la versión liviana (informes) con la de resolución completa.
+  const cacheKey = thumb ? driveFileId + '|thumb' : driveFileId;
+  if (_fotoDataUrlCache[cacheKey]) return _fotoDataUrlCache[cacheKey];
   // Se reintenta un par de veces: cuando hay muchas fotos en pantalla, el
   // Apps Script a veces rechaza una petición por saturación momentánea, y sin
   // reintento esa foto quedaba marcada "No se pudo cargar" para siempre.
   let ultimoError = '';
   for (let intento = 0; intento < 3; intento++) {
     try {
-      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(driveFileId));
+      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(driveFileId) + (thumb ? '&thumb=1' : ''));
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
       const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
-      _fotoDataUrlCache[driveFileId] = dataUrl;
+      _fotoDataUrlCache[cacheKey] = dataUrl;
       return dataUrl;
     } catch (e) {
       ultimoError = e.message;
@@ -10110,12 +10113,79 @@ async function _obtenerDataUrlFoto(driveFileId) {
  *  rechazaría). `alAvanzar(hechas, total)` sirve para mostrar el progreso.
  *  Los errores no interesan aquí: _obtenerDataUrlFoto ya devuelve '' y lo
  *  deja anotado en consola, y el documento se arma igual sin esa foto. */
-async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10) {
-  const total = ids.length;
-  if (!total) return;
-  for (let i = 0; i < total; i += tamLote) {
-    await Promise.all(ids.slice(i, i + tamLote).map(id => _obtenerDataUrlFoto(id)));
-    if (alAvanzar) alAvanzar(Math.min(i + tamLote, total), total);
+/** null = aún no se probó; true = el Apps Script entiende el modo batch
+ *  (varias fotos por petición); false = Apps Script viejo (una por una). */
+let _fotosBatchSoportado = null;
+
+/** Pide VARIAS fotos en una sola petición (?ids=a,b,c). Devuelve true si el
+ *  servidor respondió en modo batch; false si es un Apps Script viejo que no
+ *  lo soporta (para caer al modo una-por-una). Las que lleguen quedan en caché. */
+async function _traerLoteFotosServidor(ids, thumb) {
+  if (!ids.length) return true;
+  try {
+    const url = _fotosUrlSede() + '?ids=' + encodeURIComponent(ids.join(',')) + (thumb ? '&thumb=1' : '');
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data && data.ok && data.fotos) {
+      for (const id of ids) {
+        const f = data.fotos[id];
+        if (f && f.base64) _fotoDataUrlCache[thumb ? id + '|thumb' : id] = `data:${f.mimeType};base64,${f.base64}`;
+      }
+      return true;
+    }
+    return false; // respondió pero sin 'fotos' => Apps Script sin soporte batch
+  } catch (e) {
+    return false;
+  }
+}
+
+/** Precarga fotos en caché. Usa el endpoint batch (muchas fotos por petición,
+ *  varias peticiones en paralelo) cuando el Apps Script lo soporta — así un
+ *  informe con decenas de fotos se arma en pocas idas y vueltas en vez de
+ *  cientos. Si el Apps Script es viejo, cae automáticamente a pedirlas una por
+ *  una. `tamLote` = cuántas fotos por petición (o cuántas en paralelo en el
+ *  modo viejo). `thumb` pide miniaturas livianas (para informes). */
+async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10, thumb) {
+  const unicas = [...new Set(ids)].filter(Boolean);
+  const claveCache = id => (thumb ? id + '|thumb' : id);
+  const pendientes = unicas.filter(id => !_fotoDataUrlCache[claveCache(id)]);
+  const totalRep = ids.length;
+  let hechas = totalRep - pendientes.length;
+  if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
+  if (!pendientes.length) return;
+
+  // Probar una vez si el servidor soporta batch (y de paso cargar ese grupo).
+  if (_fotosBatchSoportado === null) {
+    const prueba = pendientes.splice(0, tamLote);
+    _fotosBatchSoportado = await _traerLoteFotosServidor(prueba, thumb);
+    if (!_fotosBatchSoportado) {
+      await Promise.all(prueba.map(id => _obtenerDataUrlFoto(id, thumb)));
+    }
+    hechas += prueba.length;
+    if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
+  }
+
+  if (_fotosBatchSoportado) {
+    // Batch: lotes de `tamLote` fotos por petición, hasta 3 peticiones a la vez.
+    const lotes = [];
+    for (let i = 0; i < pendientes.length; i += tamLote) lotes.push(pendientes.slice(i, i + tamLote));
+    const CONC = 3;
+    for (let i = 0; i < lotes.length; i += CONC) {
+      await Promise.all(lotes.slice(i, i + CONC).map(async grupo => {
+        await _traerLoteFotosServidor(grupo, thumb);
+        hechas += grupo.length;
+        if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
+      }));
+    }
+  } else {
+    // Apps Script viejo: una por una, en paralelo de a `tamLote`.
+    for (let i = 0; i < pendientes.length; i += tamLote) {
+      const grupo = pendientes.slice(i, i + tamLote);
+      await Promise.all(grupo.map(id => _obtenerDataUrlFoto(id, thumb)));
+      hechas += grupo.length;
+      if (alAvanzar) alAvanzar(Math.min(hechas, totalRep), totalRep);
+    }
   }
 }
 
@@ -17980,7 +18050,7 @@ async function descargarInformeCronograma(boton) {
     // reintenta si alguna se cae por saturación momentánea.
     await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
       if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    }, 18);
+    }, 18, true);
     if (btn) btn.innerHTML = 'Generando informe…';
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
@@ -18002,7 +18072,7 @@ async function descargarInformeCronograma(boton) {
       const fotosActividad = fotosFecha[id] || [];
       const fotosMostradas = fotosActividad.slice(0, INFORME_MAX_FOTOS_POR_ACTIVIDAD);
       const sobrantes = fotosActividad.length - fotosMostradas.length;
-      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId)));
+      const fotosDataUrls = await Promise.all(fotosMostradas.map(f => _obtenerDataUrlFoto(f.driveFileId, true)));
       const filas = [`<tr><td style="width:42%">${esc(texto)}</td><td>${estado}</td><td style="font-size:10px;color:var(--text2)">${detalle}</td><td style="font-size:10px;color:var(--text2);font-style:italic">${obs}</td></tr>`];
       // Las fotos van en su propia fila debajo de la actividad (no en una
       // columna angosta al lado) para que se vean grandes.

@@ -48,13 +48,36 @@ var SUBCARPETAS = {
   novedad:    'FOTOS NOVEDADES'
 };
 
-// ── Mostrar una foto: GET ?id=<driveFileId> ──
+// ── Mostrar fotos ──
+//   GET ?id=<driveFileId>                -> una foto  { ok, mimeType, base64 }
+//   GET ?ids=<id1,id2,...>               -> varias    { ok, fotos:{ id:{mimeType,base64} } }
+//   &thumb=1 en cualquiera de los dos    -> miniatura liviana (para informes)
+// El modo ?ids baja muchas fotos en UNA sola petición, para que armar un
+// informe con decenas de fotos tome pocas idas y vueltas en vez de cientos.
 function doGet(e) {
   try {
-    var id = e && e.parameter && e.parameter.id;
+    var p = (e && e.parameter) || {};
+    var quiereThumb = p.thumb === '1' || p.thumb === 'true';
+
+    if (p.ids) {
+      var lista = String(p.ids).split(',').filter(function (x) { return x; });
+      var fotos = {};
+      for (var i = 0; i < lista.length; i++) {
+        var fid = lista[i];
+        try {
+          var bl = _blobFoto(DriveApp.getFileById(fid), quiereThumb);
+          fotos[fid] = {
+            mimeType: bl.getContentType() || 'image/jpeg',
+            base64: Utilities.base64Encode(bl.getBytes())
+          };
+        } catch (errFoto) { /* una foto que falle no tumba el resto del lote */ }
+      }
+      return _json({ ok: true, fotos: fotos });
+    }
+
+    var id = p.id;
     if (!id) return _json({ ok: false, mensaje: 'Falta el parámetro id.' });
-    var archivo = DriveApp.getFileById(id);
-    var blob = archivo.getBlob();
+    var blob = _blobFoto(DriveApp.getFileById(id), quiereThumb);
     return _json({
       ok: true,
       mimeType: blob.getContentType() || 'image/jpeg',
@@ -63,6 +86,18 @@ function doGet(e) {
   } catch (err) {
     return _json({ ok: false, mensaje: 'No se pudo leer la foto: ' + err.message });
   }
+}
+
+// Devuelve el blob de la foto. Con thumb=true entrega la miniatura de Drive
+// (mucho más liviana); si no hay miniatura, cae a la imagen original.
+function _blobFoto(archivo, thumb) {
+  if (thumb) {
+    try {
+      var t = archivo.getThumbnail();
+      if (t && t.getBytes().length > 0) return t;
+    } catch (e) { /* sin miniatura: usar original */ }
+  }
+  return archivo.getBlob();
 }
 
 // ── Subir o eliminar: POST con body JSON ──
