@@ -2407,6 +2407,7 @@ body.rol-operario .solo-admin { display: none !important; }
             <option value="">Todos los turnos</option>
           </select>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin:0 4px 10px 0;cursor:pointer;white-space:nowrap"><input type="checkbox" id="cronInformeConFotos" checked style="width:auto;margin:0"> Incluir fotos</label>
         <button class="btn btn-success" id="btnDescargarInformeCron" onclick="descargarInformeCronograma(this)"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar</button>
       </div>
     </div>
@@ -10158,9 +10159,15 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
 async function _precargarFotosEnLotes(ids, alAvanzar, tamLote = 10, thumb) {
   const total = ids.length;
   if (!total) return;
+  let hechas = 0;
   for (let i = 0; i < total; i += tamLote) {
-    await Promise.all(ids.slice(i, i + tamLote).map(id => _obtenerDataUrlFoto(id, thumb)));
-    if (alAvanzar) alAvanzar(Math.min(i + tamLote, total), total);
+    // El avance se reporta foto por foto (no por tanda), para que se vea
+    // que el informe sigue trabajando aunque el servidor vaya lento.
+    await Promise.all(ids.slice(i, i + tamLote).map(async id => {
+      await _obtenerDataUrlFoto(id, thumb);
+      hechas++;
+      if (alAvanzar) alAvanzar(hechas, total);
+    }));
   }
 }
 
@@ -17963,6 +17970,10 @@ async function consultarCronogramaFecha() {
  *  cosa: las demás siempre se pueden ver en el sistema. */
 const INFORME_MAX_FOTOS_POR_ACTIVIDAD = 3;
 
+/** Tiempo máximo que el informe espera por las fotos antes de armarse con
+ *  las que ya llegaron (ver descargarInformeCronograma). */
+const INFORME_TIEMPO_MAX_FOTOS_MS = 45000;
+
 /** Achica una foto (data:URL) a `maxLado` px por su lado mayor y la
  *  re-comprime como JPEG, en el propio navegador. Si algo falla, devuelve la
  *  original para no perder la foto. */
@@ -18020,6 +18031,7 @@ async function descargarInformeCronograma(boton) {
       cursor.setDate(cursor.getDate() + 1);
     }
 
+    if (btn) btn.innerHTML = 'Leyendo actividades…';
     const [todosLosRegistros, todasLasFotos, todasLasAdicionales, todasLasEntregas] = await Promise.all([
       _leerTodosRegistrosCronogramaAgrupados(),
       _leerTodasFotosCronogramaAgrupadas(),
@@ -18045,10 +18057,24 @@ async function descargarInformeCronograma(boton) {
     }
     // Se bajan UNA sola vez, a resolución completa (las miniaturas del Apps
     // Script resultaron lentas y trababan el informe), 10 en paralelo.
-    const idsUnicos = [...new Set(idsFotos)];
-    await _precargarFotosEnLotes(idsUnicos, (hechas, total) => {
-      if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    }, 10);
+    //
+    // El Apps Script puede tardar mucho en contestar (comparte su cupo de
+    // ejecuciones con todos los usuarios), así que la fase de fotos tiene un
+    // TIEMPO MÁXIMO: al cumplirse, el informe se arma con las fotos que ya
+    // llegaron en vez de quedarse "Generando…" indefinidamente. Las que sigan
+    // en camino terminan en segundo plano y quedan en caché para la próxima.
+    // Con la casilla "Incluir fotos" desmarcada se omite todo esto.
+    const conFotos = document.getElementById('cronInformeConFotos')?.checked !== false;
+    const idsUnicos = conFotos ? [...new Set(idsFotos)] : [];
+    if (idsUnicos.length) {
+      if (btn) btn.innerHTML = `Generando informe… (fotos 0/${idsUnicos.length})`;
+      let esperandoFotos = true; // las que lleguen tarde no deben tocar el botón
+      const precarga = _precargarFotosEnLotes(idsUnicos, (hechas, total) => {
+        if (btn && esperandoFotos) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
+      }, 10);
+      await Promise.race([precarga, new Promise(r => setTimeout(r, INFORME_TIEMPO_MAX_FOTOS_MS))]);
+      esperandoFotos = false;
+    }
     // Luego se achican en el propio navegador (en el informe se ven a 160 px):
     // el documento queda liviano y se abre/imprime rápido, en vez de cargar
     // decenas de fotos de varios MB cada una. Armar las actividades usa SOLO
