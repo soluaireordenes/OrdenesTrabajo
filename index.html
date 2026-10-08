@@ -10104,7 +10104,11 @@ const _fotoDataUrlCache = {};
  *  data:URL listo para usar como src de una imagen. */
 /** fetch con tope de tiempo: si el Apps Script no responde dentro de `ms`,
  *  se aborta y se trata como error, para que la carga de fotos (y con ella la
- *  generación de un informe) NUNCA se quede colgada esperando al servidor. */
+ *  generación de un informe) NUNCA se quede colgada esperando al servidor.
+ *  OJO: el tope es solo una red de seguridad contra cuelgues. Una foto
+ *  completa servida por el Apps Script puede tardar bastante (con varias
+ *  pidiéndose a la vez); con 12 s se cortaban TODAS y el informe salía sin
+ *  fotos. Por eso es amplio (90 s). */
 async function _fetchFotoConTimeout(url, ms) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -10127,7 +10131,7 @@ async function _obtenerDataUrlFoto(driveFileId, thumb) {
   let ultimoError = '';
   for (let intento = 0; intento < 3; intento++) {
     try {
-      const resp = await _fetchFotoConTimeout(_fotosUrlSede() + "?id=" + encodeURIComponent(driveFileId) + (thumb ? "&thumb=1" : ""), 12000);
+      const resp = await _fetchFotoConTimeout(_fotosUrlSede() + "?id=" + encodeURIComponent(driveFileId) + (thumb ? "&thumb=1" : ""), 90000);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
