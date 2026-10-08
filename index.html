@@ -17974,9 +17974,13 @@ async function descargarInformeCronograma(boton) {
         }
       }
     }
+    // Lote amplio (18 a la vez): baja muchas fotos en paralelo para que el
+    // informe se arme más rápido en el celular. Sigue por debajo del límite
+    // de ejecuciones simultáneas del Apps Script, y _obtenerDataUrlFoto
+    // reintenta si alguna se cae por saturación momentánea.
     await _precargarFotosEnLotes([...new Set(idsFotos)], (hechas, total) => {
       if (btn) btn.innerHTML = `Generando informe… (fotos ${hechas}/${total})`;
-    });
+    }, 18);
     if (btn) btn.innerHTML = 'Generando informe…';
 
     // Arma las 1-2 filas de la tabla (texto+estado+detalle+observaciones, y
