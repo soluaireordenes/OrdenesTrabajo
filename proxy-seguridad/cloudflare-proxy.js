@@ -14,8 +14,8 @@
    - El Worker guarda la CUENTA DE SERVICIO de Google (secreto) y con ella
      lee/escribe las hojas. El token de Google nunca baja al navegador.
    - Antes de cada operación, el Worker revisa el pase y el rol:
-       • Borrar filas/hojas, tocar la hoja "Usuarios" o rangos "Config!"
-         → SOLO admin.
+       • Tocar la hoja "Usuarios" o rangos "Config!", o abrir la hoja de
+         Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) → SOLO admin.
        • Leer y escribir normal (órdenes, inventario, cronograma) → cualquier
          sesión válida.
 
@@ -50,6 +50,12 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 const GOOGLE_SHEETS_BASE = 'https://sheets.googleapis.com';
+
+// Hojas de cálculo que SOLO un admin puede abrir (ni leer ni escribir).
+// Proyectos: contratos, valores por alcance, calendario de pagos y montos.
+const HOJAS_SOLO_ADMIN = [
+  '1rICqEwDTOjA8cxFIEa7m5rIw0gs2fd7CB682dRUj0nk', // Proyectos (panel gerencial)
+];
 const SESSION_TTL_SEG = 12 * 60 * 60; // el pase de sesión dura 12 horas
 
 // Token de la cuenta de servicio, cacheado entre peticiones del mismo isolate.
@@ -270,6 +276,10 @@ async function _gatewaySheets(peticion, entorno, url) {
 /* Decide si una operación es "sensible" (solo admin). Devuelve el motivo
    (texto) si lo es, o null si cualquier sesión puede hacerla. */
 function _requiereAdmin(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno) {
+  // Hojas reservadas a admin (Proyectos): bloqueadas también para LEER.
+  if (spreadsheetId && HOJAS_SOLO_ADMIN.includes(spreadsheetId)) {
+    return 'hoja de Proyectos';
+  }
   // Escribir en la hoja de Usuarios = gestionar usuarios → admin.
   if (spreadsheetId && spreadsheetId === entorno.USUARIOS_SHEET_ID && metodo !== 'GET') {
     return 'gestión de usuarios';
