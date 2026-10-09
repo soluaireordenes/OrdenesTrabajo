@@ -1270,11 +1270,11 @@ body.rol-operario .solo-admin { display: none !important; }
 
 <!-- ════════════ NAV ════════════ -->
 <nav class="nav-tabs">
-  <button class="nav-tab" onclick="showPanel('nueva')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> <span class="nav-tab-text">Nueva Orden</span></button>
+  <button class="nav-tab solo-admin" onclick="showPanel('nueva')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> <span class="nav-tab-text">Nueva Orden</span></button>
   <button class="nav-tab" onclick="showPanel('pendientes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> <span class="nav-tab-text">Pendientes</span></button>
   <button class="nav-tab" onclick="showPanel('realizadas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> <span class="nav-tab-text">Realizadas</span></button>
   <button class="nav-tab" onclick="showPanel('lista')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> <span class="nav-tab-text">Todas las Órdenes</span></button>
-  <button class="nav-tab" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span class="nav-tab-text">Dashboard</span></button>
+  <button class="nav-tab solo-admin" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> <span class="nav-tab-text">Dashboard</span></button>
   <button class="nav-tab" onclick="showPanel('novedades')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> <span class="nav-tab-text">Novedades</span></button>
   <button class="nav-tab" onclick="showPanel('historico')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> <span class="nav-tab-text">Histórico por Equipo</span></button>
   <button class="nav-tab" onclick="showPanel('cronograma')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> <span class="nav-tab-text">Reportes</span></button>
@@ -1343,7 +1343,7 @@ body.rol-operario .solo-admin { display: none !important; }
     <!-- Llamado a la acción -->
     <div style="text-align:center;padding:24px 0 12px">
       <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="showPanel('pendientes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Ir a Órdenes Pendientes</button>
-      <button class="btn btn-ghost" style="padding:12px 28px;font-size:14px;margin-left:10px" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Ver Dashboard</button>
+      <button class="btn btn-ghost solo-admin" style="padding:12px 28px;font-size:14px;margin-left:10px" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Ver Dashboard</button>
       <button id="btnInstalarApp" class="btn btn-ghost" style="padding:12px 28px;font-size:14px;margin-left:10px;display:none" onclick="instalarAppPWA()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Instalar app en este dispositivo</button>
     </div>
   </div>
@@ -5653,6 +5653,7 @@ function renderSidebarOperaciones() {
       <span style="flex:1;line-height:1.25">Limpiar caché</span>
     </div>
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+    <div class="solo-admin">
     ${_sidebarEncabezadoGrupo('proyectos', 'Proyectos', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M2 20h20"></path><path d="M5 20V9l5-4 5 4v11"></path><path d="M15 20v-6h4v6"></path><line x1="9" y1="12" x2="11" y2="12"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg>')}
     ${sidebarGrupoExpandido.proyectos ? `
       <div onclick="abrirProyectos()"
@@ -5664,6 +5665,7 @@ function renderSidebarOperaciones() {
         <span style="flex:1;line-height:1.25;padding-left:22px">Panel gerencial</span>
       </div>` : ''}
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+    </div>
     ${_sidebarEncabezadoGrupo('operaciones', 'Operaciones', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>')}
     ${items}
     <div onclick="abrirPoliticaPrivacidad()"
@@ -6074,11 +6076,10 @@ window.addEventListener('load', async () => {
 /* ══════════════════════════════════════════════
    NAVEGACIÓN
 ══════════════════════════════════════════════ */
-const PANELES_PROTEGIDOS = ['nueva', 'dashboard'];
-// La clave real no se guarda en texto plano en el código (cualquiera puede ver
-// el HTML fuente) — se guarda su hash SHA-256 y se compara huella contra huella,
-// igual que con las claves de sede (ver _sha256Hex / validarClaveSedeDirecto).
-const CLAVE_ACCESO_HASH = '3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2';
+// Secciones solo para administradores (Proyectos también, ver abrirProyectos).
+// Antes pedían una contraseña compartida validada en el navegador; ahora
+// dependen del rol que trae el pase de sesión firmado por el proxy.
+const PANELES_SOLO_ADMIN = ['nueva', 'dashboard'];
 
 const PANELES_DE_DATOS = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma'];
 
@@ -6103,17 +6104,11 @@ async function showPanel(name) {
     return;
   }
 
-  // Estas dos secciones piden una contraseña aparte — pero solo la primera
-  // vez en esta sesión del navegador, para no repetirla cada vez que se
-  // entra y se sale (se olvida al cerrar la pestaña, igual que la de sede).
-  if (PANELES_PROTEGIDOS.includes(name) && sessionStorage.getItem('panelesProtegidosDesbloqueados') !== '1') {
-    const clave = prompt('Esta sección está protegida.\nIngresa la contraseña para continuar:');
-    if (clave === null) return; // usuario canceló
-    if ((await _sha256Hex(clave)) !== CLAVE_ACCESO_HASH) {
-      alert('Contraseña incorrecta. No tienes acceso a esta sección.');
-      return;
-    }
-    sessionStorage.setItem('panelesProtegidosDesbloqueados', '1');
+  // Nueva orden y Dashboard: solo administradores (los operarios ni ven las
+  // pestañas; esto cubre cualquier otra forma de llegar).
+  if (PANELES_SOLO_ADMIN.includes(name) && !esAdmin()) {
+    alert('Esta sección es solo para administradores.');
+    return;
   }
 
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -6164,6 +6159,7 @@ function _irAPanelInicialRecordado() {
   let ultimo = null;
   try { ultimo = localStorage.getItem('ultimoPanel'); } catch (_) {}
   if (!ultimo || ultimo === 'inicio' || !document.getElementById('panel-' + ultimo)) return;
+  if (PANELES_SOLO_ADMIN.includes(ultimo) && !esAdmin()) return; // un operario no vuelve a una sección de admin
   if (ultimo === 'pendientes') {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
@@ -22799,20 +22795,15 @@ function _proyMsg(texto, tipo) {
 
 async function abrirProyectos() {
   if (!googleAccessToken) {
-    alert('🔒 Primero inicia sesión con Google en el panel izquierdo.');
+    alert('🔒 Primero inicia sesión en el panel izquierdo.');
     return;
   }
   // Aquí se ve el contrato completo del proyecto: valores por alcance,
-  // calendario de pagos y montos. Es información de gerencia, así que pide
-  // la misma contraseña que el Dashboard — una sola vez por sesión.
-  if (sessionStorage.getItem('panelesProtegidosDesbloqueados') !== '1') {
-    const clave = prompt('Esta sección está protegida.\nIngresa la contraseña para continuar:');
-    if (clave === null) return;
-    if ((await _sha256Hex(clave)) !== CLAVE_ACCESO_HASH) {
-      alert('Contraseña incorrecta. No tienes acceso a esta sección.');
-      return;
-    }
-    sessionStorage.setItem('panelesProtegidosDesbloqueados', '1');
+  // calendario de pagos y montos. Es información de gerencia: solo admin.
+  // (El proxy además le niega a los operarios la hoja de Proyectos.)
+  if (!esAdmin()) {
+    alert('Esta sección es solo para administradores.');
+    return;
   }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
