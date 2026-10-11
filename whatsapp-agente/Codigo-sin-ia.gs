@@ -142,11 +142,15 @@ function _operarioDe(numero) {
   const encabezado = filas[0].map(c => String(c).trim());
   const iNombre = encabezado.indexOf('Nombre');
   const iNumero = encabezado.indexOf('Numero');
+  const iActivo = encabezado.indexOf('Activo');
   if (iNombre < 0 || iNumero < 0) return null;
 
   for (let i = 1; i < filas.length; i++) {
     const registrado = String(filas[i][iNumero]).replace(/\D/g, '');
     if (!registrado) continue;
+    // Un operario marcado como inactivo ya no recibe respuestas, igual que
+    // si se hubiera borrado (antes la columna Activo se ignoraba).
+    if (iActivo >= 0 && /^(no|inactivo|false|0)$/i.test(String(filas[i][iActivo]).trim())) continue;
     // Comparar por el final: unos guardan el número con indicativo y otros
     // sin él, y WhatsApp siempre lo entrega con indicativo.
     if (soloDigitos.slice(-10) === registrado.slice(-10)) {
