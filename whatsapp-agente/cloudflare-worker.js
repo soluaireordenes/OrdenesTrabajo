@@ -43,6 +43,17 @@
    movieron a variables del Worker para que el token de verificación no quede
    expuesto en el código público. Conviene además cambiar (rotar) ese token
    de verificación en Meta y en el Worker, ya que el anterior estuvo a la vista.
+
+   ── FIRMA DE META (recomendado) ──────────────────────────────────────
+   Meta firma cada mensaje con la "Clave secreta de la app" (panel de Meta →
+   Configuración de la app → Básica → Clave secreta). Si se agrega como
+   variable del Worker:
+          • APP_SECRET (tipo Secreto) = esa clave secreta
+   el Worker solo reenvía los mensajes que traen la firma correcta y descarta
+   los demás. Sin esa variable, cualquiera que conozca la dirección del Worker
+   puede mandarle mensajes inventados haciéndose pasar por un operario (el bot
+   le respondería al operario real, pero igual gasta cupo y puede confundir).
+   Mientras APP_SECRET no esté, todo sigue funcionando como antes.
    ═══════════════════════════════════════════════════════════════════ */
 
 
@@ -81,6 +92,14 @@ export default {
     // ── Un mensaje entrante ──
     const cuerpo = await peticion.text();
 
+    // Si está configurada la clave de la app, solo pasa lo que firmó Meta.
+    if (entorno.APP_SECRET) {
+      const firma = peticion.headers.get('X-Hub-Signature-256') || '';
+      if (!(await firmaDeMetaValida(cuerpo, firma, entorno.APP_SECRET))) {
+        return new Response('Firma inválida.', { status: 401 });
+      }
+    }
+
     // Se le contesta a Meta de INMEDIATO y el reenvío queda corriendo por
     // detrás con waitUntil. Si se esperara a que Apps Script termine (3 a
     // 6 segundos), Meta podría darlo por perdido y reenviar el mismo
@@ -103,3 +122,18 @@ export default {
     return new Response('EVENT_RECEIVED', { status: 200 });
   },
 };
+
+/** Meta manda "sha256=<hex>" con el HMAC-SHA256 del cuerpo, usando la clave
+ *  secreta de la app. Se compara en tiempo constante. */
+async function firmaDeMetaValida(cuerpo, firma, secreto) {
+  if (!firma.startsWith('sha256=')) return false;
+  const clave = await crypto.subtle.importKey('raw', new TextEncoder().encode(secreto),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', clave, new TextEncoder().encode(cuerpo)));
+  const esperada = Array.from(mac).map(b => b.toString(16).padStart(2, '0')).join('');
+  const recibida = firma.slice(7).toLowerCase();
+  if (recibida.length !== esperada.length) return false;
+  let dif = 0;
+  for (let i = 0; i < esperada.length; i++) dif |= esperada.charCodeAt(i) ^ recibida.charCodeAt(i);
+  return dif === 0;
+}

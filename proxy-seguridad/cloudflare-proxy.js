@@ -14,8 +14,12 @@
    - El Worker guarda la CUENTA DE SERVICIO de Google (secreto) y con ella
      lee/escribe las hojas. El token de Google nunca baja al navegador.
    - Antes de cada operación, el Worker revisa el pase y el rol:
-       • Tocar la hoja "Usuarios" o rangos "Config!", o abrir la hoja de
-         Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) → SOLO admin.
+       • Tocar la hoja "Usuarios" o rangos "Config!", abrir la hoja de
+         Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) o las pestañas de
+         personal "Operarios" y "ObservacionesOperarios" → SOLO admin.
+       • Cada petición se cruza con la hoja Usuarios (releída cada 5 min):
+         quien quede inactivo o borrado pierde el acceso, y un cambio de
+         rol aplica sin esperar a que venza el pase.
        • Leer y escribir normal (órdenes, inventario, cronograma) → cualquier
          sesión válida.
 
@@ -119,21 +123,62 @@ async function _login(peticion, entorno) {
   const minBloqueo = _revisarBloqueo(documento);
   if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
 
-  const sheetId = entorno.USUARIOS_SHEET_ID;
-  if (!sheetId) return _json({ ok: false, mensaje: 'Falta configurar USUARIOS_SHEET_ID en el Worker.' }, 500);
-  const tab = entorno.USUARIOS_TAB || 'Usuarios';
+  if (!entorno.USUARIOS_SHEET_ID) return _json({ ok: false, mensaje: 'Falta configurar USUARIOS_SHEET_ID en el Worker.' }, 500);
 
+  let usuarios;
+  try {
+    usuarios = await _leerUsuarios(entorno);
+  } catch (err) {
+    return _json({ ok: false, mensaje: err.message }, err.status || 502);
+  }
+
+  const u = usuarios.get(documento);
+  if (!u) {
+    _registrarFallo(documento);
+    return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+  }
+  // Usuario inactivo/deshabilitado no entra.
+  if (!u.activo) return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
+
+  // El PIN se guarda como hash SHA-256 (hex mayúsculas), igual que el
+  // Apps Script de login original. Se compara hash contra hash.
+  const pinHash = await _sha256HexUpper(pin);
+  if (pinHash !== u.pinHash) {
+    _registrarFallo(documento);
+    return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+  }
+
+  _limpiarFallos(documento);
+  const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
+  return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede });
+}
+
+/* ── USUARIOS: lectura y estado vigente ──────────────────────────────────
+   El pase de sesión dura 12 horas y lleva el rol adentro. Sin una revisión
+   aparte, desactivar a alguien o quitarle el rol de admin en la hoja no
+   tenía efecto hasta que su pase venciera. Por eso cada petición compara el
+   pase con lo que dice HOY la hoja Usuarios: si la persona ya no está o
+   quedó inactiva, el pase deja de servir; si le cambiaron el rol, se aplica
+   el rol nuevo. La hoja se relee como mucho cada 5 minutos por instancia del
+   Worker (una lectura, no una por petición). */
+const USUARIOS_VIGENCIA_MS = 5 * 60 * 1000;
+let _usuariosCache = null;     // { leidoEn, porDoc: Map }
+let _usuariosEnVuelo = null;   // una sola lectura a la vez
+
+async function _leerUsuarios(entorno) {
+  const tab = entorno.USUARIOS_TAB || 'Usuarios';
   const token = await _tokenCuentaServicio(entorno);
   const rango = encodeURIComponent(tab + '!A1:Z100000');
-  const resp = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${sheetId}/values/${rango}`, {
+  const resp = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${entorno.USUARIOS_SHEET_ID}/values/${rango}`, {
     headers: { Authorization: 'Bearer ' + token },
   });
   if (!resp.ok) {
-    const t = await resp.text();
-    return _json({ ok: false, mensaje: 'No se pudo leer la hoja Usuarios: ' + t }, 502);
+    const err = new Error('No se pudo leer la hoja Usuarios (Google respondió ' + resp.status + ').');
+    err.status = 502;
+    throw err;
   }
   const datos = (await resp.json()).values || [];
-  if (datos.length < 2) return _json({ ok: false, mensaje: 'La hoja Usuarios está vacía.' }, 500);
+  if (datos.length < 2) { const err = new Error('La hoja Usuarios está vacía.'); err.status = 500; throw err; }
 
   // Mapear columnas por encabezado (acepta sinónimos comunes).
   const enc = datos[0].map(h => String(h || '').trim().toLowerCase());
@@ -143,45 +188,55 @@ async function _login(peticion, entorno) {
   const idxRol = _buscarCol(enc, ['rol', 'perfil', 'tipo']);
   const idxAct = _buscarCol(enc, ['activo', 'estado', 'habilitado']);
   const idxSede = _buscarCol(enc, ['sede', 'operacion', 'operación']);
-
   if (idxDoc < 0 || idxPin < 0) {
-    return _json({ ok: false, mensaje: 'La hoja Usuarios debe tener columnas de documento y PIN.' }, 500);
+    const err = new Error('La hoja Usuarios debe tener columnas de documento y PIN.'); err.status = 500; throw err;
   }
 
+  const porDoc = new Map();
   for (let i = 1; i < datos.length; i++) {
     const fila = datos[i];
-    const docFila = String(fila[idxDoc] || '').trim();
-    if (docFila !== documento) continue;
-
-    // Usuario inactivo/deshabilitado no entra.
-    if (idxAct >= 0) {
-      const estado = String(fila[idxAct] || '').trim().toLowerCase();
-      if (estado === 'no' || estado === 'inactivo' || estado === 'false' || estado === '0' || estado === 'deshabilitado') {
-        return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
-      }
-    }
-
-    // El PIN se guarda como hash SHA-256 (hex mayúsculas), igual que el
-    // Apps Script de login original. Se compara hash contra hash.
-    const pinHash = await _sha256HexUpper(pin);
-    const pinGuardado = String(fila[idxPin] || '').trim().toUpperCase();
-    if (pinHash !== pinGuardado) {
-      _registrarFallo(documento);
-      return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
-    }
-
-    _limpiarFallos(documento);
-    const nombre = idxNom >= 0 ? String(fila[idxNom] || '').trim() : documento;
-    const sede = idxSede >= 0 ? String(fila[idxSede] || '').trim().toLowerCase() : '';
+    const doc = String(fila[idxDoc] || '').trim();
+    if (!doc || porDoc.has(doc)) continue; // si se repite, manda la primera fila (como antes)
+    const estado = idxAct >= 0 ? String(fila[idxAct] || '').trim().toLowerCase() : '';
     let rol = idxRol >= 0 ? String(fila[idxRol] || '').trim().toLowerCase() : 'operario';
     if (rol !== 'admin') rol = 'operario'; // cualquier valor que no sea admin = operario
-
-    const session = await _firmarSesion({ doc: documento, nombre, rol, sede }, entorno);
-    return _json({ ok: true, session, nombre, rol, sede });
+    porDoc.set(doc, {
+      nombre: idxNom >= 0 ? String(fila[idxNom] || '').trim() : doc,
+      pinHash: String(fila[idxPin] || '').trim().toUpperCase(),
+      rol,
+      activo: !['no', 'inactivo', 'false', '0', 'deshabilitado'].includes(estado),
+      sede: idxSede >= 0 ? String(fila[idxSede] || '').trim().toLowerCase() : '',
+    });
   }
+  _usuariosCache = { leidoEn: Date.now(), porDoc };
+  return porDoc;
+}
 
-  _registrarFallo(documento);
-  return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
+/** Lo que dice hoy la hoja de un documento, o undefined si ya no está.
+ *  Si Google no responde, se usa la última lectura buena, y si nunca hubo
+ *  una, devuelve null ("no se sabe"): una caída de Google no debe sacar a
+ *  todo el mundo del sistema. */
+async function _usuarioVigente(doc, entorno) {
+  if (!_usuariosCache || Date.now() - _usuariosCache.leidoEn > USUARIOS_VIGENCIA_MS) {
+    if (!_usuariosEnVuelo) {
+      _usuariosEnVuelo = _leerUsuarios(entorno).finally(() => { _usuariosEnVuelo = null; });
+    }
+    try { await _usuariosEnVuelo; } catch (_) { /* se sigue con lo último que se leyó */ }
+  }
+  if (!_usuariosCache) return null;
+  return _usuariosCache.porDoc.get(String(doc || '')) || undefined;
+}
+
+/** Valida el pase y lo cruza con la hoja Usuarios. Devuelve la sesión con
+ *  el rol vigente, o null si el pase no sirve o la persona ya no puede
+ *  entrar. */
+async function _sesionVigente(peticion, entorno) {
+  const sesion = await _sesionDeLaPeticion(peticion, entorno);
+  if (!sesion) return null;
+  const u = await _usuarioVigente(sesion.doc, entorno);
+  if (u === null) return sesion;              // no se pudo comprobar: se confía en el pase
+  if (!u || !u.activo) return null;           // borrado o desactivado
+  return { ...sesion, rol: u.rol };           // rol de hoy, no el de cuando entró
 }
 
 /* ── FOTOS DESDE DRIVE ──────────────────────────────────────────────────
@@ -193,7 +248,7 @@ async function _login(peticion, entorno) {
    Requiere: la API de Google Drive habilitada en el proyecto de la cuenta
    de servicio, y la carpeta de fotos compartida (Lector) con esa cuenta. */
 async function _foto(peticion, entorno, url) {
-  const sesion = await _sesionDeLaPeticion(peticion, entorno);
+  const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
 
   const id = String(url.searchParams.get('id') || '');
@@ -225,7 +280,7 @@ async function _foto(peticion, entorno, url) {
    sesión, revisa el rol para operaciones sensibles, y reemplaza la
    autorización por el token de la cuenta de servicio. */
 async function _gatewaySheets(peticion, entorno, url) {
-  const sesion = await _sesionDeLaPeticion(peticion, entorno);
+  const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
 
   // Ruta destino en Google: todo lo que venga después de /sheets
@@ -287,6 +342,17 @@ function _requiereAdmin(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno)
   // Tocar rangos "Config!" (claves de sede, etc.) → admin.
   if (metodo !== 'GET' && /Config!/i.test(decodeURIComponent(rutaGoogle))) {
     return 'configuración de sede';
+  }
+  // Pestañas de personal, ni para leer: "Operarios" (los celulares que el bot
+  // de WhatsApp atiende — agregar un número le daría acceso a alguien de
+  // afuera) y "ObservacionesOperarios" (llamados de atención). Se revisa la
+  // dirección completa (incluidos los rangos de una lectura en lote) y el
+  // cuerpo (escrituras en lote), con o sin comillas en el nombre.
+  const HOJAS_DE_PERSONAL = /(^|[^A-Za-z0-9_])'?(ObservacionesOperarios|Operarios)'?!/i;
+  let ruta = rutaGoogle;
+  try { ruta = decodeURIComponent(rutaGoogle); } catch (_) {}
+  if (HOJAS_DE_PERSONAL.test(ruta) || (cuerpoTexto && HOJAS_DE_PERSONAL.test(cuerpoTexto))) {
+    return 'datos del personal';
   }
   // NOTA: no se bloquea deleteDimension de forma genérica. El sistema lo usa
   // internamente al EDITAR una orden (reemplaza las filas de tareas/repuestos),

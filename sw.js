@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v107';
+const CACHE_VERSION = 'v108';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -85,6 +85,21 @@ self.addEventListener('fetch', (event) => {
     return; // deja pasar la petición sin tocarla
   }
 
+  // Chart.js (las gráficas del Dashboard) viene de un CDN con la versión
+  // fija en la dirección, así que su contenido nunca cambia: se guarda la
+  // primera vez y después se sirve del caché. Sin esto, sin señal el
+  // Dashboard quedaba sin gráficas aunque la app sí abriera.
+  if (event.request.method === 'GET' && url.startsWith('https://cdn.jsdelivr.net/npm/chart.js@')) {
+    event.respondWith(caches.open(CACHE_NAME).then(async (cache) => {
+      const guardada = await cache.match(event.request);
+      if (guardada) return guardada;
+      const respuesta = await fetch(event.request);
+      if (respuesta.ok) cache.put(event.request, respuesta.clone());
+      return respuesta;
+    }));
+    return;
+  }
+
   // Solo nos interesa cachear peticiones del mismo sitio (la app en sí)
   if (event.request.method !== 'GET' || !url.startsWith(self.location.origin)) {
     return;
@@ -111,11 +126,16 @@ self.addEventListener('fetch', (event) => {
       const cacheada = await cache.match(event.request);
       const etiquetaVieja = cacheada && (cacheada.headers.get('etag') || cacheada.headers.get('last-modified'));
       let seSirvioElCache = false;
+      // Una respuesta de error (404, 503 pasajero de GitHub Pages) no se
+      // guarda ni le gana al caché: antes se guardaba como si fuera la app,
+      // y la siguiente vez sin señal se abría esa página de error.
+      let respuestaFallida = null;
 
       const peticionRed = (esDocumento
           ? fetch(event.request.url, { cache: 'reload', credentials: 'same-origin' })
           : fetch(event.request))
         .then((respuesta) => {
+          if (!respuesta.ok) { respuestaFallida = respuesta; return null; }
           cache.put(event.request, respuesta.clone());
           // En datos móviles el HTML (más de 1 MB) casi siempre pierde la
           // carrera contra el tope, así que el operario termina viendo la
@@ -140,7 +160,13 @@ self.addEventListener('fetch', (event) => {
       if (cacheada) { seSirvioElCache = true; return cacheada; }
 
       // Sin caché tampoco (primera visita con red lenta): esperar la red.
-      return (await peticionRed) || caches.match('./index.html');
+      const red = await peticionRed;
+      if (red) return red;
+      if (esDocumento) {
+        const shell = await cache.match('./index.html');
+        if (shell) return shell;
+      }
+      return respuestaFallida || Response.error();
     })
   );
 });
