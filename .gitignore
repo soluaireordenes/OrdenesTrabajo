@@ -2,3 +2,7 @@
 # NO debe publicarse en este repositorio (es público / GitHub Pages), porque
 # sería un mapa para un atacante. Se mantiene solo como archivo local.
 PLAN_SEGURIDAD.md
+
+# Dependencias que se instalan solo para correr las pruebas (ver pruebas/README.md).
+node_modules/
+package-lock.json
