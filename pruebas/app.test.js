@@ -427,6 +427,163 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
 
+  // 15) App + proxy real: todo lo que hace un operario pasa la lista blanca.
+  //     Las peticiones al proxy van al código real del Worker (Google simulado):
+  //     si una función nueva de la app usa una operación que el proxy no
+  //     permite, esta prueba lo dice antes de publicar.
+  {
+    const crypto = require('crypto'); const os = require('os'); const { pathToFileURL } = require('url');
+    const tmp = path.join(os.tmpdir(), `cf-proxy-app-${process.pid}.mjs`);
+    fs.copyFileSync(path.join(RAIZ, 'proxy-seguridad', 'cloudflare-proxy.js'), tmp);
+    const worker = (await import(pathToFileURL(tmp).href)).default; fs.unlinkSync(tmp);
+    const h = p => crypto.createHash('sha256').update(p).digest('hex').toUpperCase();
+    const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const env = { GOOGLE_SA_EMAIL: 'sa@x', GOOGLE_SA_PRIVATE_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' }), SESSION_SECRET: 's', USUARIOS_SHEET_ID: 'HU' };
+    const fetchOriginal = globalThis.fetch; let b1 = '';
+    globalThis.fetch = async (url, init = {}) => {
+      url = String(url); const m = init.method || 'GET'; const d = decodeURIComponent(url);
+      if (url.includes('oauth2')) return new Response(JSON.stringify({ access_token: 'T', expires_in: 3600 }));
+      if (url.includes('/HU/')) return new Response(JSON.stringify({ values: [['Documento', 'Nombre', 'PINHash', 'Rol', 'Activo'], ['111', 'Op', h('1111'), 'operario', 'SI']] }));
+      if (url.includes('fields=')) return new Response(JSON.stringify({ sheets: ['Ordenes', 'Tareas', 'Config', 'HorasEquipos', 'Movimientos'].map((t, i) => ({ properties: { sheetId: i, title: t } })) }));
+      if (d.includes('Config!A1:A1')) return new Response(JSON.stringify({ values: [[h('clave-sede').toLowerCase()]] }));
+      if (d.includes('Config!B1')) { if (m === 'PUT') { b1 = JSON.parse(init.body).values[0][0]; return new Response('{}'); } return new Response(JSON.stringify({ values: b1 ? [[b1]] : [] })); }
+      if (url.includes('values:batchGet')) { const n = (url.match(/ranges=/g) || []).length; return new Response(JSON.stringify({ valueRanges: Array.from({ length: n }, () => ({ values: [] })) })); }
+      return new Response(JSON.stringify(m === 'GET' ? { values: [] } : { replies: [{}], updates: {} }), { headers: { 'Content-Type': 'application/json' } });
+    };
+    const ses = (await (await worker.fetch(new Request('https://w/login', { method: 'POST', body: JSON.stringify({ documento: '111', pin: '1111' }) }), env)).json()).session;
+    const rechazos = [];
+    const ctx = await b.newContext({ serviceWorkers: 'block' });
+    await ctx.route('**/*.workers.dev/**', async route => {
+      const rq = route.request();
+      const resp = await worker.fetch(new Request(rq.url(), { method: rq.method(), headers: rq.headers(), body: ['GET', 'HEAD'].includes(rq.method()) ? undefined : rq.postData() }), env);
+      const txt = await resp.text();
+      if (resp.status === 403) rechazos.push(rq.method() + ' ' + decodeURIComponent(rq.url().replace(/^.*workers\.dev/, '')).slice(0, 120));
+      return route.fulfill({ status: resp.status, body: txt, headers: { 'Content-Type': 'application/json' } });
+    });
+    await ctx.addInitScript(ses => {
+      sessionStorage.setItem('gUser', JSON.stringify({ name: 'Op', email: '111', initials: 'OP' }));
+      sessionStorage.setItem('gToken', ses); sessionStorage.setItem('gRol', 'operario');
+      sessionStorage.setItem('operacionAutenticada', 'zipaquira'); try { localStorage.setItem('operacionActual', 'zipaquira'); } catch (e) {}
+    }, ses);
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    p.on('dialog', d => d.dismiss().catch(() => {}));
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
+    const r = await p.evaluate(async () => {
+      const fallos = [];
+      const pasos = [
+        () => showPanel('pendientes'), () => showPanel('novedades'), () => showPanel('cronograma'),
+        () => cronMostrarSubTab('compresores'), () => cronMostrarSubTab('herramienta'),
+        () => abrirInventario('zipaquira'), () => invMostrarSubTab('stock'), () => invMostrarSubTab('movimiento'),
+        () => abrirPlanMantenimiento('zipaquira'), () => pmMostrarSubTab('horas'),
+        () => appendHoja(SH.cronogramaRegistros, [['2026-10-11', 'T1', 'A1', 'SI']]),
+        () => _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', { CA1: { HorasActuales: '100' } }),
+        () => crearHojaSiNoExiste('HojaNuevaPrueba'),
+        () => eliminarFilasDondeCumple(SH.tareas, f => f.NumeroOrden === 'OT-X'),
+        async () => { const t = await _invAdquirirLock(_invSpreadsheetId('zipaquira')); await _invLiberarLock(_invSpreadsheetId('zipaquira'), t); },
+        () => _origenesInformeEnSheets(),
+        () => guardarOrdenEnSheets({ NumeroOrden: 'OT-P1', Title: 'x', tareas: [{ descripcion: 'y' }] }, { reintento: true }),
+      ];
+      for (const paso of pasos) { try { await paso(); } catch (e) { fallos.push(String(e.message).slice(0, 120)); } await new Promise(x => setTimeout(x, 250)); }
+      const sedeOk = await validarClaveSedeDirecto('zipaquira', 'clave-sede');
+      const sedeMal = await validarClaveSedeDirecto('zipaquira', 'otra');
+      return { fallos, sedeOk, sedeMal };
+    });
+    globalThis.fetch = fetchOriginal;
+    check('App + proxy real: el operario no choca con la lista blanca', rechazos.length === 0 && r.fallos.length === 0 && errs.length === 0, { rechazos, fallos: r.fallos, errs: errs.slice(0, 2) });
+    check('Clave de sede se valida en el proxy (correcta sí, incorrecta no)', r.sedeOk === true && r.sedeMal === false, r);
+    await ctx.close();
+  }
+
+  // 16) Altos de la auditoría en la app
+  {
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[]}' }) });
+    const r = await p.evaluate(async () => {
+      const out = {};
+      window.alert = m => { (out.alerts = out.alerts || []).push(String(m)); };
+      window.confirm = () => true;
+      // A2: firma y comilla simple no se ejecutan
+      window.__xss = 0;
+      allOrdenes = [{ id: 'X1', NumeroOrden: 'OT-X1', Estado: 'Pendiente', FirmaCreador: 'x" onerror="window.__xss=1' }];
+      await verDetalle('X1'); await new Promise(x => setTimeout(x, 300));
+      _filtrarReportesPorFecha = l => l; window.verReporteSecador = () => {};
+      allReportesSecadores = [{ Codigo: "A');window.__xss=2;//", Fecha: '2026-10-01', Hora: '6:00 a.m.', Secador: 'S', Tecnico: 'T' }];
+      renderTablaReportesSecadores();
+      document.querySelector('#rs_tablaWrap button')?.click();
+      out.xss = window.__xss;
+      out.esc0 = esc(0) + '|' + esc(null) + '|' + esc("a'b");
+      // A7: stock sumado por producto
+      window.obtenerStockInventarioDirecto = async () => [{ codigo: 'R1', nombre: 'Filtro', cantidad: 5 }];
+      out.faltantes = await verificarStockSuficiente({ repuestos: [{ codigo: 'R1', cantidad: 3 }], insumos: [{ nombre: 'filtro', cantidad: 3 }] });
+      // A4 + A7: marcar realizada sin stock no cierra; si Google falla, no descuenta y vuelve a como estaba
+      let descontado = 0; window.descontarInventarioPorCierreOrden = async () => { descontado++; return { descontados: [], noEncontrados: [], errores: [] }; };
+      googleAccessToken = 'SESS';
+      allOrdenes = [{ id: 'C1', NumeroOrden: 'OT-C1', Estado: 'Pendiente', repuestos: [{ codigo: 'R1', cantidad: 9 }] }];
+      await marcarRealizada('C1');
+      out.sinStock = allOrdenes[0].Estado;
+      allOrdenes = [{ id: 'C2', NumeroOrden: 'OT-C2', Estado: 'Pendiente', repuestos: [{ codigo: 'R1', cantidad: 1 }] }];
+      window.actualizarOrdenEnSheets = async () => { throw new Error('HTTP 503'); };
+      await marcarRealizada('C2');
+      out.falloGoogle = { estado: allOrdenes[0].Estado, descontado, aviso: (out.alerts || []).some(a => /No se pudo marcar como realizada/.test(a)) };
+      // A6: una orden borrada en otro equipo no vuelve; las que nunca subieron, sí
+      localStorage.setItem(LS_KEY, JSON.stringify([
+        { NumeroOrden: 'A', Estado: 'Pendiente', _enSheets: true }, { NumeroOrden: 'B', Estado: 'Pendiente', _enSheets: true },
+        { NumeroOrden: 'C', Estado: 'Pendiente' }, { NumeroOrden: 'D', Estado: 'Pendiente', _pendienteSync: true, _enSheets: true }]));
+      window.cargarOrdenesDeSheets = async () => [{ NumeroOrden: 'A', Estado: 'Pendiente' }];
+      window.detectarNombreHoja = async () => {};
+      await cargarOrdenes();
+      out.merge = allOrdenes.map(o => o.NumeroOrden).sort().join(',');
+      // A3: descuentos pendientes
+      operacionActual = 'zipaquira'; inventarioOperacionActual = 'zipaquira';
+      window.obtenerStockInventarioDirecto = async () => [{ codigo: 'R1', nombre: 'Filtro', cantidad: 10 }];
+      window._invGet = async () => [['R1', '2026-10-01', 'SALIDA', 1, 'u', 't', 'OT-1']];
+      const hoy = _isoLocal(new Date());
+      allOrdenes = [
+        { NumeroOrden: 'OT-1', Estado: 'Cerrada', FechaCierre: hoy, repuestos: [{ codigo: 'R1', cantidad: 3 }] },
+        { NumeroOrden: 'OT-2', Estado: 'Cerrada', FechaCierre: hoy, insumos: [{ nombre: 'filtro', cantidad: 1 }] },
+        { NumeroOrden: 'OT-3', Estado: 'Pendiente', repuestos: [{ codigo: 'R1', cantidad: 4 }] },
+        { NumeroOrden: 'OT-4', Estado: 'Cerrada', FechaCierre: '2020-01-01', repuestos: [{ codigo: 'R1', cantidad: 4 }] },
+      ];
+      out.pendientes = (await _calcularDescuentosPendientes('2026-01-01')).map(p => p.numeroOrden + ':' + p.faltante).join(',');
+      // A5: la clave de sede se escribe en un campo de contraseña
+      const promesa = _pedirClaveSede('Zipaquirá');
+      const campo = document.getElementById('claveSedeInput');
+      out.tipoCampo = campo && campo.type;
+      campo.value = 'secreta'; campo.closest('form').requestSubmit();
+      out.clave = await promesa;
+      return out;
+    });
+    check('A2: firma ni comilla simple en botones ejecutan código', r.xss === 0, r.xss);
+    check('A2: esc() escapa comilla simple y muestra el 0', r.esc0 === "0||a&#39;b", r.esc0);
+    check('A7: stock sumado por producto (3 + 3 > 5)', r.faltantes.length === 1 && r.faltantes[0].pedido === 6, r.faltantes);
+    check('A7: "Marcar realizada" no cierra sin stock', r.sinStock === 'Pendiente', r.sinStock);
+    check('A4: si Google no recibe el cierre, la orden vuelve a como estaba y no se descuenta inventario', r.falloGoogle.estado === 'Pendiente' && r.falloGoogle.descontado === 0 && r.falloGoogle.aviso, r.falloGoogle);
+    check('A6: la orden borrada en otro equipo no reaparece (y las que no han subido, sí)', r.merge === 'A,C,D', r.merge);
+    check('A3: descuentos pendientes por orden cerrada', r.pendientes === 'OT-1:2,OT-2:1', r.pendientes);
+    check('A5: clave de sede en campo de contraseña', r.tipoCampo === 'password' && r.clave === 'secreta', r);
+    check('Altos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+
+  // 17) A8: la actualización en lote solo escribe las filas que cambian
+  {
+    const escrituras = [];
+    const { ctx, p } = await nuevaPagina(b, {
+      '**/sheets/v4/**': route => {
+        const rq = route.request(); const u = decodeURIComponent(rq.url());
+        if (rq.method() !== 'GET') { escrituras.push(rq.method() + ' ' + u.replace(/^.*spreadsheets\/[^/:]+/, '') + ' ' + (rq.postData() || '')); return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); }
+        if (/HorasEquipos!A:ZZ/.test(u)) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ values: [['Equipo', 'HorasActuales'], ['CA1', '10'], ['CA2', '20'], ['CA3', '30']] }) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[]}' });
+      },
+    });
+    await p.evaluate(async () => {
+      googleAccessToken = 'SESS'; window.asegurarHoja = async () => ['Equipo', 'HorasActuales'];
+      await _actualizarFilasPorClaveEnLote('HorasEquipos', ['Equipo', 'HorasActuales'], 'Equipo', { CA2: { HorasActuales: '25' }, CA9: { HorasActuales: '1' } });
+    });
+    const lote = escrituras.find(e => /values:batchUpdate/.test(e)) || '';
+    check('A8: lote escribe solo la fila que cambió y anexa la nueva', escrituras.length === 2 && /HorasEquipos!A3:B3/.test(lote) && !/CA1|CA3/.test(lote) && escrituras.some(e => /:append/.test(e) && /CA9/.test(e)), escrituras);
+    await ctx.close();
+  }
+
   await b.close();
   srv.close();
   let ok = 0;
