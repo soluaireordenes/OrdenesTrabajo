@@ -101,10 +101,10 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       '**/login': route => { body = route.request().postData(); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, session: 'SESS.abc', nombre: 'Alex', rol: 'admin', sede: 'zipaquira' }) }); },
       '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[]}' }),
     });
-    await p.fill('#loginDocumento', '1007788656'); await p.fill('#loginPin', '2026');
+    await p.fill('#loginDocumento', '1234567890'); await p.fill('#loginPin', '0000');
     await p.evaluate(() => loginConDocumentoPinClick()); await p.waitForTimeout(800);
     const r = await p.evaluate(() => ({ token: googleAccessToken, rol: usuarioRol, ss: sessionStorage.getItem('gToken') }));
-    check('Login por proxy guarda pase y rol', r.token === 'SESS.abc' && r.rol === 'admin' && r.ss === 'SESS.abc' && JSON.parse(body).documento === '1007788656', r);
+    check('Login por proxy guarda pase y rol', r.token === 'SESS.abc' && r.rol === 'admin' && r.ss === 'SESS.abc' && JSON.parse(body).documento === '1234567890', r);
     check('Login sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
@@ -248,6 +248,182 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       return { inputs: host.querySelectorAll('input').length, leido };
     });
     check('Repuestos HVD: Código, Repuesto, Cantidad, Observación', r.inputs === 4 && r.leido.cantidad === '2' && r.leido.ubicacion === '' && r.leido.observacion === 'o', r);
+    await ctx.close();
+  }
+
+  // 9) Permisos de la auditoría: lo que quedó solo para admin
+  for (const rol of ['operario', 'admin']) {
+    const { ctx, p } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[]}' }) });
+    const r = await p.evaluate(async (rol) => {
+      const out = { alerts: [] };
+      window.alert = m => out.alerts.push(String(m)); window.confirm = () => false; window.prompt = () => null;
+      usuarioRol = rol; _aplicarRolUI(); googleAccessToken = 'SESS'; operacionAutenticada = true; renderSidebarOperaciones();
+      const vis = el => !!el && getComputedStyle(el).display !== 'none';
+      const menu = document.getElementById('sidebarOperaciones').innerText;
+      out.menuNueva = /Nueva Orden/.test(menu); out.menuDash = /Dashboard/.test(menu);
+      out.reparar = vis(document.querySelector('[onclick="repararHoja()"]'));
+      const tabObs = document.getElementById('cronTabObservaciones'); tabObs.style.display = '';
+      out.tabObs = vis(tabObs);
+      _filtrarReportesPorFecha = l => l;
+      allReportesSecadores = [{ Codigo: 'RS-1', Fecha: '2026-10-01', Hora: '6:00 a.m.', Secador: 'S', Tecnico: 'T' }];
+      renderTablaReportesSecadores();
+      out.borrarReporte = vis(document.querySelector('#rs_tablaWrap button[onclick^="eliminarReporteSecador"]'));
+      out.cards = ['ie_codificacion', 'ieobs_codificacion', 'invs_codigo', 'prov_nombre'].map(id => vis(document.getElementById(id).closest('.card')));
+      if (rol === 'operario') {
+        const antes = out.alerts.length;
+        for (const fn of [() => eliminarReporteSecador('RS-1'), () => eliminarEntregaTurno('X'), () => eliminarFechaRacha('2026-01-01'),
+                          () => guardarObservacionOperario(), () => registrarInventarioEquipo(), () => agregarObservacionEquipo(),
+                          () => invRegistrarServicio(), () => invRegistrarProveedor(), () => repararHoja()]) {
+          try { await fn(); } catch (e) {}
+        }
+        out.bloqueos = out.alerts.slice(antes).filter(a => /Solo un administrador/.test(a)).length;
+        cronMostrarSubTab('observaciones');
+        out.obsAbierta = document.getElementById('cronSub-observaciones').classList.contains('active');
+      }
+      return out;
+    }, rol);
+    if (rol === 'operario') {
+      check('Operario: el menú lateral no muestra Nueva Orden ni Dashboard', !r.menuNueva && !r.menuDash, r);
+      check('Operario: no ve Reparar hoja, Observaciones, borrar reportes ni registrar equipos/servicios/proveedores',
+        !r.reparar && !r.tabObs && !r.borrarReporte && r.cards.every(v => !v), r);
+      check('Operario: las 9 acciones de admin se niegan aunque se llamen directo', r.bloqueos === 9 && !r.obsAbierta, r);
+    } else {
+      check('Admin: ve todo lo anterior', r.menuNueva && r.menuDash && r.reparar && r.tabObs && r.borrarReporte && r.cards.every(Boolean), r);
+    }
+    await ctx.close();
+  }
+
+  // 10) Órdenes: documento para imprimir/PDF, Exportar y reintento sin duplicar
+  {
+    const leidas = [];
+    const { ctx, p } = await nuevaPagina(b, {
+      '**/sheets/v4/**': route => {
+        const u = decodeURIComponent(route.request().url());
+        leidas.push(u);
+        // Columna NumeroOrden: en Ordenes ya está OT-R1 (el intento anterior alcanzó a escribirla); en Tareas no.
+        if (/values\/Ordenes!A:A/.test(u)) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ values: [['NumeroOrden'], ['OT-R1']] }) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ values: [['NumeroOrden']] }) });
+      },
+    });
+    const r = await p.evaluate(async () => {
+      window.alert = () => {}; window.open = () => null;
+      let doc = null; _entregarDocumentoImprimible = html => { doc = html; };
+      allOrdenes = [
+        { id: 'T1', NumeroOrden: 'OT-T1', Title: 'Cambio de filtros', Estado: 'Cerrada', TipoMantenimiento: 'Preventivo',
+          tareas: [{ descripcion: 'Cambiar filtro de aire', ok: true, responsable: 'Ana', observacionFantasma: 'nota interna del equipo' }],
+          repuestos: [{ codigo: 'R1', nombre: 'Filtro de aire', cantidad: 2, costoUnitario: 1000 }],
+          servicios: [{ codigo: 'S1', nombre: 'Torno externo', cantidad: 1, costoUnitario: 5000 }] },
+        { id: 'T2', NumeroOrden: 'OT-T2', Title: '=HYPERLINK("x")', Estado: 'Cerrada', TipoMantenimiento: 'Correctivo' },
+        { id: 'T3', NumeroOrden: 'OT-T3', Title: 'Sigue abierta', Estado: 'En ejecución', TipoMantenimiento: 'Correctivo' },
+      ];
+      await descargarOrdenPDF('T1');
+      const pdf = doc || '';
+      doc = null; ordenDetalleId = 'T1'; imprimirOrden(); await new Promise(x => setTimeout(x, 200));
+      const imprimir = doc || '';
+      // Exportar: solo lo filtrado, y sin fórmulas ejecutables
+      let blob = null; URL.createObjectURL = b => { blob = b; return 'blob:prueba'; };
+      document.getElementById('filtroEstado').value = 'Cerrada';
+      exportarExcel();
+      const csv = blob ? await blob.text() : '';
+      const opcionEnEjecucion = [...document.getElementById('filtroEstado').options].some(o => o.value === 'En ejecución');
+      // Reintento de una orden en cola: Ordenes ya tenía la fila → solo se anexan las tareas
+      const anexadas = []; window.asegurarHoja = async (n, cols) => cols; window.appendHoja = async (n) => { anexadas.push(n); };
+      await guardarOrdenEnSheets({ NumeroOrden: 'OT-R1', tareas: [{ descripcion: 'x' }] }, { reintento: true });
+      const enReintento = anexadas.splice(0);
+      await guardarOrdenEnSheets({ NumeroOrden: 'OT-R2', tareas: [{ descripcion: 'x' }] });
+      return { pdf, imprimir, csv, opcionEnEjecucion, enReintento, normal: anexadas };
+    });
+    check('PDF de la orden trae tareas, repuestos, servicios y totales', /Cambiar filtro de aire/.test(r.pdf) && /Filtro de aire/.test(r.pdf) && /Torno externo/.test(r.pdf) && /Total/.test(r.pdf));
+    check('PDF de la orden no trae la observación interna', !/nota interna del equipo/.test(r.pdf));
+    check('"Imprimir / PDF" del detalle abre el documento de la orden', /OT-T1/.test(r.imprimir) && /Cambiar filtro de aire/.test(r.imprimir));
+    check('Exportar descarga CSV solo con lo filtrado', /OT-T1/.test(r.csv) && /OT-T2/.test(r.csv) && !/OT-T3/.test(r.csv), r.csv.slice(0, 200));
+    check('Exportar no deja fórmulas ejecutables', r.csv.includes(`"'=HYPERLINK(""x"")"`), r.csv.slice(0, 300));
+    check('Filtro de Lista incluye "En ejecución"', r.opcionEnEjecucion);
+    check('Reintento sin señal no duplica la fila de la orden', JSON.stringify(r.enReintento) === JSON.stringify(['Tareas']), r.enReintento);
+    check('Guardado normal no hace lecturas de más', JSON.stringify(r.normal) === JSON.stringify(['Ordenes', 'Tareas']) && !leidas.some(u => /OT-R2/.test(u)), r.normal);
+    await ctx.close();
+  }
+
+  // 11) Dashboard sin la librería de gráficas, inventario por fecha, novedades y colores
+  {
+    const { ctx, p } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[]}' }) });
+    const r = await p.evaluate(async () => {
+      window.Chart = undefined;
+      allOrdenes = [
+        { NumeroOrden: 'A', Estado: 'Pendiente', TipoMantenimiento: 'Preventivo' },
+        { NumeroOrden: 'B', Estado: 'En ejecución', TipoMantenimiento: 'Correctivo' },
+        { NumeroOrden: 'C', Estado: 'Cerrada', TipoMantenimiento: 'Correctivo', servicios: [{ nombre: 'S', cantidad: 1, costoUnitario: 700 }] },
+      ];
+      let err = null; try { await cargarDashboard(); } catch (e) { err = e.message; }
+      const kpi = id => document.getElementById(id).textContent;
+      const movs = [['A', '2026-10-05', 'INGRESO', 10]];
+      const fifo = { ok: _invConsumoSinLoteEnSuFecha(movs, 'A', '2026-10-06', 'SALIDA', 4), antes: _invConsumoSinLoteEnSuFecha(movs, 'A', '2026-10-01', 'SALIDA', 4) };
+      // Novedades: abrir la sección ya no reescribe los encabezados
+      const escrituras = []; window.sheetsRequest = async (m, r) => { escrituras.push(m + ' ' + r); return {}; };
+      window.asegurarHoja = async (n, c) => c; window._leerHojaGenerica = async () => [];
+      await cargarNovedadesDeSheets();
+      const css = getComputedStyle(document.documentElement);
+      return { err, total: kpi('kpi_total'), pend: kpi('kpi_pendientes'), serv: kpi('kpi_costo_serv'), fifo, escrituras, danger: css.getPropertyValue('--danger').trim() };
+    });
+    check('Dashboard sin Chart.js igual muestra los indicadores', !r.err && r.total === '3' && r.serv !== '—', r);
+    check('Dashboard: "Pendientes" cuenta lo que está en ejecución, igual que Inicio', r.pend === '2', r.pend);
+    check('Inventario: salida fechada antes de su ingreso se detecta', r.fifo.ok === 0 && r.fifo.antes === 4, r.fifo);
+    check('Novedades no reescribe encabezados al abrir', r.escrituras.length === 0, r.escrituras);
+    check('Color de error (--danger) definido', r.danger === '#c62828', r.danger);
+    await ctx.close();
+  }
+
+  // 12) Fotos: un fallo del proxy lo pausa, pero no hasta recargar
+  {
+    let proxyCalls = 0, falla = true;
+    const jpg = Buffer.from(JPG_B64, 'base64');
+    const { ctx, p } = await nuevaPagina(b, {
+      '**/foto?id=*': route => { proxyCalls++; return falla ? route.fulfill({ status: 503, body: '' }) : route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpg }); },
+      'https://fake-apps/**': route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64 }) }),
+    });
+    await p.evaluate(async () => { googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec'; await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA1'); });
+    const tras1 = proxyCalls;
+    await p.evaluate(async () => { await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA2'); });
+    const enPausa = proxyCalls - tras1;
+    falla = false;
+    const r = await p.evaluate(async () => { _fotosProxyPausaHasta = Date.now() - 1; return (await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA3')).startsWith('data:image'); });
+    check('Fotos: tras un fallo, el proxy se pausa y luego se vuelve a usar', tras1 === 1 && enPausa === 0 && r && proxyCalls === 2, { tras1, enPausa, proxyCalls, r });
+    await ctx.close();
+  }
+
+  // 13) Login legible en modo oscuro
+  {
+    const ctx = await b.newContext({ colorScheme: 'dark' });
+    await ctx.addInitScript(() => { try { localStorage.setItem('tema', 'dark'); } catch (e) {} });
+    const p = await ctx.newPage();
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(500);
+    const r = await p.evaluate(() => {
+      if (!document.getElementById('loginOverlay')) mostrarLoginOverlay();
+      const lab = document.querySelector('#loginOverlay label');
+      return { label: getComputedStyle(lab).color, placeholder: document.getElementById('loginDocumento').placeholder };
+    });
+    check('Login en oscuro: etiquetas con color claro y ejemplo ficticio', r.label === 'rgb(170, 177, 188)' && !/\d{6,}/.test(r.placeholder), r);
+    await ctx.close();
+  }
+
+  // 14) Arranque con la sesión ya abierta (como al volver a abrir la app).
+  //     La carga de la prueba 1 es sin sesión; con sesión se dibuja el menú
+  //     lateral apenas arranca el script, y un error ahí detenía toda la app.
+  for (const rol of ['operario', 'admin']) {
+    const ctx = await b.newContext();
+    await ctx.route('**/sheets/v4/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[]}' }));
+    await ctx.addInitScript((rol) => {
+      sessionStorage.setItem('gUser', JSON.stringify({ name: 'Prueba', email: 'p@x', initials: 'PR' }));
+      sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', rol);
+      sessionStorage.setItem('operacionAutenticada', 'zipaquira');
+      try { localStorage.setItem('operacionActual', 'zipaquira'); } catch (e) {}
+    }, rol);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(1500);
+    const r = await p.evaluate(() => ({ menu: document.getElementById('sidebarOperaciones').innerText, rol: usuarioRol }));
+    const esperado = rol === 'admin' ? /Nueva Orden/.test(r.menu) : !/Nueva Orden/.test(r.menu);
+    check(`Arranque con sesión abierta (${rol}): sin errores de JS y menú correcto`, errs.length === 0 && /Pendientes/.test(r.menu) && esperado && r.rol === rol, { errs: errs.slice(0, 2), rol: r.rol, menu: r.menu.slice(0, 300) });
     await ctx.close();
   }
 

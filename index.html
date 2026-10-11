@@ -35,6 +35,7 @@
   --accent:      #018ABE;   /* bondi blue — antes naranja, ahora acento azul vivo */
   --accent2:     #2f9e52;   /* aprobado — verde pastel (se conserva: es color de estado) */
   --warn:        #d9663f;   /* rechazado — más terroso que rojo puro (se conserva: es color de estado) */
+  --danger:      #c62828;   /* errores y botones de borrar — se usaba en toda la app sin estar definido */
   --pending:     #8a8785;
   --surface:     #ffffff;
   /* Gris muy suave para franjas alternas de tablas, encabezados de tabla
@@ -70,6 +71,7 @@
   --accent:      #3aa9d8;
   --accent2:     #43b96a;
   --warn:        #e0794f;
+  --danger:      #ef6b61;
   --pending:     #8a8785;
   --surface:     #1b212a;
   --surface2:    #232b36;
@@ -1881,6 +1883,7 @@ body.rol-operario .solo-admin { display: none !important; }
         <option value="">Todos los estados</option>
         <option value="Borrador">Borrador</option>
         <option value="Pendiente">Pendiente</option>
+        <option value="En ejecución">En ejecución</option>
         <option value="Aprobada">Aprobadas</option>
         <option value="Rechazada">Rechazadas</option>
         <option value="Cerrada">Cerradas</option>
@@ -1949,7 +1952,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <div class="kpi-card" style="border-top-color:#B8860B">
         <div class="kpi-val" id="kpi_pendientes" style="color:#B8860B">—</div>
         <div class="kpi-label">Pendientes</div>
-        <div class="kpi-sub">En espera de aprobación</div>
+        <div class="kpi-sub">Sin cerrar (incluye en ejecución)</div>
       </div>
       <div class="kpi-card" style="border-top-color:#2E7D4F">
         <div class="kpi-val" id="kpi_cerradas" style="color:#2E7D4F">—</div>
@@ -2225,7 +2228,7 @@ body.rol-operario .solo-admin { display: none !important; }
 
     <!-- ══════ VISTA: INVENTARIO DE EQUIPOS (nueva) ══════ -->
     <div id="histVistaInventario" style="display:none">
-      <div class="card" style="margin-bottom:14px">
+      <div class="card solo-admin" style="margin-bottom:14px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Equipo <span style="font-weight:400;text-transform:none;opacity:.85">— solo una vez por equipo</span></div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
@@ -2247,7 +2250,7 @@ body.rol-operario .solo-admin { display: none !important; }
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:14px">
+      <div class="card solo-admin" style="margin-bottom:14px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Agregar Observación Anual <span style="font-weight:400;text-transform:none;opacity:.85">— sin repetir los datos del equipo</span></div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
@@ -2332,7 +2335,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Decorado</button>
       <button class="inv-subtab" id="cronTabEmergencia" data-crontab="emergencia" onclick="cronMostrarSubTab('emergencia')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reporte Emergencia</button>
       <button class="inv-subtab" id="cronTabPresionDrycooler" data-crontab="presiondrycooler" onclick="cronMostrarSubTab('presiondrycooler')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presión Drycooler</button>
-      <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
+      <button class="inv-subtab solo-admin" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
       <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
       <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
     </div>
@@ -3100,8 +3103,7 @@ body.rol-operario .solo-admin { display: none !important; }
   <div id="panel-detalle" class="panel">
     <div id="detalle-btn-bar" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="showPanel('lista')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
-      <button class="btn btn-ghost" onclick="imprimirOrden()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir / PDF</button>
-      <button class="btn btn-ghost" onclick="descargarPDF()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
+      <button class="btn btn-ghost" onclick="imprimirOrden()" title="Abre el documento de la orden para imprimirlo o guardarlo como PDF"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir / PDF</button>
       <button class="btn btn-ghost solo-admin" style="color:var(--danger);border-color:var(--danger);margin-left:auto" onclick="eliminarOrdenCompleta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Eliminar orden</button>
     </div>
     <div id="detalleContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:visible;min-height:100px;"></div>
@@ -3369,7 +3371,7 @@ body.rol-operario .solo-admin { display: none !important; }
 
       <!-- ── Sub-panel: Servicios ── -->
       <div id="invSub-servicios" class="inv-subpanel">
-        <div class="card" style="margin:0 0 16px">
+        <div class="card solo-admin" style="margin:0 0 16px">
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Nuevo Servicio</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
@@ -3474,7 +3476,7 @@ body.rol-operario .solo-admin { display: none !important; }
 
       <!-- ── Sub-panel: Proveedores ── -->
       <div id="invSub-proveedores" class="inv-subpanel">
-        <div class="card" style="margin:0 0 14px">
+        <div class="card solo-admin" style="margin:0 0 14px">
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> Registrar Proveedor</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
@@ -4010,7 +4012,7 @@ body.rol-operario .solo-admin { display: none !important; }
      el CDN responda. Nada dibuja gráficas antes de tiempo — la app arranca
      desde el callback de Google (que ya es async defer), muy después de que
      un script defer se haya ejecutado. -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous" defer></script>
 
 <!-- ════════════════════════════════════════════════════
      JSVECTORMAP (mapa "Dónde Operamos" en Inicio) — MIT License,
@@ -4264,9 +4266,22 @@ const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleap
 // (el bloqueo REAL lo hace el proxy del lado del servidor).
 let usuarioRol = 'operario';
 function esAdmin() { return usuarioRol === 'admin'; }
+// Secciones solo para administradores (Proyectos también, ver abrirProyectos).
+// Antes pedían una contraseña compartida validada en el navegador; ahora
+// dependen del rol que trae el pase de sesión firmado por el proxy.
+// Va aquí arriba, junto a esAdmin(), y no con la navegación: el menú lateral
+// la usa y se dibuja apenas arranca la app con la sesión abierta, antes de
+// que el script llegue a esa parte (una "const" no se puede leer antes de su
+// línea, y el error detenía todo el resto de la app).
+const PANELES_SOLO_ADMIN = ['nueva', 'dashboard'];
 // Marca el body según el rol: con rol-operario, el CSS oculta todo lo .solo-admin.
 function _aplicarRolUI() {
   try { document.body.classList.toggle('rol-operario', !esAdmin()); } catch (e) {}
+  // El menú lateral arma sus entradas según el rol (Nueva Orden y Dashboard
+  // solo para admin), y se dibuja una primera vez al arrancar, antes de saber
+  // el rol: se vuelve a dibujar con el rol ya aplicado. Solo se llama desde
+  // el arranque (evento "load"), cuando todo el script ya está cargado.
+  try { renderSidebarOperaciones(); } catch (e) { console.warn('Menú lateral:', e.message); }
 }
 
 /* ══════════════════════════════════════════════
@@ -4898,12 +4913,24 @@ async function registrarServicioInventarioDirecto(sede, servicio) {
  *  insuficiente" porque este cálculo daba un número más bajo. Ahora usa
  *  los MISMOS lotes FIFO que el Dashboard, para que la validación nunca
  *  contradiga lo que el usuario está viendo en pantalla. */
-async function _invStockDeUnProducto(spreadsheetId, codigo) {
-  const movimientos = await _invGet(spreadsheetId, 'Movimientos!A2:M100000');
-  const lotesPorCodigo = _agruparLotesFIFO(movimientos);
-  const lotes = lotesPorCodigo.get(codigo.toUpperCase()) || [];
+function _invStockDeMovimientos(movimientos, codigo) {
+  const lotes = _agruparLotesFIFO(movimientos).get(codigo.toUpperCase()) || [];
   const cantidad = lotes.reduce((s, l) => s + l.restante, 0);
   return Math.max(0, Math.round(cantidad * 100) / 100);
+}
+
+/** Cuánto de una salida NO encontraría lote en su propia fecha.
+ *
+ *  Los lotes se consumen en orden de fecha. Una salida fechada ANTES del
+ *  ingreso que la cubre (por ejemplo, el ingreso se registró con la fecha
+ *  de la factura, posterior al uso) se procesa cuando ese lote todavía no
+ *  existe, y la parte que no alcanza se pierde: el stock queda más alto de
+ *  lo real. Se simula el cálculo con la salida incluida y se compara cuánto
+ *  bajó el stock con lo que se quería sacar. 0 = cuadra. */
+function _invConsumoSinLoteEnSuFecha(movimientos, codigo, fecha, tipo, cantidad) {
+  const antes = _invStockDeMovimientos(movimientos, codigo);
+  const despues = _invStockDeMovimientos(movimientos.concat([[codigo, fecha, tipo, cantidad]]), codigo);
+  return Math.max(0, Math.round((cantidad - (antes - despues)) * 100) / 100);
 }
 
 // ── Bloqueo (mutex) de inventario por sede — Sheets no ofrece transacciones,
@@ -4912,7 +4939,7 @@ async function _invStockDeUnProducto(spreadsheetId, codigo) {
 //    "hay suficiente" y terminar sobregirando el inventario sin que quede
 //    registrado. Se usa la celda Config!B1 (la A1 ya la usa la clave de
 //    sede) como mutex "último en escribir gana": cada intento escribe su
-//    propio token con una expiración corta y, tras una breve pausa, vuelve
+//    propio token con una expiración y, tras una pausa, vuelve
 //    a leer la celda — si todavía dice su token, ganó la carrera (porque
 //    Sheets serializa las escrituras, así que solo un token puede quedar
 //    como valor final); si no, algún otro cliente ganó y hay que reintentar. ──
@@ -4932,29 +4959,50 @@ async function _invSetCelda(spreadsheetId, rango, valor) {
   if (!resp.ok) { const t = await resp.text(); throw new Error('Error escribiendo el bloqueo de inventario: ' + t); }
 }
 
-async function _invAdquirirLock(spreadsheetId, timeoutMs = 10000) {
+// Cuánto dura el bloqueo si quien lo tomó no lo suelta (se cayó la señal,
+// se cerró la pestaña). Antes eran 6 s, y un par de reintentos por cupo
+// (429) dentro del movimiento bastaban para que venciera a la mitad y otro
+// celular entrara al mismo tiempo. 30 s cubre los reintentos; un bloqueo
+// abandonado igual se libera solo.
+const INV_LOCK_VIGENCIA_MS = 30000;
+// Pausa antes de volver a leer la celda. Con 200 ms, una escritura de otro
+// celular que venía en camino podía llegar DESPUÉS de esa relectura y los
+// dos se creían dueños. Con más margen, el último en escribir ya quedó.
+const INV_LOCK_PAUSA_MS = 700;
+
+async function _invLeerLock(spreadsheetId) {
+  const celda = await _invGet(spreadsheetId, 'Config!B1:B1');
+  return (celda[0] && celda[0][0]) ? celda[0][0].toString() : '';
+}
+
+async function _invAdquirirLock(spreadsheetId, timeoutMs = 20000) {
   const token = _tokenAleatorio();
   const desde = Date.now();
   while (Date.now() - desde < timeoutMs) {
-    const celda = await _invGet(spreadsheetId, 'Config!B1:B1');
-    const actual = (celda[0] && celda[0][0]) ? celda[0][0].toString() : '';
+    const actual = await _invLeerLock(spreadsheetId);
     const expiraActual = parseInt(actual.split(':')[1], 10) || 0;
     if (!actual || Date.now() > expiraActual) {
-      await _invSetCelda(spreadsheetId, 'Config!B1', `${token}:${Date.now() + 6000}`);
-      await new Promise(r => setTimeout(r, 200));
-      const verificacion = await _invGet(spreadsheetId, 'Config!B1:B1');
-      const valorFinal = (verificacion[0] && verificacion[0][0]) ? verificacion[0][0].toString() : '';
-      if (valorFinal.startsWith(token + ':')) return token;
+      await _invSetCelda(spreadsheetId, 'Config!B1', `${token}:${Date.now() + INV_LOCK_VIGENCIA_MS}`);
+      await new Promise(r => setTimeout(r, INV_LOCK_PAUSA_MS));
+      if ((await _invLeerLock(spreadsheetId)).startsWith(token + ':')) return token;
     }
     await new Promise(r => setTimeout(r, 250 + Math.random() * 400));
   }
   throw new Error('El inventario está ocupado por otro movimiento. Intenta de nuevo en unos segundos.');
 }
 
+/** Justo antes de escribir el movimiento: ¿el bloqueo sigue siendo nuestro?
+ *  Si venció o alguien más lo tomó mientras se calculaba el stock, se aborta
+ *  en vez de escribir con un stock que pudo haber cambiado. */
+async function _invConfirmarLock(spreadsheetId, token) {
+  if (!(await _invLeerLock(spreadsheetId)).startsWith(token + ':')) {
+    throw new Error('Otro movimiento entró al inventario al mismo tiempo. No se registró nada: intenta de nuevo.');
+  }
+}
+
 async function _invLiberarLock(spreadsheetId, token) {
   try {
-    const celda = await _invGet(spreadsheetId, 'Config!B1:B1');
-    const actual = (celda[0] && celda[0][0]) ? celda[0][0].toString() : '';
+    const actual = await _invLeerLock(spreadsheetId);
     if (actual.startsWith(token + ':')) await _invSetCelda(spreadsheetId, 'Config!B1', '');
   } catch (e) { console.warn('No se pudo liberar el bloqueo de inventario (expirará solo):', e.message); }
 }
@@ -4976,9 +5024,18 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
 
   const lockToken = await _invAdquirirLock(spreadsheetId);
   try {
-    const stockActual = await _invStockDeUnProducto(spreadsheetId, codigo);
-    if ((tipo === 'SALIDA' || tipo === 'AJUSTE_NEGATIVO') && stockActual < cantidad) {
-      throw new Error(`Stock insuficiente. Disponible: ${stockActual}, Solicitado: ${cantidad}`);
+    const movimientos = await _invGet(spreadsheetId, 'Movimientos!A2:M100000');
+    const stockActual = _invStockDeMovimientos(movimientos, codigo);
+    if (tipo === 'SALIDA' || tipo === 'AJUSTE_NEGATIVO') {
+      if (stockActual < cantidad) {
+        throw new Error(`Stock insuficiente. Disponible: ${stockActual}, Solicitado: ${cantidad}`);
+      }
+      const fechaMov = mov.fecha || _isoLocal(new Date());
+      const sinLote = _invConsumoSinLoteEnSuFecha(movimientos, codigo, fechaMov, tipo, cantidad);
+      if (sinLote > 0) {
+        throw new Error(`Hoy sí hay stock, pero el ${fmtFecha(fechaMov)} todavía no había entrado el que cubre esta salida `
+          + `(faltarían ${sinLote}). Revisa la fecha de la salida, o registra primero el ingreso con su fecha real.`);
+      }
     }
 
     let stockResultante = stockActual;
@@ -5001,6 +5058,7 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
       mov.tipoDocumento || '',
       mov.numeroDocumento || '',
     ];
+    await _invConfirmarLock(spreadsheetId, lockToken);
     await _invAppend(spreadsheetId, 'Movimientos', [fila]);
     return { stockResultante };
   } finally {
@@ -5584,7 +5642,10 @@ const SIDEBAR_SECCIONES_OPERACION = [
 ];
 
 function _sidebarSeccionesOperacion() {
-  return SIDEBAR_SECCIONES_OPERACION.map(s => {
+  // Las pestañas de arriba esconden "Nueva Orden" y "Dashboard" al operario
+  // con la clase solo-admin; este menú se arma aparte y tiene que aplicar
+  // la misma regla, o el operario ve dos entradas que después no le abren.
+  return SIDEBAR_SECCIONES_OPERACION.filter(s => esAdmin() || !PANELES_SOLO_ADMIN.includes(s.key)).map(s => {
     const activo = document.getElementById('panel-' + s.key)?.classList.contains('active');
     return `
       <div onclick="showPanel('${s.key}')"
@@ -5638,7 +5699,7 @@ function renderSidebarOperaciones() {
       <span style="flex:1;line-height:1.25">Notificaciones</span>
       <span id="notifBadge" style="display:${_notifBadgeEstado.visible ? 'flex' : 'none'};background:#dc2626;color:white;border-radius:50%;min-width:16px;height:16px;font-size:9px;font-weight:800;align-items:center;justify-content:center;padding:0 3px;line-height:1;flex-shrink:0">${esc(_notifBadgeEstado.texto)}</span>
     </div>
-    <div onclick="repararHoja()"
+    <div onclick="repararHoja()" class="solo-admin"
       style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
       onmouseover="this.style.background='var(--brand-light)'"
       onmouseout="this.style.background='transparent'">
@@ -5908,7 +5969,9 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'guardarReporteCompresor', 'guardarReporteSecador', 'guardarReporteDrycooler',
   'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler',
   'eliminarFotoOrden', 'eliminarFotoCronograma', 'confirmarSubidaFotoNovedad',
-  'eliminarFechaRacha',
+  'eliminarFechaRacha', 'registrarNovedadRacha',
+  'invRegistrarProducto', 'invRegistrarServicio', 'registrarInventarioEquipo',
+  'hvdGuardarSpecs', 'pmGuardarHoraBase', 'eliminarOrdenCompleta',
   'proyGuardarAvances', 'proyNuevoProyecto', 'proyNuevoAlcance', 'proyNuevoPago',
   'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
 ];
@@ -6076,10 +6139,6 @@ window.addEventListener('load', async () => {
 /* ══════════════════════════════════════════════
    NAVEGACIÓN
 ══════════════════════════════════════════════ */
-// Secciones solo para administradores (Proyectos también, ver abrirProyectos).
-// Antes pedían una contraseña compartida validada en el navegador; ahora
-// dependen del rol que trae el pase de sesión firmado por el proxy.
-const PANELES_SOLO_ADMIN = ['nueva', 'dashboard'];
 
 const PANELES_DE_DATOS = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma'];
 
@@ -7289,6 +7348,42 @@ function _entregarDocumentoImprimible(html, ventana) {
   _mostrarDocumentoEnVisor(html);
 }
 
+/** Tareas, repuestos, insumos y servicios de una orden, como tablas para el
+ *  PDF/impresión — lo mismo que se ve en el detalle de la orden. La
+ *  observación interna de cada tarea NO va: es una nota para el equipo y no
+ *  hace parte del reporte que se comparte. */
+function _tablasOrdenParaPdf(o) {
+  const lista = v => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
+    return [];
+  };
+  const tareas = lista(o.tareas).filter(t => (t.descripcion || '').trim() || (t.responsable || '').trim());
+  let html = '<div class="section-title">Tareas</div>';
+  html += tareas.length
+    ? '<table><thead><tr><th>Descripción</th><th>T. real</th><th style="text-align:center">Hecha</th><th>Responsable</th></tr></thead><tbody>'
+      + tareas.map(t => `<tr><td>${esc(t.descripcion || '—')}</td><td>${esc(t.tiempoReal || '—')}</td>`
+        + `<td style="text-align:center">${t.ok ? 'Sí' : 'No'}</td><td>${esc(t.responsable || '—')}</td></tr>`).join('')
+      + '</tbody></table>'
+    : '<div style="padding:8px 10px;color:#888;font-style:italic;margin-bottom:16px">No se registraron tareas.</div>';
+
+  const materiales = (titulo, items) => {
+    items = items.filter(i => (i.nombre || '').trim() || (i.codigo || '').trim());
+    if (!items.length) return '';
+    let total = 0;
+    const filas = items.map(i => {
+      const cant = Number(i.cantidad || 0), costo = Number(i.costoUnitario || i.costoUnit || 0);
+      total += cant * costo;
+      return `<tr><td>${esc(i.codigo || '—')}</td><td>${esc(i.nombre || '—')}</td><td style="text-align:right">${esc(String(i.cantidad || 0))}</td>`
+        + `<td>${esc(i.unidades || 'und')}</td><td style="text-align:right">${fmtCOP(costo)}</td><td style="text-align:right">${fmtCOP(cant * costo)}</td></tr>`;
+    }).join('');
+    return `<div class="section-title">${titulo}</div><table><thead><tr><th>Código</th><th>Nombre</th><th style="text-align:right">Cant.</th>`
+      + `<th>Unidad</th><th style="text-align:right">Costo unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${filas}`
+      + `<tr><td colspan="5" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:700">${fmtCOP(total)}</td></tr></tbody></table>`;
+  };
+  return html + materiales('Repuestos', lista(o.repuestos)) + materiales('Insumos', lista(o.insumos)) + materiales('Servicios', lista(o.servicios));
+}
+
 /* ══════════════════════════════════════════════
    DESCARGAR PDF DE ORDEN REALIZADA
 ══════════════════════════════════════════════ */
@@ -7372,6 +7467,8 @@ async function descargarOrdenPDF(id) {
   <div class="field"><div class="label">Costo real total</div><div class="val">${o.CostoReal ? '$' + Number(o.CostoReal).toLocaleString('es-CO') : '—'}</div></div>
 </div>
 
+${_tablasOrdenParaPdf(o)}
+
 <div class="section-title">Observaciones de cierre</div>
 <div style="padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:16px;white-space:pre-wrap;font-size:12px">${esc(o.ObsCierre||o.Observaciones||'—')}</div>
 
@@ -7396,20 +7493,31 @@ ${_bloqueFirmaPdf(o, 'FirmaCierre', 'Firma del técnico ejecutor')}
 function exportarRealizadasCSV() {
   const realizadas = allOrdenes.filter(o => ['Cerrada','Realizada','Rechazada'].includes(o.Estado));
   if (!realizadas.length) { alert('No hay órdenes realizadas para exportar.'); return; }
+  _descargarCsvOrdenes(realizadas, 'ordenes_realizadas_' + _isoLocal(new Date()) + '.csv');
+}
 
+/** Arma y descarga el CSV de una lista de órdenes (separado por ";" y con
+ *  BOM, para que Excel en español lo abra con tildes y en columnas). Un
+ *  texto que empiece por = + - @ se antepone con ' para que Excel no lo
+ *  ejecute como fórmula. */
+function _descargarCsvOrdenes(ordenes, nombreArchivo) {
   const cols = ['NumeroOrden','Title','Equipo','TipoMantenimiento','Prioridad','Estado',
                  'SolicitadaPor','Responsable','EjecutadoPor','FechaInicio','FechaCierre',
                  'TiempoReal','CostoReal','ObsCierre'];
+  const celda = v => {
+    let t = String(v ?? '');
+    if (/^[=+\-@]/.test(t)) t = "'" + t;
+    return '"' + t.replace(/"/g, '""') + '"';
+  };
   const header = cols.join(';');
-  const rows = realizadas.map(o =>
-    cols.map(c => '"' + String(o[c]||'').replace(/"/g,'""') + '"').join(';')
-  );
+  const rows = ordenes.map(o => cols.map(c => celda(o[c])).join(';'));
   const csv  = '\uFEFF' + [header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = 'ordenes_realizadas_' + _isoLocal(new Date()) + '.csv';
-  a.click(); URL.revokeObjectURL(url);
+  a.href = url; a.download = nombreArchivo;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /* ══════════════════════════════════════════════
@@ -9747,93 +9855,50 @@ async function detectarNombreHoja() {
   }
 }
 
+/** "Reparar hoja" (menú lateral, solo admin): deja la pestaña Ordenes y las
+ *  hojas que dependen de ella con todos sus encabezados.
+ *
+ *  Antes escribía la fila 1 completa con el orden de SHEETS_COLS. Si la hoja
+ *  tenía las columnas en otro orden (asegurarHoja agrega las nuevas al
+ *  final), cada dato quedaba debajo del encabezado equivocado. Y si no
+ *  encontraba "Ordenes", usaba la primera pestaña del archivo, fuera cual
+ *  fuera. Ahora solo AGREGA los encabezados que falten, al final, sin mover
+ *  los que ya están, y siempre sobre la pestaña "Ordenes" (si no existe, la
+ *  crea vacía). */
 async function repararHoja() {
-  if (!googleAccessToken) {
-    alert('Debes iniciar sesión primero.');
-    return;
-  }
+  if (!esAdmin()) { alert('Solo un administrador puede reparar las hojas.'); return; }
+  if (!googleAccessToken) { alert('Debes iniciar sesión primero.'); return; }
+  if (!confirm('Se revisarán las hojas de esta sede (Ordenes, Tareas, Repuestos, Insumos, Fotos, Novedades y Cronograma).\n\n'
+             + 'Solo se agregan los encabezados que falten, al final de cada hoja. No se mueve ni se borra ningún dato.\n\n¿Continuar?')) return;
 
-  // Primero detectar las hojas disponibles
-  let hojas = [];
+  const hojas = [
+    [SH.ordenes, SHEETS_COLS], [SH.tareas, TAREAS_COLS], [SH.repuestos, REPUESTOS_COLS],
+    [SH.insumos, INSUMOS_COLS], [SH.fotos, FOTOS_COLS], [SH.novedades, NOVEDADES_COLS],
+    [SH.fotosNovedades, FOTOS_NOVEDADES_COLS], [SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS],
+    [SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS], [SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS],
+  ];
+  const agregadas = [];
   try {
-    const resp = await fetch(
-      `${SHEETS_API}/v4/spreadsheets/${GOOGLE_CONFIG.spreadsheetId}?fields=sheets.properties.title`,
-      { headers: { Authorization: 'Bearer ' + googleAccessToken } }
-    );
-    if (!resp.ok) {
-      const txt = await resp.text();
-      if (resp.status === 401) {
-        mostrarModalSesionExpirada();
-        return;
-      }
-      alert('❌ No se pudo acceder al spreadsheet.\n\nError: ' + txt + '\n\nVerifica:\n- Que el ID del spreadsheet sea correcto\n- Que hayas dado acceso al archivo\n- Que la API de Google Sheets esté habilitada en tu proyecto');
-      return;
+    for (const [nombre, cols] of hojas) {
+      // Se olvida lo que se sabía de la hoja para leer su fila 1 de verdad.
+      delete _cacheEncabezadosHoja[nombre];
+      await crearHojaSiNoExiste(nombre);
+      const antes = await _leerEncabezadosHoja(nombre);
+      const despues = await asegurarHoja(nombre, cols);
+      const nuevas = despues.filter(c => !antes.includes(c));
+      if (nuevas.length) agregadas.push(`${nombre}: ${nuevas.join(', ')}`);
+      // Las ediciones de órdenes escriben según este orden: el REAL de la hoja.
+      if (nombre === SH.ordenes) window._sheetsHeaders = despues;
     }
-    const data = await resp.json();
-    hojas = (data.sheets || []).map(h => h.properties.title);
-  } catch(e) {
-    alert('❌ Error de conexión: ' + e.message);
+  } catch (e) {
+    alert('No se pudo terminar la revisión: ' + e.message);
     return;
   }
-
-  if (hojas.length === 0) {
-    alert('❌ No se encontraron hojas en el spreadsheet.');
-    return;
-  }
-
-  // Mostrar hojas encontradas y pedir confirmación
-  const hojaActual = window._detectedSheetName || hojas[0];
-  const msg =
-    '📋 Hojas encontradas en tu spreadsheet:\n' +
-    hojas.map((h, i) => `  ${i+1}. "${h}"`).join('\n') +
-    '\n\n✅ Se usará la hoja: "' + hojaActual + '"\n\n' +
-    'Se escribirán los encabezados correctos en la fila 1.\n¿Continuar?';
-
-  if (!confirm(msg)) return;
-
-  try {
-    window._detectedSheetName = hojaActual;
-    const colFin = numToCol(SHEETS_COLS.length - 1);
-    const rango  = encodeURIComponent(hojaActual + '!A1:' + colFin + '1');
-    const url    = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId + '/values/' + rango + '?valueInputOption=RAW';
-
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'Bearer ' + googleAccessToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ values: [SHEETS_COLS] })
-    });
-
-    const respTxt = await resp.text();
-    if (!resp.ok) {
-      if (resp.status === 401) {
-        mostrarModalSesionExpirada();
-        return;
-      }
-      let detail = respTxt;
-      try { detail = JSON.parse(respTxt).error?.message || respTxt; } catch(_) {}
-      alert('Error ' + resp.status + ' al escribir encabezados:\n\n' + detail + '\n\nSpreadsheet ID: ' + GOOGLE_CONFIG.spreadsheetId + '\nHoja: ' + hojaActual + '\nToken presente: ' + (googleAccessToken ? 'SI' : 'NO'));
-      return;
-    }
-
-    window._sheetsHeaders = SHEETS_COLS;
-    // Crear también las hojas de Tareas, Repuestos, Insumos, Fotos, Novedades, FotosNovedades, CronogramaRegistros, CronogramaFotos y CronogramaActividadesAdicionales
-    await asegurarHoja(SH.tareas,    TAREAS_COLS);
-    await asegurarHoja(SH.repuestos, REPUESTOS_COLS);
-    await asegurarHoja(SH.insumos,   INSUMOS_COLS);
-    await asegurarHoja(SH.fotos,     FOTOS_COLS);
-    await asegurarHoja(SH.novedades, NOVEDADES_COLS);
-    await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
-    await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
-    await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
-    await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
-    alert('Hojas creadas correctamente:\n- Ordenes\n- Tareas\n- Repuestos\n- Insumos\n- Fotos\n- Novedades\n- FotosNovedades\n- CronogramaRegistros\n- CronogramaFotos\n- CronogramaActividadesAdicionales\n\nYa puedes guardar órdenes y novedades con todos los campos.');
-    await cargarOrdenes();
-  } catch(e) {
-    alert('Error de red: ' + e.message);
-  }
+  window._detectedSheetName = SH.ordenes;
+  alert(agregadas.length
+    ? 'Listo. Se agregaron estos encabezados:\n\n' + agregadas.join('\n')
+    : 'Listo. Todas las hojas ya tenían sus encabezados completos; no hubo que cambiar nada.');
+  await cargarOrdenes();
 }
 
 // Cachés en memoria (viven mientras dure la sesión del navegador, se
@@ -9909,14 +9974,13 @@ async function asegurarHoja(nombre, cols) {
   return _asegurarHojaEnVuelo[nombre];
 }
 
-async function _asegurarHojaReal(nombre, cols) {
-  const base   = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
-  const colFin = numToCol(cols.length - 1);
-  // Primero asegurarse de que la hoja exista
-  await crearHojaSiNoExiste(nombre);
-  // Leer fila 1
-  const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A1:' + colFin + '1'), { headers: hdrs });
+/** La fila 1 COMPLETA de una hoja, sin importar cuántas columnas tenga.
+ *  Antes se leía solo hasta la columna que alcanzaba la lista del código:
+ *  si la hoja tenía columnas de más, las que sobraban no se veían y un
+ *  encabezado nuevo se escribía encima de una de ellas. */
+async function _leerEncabezadosHoja(nombre) {
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!1:1'), { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   // Si esta lectura falla por cualquier otro motivo, NO se puede asumir que
   // la hoja está vacía (eso dispara una reescritura de encabezados sobre
@@ -9928,7 +9992,15 @@ async function _asegurarHojaReal(nombre, cols) {
     throw new Error('No se pudo leer los encabezados de ' + nombre + ': ' + msg);
   }
   const d = await r.json();
-  const existing = (d.values && d.values[0]) ? d.values[0] : [];
+  return (d.values && d.values[0]) ? d.values[0].map(c => String(c)) : [];
+}
+
+async function _asegurarHojaReal(nombre, cols) {
+  const base   = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const hdrs   = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+  // Primero asegurarse de que la hoja exista
+  await crearHojaSiNoExiste(nombre);
+  const existing = await _leerEncabezadosHoja(nombre);
   const missing  = cols.filter(c => !existing.includes(c));
   if (existing.length === 0 || missing.length > 0) {
     const final = existing.length === 0 ? cols : [...existing, ...missing];
@@ -10067,18 +10139,31 @@ async function eliminarFotoOrden(ordenId, driveFileId, contId) {
   const o = allOrdenes.find(x => String(x.id) === String(ordenId) || x.NumeroOrden === ordenId);
   if (!o || !Array.isArray(o.fotos)) return;
 
+  // Primero el registro en la hoja Fotos: si solo se borraba de la memoria
+  // del celular y de Drive, al recargar la orden la fila seguía ahí y la
+  // foto volvía como un recuadro roto.
+  try {
+    await _eliminarFilasPorValorColumna(SH.fotos, 'DriveFileId', driveFileId);
+  } catch (e) {
+    alert('No se pudo quitar la foto del registro: ' + e.message + '\n\nIntenta de nuevo con conexión.');
+    return;
+  }
   o.fotos = o.fotos.filter(f => f.driveFileId !== driveFileId);
   guardarLocal();
   renderFotosOrden(o, contId, false);
+  _borrarArchivoFotoDrive(driveFileId);
+}
 
-  // Borrar también del Drive central (best-effort, no bloquea si falla)
+/** Manda a la papelera de Drive el archivo de una foto (best-effort: si
+ *  falla, solo queda el archivo huérfano en Drive; el registro ya se quitó). */
+async function _borrarArchivoFotoDrive(driveFileId) {
   try {
     await fetch(_fotosUrlSede(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' })
     });
-  } catch(e) { console.warn('No se pudo borrar la foto:', e.message); }
+  } catch(e) { console.warn('No se pudo borrar la foto de Drive:', e.message); }
 }
 
 /** Caché en memoria: una vez traída una foto, no se vuelve a pedir. */
@@ -10105,20 +10190,39 @@ async function _fetchFotoConTimeout(url, ms, init) {
   }
 }
 
-/** null = aún no se probó; true = el proxy entrega fotos; false = el proxy
- *  no está listo (Worker sin la ruta /foto, API de Drive sin habilitar o
- *  carpeta sin compartir con la cuenta de servicio) → se usa el Apps Script. */
-let _fotosProxyEstado = null;
+/** Hasta cuándo NO se intenta el proxy de fotos. Antes, si la primera foto
+ *  de la sesión fallaba por el proxy (un microcorte, por ejemplo), quedaba
+ *  apagado hasta recargar y todas las fotos iban al Apps Script, que es
+ *  justo el que se queda atascado en Workspace. Ahora un fallo solo lo pausa
+ *  un minuto; después se vuelve a probar. */
+let _fotosProxyPausaHasta = 0;
+const FOTOS_PROXY_PAUSA_MS = 60000;
 
-/** Trae una foto por el proxy (Cloudflare Worker → Google Drive con la cuenta
- *  de servicio) y la devuelve como data:URL. No pasa por el Apps Script, cuya
- *  respuesta se queda a veces atascada en script.googleusercontent.com. */
-async function _fotoDesdeProxy(driveFileId) {
+/** Trae un archivo de Drive por el proxy (Cloudflare Worker → Google Drive
+ *  con la cuenta de servicio). No pasa por el Apps Script, cuya respuesta se
+ *  queda a veces atascada en script.googleusercontent.com. */
+async function _archivoDesdeProxy(driveFileId) {
   const resp = await _fetchFotoConTimeout(
     PROXY_URL + '/foto?id=' + encodeURIComponent(driveFileId), 30000,
     { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (!resp.ok) throw new Error('Proxy de fotos respondió ' + resp.status);
-  const blob = await resp.blob();
+  return resp.blob();
+}
+
+/** ¿Vale la pena intentar el proxy ahora? */
+function _fotosProxyDisponible() {
+  return !!googleAccessToken && Date.now() >= _fotosProxyPausaHasta;
+}
+/** Cualquier fallo pausa el proxy, también un 404: Drive responde 404 cuando
+ *  la cuenta de servicio no tiene acceso a la carpeta, así que no sirve para
+ *  distinguir "esa foto no existe" de "el proxy no está listo". */
+function _fotosProxyFallo() {
+  _fotosProxyPausaHasta = Date.now() + FOTOS_PROXY_PAUSA_MS;
+}
+
+/** Una foto por el proxy, como data:URL. */
+async function _fotoDesdeProxy(driveFileId) {
+  const blob = await _archivoDesdeProxy(driveFileId);
   if (!/^image\//i.test(blob.type)) throw new Error('El proxy no devolvió una imagen');
   return await new Promise((resolve, reject) => {
     const lector = new FileReader();
@@ -10132,17 +10236,15 @@ async function _obtenerDataUrlFoto(driveFileId) {
   if (!driveFileId) return '';
   const cacheKey = driveFileId;
   if (_fotoDataUrlCache[cacheKey]) return _fotoDataUrlCache[cacheKey];
-  // 1) Primero por el proxy (más rápido y confiable). Si el proxy no está
-  //    listo, la PRIMERA falla lo marca como no disponible y de ahí en
-  //    adelante se va directo al Apps Script, sin pedir dos veces cada foto.
-  if (_fotosProxyEstado !== false && googleAccessToken) {
+  // 1) Primero por el proxy (más rápido y confiable). Si falla, se pausa un
+  //    minuto y mientras tanto se va directo al Apps Script.
+  if (_fotosProxyDisponible()) {
     try {
       const dataUrl = await _fotoDesdeProxy(driveFileId);
-      _fotosProxyEstado = true;
       _fotoDataUrlCache[cacheKey] = dataUrl;
       return dataUrl;
     } catch (e) {
-      if (_fotosProxyEstado === null) _fotosProxyEstado = false;
+      _fotosProxyFallo();
       console.warn('Foto por proxy falló, se intenta con el Apps Script:', driveFileId, e.message);
     }
   }
@@ -10250,8 +10352,32 @@ function renderFotosOrden(orden, contId, readonly) {
   });
 }
 
-async function guardarOrdenEnSheets(datos) {
+/** ¿Esta hoja ya tiene filas de esa orden? Se usa solo al REINTENTAR una
+ *  orden que quedó en cola: si el intento anterior alcanzó a escribir la
+ *  fila de la orden (o sus tareas) antes de perder la señal, volver a
+ *  anexarlas la dejaría duplicada. Cada anexo es atómico —entra completo o
+ *  no entra—, así que basta con saber si ya hay alguna fila de esa orden. */
+async function _filasDeOrdenYaGuardadas(hoja, cols, numeroOrden) {
+  const idx = cols.indexOf('NumeroOrden');
+  if (idx < 0 || !numeroOrden) return false;
+  const letra = numToCol(idx);
   const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const r = await fetch(base + '/values/' + encodeURIComponent(hoja + '!' + letra + ':' + letra), { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!r.ok) throw new Error('No se pudo revisar ' + hoja + ' antes de reintentar (HTTP ' + r.status + ')');
+  const d = await r.json();
+  return (d.values || []).slice(1).some(f => String((f && f[0]) || '') === String(numeroOrden));
+}
+
+async function guardarOrdenEnSheets(datos, opciones = {}) {
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const num = datos.NumeroOrden || '';
+  // En un reintento, cada hoja que ya recibió sus filas se salta.
+  const anexar = async (hoja, cols, filas) => {
+    if (!filas.length) return;
+    if (opciones.reintento && await _filasDeOrdenYaGuardadas(hoja, cols, num)) return;
+    await appendHoja(hoja, filas);
+  };
 
   // ── 1. Hoja Ordenes (datos principales, sin arrays) ──
   const hOrdenes = await asegurarHoja(SH.ordenes, SHEETS_COLS);
@@ -10262,9 +10388,7 @@ async function guardarOrdenEnSheets(datos) {
     if (typeof val === 'object') return '';   // arrays van en hojas propias
     return String(val);
   });
-  await appendHoja(SH.ordenes, [filaOrden]);
-
-  const num = datos.NumeroOrden || '';
+  await anexar(SH.ordenes, hOrdenes, [filaOrden]);
 
   // ── 2. Hoja Tareas ──
   // Usa el orden REAL de columnas de la hoja (no la constante local): si la
@@ -10286,7 +10410,7 @@ async function guardarOrdenEnSheets(datos) {
         if (c === 'ObservacionCierre') return t.observacionFantasma || '';
         return '';
       }));
-    if (filasTareas.length) await appendHoja(SH.tareas, filasTareas);
+    await anexar(SH.tareas, colsTareas, filasTareas);
   }
 
   // ── 3. Hoja Repuestos ──
@@ -10309,7 +10433,7 @@ async function guardarOrdenEnSheets(datos) {
           return '';
         });
       });
-    if (filasRep.length) await appendHoja(SH.repuestos, filasRep);
+    await anexar(SH.repuestos, colsRep, filasRep);
   }
 
   // ── 4. Hoja Insumos ──
@@ -10332,7 +10456,7 @@ async function guardarOrdenEnSheets(datos) {
           return '';
         });
       });
-    if (filasIns.length) await appendHoja(SH.insumos, filasIns);
+    await anexar(SH.insumos, colsIns, filasIns);
   }
 
   // ── 5. Hoja Servicios ──
@@ -10355,7 +10479,7 @@ async function guardarOrdenEnSheets(datos) {
           return '';
         });
       });
-    if (filasServ.length) await appendHoja(SH.servicios, filasServ);
+    await anexar(SH.servicios, colsServ, filasServ);
   }
 }
 
@@ -10857,18 +10981,18 @@ function mostrarLoginOverlay() {
     <div style="background:var(--surface);border-radius:14px;padding:44px 52px;text-align:center;max-width:400px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.3)">
       <div style="margin-bottom:12px;color:var(--brand)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:42px;height:42px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></div>
       <h2 style="font-size:22px;font-weight:700;color:var(--brand);margin-bottom:8px">Sistema Integral de Gestión</h2>
-      <p style="font-size:13px;color:#605e5c;margin-bottom:22px;line-height:1.5">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.5">
         Ingresa con tu número de documento y tu PIN para acceder a la aplicación.
       </p>
       <div style="text-align:left;margin-bottom:14px">
-        <label style="font-size:12px;font-weight:600;color:#3c4043;display:block;margin-bottom:4px">Número de documento</label>
-        <input id="loginDocumento" type="text" inputmode="numeric" placeholder="Ej: 1007788656" style="width:100%;padding:10px 12px;border:1.5px solid #dadce0;border-radius:8px;font-size:15px;box-sizing:border-box">
+        <label for="loginDocumento" style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Número de documento</label>
+        <input id="loginDocumento" type="text" inputmode="numeric" autocomplete="username" placeholder="Tu número de cédula" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;box-sizing:border-box">
       </div>
       <div style="text-align:left;margin-bottom:8px">
-        <label style="font-size:12px;font-weight:600;color:#3c4043;display:block;margin-bottom:4px">PIN</label>
-        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" placeholder="••••" style="width:100%;padding:10px 12px;border:1.5px solid #dadce0;border-radius:8px;font-size:15px;box-sizing:border-box">
+        <label for="loginPin" style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">PIN</label>
+        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="••••" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;box-sizing:border-box">
       </div>
-      <div id="loginError" style="min-height:18px;font-size:12.5px;color:#c0392b;margin-bottom:6px;text-align:left"></div>
+      <div id="loginError" style="min-height:18px;font-size:12.5px;color:var(--danger);margin-bottom:6px;text-align:left"></div>
       <button id="loginBtn" onclick="loginConDocumentoPinClick()" class="btn btn-primary btn-block">Ingresar</button>
     </div>`;
   document.body.appendChild(overlay);
@@ -10970,7 +11094,7 @@ async function intentarSincronizarPendientes() {
 
   for (const orden of pendientes) {
     try {
-      await guardarOrdenEnSheets(orden);
+      await guardarOrdenEnSheets(orden, { reintento: true });
       delete orden._pendienteSync;
       subidas++;
     } catch (e) {
@@ -11391,12 +11515,14 @@ async function cargarOrdenes() {
   }
 }
 
-function filtrarOrdenes() {
+/** Las órdenes que dejan pasar los filtros de "Lista" (texto, estado y
+ *  tipo). La usan la lista y el botón "Exportar", para que el archivo
+ *  traiga exactamente lo que se está viendo. */
+function _ordenesFiltradasLista() {
   const txt    = document.getElementById('filtroTexto')?.value.toLowerCase() || '';
   const estado = document.getElementById('filtroEstado')?.value || '';
   const tipo   = document.getElementById('filtroTipo')?.value || '';
-
-  const filtered = allOrdenes.filter(o => {
+  return allOrdenes.filter(o => {
     const matchTxt  = !txt    || (o.Title||'').toLowerCase().includes(txt)
                                || (o.NumeroOrden||'').toLowerCase().includes(txt)
                                || (o.Equipo||'').toLowerCase().includes(txt);
@@ -11404,6 +11530,10 @@ function filtrarOrdenes() {
     const matchTipo = !tipo   || o.TipoMantenimiento === tipo;
     return matchTxt && matchEst && matchTipo;
   });
+}
+
+function filtrarOrdenes() {
+  const filtered = _ordenesFiltradasLista();
 
   const div = document.getElementById('listaContainer');
   if (!filtered.length) {
@@ -11773,9 +11903,10 @@ async function marcarRealizada(id) {
    DASHBOARD
 ══════════════════════════════════════════════ */
 async function cargarDashboard() {
-  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
-  // del panel (tablas, totales) sí tiene que seguir funcionando.
-  if (typeof Chart === 'undefined') return;
+  // Si el CDN de Chart.js no cargó (por ejemplo, sin señal), no se dibujan
+  // gráficas — pero los indicadores sí. Antes la función salía aquí mismo y
+  // el panel quedaba entero en "—".
+  const hayGraficas = typeof Chart !== 'undefined';
   await new Promise(r => setTimeout(r, 300));
 
   // ── Tipos fijos de mantenimiento ──
@@ -11804,7 +11935,9 @@ async function cargarDashboard() {
 
   // ── Conteos ──
   const total    = ordenesFiltradas.length;
-  const pend     = ordenesFiltradas.filter(o => o.Estado === 'Pendiente').length;
+  // "Pendientes" = todo lo que no se ha cerrado, igual que en Inicio, para
+  // que las dos pantallas den el mismo número.
+  const pend     = ordenesFiltradas.filter(o => ['Pendiente', 'Aprobada', 'En ejecución', 'Borrador'].includes(o.Estado)).length;
   const cerradas = ordenesFiltradas.filter(o => o.Estado === 'Cerrada').length;
   const urgentes = ordenesFiltradas.filter(o => o.Prioridad === 'Urgente' && o.Estado !== 'Cerrada').length;
 
@@ -11855,7 +11988,7 @@ async function cargarDashboard() {
   function makeChart(id, key, cfg) {
     destroyChart(key);
     const ctx = document.getElementById(id);
-    if (!ctx) return;
+    if (!ctx || !hayGraficas) return;
     window[key] = new Chart(ctx.getContext('2d'), cfg);
   }
 
@@ -11917,11 +12050,13 @@ async function cargarDashboard() {
   });
 
   // ── Gráfica 3: Costos por tipo de mantenimiento (solo órdenes cerradas) ──
+  // Incluye servicios, igual que los indicadores de costo de arriba.
   const costoRepTipo = TIPOS.map(t => {
     let s = 0;
     ordenesFiltradas.filter(o => o.TipoMantenimiento === t && o.Estado === 'Cerrada').forEach(o => {
       (Array.isArray(o.repuestos)?o.repuestos:[]).forEach(r => { s += Number(r.cantidad||0)*Number(r.costoUnitario||r.costoUnit||0); });
       (Array.isArray(o.insumos)?o.insumos:[]).forEach(i => { s += Number(i.cantidad||0)*Number(i.costoUnitario||i.costoUnit||0); });
+      (Array.isArray(o.servicios)?o.servicios:[]).forEach(sv => { s += Number(sv.cantidad||0)*Number(sv.costoUnitario||sv.costoUnit||0); });
     });
     return s;
   });
@@ -12145,16 +12280,23 @@ function renderGraficasAntioquia(ordenesFiltradas) {
 /* ══════════════════════════════════════════════
    PDF / IMPRESIÓN
 ══════════════════════════════════════════════ */
-function imprimirOrden() { window.print(); }
-function descargarPDF()  {
-  // En producción: usar Power Automate con plantilla Word → convertir a PDF → guardar en SharePoint
-  alert('En producción: Power Automate genera el PDF automáticamente desde la plantilla Word ' +
-        'y lo guarda en la biblioteca de SharePoint con la firma digital incluida.\n\n' +
-        'Ver archivo power-automate/flow-pdf-generation.json para la configuración.');
+/** "Imprimir / PDF" del detalle: el mismo documento de la orden que se
+ *  descarga desde Realizadas (con tareas, materiales, fotos y firmas), en vez
+ *  de imprimir la página entera con menús y botones. Desde ahí el navegador
+ *  imprime o guarda como PDF. */
+function imprimirOrden() {
+  if (!ordenDetalleId) return;
+  descargarOrdenPDF(ordenDetalleId);
 }
 
+/** "Exportar" de Lista: descarga un archivo CSV (se abre en Excel) con las
+ *  órdenes que dejan pasar los filtros. Antes abría la hoja de Google, a la
+ *  que los usuarios ya no tienen acceso directo desde que todo pasa por el
+ *  proxy. */
 function exportarExcel() {
-  window.open(`https://docs.google.com/spreadsheets/d/${GOOGLE_CONFIG.spreadsheetId}/edit`, '_blank');
+  const ordenes = _ordenesFiltradasLista();
+  if (!ordenes.length) { alert('No hay órdenes que coincidan con los filtros para exportar.'); return; }
+  _descargarCsvOrdenes(ordenes, 'ordenes_' + (OPERACIONES[operacionActual]?.nombre || operacionActual || 'sede').replace(/\W+/g, '_') + '_' + _isoLocal(new Date()) + '.csv');
 }
 
 /* ══════════════════════════════════════════════
@@ -13387,7 +13529,16 @@ async function eliminarOrdenCompleta() {
   }
 
   try {
-    const esta = (fila) => fila.NumeroOrden === num;
+    // Las fotos de la orden se juntan mientras se borran sus filas (de lo
+    // que había en memoria y de lo que trae la hoja Fotos) para mandar
+    // después los archivos a la papelera de Drive: antes quedaban ahí para
+    // siempre, sin ninguna orden que los nombrara.
+    const idsFotos = new Set((o.fotos || []).map(f => f.driveFileId).filter(Boolean));
+    const esta = (fila) => {
+      if (fila.NumeroOrden !== num) return false;
+      if (fila.DriveFileId) idsFotos.add(fila.DriveFileId);
+      return true;
+    };
     for (const hoja of [SH.ordenes, SH.tareas, SH.repuestos, SH.insumos, SH.servicios, SH.fotos]) {
       // Cada hoja por separado y sin cortar si una falla: es preferible
       // quedar con un resto huerfano en una hoja auxiliar que dejar la
@@ -13395,6 +13546,7 @@ async function eliminarOrdenCompleta() {
       try { await eliminarFilasDondeCumple(hoja, esta); }
       catch (e) { console.warn('No se pudo limpiar ' + hoja + ':', e.message); }
     }
+    for (const id of idsFotos) await _borrarArchivoFotoDrive(id);
     allOrdenes = allOrdenes.filter(x => x.NumeroOrden !== num && String(x.id) !== String(num));
     guardarLocal();
     alert(`Orden ${num} eliminada.`);
@@ -14457,6 +14609,7 @@ async function invRegistrarProducto() {
 }
 
 async function invRegistrarServicio() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar servicios.'); return; }
   const msg = document.getElementById('invsMsg');
   const servicio = {
     codigo: document.getElementById('invs_codigo').value.trim(),
@@ -14820,6 +14973,7 @@ async function invCargarHistorial() {
 const INV_PROVEEDORES_COLS = ['Nombre','Contacto','CiudadPais','Direccion','Tipo','InsumoRepuestoServicio'];
 
 async function invRegistrarProveedor() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar proveedores.'); return; }
   const msg = document.getElementById('provMsg');
   const nombre = document.getElementById('prov_nombre').value.trim();
   if (!nombre) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> El nombre del proveedor es obligatorio.'; return; }
@@ -15029,6 +15183,7 @@ async function registrarNovedadRacha() {
 /** Quita una fecha del historial (por si se registró una equivocada) —
  *  reescribe toda la hoja sin esa fila. */
 async function eliminarFechaRacha(fecha) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar registros de días sin novedades.'); return; }
   if (!confirm('¿Eliminar el registro del ' + fmtFecha(fecha) + '?')) return;
   try {
     const restantes = (await obtenerRachaNovedades()).filter(r => r.fecha !== fecha);
@@ -15063,7 +15218,7 @@ function renderHistorialRacha(racha) {
     [...racha].reverse().map(r =>
       `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 6px 3px 10px;margin:2px 5px 2px 0;font-size:11.5px">
         ${fmtFecha(r.fecha)}${r.registradoPor ? ' · ' + esc(r.registradoPor) : ''}
-        <button onclick="eliminarFechaRacha('${r.fecha}')" title="Eliminar este registro" style="background:none;border:none;color:var(--warn);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
+        <button class="solo-admin" onclick="eliminarFechaRacha('${esc(r.fecha)}')" title="Eliminar este registro" style="background:none;border:none;color:var(--warn);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
       </span>`
     ).join('');
 }
@@ -15229,19 +15384,17 @@ async function _leerHojaGenerica(nombre) {
   });
 }
 
-/** Carga todos los informes de novedad (con sus fotos) desde la hoja de la sede activa */
-/** A diferencia de asegurarHoja(), esta SIEMPRE sobreescribe la fila 1 con los
- *  encabezados correctos — necesario porque si la hoja ya existía con una
- *  estructura vieja (de pruebas anteriores), asegurarHoja() no la corrige. */
-async function _forzarEncabezados(nombre, cols) {
-  await asegurarHoja(nombre, cols); // crea la hoja si no existe
-  const colFin = numToCol(cols.length - 1);
-  await sheetsRequest('UPDATE', nombre + '!A1:' + colFin + '1', [cols]);
-}
-
+/** Carga todos los informes de novedad (con sus fotos) desde la hoja de la
+ *  sede activa.
+ *
+ *  Antes reescribía la fila 1 de las dos hojas con NOVEDADES_COLS en cada
+ *  visita, de cualquier usuario: dos escrituras por visita y, si alguien
+ *  agregaba o movía una columna a mano, los datos quedaban debajo del
+ *  encabezado equivocado. Ahora solo se agregan los que falten (al final) y
+ *  las escrituras van por nombre de columna. */
 async function cargarNovedadesDeSheets() {
-  await _forzarEncabezados(SH.novedades, NOVEDADES_COLS);
-  await _forzarEncabezados(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
+  await asegurarHoja(SH.novedades, NOVEDADES_COLS);
+  await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
 
   const [filas, fotos] = await Promise.all([
     _leerHojaGenerica(SH.novedades),
@@ -15669,10 +15822,21 @@ async function verInformePdf(codigo) {
   }
   const win = window.open('', '_blank');
   try {
-    const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(id));
-    const data = await resp.json();
-    if (!data.ok || !data.base64) throw new Error(data.mensaje || 'no se pudo obtener el archivo');
-    const url = URL.createObjectURL(_base64ABlob(data.base64, data.mimeType || 'application/pdf'));
+    // Primero por el proxy, como las fotos; si no está, por el Apps Script.
+    let blob = null;
+    if (_fotosProxyDisponible()) {
+      try {
+        blob = await _archivoDesdeProxy(id);
+        if (!/pdf/i.test(blob.type)) blob = new Blob([blob], { type: 'application/pdf' });
+      } catch (e) { _fotosProxyFallo(); blob = null; }
+    }
+    if (!blob) {
+      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(id));
+      const data = await resp.json();
+      if (!data.ok || !data.base64) throw new Error(data.mensaje || 'no se pudo obtener el archivo');
+      blob = _base64ABlob(data.base64, data.mimeType || 'application/pdf');
+    }
+    const url = URL.createObjectURL(blob);
     if (win) win.location.href = url; else window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (e) {
@@ -15764,12 +15928,14 @@ async function guardarNovedad() {
       }
     }
 
-    await asegurarHoja(SH.novedades, NOVEDADES_COLS);
+    // Se escribe según los encabezados REALES de la hoja (asegurarHoja solo
+    // agrega los que falten, al final), no según el orden de NOVEDADES_COLS.
+    const colsHoja = await asegurarHoja(SH.novedades, NOVEDADES_COLS);
 
     // Se parte de lo que ya había (al editar un informe viejo no se borran sus
     // campos de texto) y se sobreescriben solo los que maneja este formulario.
     const fila = {};
-    NOVEDADES_COLS.forEach(c => { fila[c] = existente ? (existente[c] ?? '') : ''; });
+    colsHoja.forEach(c => { fila[c] = existente ? (existente[c] ?? '') : ''; });
     Object.assign(fila, {
       Codigo: codigo, Titulo: titulo,
       FechaEvento: fechaEvento, HoraInicio: horaInicio, HoraFin: horaFin, FechaFin: fechaFin,
@@ -15784,10 +15950,10 @@ async function guardarNovedad() {
       fila.Correo = currentUser?.email || '';
       fila.FechaRegistro = new Date().toISOString();
     }
-    const valores = NOVEDADES_COLS.map(c => fila[c] ?? '');
+    const valores = colsHoja.map(c => fila[c] ?? '');
 
     if (esEdicion) {
-      const colFin = numToCol(NOVEDADES_COLS.length - 1);
+      const colFin = numToCol(colsHoja.length - 1);
       await sheetsRequest('UPDATE', SH.novedades + '!A' + existente._row + ':' + colFin + existente._row, [valores]);
     } else {
       await appendHoja(SH.novedades, [valores]);
@@ -15844,10 +16010,12 @@ async function subirFotoNovedad(file, codigo, titulo, descripcion) {
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
 
-  await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
-  await appendHoja(SH.fotosNovedades, [[
-    codigo, '', data.driveFileId, data.urlVer, data.urlVer, titulo || '', descripcion || '', subidoPor, fecha
-  ]]);
+  const colsFotos = await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
+  const porColumna = {};
+  FOTOS_NOVEDADES_COLS.forEach((c, i) => {
+    porColumna[c] = [codigo, '', data.driveFileId, data.urlVer, data.urlVer, titulo || '', descripcion || '', subidoPor, fecha][i] ?? '';
+  });
+  await appendHoja(SH.fotosNovedades, [colsFotos.map(c => porColumna[c] ?? '')]);
 
   return { driveFileId: data.driveFileId, urlVer: data.urlVer, titulo: titulo||'', descripcion: descripcion||'', subidoPor, fecha };
 }
@@ -17561,6 +17729,9 @@ function verInventarioInvh(fechaHora) {
 }
 
 function cronMostrarSubTab(nombre) {
+  // Los llamados de atención a operarios son solo para admin (la pestaña ya
+  // está oculta para el operario; esto cubre cualquier otro camino).
+  if (nombre === 'observaciones' && !esAdmin()) nombre = 'temporal';
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
@@ -18364,7 +18535,7 @@ function renderTablaEntregasTurno() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verEntregaTurno('${esc(e.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarEntregaTurnoPDF('${esc(e.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarEntregaTurno('${esc(e.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarEntregaTurno('${esc(e.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -18385,6 +18556,7 @@ function _siguienteCodigoObservacion() {
 }
 
 async function inicializarObservacionesOperarios() {
+  if (!esAdmin()) return;
   const selOperario = document.getElementById('obs_operario');
   if (selOperario) {
     selOperario.innerHTML = '<option value="">Seleccionar operario...</option>' +
@@ -18527,6 +18699,7 @@ function renderHistorialObservaciones() {
 }
 
 async function guardarObservacionOperario() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar llamados de atención.'); return; }
   const fecha = document.getElementById('obs_fecha').value;
   const hora = document.getElementById('obs_hora').value;
   const operario = document.getElementById('obs_operario').value;
@@ -18838,7 +19011,7 @@ function renderTablaReportesCompresores() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReporteCompresor('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteCompresor('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteCompresor('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -18919,6 +19092,7 @@ async function guardarReporteCompresor() {
 }
 
 async function eliminarReporteCompresor(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte de compresor? Esta acción no se puede deshacer.')) return;
   const fila = allReportesCompresores.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -19144,7 +19318,7 @@ function renderTablaReportesSecadores() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReporteSecador('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReporteSecadorPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteSecador('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteSecador('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19258,6 +19432,7 @@ async function guardarReporteSecador() {
 }
 
 async function eliminarReporteSecador(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte de secador? Esta acción no se puede deshacer.')) return;
   const fila = allReportesSecadores.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -19450,7 +19625,7 @@ function renderTablaReportesDrycoolers() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReporteDrycooler('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19518,6 +19693,7 @@ async function guardarReporteDrycooler() {
 }
 
 async function eliminarReporteDrycooler(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte de drycooler? Esta acción no se puede deshacer.')) return;
   const fila = allReportesDrycoolers.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -19731,7 +19907,7 @@ function renderTablaReportesDecorado() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReporteDecorado('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteDecorado('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDecorado('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19806,6 +19982,7 @@ async function guardarReporteDecorado() {
 }
 
 async function eliminarReporteDecorado(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte de equipo de decorado? Esta acción no se puede deshacer.')) return;
   const fila = allReportesDecorado.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -20014,7 +20191,7 @@ function renderTablaReportesEmergencia() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReporteEmergencia('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReporteEmergenciaPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReporteEmergencia('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteEmergencia('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -20102,6 +20279,7 @@ async function guardarReporteEmergencia() {
 }
 
 async function eliminarReporteEmergencia(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte de equipo de emergencia? Esta acción no se puede deshacer.')) return;
   const fila = allReportesEmergencia.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -20280,7 +20458,7 @@ function renderTablaReportesPresionDrycooler() {
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verReportePresionDrycooler('${esc(r.Codigo)}')">${iconoVer}</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarReportePresionDrycoolerPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm" onclick="eliminarReportePresionDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReportePresionDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -20330,6 +20508,7 @@ async function guardarReportePresionDrycooler() {
 }
 
 async function eliminarReportePresionDrycooler(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
   if (!confirm('¿Eliminar este reporte? Esta acción no se puede deshacer.')) return;
   const fila = allReportesPresionDrycooler.find(r => r.Codigo === codigo);
   if (!fila) return;
@@ -20444,6 +20623,7 @@ async function guardarEntregaTurno() {
 }
 
 async function eliminarEntregaTurno(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar entregas de turno.'); return; }
   if (!confirm('¿Eliminar esta entrega de turno? Esta acción no se puede deshacer.')) return;
   const fila = allEntregasTurno.find(e => e.Codigo === codigo);
   if (!fila) return;
@@ -20838,6 +21018,7 @@ function ieActualizarVisibilidadSerial() {
  *  codificación ya existía, actualiza esa misma fila en vez de duplicarla
  *  (así uno puede corregir un dato sin crear un equipo repetido). */
 async function registrarInventarioEquipo() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar equipos.'); return; }
   const msg = document.getElementById('ieMsg');
   const codificacion = document.getElementById('ie_codificacion').value.trim();
   const equipo = document.getElementById('ie_equipo').value.trim();
@@ -20845,6 +21026,18 @@ async function registrarInventarioEquipo() {
 
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
   try {
+    // Registrar con una codificación que ya existe REEMPLAZA los datos de
+    // ese equipo (la hoja tiene una fila por codificación). Antes pasaba en
+    // silencio; ahora se pregunta, por si fue un error al digitar.
+    await asegurarHoja(SH.inventarioEquiposBase, INVENTARIO_EQUIPOS_BASE_COLS);
+    const existente = (await leerHojaGenerica(SH.inventarioEquiposBase))
+      .find(b => String(b.Codificacion || '').trim().toUpperCase() === codificacion.toUpperCase());
+    if (existente && !confirm(`Ya hay un equipo registrado con la codificación ${codificacion}: `
+        + `${existente.Equipo || ''}${existente.Ubicacion ? ' (' + existente.Ubicacion + ')' : ''}.\n\n`
+        + 'Si continúas, sus datos se reemplazan por los que acabas de escribir. ¿Reemplazar?')) {
+      msg.style.color = 'var(--text3)'; msg.textContent = 'No se guardó: la codificación ya existe.';
+      return;
+    }
     const tipo = document.getElementById('ie_tipo').value || 'operacion';
     await _actualizarFilaPorClave(SH.inventarioEquiposBase, INVENTARIO_EQUIPOS_BASE_COLS, 'Codificacion', codificacion, {
       Equipo: equipo,
@@ -20867,6 +21060,7 @@ async function registrarInventarioEquipo() {
 /** Agrega una observación de un año a un equipo YA REGISTRADO — no repite
  *  ningún dato fijo, solo referencia la codificación. */
 async function agregarObservacionEquipo() {
+  if (!esAdmin()) { alert('Solo un administrador puede agregar observaciones de equipos.'); return; }
   const msg = document.getElementById('ieObsMsg');
   const codificacion = document.getElementById('ieobs_codificacion').value;
   const anio = document.getElementById('ieobs_anio').value;
@@ -23806,7 +24000,7 @@ function proyBorrarAvance(row) {
 <!-- ════════════ AVISO SIN CONEXIÓN ════════════ -->
 <div id="avisoOffline" role="status" aria-live="polite">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
-  Sin conexión — los cambios se guardan y se sincronizan solos al volver la señal.
+  Sin conexión — las órdenes nuevas quedan guardadas y se suben solas al volver la señal. Reportes, cierres e inventario necesitan conexión.
 </div>
 
 <nav id="bottomNav" aria-label="Navegación rápida">
