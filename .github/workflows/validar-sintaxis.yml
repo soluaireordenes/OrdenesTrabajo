@@ -1,7 +1,12 @@
 name: Validar sintaxis
 
+# Corre en cada pull request y en cada cambio que llega a main. Las pruebas no
+# tocan datos reales: Google, el proxy y el Apps Script van simulados (ver
+# pruebas/README.md).
 on:
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 jobs:
@@ -14,17 +19,31 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Validar sintaxis de los bloques <script> en index.html
+      - name: Sintaxis de index.html y sw.js
+        run: node pruebas/sintaxis.js
+
+      - name: Pruebas del proxy de seguridad
+        run: node pruebas/worker.test.mjs
+
+      - name: Pruebas del intermediario de WhatsApp
+        run: node pruebas/whatsapp-worker.test.mjs
+
+  app:
+    # La app en un navegador real (Chromium). Tarda un par de minutos: una de
+    # las pruebas espera ~45 s a propósito (informe con el servidor colgado).
+    runs-on: ubuntu-latest
+    needs: validar
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Playwright y Chromium
         run: |
-          node -e "
-          const fs = require('fs');
-          const html = fs.readFileSync('index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-          if (!scripts.length) { console.log('No se encontraron bloques <script>.'); process.exit(1); }
-          let hayError = false;
-          scripts.forEach((s, i) => {
-            try { new Function(s); console.log('Script ' + i + ': OK'); }
-            catch (e) { console.log('Script ' + i + ': ERROR - ' + e.message); hayError = true; }
-          });
-          if (hayError) process.exit(1);
-          "
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Pruebas de la app
+        run: node pruebas/app.test.js
