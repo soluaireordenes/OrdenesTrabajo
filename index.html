@@ -35,6 +35,7 @@
   --accent:      #018ABE;   /* bondi blue — antes naranja, ahora acento azul vivo */
   --accent2:     #2f9e52;   /* aprobado — verde pastel (se conserva: es color de estado) */
   --warn:        #d9663f;   /* rechazado — más terroso que rojo puro (se conserva: es color de estado) */
+  --danger:      #c62828;   /* errores y botones de borrar — se usaba en toda la app sin estar definido */
   --pending:     #8a8785;
   --surface:     #ffffff;
   /* Gris muy suave para franjas alternas de tablas, encabezados de tabla
@@ -70,6 +71,7 @@
   --accent:      #3aa9d8;
   --accent2:     #43b96a;
   --warn:        #e0794f;
+  --danger:      #ef6b61;
   --pending:     #8a8785;
   --surface:     #1b212a;
   --surface2:    #232b36;
@@ -2335,6 +2337,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <button class="inv-subtab" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
       <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
       <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
+      <button class="inv-subtab solo-admin" id="cronTabEncargados" data-crontab="encargados" onclick="cronMostrarSubTab('encargados')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Encargados de turno</button>
     </div>
 
     <!-- Pestaña "Actividades Temporales": el checklist de trabajo real vive
@@ -3094,6 +3097,37 @@ body.rol-operario .solo-admin { display: none !important; }
         </div>
       </div>
     </div><!-- /cronSub-herramienta -->
+
+    <!-- Encargados de turno (solo admin): a quién le escribe el bot de
+         WhatsApp al empezar cada turno con sus actividades del día. La
+         misma lista (hoja Operarios) dice quién puede consultarle al bot. -->
+    <div id="cronSub-encargados" class="inv-subpanel solo-admin">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">Agregar encargado</div>
+        <div class="card-body" style="padding:16px 18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">
+            <div class="field" style="margin:0"><label>Nombre *</label><input type="text" id="enc_nombre" placeholder="Nombre y apellido"></div>
+            <div class="field" style="margin:0"><label>WhatsApp *</label><input type="tel" id="enc_numero" inputmode="tel" placeholder="3001234567"></div>
+            <div class="field" style="margin:0"><label>Turno</label><select id="enc_turno"></select></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="enc_btnAgregar" onclick="encargadoAgregarClick()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Agregar</button>
+            <div id="enc_msg" style="font-size:12.5px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-head">Encargados registrados</div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="enc_lista"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.5">
+        Al empezar cada turno, el bot le escribe a los encargados de ese turno que tengan el recordatorio activo, con las actividades programadas para ese día.
+        Cuando roten de turno, cambia aquí el turno de cada uno. Solo los números de esta lista pueden consultarle al bot.
+      </div>
+    </div><!-- /cronSub-encargados -->
   </div>
 
   <!-- ════════════ PANEL: DETALLE ════════════ -->
@@ -4396,31 +4430,96 @@ async function publicarCatalogoVariablesSiCambio() {
     return '';
   }));
 
-  // Se ESCRIBE SOBRE las celdas exactas en vez de borrar y luego agregar.
-  //
-  // Con borrar+agregar había una carrera: el día que se despliega un cambio
-  // de formulario, si dos operarios abren la app casi a la vez, los dos ven
-  // la huella distinta, los dos borran y los dos agregan — y la hoja queda
-  // con las 490 filas repetidas. El bot entonces listaba cada variable dos
-  // veces, y no se arreglaba solo porque la huella ya coincidía.
-  //
-  // Escribiendo un rango fijo el problema desaparece sin necesidad de
-  // candados: los dos escriben lo mismo en las mismas celdas, así que da
-  // igual quién llegue de último. El resultado es idéntico.
-  const ultimaCol = numToCol(colsReales.length - 1);
-  await sheetsRequest('UPDATE',
-    SH.camposReportes + '!A2:' + ultimaCol + (filas.length + 1), filas);
+  await _sobrescribirHojaPublicada(SH.camposReportes, colsReales, filas, yaGuardado.length);
+  return true;
+}
 
-  // Y si el catálogo anterior era más largo (o había quedado duplicado de
-  // antes), se limpia lo que sobra debajo. Borrar filas que ya no
-  // corresponden se puede repetir sin consecuencia.
-  if (yaGuardado.length > filas.length) {
+/** Deja en la hoja exactamente estas filas (debajo del encabezado).
+ *
+ *  Se ESCRIBE SOBRE las celdas exactas en vez de borrar y luego agregar.
+ *  Con borrar+agregar había una carrera: el día que se despliega un cambio
+ *  de formulario, si dos operarios abren la app casi a la vez, los dos ven
+ *  la huella distinta, los dos borran y los dos agregan — y la hoja queda
+ *  con las 490 filas repetidas. El bot entonces listaba cada variable dos
+ *  veces, y no se arreglaba solo porque la huella ya coincidía.
+ *
+ *  Escribiendo un rango fijo el problema desaparece sin necesidad de
+ *  candados: los dos escriben lo mismo en las mismas celdas, así que da
+ *  igual quién llegue de último. El resultado es idéntico. */
+async function _sobrescribirHojaPublicada(hoja, colsReales, filas, filasQueHabia) {
+  const ultimaCol = numToCol(colsReales.length - 1);
+  await sheetsRequest('UPDATE', hoja + '!A2:' + ultimaCol + (filas.length + 1), filas);
+
+  // Y si lo anterior era más largo (o había quedado duplicado de antes), se
+  // limpia lo que sobra debajo. Borrar filas que ya no corresponden se puede
+  // repetir sin consecuencia.
+  if (filasQueHabia > filas.length) {
     const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
     await fetch(base + '/values/'
-      + encodeURIComponent(SH.camposReportes + '!A' + (filas.length + 2) + ':ZZ') + ':clear',
+      + encodeURIComponent(hoja + '!A' + (filas.length + 2) + ':ZZ') + ':clear',
       { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' } });
   }
-  _invalidarCacheHoja(SH.camposReportes);
+  _invalidarCacheHoja(hoja);
+}
+
+/* ── Cronograma para el bot de WhatsApp ──
+   Al empezar cada turno el bot le escribe al encargado con lo que tiene
+   programado. Esas actividades se definen aquí (CRONOGRAMA_POR_SEDE), así
+   que se publican en la hoja CronogramaPlan igual que el catálogo de
+   variables: una fila por turno, día y actividad, en el mismo orden del
+   checklist (el reporte de datos de cada hora y luego sus actividades).
+   Si cambia el cronograma, o se pasa del temporal al normal, cambia la
+   huella y se vuelve a publicar solo la próxima vez que alguien abra la app. */
+function _planCronogramaParaBot() {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  if (!cfg) return [];
+  const filas = [];
+  cfg.turnos.forEach(turno => {
+    DIAS_SEMANA_ORDEN.forEach(dia => {
+      let orden = 0;
+      turno.checkpoints.forEach(cp => {
+        const bloques = cp.bloques.filter(b => (b.actividad[dia] || '').trim());
+        if (!bloques.length) return;
+        const base = { turnoId: turno.id, turnoNombre: turno.nombre, horaInicio: turno.horaInicio,
+                       horaFin: turno.horaFin, dia, hora: cp.hora };
+        filas.push({ ...base, orden: ++orden, actividadId: _idReporteCheckpoint(turno.id, cp.hora),
+                     actividad: 'Reporte de datos de equipos ' + cp.hora });
+        bloques.forEach(b => filas.push({ ...base, orden: ++orden, actividadId: b.id,
+                                         actividad: b.actividad[dia].trim() }));
+      });
+    });
+  });
+  return filas;
+}
+
+function _huellaPlanCronograma(filas) {
+  let h = 0;
+  const texto = filas.map(f => [f.turnoId, f.turnoNombre, f.horaInicio, f.horaFin, f.dia,
+                                f.orden, f.hora, f.actividadId, f.actividad].join('|')).join('\n');
+  for (let i = 0; i < texto.length; i++) { h = ((h << 5) - h + texto.charCodeAt(i)) | 0; }
+  return filas.length + '-' + (h >>> 0).toString(36);
+}
+
+/** Publica el plan si la hoja está vacía o quedó vieja. Devuelve true si
+ *  tuvo que escribir. */
+async function publicarCronogramaBotSiCambio() {
+  const plan = _planCronogramaParaBot();
+  if (!plan.length) return false;
+  const huella = _huellaPlanCronograma(plan);
+
+  const colsReales = await asegurarHoja(SH.cronogramaPlan, CRONOGRAMA_PLAN_COLS);
+  const yaGuardado = await leerHojaGenericaCacheada(SH.cronogramaPlan);
+  if (yaGuardado.length === plan.length
+      && String(yaGuardado[0].Huella || '') === huella) return false;
+
+  const valores = { TurnoId: 'turnoId', TurnoNombre: 'turnoNombre', HoraInicio: 'horaInicio',
+                    HoraFin: 'horaFin', Dia: 'dia', Orden: 'orden', Hora: 'hora',
+                    ActividadId: 'actividadId', Actividad: 'actividad' };
+  const filas = plan.map(f => colsReales.map(col => {
+    if (col === 'Huella') return huella;
+    return valores[col] ? f[valores[col]] : '';
+  }));
+  await _sobrescribirHojaPublicada(SH.cronogramaPlan, colsReales, filas, yaGuardado.length);
   return true;
 }
 
@@ -6021,20 +6120,28 @@ window.addEventListener('load', async () => {
       if (GENERAR_ORDENES_INFORMES_POR_HORAS) {
         // Las hojas que van a leer los tres informes se traen de una vez:
         // asi la revision completa cuesta 1 lectura en vez de 5.
+        const conCronograma = !!CRONOGRAMA_POR_SEDE[operacionActual];
         _precargarHojasEnCache(
-          [SH.horasEquipos, SH.informeTrimestralEstado, SH.informeSemestralEstado, SH.informeAnualEstado, SH.informeActividades, SH.camposReportes],
+          [SH.horasEquipos, SH.informeTrimestralEstado, SH.informeSemestralEstado, SH.informeAnualEstado, SH.informeActividades, SH.camposReportes,
+           ...(conCronograma ? [SH.cronogramaPlan] : [])],
           { [SH.horasEquipos]: HORAS_EQUIPOS_COLS,
             [SH.informeTrimestralEstado]: INFORME_TRIMESTRAL_ESTADO_COLS,
             [SH.informeSemestralEstado]: INFORME_SEMESTRAL_ESTADO_COLS,
             [SH.informeAnualEstado]: INFORME_ANUAL_ESTADO_COLS,
             [SH.informeActividades]: INFORME_ACTIVIDADES_COLS,
-            [SH.camposReportes]: CAMPOS_REPORTES_COLS }
+            [SH.camposReportes]: CAMPOS_REPORTES_COLS,
+            [SH.cronogramaPlan]: CRONOGRAMA_PLAN_COLS }
         ).finally(async () => {
-          // El catálogo de variables para el bot viaja en ese mismo
-          // batchGet, así que comprobar si quedó viejo no cuesta ninguna
-          // lectura. Solo escribe cuando de verdad cambió un formulario.
+          // El catálogo de variables y el cronograma para el bot viajan en
+          // ese mismo batchGet, así que comprobar si quedaron viejos no
+          // cuesta ninguna lectura. Solo escriben cuando de verdad cambió un
+          // formulario o el cronograma.
           publicarCatalogoVariablesSiCambio()
             .catch(e => console.warn('Catálogo de variables:', e.message));
+          if (conCronograma) {
+            publicarCronogramaBotSiCambio()
+              .catch(e => console.warn('Cronograma para el bot:', e.message));
+          }
 
           // Si ninguna hora ni hora base cambió desde la última revisión
           // completa, no hay nada que generar y las tres revisiones se
@@ -8902,6 +9009,7 @@ const SH = {
   reporteSecadores: 'ReporteSecadores',
   informeActividades: 'InformeActividades',
   camposReportes: 'CamposReportes',
+  cronogramaPlan: 'CronogramaPlan',
   reporteDrycoolers: 'ReporteDrycoolers',
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
@@ -8923,6 +9031,15 @@ const RACHA_NOVEDADES_COLS = ['Fecha', 'RegistradoPor'];
    primer cambio — de hecho hoy mismo se le agregaron campos al formulario
    de baja. Publicándolo, la definición sigue viviendo en un solo lugar. */
 const CAMPOS_REPORTES_COLS = ['Hoja', 'ColumnaEquipo', 'Equipo', 'CodigoCorto', 'Orden', 'Grupo', 'Columna', 'Etiqueta', 'RangoNormal', 'Huella'];
+/* Lo que el cronograma tiene programado para cada turno y día de la semana,
+   publicado para el bot de WhatsApp, que se lo recuerda al encargado al
+   empezar el turno. Mismo caso que el catálogo de arriba: el cronograma vive
+   en CRONOGRAMA_POR_SEDE y el bot solo lee esta copia. No se edita a mano. */
+const CRONOGRAMA_PLAN_COLS = ['TurnoId', 'TurnoNombre', 'HoraInicio', 'HoraFin', 'Dia', 'Orden', 'Hora', 'ActividadId', 'Actividad', 'Huella'];
+/* Encargados de turno: a quién le escribe el bot al empezar cada turno
+   (Turno + Activo = SI). La misma lista dice quién puede consultarle al bot.
+   Turno guarda el id del turno del cronograma (turno1, turno2…). */
+const OPERARIOS_COLS = ['ID', 'Nombre', 'Numero', 'Turno', 'Activo'];
 
 const CRONOGRAMA_REGISTROS_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Realizado', 'RealizadoPor', 'FechaHora', 'HoraRealizada', 'Observacion', 'OperariosRealizaron', 'ActividadTexto', 'CondicionInsegura'];
 
@@ -17560,6 +17677,163 @@ function verInventarioInvh(fechaHora) {
   document.body.appendChild(ov);
 }
 
+/* ── Encargados de turno (recordatorios del bot de WhatsApp) ──
+   Lista simple que lleva un admin: nombre, WhatsApp, turno y si recibe el
+   recordatorio. El bot (whatsapp-agente/Recordatorios.gs) lee la hoja
+   Operarios y, al empezar cada turno, le escribe a los que tengan ese turno
+   y Activo = SI. Como los turnos rotan, el turno se cambia desde la tabla. */
+let _encargadosTurno = [];
+
+/** La hoja trae a veces el turno viejo de la sección anterior (Mañana /
+ *  Tarde / Noche) o el nombre ("Turno 1"); se traduce al id del cronograma
+ *  para que la tabla y el bot hablen de lo mismo. */
+function _turnoIdDeEncargado(valor) {
+  const t = String(valor || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (!t) return '';
+  const viejo = { manana: 'turno1', tarde: 'turno2', noche: 'turno3' }[t];
+  if (viejo) return viejo;
+  const m = t.match(/^turno\s*(\d+)$/);
+  return m ? 'turno' + m[1] : t;
+}
+
+/** El número como lo necesita WhatsApp para escribirle primero: solo
+ *  dígitos y con indicativo. Un celular colombiano de 10 dígitos lleva 57
+ *  delante. Devuelve '' si no parece un número. */
+function _numeroWhatsAppEncargado(texto) {
+  let d = String(texto || '').replace(/\D/g, '');
+  if (d.length === 10 && d.startsWith('3')) d = '57' + d;
+  return d.length >= 11 && d.length <= 15 ? d : '';
+}
+
+function _opcionesTurnoEncargado(turnoActual) {
+  const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
+  const turnos = cfg ? cfg.turnos : [];
+  const actual = _turnoIdDeEncargado(turnoActual);
+  const opciones = [{ id: '', texto: 'Sin turno' }]
+    .concat(turnos.map(t => ({ id: t.id, texto: `${t.nombre} (${t.horaInicio} – ${t.horaFin})` })));
+  if (actual && !opciones.some(o => o.id === actual)) opciones.push({ id: actual, texto: turnoActual });
+  return opciones.map(o => `<option value="${esc(o.id)}" ${o.id === actual ? 'selected' : ''}>${esc(o.texto)}</option>`).join('');
+}
+
+function _avisoEncargados(tipo, texto) {
+  const msg = document.getElementById('enc_msg');
+  if (!msg) return;
+  msg.style.color = tipo === 'error' ? 'var(--danger)' : tipo === 'ok' ? '#15803d' : 'var(--text3)';
+  msg.textContent = texto;
+}
+
+async function inicializarEncargadosTurno() {
+  if (!esAdmin()) return;
+  const sel = document.getElementById('enc_turno');
+  if (sel) sel.innerHTML = _opcionesTurnoEncargado('');
+  await renderEncargadosTurno();
+}
+
+async function renderEncargadosTurno() {
+  const cont = document.getElementById('enc_lista');
+  if (!cont) return;
+  cont.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px">Cargando…</div>';
+  try {
+    await asegurarHoja(SH.operarios, OPERARIOS_COLS);
+    _encargadosTurno = await leerHojaGenerica(SH.operarios);
+  } catch (e) {
+    cont.innerHTML = `<div style="padding:14px 16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+    return;
+  }
+  if (!_encargadosTurno.length) {
+    cont.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px">Todavía no hay encargados registrados.</div>';
+    return;
+  }
+  cont.innerHTML = `<table class="ie-table" style="min-width:0"><thead><tr><th>Nombre</th><th>WhatsApp</th><th>Turno</th><th>Recordatorio</th><th></th></tr></thead><tbody>` +
+    _encargadosTurno.map((o, i) => {
+      const activo = String(o.Activo || '').trim().toUpperCase() === 'SI';
+      const sinIndicativo = o.Numero && !_numeroWhatsAppEncargado(o.Numero);
+      return `<tr>
+        <td><strong>${esc(o.Nombre)}</strong></td>
+        <td>${esc(o.Numero)}${sinIndicativo ? '<div style="font-size:11.5px;color:var(--danger)">Revisa el número: así no le llegan los mensajes</div>' : ''}</td>
+        <td><select onchange="encargadoCambiarTurnoClick(${i}, this.value)" style="padding:4px 8px;font-size:12.5px">${_opcionesTurnoEncargado(o.Turno)}</select></td>
+        <td><div style="display:flex;align-items:center;gap:8px">
+          <label class="toggle-switch">
+            <input type="checkbox" ${activo ? 'checked' : ''} onchange="encargadoCambiarActivoClick(${i}, this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:12px;color:${activo ? '#15803d' : 'var(--text3)'};font-weight:600">${activo ? 'Activo' : 'Apagado'}</span>
+        </div></td>
+        <td><button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="encargadoEliminarClick(${i})">Eliminar</button></td>
+      </tr>`;
+    }).join('') + `</tbody></table>`;
+}
+
+/** Las filas que vienen de la sección anterior pueden no tener ID; en ese
+ *  caso se ubican por el número, que también es único. */
+function _claveEncargado(o) {
+  return o.ID ? { col: 'ID', valor: o.ID } : { col: 'Numero', valor: o.Numero };
+}
+
+async function encargadoAgregarClick() {
+  const nombre = document.getElementById('enc_nombre').value.trim();
+  const numeroEscrito = document.getElementById('enc_numero').value.trim();
+  const turno = document.getElementById('enc_turno').value;
+  if (!nombre || !numeroEscrito) { _avisoEncargados('error', 'Nombre y WhatsApp son obligatorios.'); return; }
+  const numero = _numeroWhatsAppEncargado(numeroEscrito);
+  if (!numero) {
+    _avisoEncargados('error', 'Ese WhatsApp no parece un número válido. Escribe el celular de 10 dígitos, o con indicativo si es de otro país.');
+    return;
+  }
+  const repetido = _encargadosTurno.find(o => String(o.Numero || '').replace(/\D/g, '').slice(-10) === numero.slice(-10));
+  if (repetido) { _avisoEncargados('error', `Ese número ya está registrado a nombre de ${repetido.Nombre}.`); return; }
+
+  const btn = document.getElementById('enc_btnAgregar');
+  btn.disabled = true;
+  _avisoEncargados('info', 'Guardando…');
+  try {
+    const cols = await asegurarHoja(SH.operarios, OPERARIOS_COLS);
+    const datos = { ID: 'OP-' + Date.now(), Nombre: nombre, Numero: numero, Turno: turno, Activo: 'SI' };
+    await appendHoja(SH.operarios, [cols.map(c => datos[c] || '')]);
+    document.getElementById('enc_nombre').value = '';
+    document.getElementById('enc_numero').value = '';
+    _avisoEncargados('ok', 'Encargado agregado.');
+    await renderEncargadosTurno();
+  } catch (e) {
+    _avisoEncargados('error', 'No se pudo guardar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function _actualizarEncargado(i, cambios, queFalla) {
+  const o = _encargadosTurno[i];
+  if (!o) return;
+  const { col, valor } = _claveEncargado(o);
+  try {
+    await _actualizarFilaPorClave(SH.operarios, OPERARIOS_COLS, col, valor, cambios);
+  } catch (e) {
+    alert('No se pudo ' + queFalla + ': ' + e.message);
+  }
+  await renderEncargadosTurno();
+}
+
+function encargadoCambiarTurnoClick(i, turno) {
+  return _actualizarEncargado(i, { Turno: turno }, 'cambiar el turno');
+}
+
+function encargadoCambiarActivoClick(i, activo) {
+  return _actualizarEncargado(i, { Activo: activo ? 'SI' : 'NO' }, 'cambiar el recordatorio');
+}
+
+async function encargadoEliminarClick(i) {
+  const o = _encargadosTurno[i];
+  if (!o) return;
+  if (!confirm(`¿Eliminar a ${o.Nombre}? Dejará de recibir recordatorios y no podrá consultarle al bot.`)) return;
+  const { col, valor } = _claveEncargado(o);
+  try {
+    await eliminarFilasDondeCumple(SH.operarios, f => f[col] === valor);
+  } catch (e) {
+    alert('No se pudo eliminar: ' + e.message);
+  }
+  await renderEncargadosTurno();
+}
+
 function cronMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
@@ -17569,6 +17843,7 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'observaciones') inicializarObservacionesOperarios();
   if (nombre === 'condiciones') inicializarCondicionesInseguras();
   if (nombre === 'herramienta') inicializarInventarioHerramienta();
+  if (nombre === 'encargados') inicializarEncargadosTurno();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'secadores') inicializarReporteSecadores();
@@ -17728,6 +18003,10 @@ async function inicializarPanelCronograma() {
   if (tabDecorado) tabDecorado.style.display = mostrarEntrega ? '' : 'none';
   if (tabEmergencia) tabEmergencia.style.display = mostrarEntrega ? '' : 'none';
   if (tabPresionDrycooler) tabPresionDrycooler.style.display = mostrarEntrega ? '' : 'none';
+  // El bot de WhatsApp está conectado a la hoja de Zipaquirá, así que sus
+  // encargados también se administran solo desde esa sede.
+  const tabEncargados = document.getElementById('cronTabEncargados');
+  if (tabEncargados) tabEncargados.style.display = mostrarEntrega ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();

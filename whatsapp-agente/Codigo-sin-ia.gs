@@ -56,7 +56,10 @@
    6. Escríbele al número desde un celular que esté registrado como
       operario en el sistema. Si responde "Este número no está registrado",
       el bot funciona: solo falta agregar ese celular en la aplicación,
-      en Encargados Turnos → Operarios.
+      en Reportes → Encargados de turno (solo admin).
+
+   Los recordatorios al empezar cada turno van en otro archivo del mismo
+   proyecto: Recordatorios.gs (allí están sus pasos de instalación).
 
    Antes de conectar nada, corre desde el editor las funciones de prueba
    del final: probarLectura, probarOperario y probarRespuestas.
@@ -112,13 +115,22 @@ function doPost(e) {
 }
 
 /** Saca el mensaje de texto del sobre que manda Meta, que viene bastante
- *  anidado y trae también avisos de "entregado"/"leído" que no interesan. */
+ *  anidado y trae también avisos de "entregado"/"leído" que no interesan.
+ *
+ *  Tocar el botón "Ver actividades" de la plantilla de recordatorio llega
+ *  como tipo "button" (y un botón de mensaje interactivo como
+ *  "interactive"); se toma su texto como si lo hubieran escrito. */
 function _extraerMensaje(cuerpo) {
   try {
     const valor = cuerpo.entry[0].changes[0].value;
     const m = valor.messages && valor.messages[0];
-    if (!m || m.type !== 'text') return null;
-    return { id: m.id, de: m.from, texto: (m.text.body || '').trim() };
+    if (!m) return null;
+    let texto = null;
+    if (m.type === 'text') texto = m.text.body;
+    else if (m.type === 'button' && m.button) texto = m.button.text;
+    else if (m.type === 'interactive' && m.interactive && m.interactive.button_reply) texto = m.interactive.button_reply.title;
+    if (texto === null) return null;
+    return { id: m.id, de: m.from, texto: String(texto || '').trim() };
   } catch (_) {
     return null;
   }
@@ -131,8 +143,8 @@ function _extraerMensaje(cuerpo) {
 
 /** Solo responde a números registrados como operarios en el sistema. Sin
  *  esto, cualquiera que dé con el número podría consultar el inventario de
- *  la empresa. Dar y quitar acceso es agregar o borrar al operario en
- *  Encargados Turnos → Operarios; aquí no hay nada que tocar.
+ *  la empresa. Dar y quitar acceso es agregar o borrar al encargado en la
+ *  aplicación (Reportes → Encargados de turno); aquí no hay nada que tocar.
  *
  *  Devuelve el nombre del operario, o null si el número no está. */
 function _operarioDe(numero) {
@@ -632,6 +644,11 @@ function _interpretar(texto) {
   const movs = t.match(/^(movimientos|movimiento|historial|ultimos)\s+(.+)$/);
   if (movs) return { comando: 'movimientos', texto: movs[2] };
 
+  // "Ver actividades" es el texto del botón de la plantilla de recordatorio.
+  if (/^(actividades|actividad|mis actividades|ver actividades|tareas|mis tareas|cronograma)$/.test(t)) {
+    return { comando: 'actividades' };
+  }
+
   // "ordenes" y "proximo" funcionan con equipo ("ordenes CB1") o sin él,
   // en cuyo caso responden por todos los equipos.
   const ord = t.match(/^(ordenes|orden|pendientes|ots?)(?:\s+(?:de\s+)?(.+))?$/);
@@ -663,9 +680,10 @@ function _interpretar(texto) {
    lo que va entre asteriscos, y eso es todo el formato que admite.
 ══════════════════════════════════════════════ */
 
-function _responder(operario, texto) {
+function _responder(operario, texto, numero) {
   const orden = _interpretar(texto);
   if (orden.comando === 'ayuda')       return _textoAyuda(operario);
+  if (orden.comando === 'actividades') return _textoActividades(numero);
   if (orden.comando === 'minimos')     return _textoMinimos();
   if (orden.comando === 'movimientos') return _textoMovimientos(orden.texto);
   if (orden.comando === 'ordenes')     return _textoOrdenes(orden.texto);
@@ -693,6 +711,7 @@ function _textoAyuda(operario) {
     + '   Ejemplo: lectura CB1\n\n'
     + '• *resumen* seguido del día — qué se hizo y qué faltó en cada turno.\n'
     + '   Ejemplo: resumen ayer\n\n'
+    + '• *actividades* — lo programado en tu turno y lo que ya está marcado.\n\n'
     + '*ordenes* y *proximo* funcionan también sin equipo, y te respondo por todos.\n\n'
     + 'Solo consulto. Para registrar cosas, usa el sistema.';
 }
@@ -946,6 +965,14 @@ function _textoResumen(texto) {
   return msg;
 }
 
+/** La lista la arma Recordatorios.gs, que es quien conoce el cronograma. */
+function _textoActividades(numero) {
+  if (typeof rec_textoActividades !== 'function') {
+    return 'Esta consulta todavía no está instalada en el bot (falta el archivo Recordatorios.gs).';
+  }
+  return rec_textoActividades(numero);
+}
+
 function _textoMinimos() {
   const criticos = _bajoMinimo();
   if (!criticos.length) return 'Todo el inventario está por encima del mínimo. Nada por reponer.';
@@ -1026,9 +1053,13 @@ function _atender(numero, texto) {
     return;
   }
 
+  // Para los recordatorios de turno: WhatsApp deja mandarle texto libre a
+  // quien escribió en las últimas 24 h (ver Recordatorios.gs).
+  if (typeof rec_registrarMensajeEntrante === 'function') rec_registrarMensajeEntrante(numero);
+
   let respuesta;
   try {
-    respuesta = _responder(operario, texto);
+    respuesta = _responder(operario, texto, numero);
   } catch (err) {
     console.error('_atender:', err);
     respuesta = 'Tuve un problema consultando el inventario. Vuelve a intentarlo en un momento.';
