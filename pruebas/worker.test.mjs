@@ -3,9 +3,10 @@
 //
 // Cargan el Worker real con Google SIMULADO (no se conecta a nada) y revisan:
 // login y bloqueo por intentos, pases de sesión, cupo por persona (quotaUser),
-// permisos por rol (Proyectos, Usuarios, Config, pestañas de personal), que
+// permisos por rol (lista blanca del operario: Proyectos, Usuarios, Config,
+// pestañas de personal, escrituras en lote, edición estructural), que
 // desactivar o cambiar el rol en la hoja aplique sin esperar a que venza el
-// pase, ruta /foto y que /diag ya no exista. Se usa una llave RSA falsa
+// pase, la clave de sede (/sede), ruta /foto y que /diag ya no exista. Se usa una llave RSA falsa
 // generada en el momento.
 //
 // Cómo correrlas:  node pruebas/worker.test.mjs   (Node 18 o más reciente)
@@ -43,6 +44,11 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes('oauth2.googleapis.com')) return new Response(JSON.stringify({ access_token: 'TOKEN_SA', expires_in: 3600 }));
   if (url.includes('HOJAUSUARIOS') && !(init.method && init.method !== 'GET')) return new Response(JSON.stringify({ values: hojaUsuarios }));
   llamadas.push({ url, init });
+  // Nombres de pestañas (para revisar qué filas se borran)
+  if (url.includes('fields=') && url.includes('sheetId')) return new Response(JSON.stringify({ sheets: [
+    { properties: { sheetId: 0, title: 'Config' } }, { properties: { sheetId: 7, title: 'Ordenes' } }, { properties: { sheetId: 9, title: 'Operarios' } }] }));
+  // Hash de la clave de sede en Config!A1 (la clave es "clave-sede")
+  if (url.includes('HOJASEDE') && decodeURIComponent(url).includes('Config!A1:A1')) return new Response(JSON.stringify({ values: [[h('clave-sede').toLowerCase()]] }));
   if (url.includes('/drive/v3/files/')) {
     if (url.includes('NOEXISTEXXXXXX')) return new Response('{}', { status: 404 });
     return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
@@ -77,7 +83,7 @@ const u = llamadas.map(l => new URL(l.url));
 check('quotaUser por persona en cada petición', u.length === 2 && u.every(x => x.searchParams.get('quotaUser') === 'u-111') && llamadas[1].init.body === '{"values":[["x"]]}');
 check('Usa el token de la cuenta de servicio', llamadas.every(l => l.init.headers.Authorization === 'Bearer TOKEN_SA'));
 
-const st = async (s, hoja, metodo = 'GET', rango = 'A1') => (await req(`/sheets/v4/spreadsheets/${hoja}/values/${encodeURIComponent(rango)}${metodo === 'POST' ? ':append' : ''}`,
+const st = async (s, hoja, metodo = 'GET', rango = 'Ordenes!A1') => (await req(`/sheets/v4/spreadsheets/${hoja}/values/${encodeURIComponent(rango)}${metodo === 'POST' ? ':append' : ''}`,
   { method: metodo, headers: { ...H(s), 'Content-Type': 'application/json' }, body: metodo === 'POST' ? '{}' : undefined })).status;
 check('Operario NO puede leer Proyectos (403)', (await st(op.session, PROY)) === 403);
 check('Operario NO puede escribir Proyectos (403)', (await st(op.session, PROY, 'POST')) === 403);
@@ -85,6 +91,46 @@ check('Admin SÍ lee Proyectos', (await st(ad.session, PROY)) === 200);
 check('Operario NO escribe en Usuarios (403)', (await st(op.session, 'HOJAUSUARIOS', 'POST')) === 403);
 check('Operario NO escribe en Config! (403)', (await st(op.session, 'HOJASEDE', 'POST', 'Config!A1')) === 403);
 check('Operario SÍ lee/escribe hojas de su sede', (await st(op.session, 'HOJASEDE')) === 200 && (await st(op.session, 'HOJASEDE', 'POST', 'Ordenes!A1')) === 200);
+
+// Lista blanca del operario
+const pedir = (s, ruta, metodo = 'GET', cuerpo) => req('/sheets/v4/spreadsheets/HOJASEDE' + ruta,
+  { method: metodo, headers: { ...H(s), 'Content-Type': 'application/json' }, body: cuerpo }).then(x => x.status);
+const enc = encodeURIComponent;
+check('Operario NO lee la hoja de Usuarios (403)', (await st(op.session, 'HOJAUSUARIOS')) === 403);
+check('Operario NO lee la clave de sede en Config!A1 (403)', (await pedir(op.session, '/values/' + enc('Config!A1:A1'))) === 403);
+check("Operario NO escribe 'Config'!A1 con comillas (403)", (await pedir(op.session, '/values/' + enc("'Config'!A1") + '?valueInputOption=RAW', 'PUT', '{"values":[["x"]]}')) === 403);
+check('Operario SÍ lee y escribe el candado Config!B1', (await pedir(op.session, '/values/' + enc('Config!B1:B1'))) === 200
+  && (await pedir(op.session, '/values/' + enc('Config!B1') + '?valueInputOption=RAW', 'PUT', '{"values":[["t:1"]]}')) === 200);
+check('Escritura en lote: se revisa cada rango del cuerpo (Config!A1 → 403) y no hay borrado en lote', (await pedir(op.session, '/values:batchUpdate', 'POST',
+  JSON.stringify({ data: [{ range: 'HorasEquipos!A3:F3', values: [['x']] }, { range: 'Config!A1', values: [['x']] }] }))) === 403
+  && (await pedir(op.session, '/values:batchClear', 'POST', '{"ranges":["Config!A1"]}')) === 403);
+check('Operario SÍ escribe filas sueltas en lote (horas, estado de informes)', (await pedir(op.session, '/values:batchUpdate', 'POST',
+  JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'HorasEquipos!A3:F3', values: [['x']] }, { range: "'InformeTrimestralEstado'!A2:C2", values: [['y']] }] }))) === 200);
+check('Operario NO borra pestañas enteras (403)', (await pedir(op.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ deleteSheet: { sheetId: 7 } }] }))) === 403);
+const borrarFilas = (sheetId, desde) => JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: desde, endIndex: desde + 1 } } }] });
+check('Operario SÍ borra filas de datos de Ordenes (editar una orden)', (await pedir(op.session, ':batchUpdate', 'POST', borrarFilas(7, 4))) === 200);
+check('Operario NO borra la fila de encabezados ni filas de Config/Operarios (403)', (await pedir(op.session, ':batchUpdate', 'POST', borrarFilas(7, 0))) === 403
+  && (await pedir(op.session, ':batchUpdate', 'POST', borrarFilas(0, 1))) === 403 && (await pedir(op.session, ':batchUpdate', 'POST', borrarFilas(9, 1))) === 403);
+check('Operario SÍ agrega una pestaña nueva, pero no una llamada Config (403)', (await pedir(op.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Tareas' } } }] }))) === 200
+  && (await pedir(op.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ addSheet: { properties: { title: 'config' } } }] }))) === 403);
+check('Operario NO usa rangos sin nombre de pestaña (403); admin sí', (await pedir(op.session, '/values/' + enc('A1:C3'))) === 403 && (await pedir(ad.session, '/values/' + enc('A1:C3'))) === 200);
+check('Operario SÍ lee metadatos, rango con espacios y lectura en lote normal', (await pedir(op.session, '?fields=sheets.properties')) === 200
+  && (await pedir(op.session, '/values/' + enc("'Entrega Turno'!A:ZZ"))) === 200
+  && (await pedir(op.session, '/values:batchGet?ranges=' + enc('Ordenes!A:Z') + '&ranges=' + enc('Tareas!A:H'))) === 200
+  && (await pedir(op.session, '/values/' + enc('Ordenes!A:Z') + ':append?valueInputOption=RAW', 'POST', '{"values":[["x"]]}')) === 200
+  && (await pedir(op.session, '/values/' + enc('CamposReportes!A5:ZZ') + ':clear', 'POST', '{}')) === 200);
+check('Admin SÍ puede escrituras en lote y borrar pestañas', (await pedir(ad.session, '/values:batchUpdate', 'POST', '{"data":[]}')) === 200
+  && (await pedir(ad.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ deleteSheet: { sheetId: 7 } }] }))) === 200);
+
+// Clave de sede: se compara en el proxy, con bloqueo por intentos.
+const sede = (s, clave, hoja = 'HOJASEDEXXXXXXXXXXXXXXXX') => req('/sede', { method: 'POST', headers: { ...H(s), 'Content-Type': 'application/json' },
+  body: JSON.stringify({ spreadsheetId: hoja, clave }) }).then(async x => ({ status: x.status, ...(await x.json()) }));
+const sOk = await sede(op.session, 'clave-sede');
+check('Clave de sede correcta → ok (sin devolver el hash)', sOk.status === 200 && sOk.ok === true && Object.keys(sOk).join() === 'status,ok', sOk);
+check('Clave de sede incorrecta → 401', (await sede(op.session, 'otra')).status === 401);
+for (let i = 0; i < 5; i++) await sede(ad.session, 'mal');
+check('Clave de sede: bloqueo tras 5 intentos (429)', (await sede(ad.session, 'clave-sede')).status === 429);
+check('Clave de sede sin sesión → 401', (await req('/sede', { method: 'POST', body: '{"spreadsheetId":"HOJASEDEXXXXXXXXXXXXXXXX","clave":"x"}' })).status === 401);
 
 // Pestañas de personal: Operarios (números del bot) y llamados de atención.
 const rango = (s, r, metodo = 'GET', cuerpo) => req(`/sheets/v4/spreadsheets/HOJASEDE/values/${encodeURIComponent(r)}`,
