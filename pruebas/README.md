@@ -1,20 +1,23 @@
 # Pruebas automáticas
 
 Pruebas para revisar que el sistema siga funcionando **antes de publicar un cambio**.
-No tocan datos reales: Google Sheets, Drive, el Apps Script y el proxy van **simulados**.
+No tocan datos reales ni mandan mensajes: Google Sheets, Drive, el Apps Script, el proxy
+y WhatsApp van **simulados**.
 
 | Archivo | Qué revisa | Necesita |
 |---|---|---|
-| `worker.test.mjs` | El proxy de Cloudflare (`proxy-seguridad/cloudflare-proxy.js`): login, bloqueo por intentos fallidos, pases de sesión, cupo de Sheets por persona (`quotaUser`), permisos por rol (Proyectos, Usuarios, Config), ruta `/foto` y que `/diag` ya no exista. | Node 18 o más reciente |
-| `app.test.js` | La app (`index.html`) en un navegador real: carga sin errores, login por el proxy, roles operario/admin (Dashboard, Nueva orden, Proyectos, eliminar órdenes, Hoja de Vida, novedades, Plan), fotos por el proxy con respaldo por Apps Script, reintento cuando Google dice "cuota agotada", informe del cronograma (6 fotos, sin fotos, servidor colgado), inventario de herramienta, ver inspección y repuestos de la Hoja de Vida. | Node + Playwright + Chromium |
+| `worker.test.mjs` | El proxy de Cloudflare (`proxy-seguridad/cloudflare-proxy.js`): login, bloqueo por intentos fallidos, pases de sesión, cupo de Sheets por persona (`quotaUser`), permisos por rol (Proyectos, Usuarios, Config, Operarios), ruta `/foto` y que `/diag` ya no exista. | Node 18 o más reciente |
+| `bot.test.mjs` | El bot de WhatsApp (`whatsapp-agente/Codigo-sin-ia.gs` + `Recordatorios.gs`): recordatorio al empezar cada turno (a quién, cuándo, plantilla o lista completa, sin repetir, turno de noche), la palabra ACTIVIDADES y el botón "Ver actividades". | Node 18 o más reciente |
+| `app.test.js` | La app (`index.html`) en un navegador real: carga sin errores, login por el proxy, roles operario/admin (Dashboard, Nueva orden, Proyectos, eliminar órdenes, Hoja de Vida, novedades, Plan), fotos por el proxy con respaldo por Apps Script, reintento cuando Google dice "cuota agotada", informe del cronograma (6 fotos, sin fotos, servidor colgado), inventario de herramienta, ver inspección, repuestos de la Hoja de Vida, cronograma publicado para el bot y la pestaña Encargados de turno. | Node + Playwright + Chromium |
 
 ## Cómo correrlas
 
 Desde la carpeta raíz del repositorio:
 
 ```bash
-# Proxy (no necesita instalar nada)
+# Proxy y bot (no necesitan instalar nada)
 node pruebas/worker.test.mjs
+node pruebas/bot.test.mjs
 
 # App (la primera vez hay que instalar Playwright y su navegador)
 npm install --no-save playwright

@@ -251,6 +251,113 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
 
+  // 9) Cronograma publicado para el bot (CronogramaPlan)
+  {
+    const { ctx, p } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      operacionActual = 'zipaquira';
+      const plan = _planCronogramaParaBot();
+      const cfg = CRONOGRAMA_POR_SEDE.zipaquira;
+      // Lo que se espera, armado igual que el informe PDF: por turno y día,
+      // el reporte de cada hora con actividades y luego esas actividades.
+      let esperadas = 0, ordenOk = true;
+      cfg.turnos.forEach(t => DIAS_SEMANA_ORDEN.forEach(dia => {
+        t.checkpoints.forEach(cp => { const n = cp.bloques.filter(x => (x.actividad[dia] || '').trim()).length; if (n) esperadas += n + 1; });
+        const filas = plan.filter(f => f.turnoId === t.id && f.dia === dia);
+        if (filas.some((f, i) => f.orden !== i + 1)) ordenOk = false;
+      }));
+      const primera = plan[0];
+      let guardado = [], escrituras = [];
+      asegurarHoja = async () => CRONOGRAMA_PLAN_COLS;
+      leerHojaGenericaCacheada = async () => guardado;
+      sheetsRequest = async (m, rango, filas) => { escrituras.push({ m, rango, filas }); };
+      const escribio = await publicarCronogramaBotSiCambio();
+      const w = escrituras[0];
+      guardado = w.filas.map(f => Object.fromEntries(CRONOGRAMA_PLAN_COLS.map((c, i) => [c, String(f[i])])));
+      const repite = await publicarCronogramaBotSiCambio();
+
+      // El catálogo de variables usa la misma escritura: si antes había más
+      // filas, limpia las que sobran debajo.
+      const catalogo = _catalogoDeVariables();
+      escrituras = []; guardado = Array.from({ length: catalogo.length + 5 }, () => ({ Huella: 'vieja' }));
+      asegurarHoja = async () => CAMPOS_REPORTES_COLS;
+      const limpiezas = [];
+      const fetchOriginal = window.fetch;
+      window.fetch = async (url, o) => { if (String(url).includes(':clear')) { limpiezas.push(decodeURIComponent(url)); return new Response('{}'); } return fetchOriginal(url, o); };
+      const catEscribio = await publicarCatalogoVariablesSiCambio();
+      window.fetch = fetchOriginal;
+      return { n: plan.length, esperadas, ordenOk, primera, escribio, repite, rango: w.rango, filas: w.filas.length,
+        horaTexto: typeof w.filas[0][CRONOGRAMA_PLAN_COLS.indexOf('HoraInicio')],
+        cat: { escribio: catEscribio, rango: escrituras[0] && escrituras[0].rango, n: catalogo.length, limpia: limpiezas[0] || '' } };
+    });
+    check('Plan para el bot: todas las actividades por turno y día, en orden', r.n === r.esperadas && r.n > 50 && r.ordenOk
+      && r.primera.turnoId === 'turno1' && r.primera.dia === 'lunes' && /^Reporte de datos de equipos 06:00$/.test(r.primera.actividad), r);
+    check('Plan para el bot: se publica una vez y no se repite si no cambió', r.escribio && !r.repite
+      && r.rango === 'CronogramaPlan!A2:J' + (r.n + 1) && r.filas === r.n && r.horaTexto === 'string', r);
+    check('Catálogo de variables: reescribe y limpia las filas que sobran', r.cat.escribio && r.cat.n > 50
+      && r.cat.rango === 'CamposReportes!A2:J' + (r.cat.n + 1) && r.cat.limpia.includes('CamposReportes!A' + (r.cat.n + 2) + ':ZZ:clear'), r.cat);
+    await ctx.close();
+  }
+
+  // 10) Encargados de turno: solo admin, alta/turno/recordatorio/eliminar
+  {
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      operacionActual = 'zipaquira';
+      const tab = document.getElementById('cronTabEncargados'); tab.style.display = '';
+      const vis = el => getComputedStyle(el).display !== 'none';
+      const out = {};
+      usuarioRol = 'operario'; _aplicarRolUI(); out.operarioVe = vis(tab);
+      usuarioRol = 'admin'; _aplicarRolUI(); out.adminVe = vis(tab);
+
+      // Hoja Operarios en memoria (incluye una fila de la sección vieja, sin ID y con "Mañana").
+      let hoja = [{ ID: '', Nombre: 'Viejo', Numero: '3005556677', Turno: 'Mañana', Activo: 'NO' }];
+      asegurarHoja = async () => OPERARIOS_COLS;
+      leerHojaGenerica = async () => hoja.map(o => ({ ...o }));
+      appendHoja = async (_h, filas) => filas.forEach(f => hoja.push(Object.fromEntries(OPERARIOS_COLS.map((c, i) => [c, f[i]]))));
+      _actualizarFilaPorClave = async (_h, _c, col, valor, cambios) => { const o = hoja.find(x => x[col] === valor); Object.assign(o, cambios); };
+      eliminarFilasDondeCumple = async (_h, pred) => { hoja = hoja.filter(o => !pred(o)); };
+      window.confirm = () => true; window.alert = () => {};
+
+      cronMostrarSubTab('encargados');
+      await new Promise(res => setTimeout(res, 50));
+      out.panelActivo = document.getElementById('cronSub-encargados').classList.contains('active');
+      out.opciones = document.querySelectorAll('#enc_turno option').length;
+      out.viejoEnTurno1 = document.querySelector('#enc_lista select').value;
+
+      document.getElementById('enc_nombre').value = 'Juan Pérez';
+      document.getElementById('enc_numero').value = '300 111 2233';
+      document.getElementById('enc_turno').value = 'turno2';
+      await encargadoAgregarClick();
+      out.nuevo = hoja[1];
+      document.getElementById('enc_nombre').value = 'Otro';
+      document.getElementById('enc_numero').value = '+57 300 111 2233';
+      await encargadoAgregarClick();
+      out.repetido = document.getElementById('enc_msg').textContent;
+      document.getElementById('enc_numero').value = '12345';
+      await encargadoAgregarClick();
+      out.invalido = document.getElementById('enc_msg').textContent;
+      out.filas = hoja.length;
+
+      await encargadoCambiarTurnoClick(0, 'turno3');
+      await encargadoCambiarActivoClick(0, true);
+      out.viejo = { ...hoja[0] };
+      await encargadoEliminarClick(1);
+      out.tras = hoja.map(o => o.Nombre);
+      out.filasTabla = document.querySelectorAll('#enc_lista tbody tr').length;
+      return out;
+    });
+    check('Encargados: pestaña solo para admin', !r.operarioVe && r.adminVe, r);
+    check('Encargados: turnos del cronograma y turno viejo "Mañana" = Turno 1', r.panelActivo && r.opciones === 4 && r.viejoEnTurno1 === 'turno1', r);
+    check('Encargados: alta con indicativo 57 y recordatorio activo', r.nuevo && r.nuevo.Numero === '573001112233' && r.nuevo.Turno === 'turno2'
+      && r.nuevo.Activo === 'SI' && /^OP-\d+$/.test(r.nuevo.ID), r.nuevo);
+    check('Encargados: rechaza número repetido o inválido', /ya está registrado/.test(r.repetido) && /no parece un número/.test(r.invalido) && r.filas === 2, r);
+    check('Encargados: cambiar turno, activar y eliminar', r.viejo.Turno === 'turno3' && r.viejo.Activo === 'SI'
+      && JSON.stringify(r.tras) === '["Viejo"]' && r.filasTabla === 1, r);
+    check('Encargados: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+
   await b.close();
   srv.close();
   let ok = 0;

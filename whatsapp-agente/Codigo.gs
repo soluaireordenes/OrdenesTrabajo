@@ -112,7 +112,7 @@ function _extraerMensaje(cuerpo) {
 /** Solo responde a números registrados como operarios en el sistema. Sin
  *  esto, cualquiera que dé con el número podría consultar el inventario de
  *  la empresa. Dar y quitar acceso es agregar o borrar al operario en
- *  Encargados Turnos → Operarios; aquí no hay nada que tocar.
+ *  la aplicación (Reportes → Encargados de turno); aquí no hay nada que tocar.
  *
  *  Devuelve el nombre del operario, o null si el número no está. */
 function _operarioDe(numero) {

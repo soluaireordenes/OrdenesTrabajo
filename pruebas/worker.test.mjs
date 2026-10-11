@@ -78,6 +78,9 @@ check('Operario NO puede escribir Proyectos (403)', (await st(op.session, PROY, 
 check('Admin SÍ lee Proyectos', (await st(ad.session, PROY)) === 200);
 check('Operario NO escribe en Usuarios (403)', (await st(op.session, 'HOJAUSUARIOS', 'POST')) === 403);
 check('Operario NO escribe en Config! (403)', (await st(op.session, 'HOJASEDE', 'POST', 'Config!A1')) === 403);
+check('Operario NO escribe en Operarios! (encargados del bot, 403)', (await st(op.session, 'HOJASEDE', 'POST', 'Operarios!A:E')) === 403);
+check('Admin SÍ escribe en Operarios!', (await st(ad.session, 'HOJASEDE', 'POST', 'Operarios!A:E')) === 200);
+check('Operario SÍ escribe en ObservacionesOperarios! (otra hoja)', (await st(op.session, 'HOJASEDE', 'POST', 'ObservacionesOperarios!A:H')) === 200);
 check('Operario SÍ lee/escribe hojas de su sede', (await st(op.session, 'HOJASEDE')) === 200 && (await st(op.session, 'HOJASEDE', 'POST', 'Ordenes!A1')) === 200);
 
 const f1 = await req('/foto?id=FOTOIDXXXXXXXXXX1', { headers: H(op.session) });

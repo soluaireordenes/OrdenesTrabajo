@@ -14,8 +14,9 @@
    - El Worker guarda la CUENTA DE SERVICIO de Google (secreto) y con ella
      lee/escribe las hojas. El token de Google nunca baja al navegador.
    - Antes de cada operación, el Worker revisa el pase y el rol:
-       • Tocar la hoja "Usuarios" o rangos "Config!", o abrir la hoja de
-         Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) → SOLO admin.
+       • Tocar la hoja "Usuarios", escribir en rangos "Config!" u
+         "Operarios!" (encargados de turno del bot de WhatsApp), o abrir la
+         hoja de Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) → SOLO admin.
        • Leer y escribir normal (órdenes, inventario, cronograma) → cualquier
          sesión válida.
 
@@ -287,6 +288,12 @@ function _requiereAdmin(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno)
   // Tocar rangos "Config!" (claves de sede, etc.) → admin.
   if (metodo !== 'GET' && /Config!/i.test(decodeURIComponent(rutaGoogle))) {
     return 'configuración de sede';
+  }
+  // Escribir en la hoja Operarios = decidir a quién le escribe el bot de
+  // WhatsApp y quién puede consultarle → admin. Se ancla a "/values/" para
+  // no atrapar otras hojas cuyo nombre termina igual (ObservacionesOperarios).
+  if (metodo !== 'GET' && /\/values\/'?Operarios'?!/i.test(decodeURIComponent(rutaGoogle))) {
+    return 'encargados de turno';
   }
   // NOTA: no se bloquea deleteDimension de forma genérica. El sistema lo usa
   // internamente al EDITAR una orden (reemplaza las filas de tareas/repuestos),
