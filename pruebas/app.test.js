@@ -102,7 +102,11 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[]}' }),
     });
     await p.fill('#loginDocumento', '1234567890'); await p.fill('#loginPin', '0000');
-    await p.evaluate(() => loginConDocumentoPinClick()); await p.waitForTimeout(800);
+    // Al entrar, la app recarga la página: se espera a que termine de cargar
+    // antes de mirar el estado (antes se esperaban 800 ms fijos, y si la
+    // carga tardaba más, la consulta caía en la página a medio cargar).
+    const recarga = p.waitForEvent('load');
+    await p.evaluate(() => loginConDocumentoPinClick()); await recarga; await p.waitForTimeout(300);
     const r = await p.evaluate(() => ({ token: googleAccessToken, rol: usuarioRol, ss: sessionStorage.getItem('gToken') }));
     check('Login por proxy guarda pase y rol', r.token === 'SESS.abc' && r.rol === 'admin' && r.ss === 'SESS.abc' && JSON.parse(body).documento === '1234567890', r);
     check('Login sin errores de JS', errs.length === 0, errs.slice(0, 2));
