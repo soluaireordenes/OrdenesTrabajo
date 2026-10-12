@@ -75,7 +75,9 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         'abrirModalNovedad','pmGuardarActividades','esAdmin','_aplicarRolUI','hvdSeleccionarEquipo','_htmlFilaRepuestoHVD','descargarOrdenPDF',
         'renderSidebarOperaciones','leerHojaGenerica','abrirPlanMantenimiento','abrirProyectos','_loginPorProxy','showPanel'];
       const quitados = ['abrirTiempoReal','UBIDOTS_CONFIG','abrirEncargadosTurnos','pmRenderOperarios','_traerLoteFotosServidor',
-        '_fotosBatchSoportado','CLAVE_ACCESO_HASH','LOGIN_APPSCRIPT_URL','_loginAppsScript','_tiempoRealIntervalId'];
+        '_fotosBatchSoportado','CLAVE_ACCESO_HASH','LOGIN_APPSCRIPT_URL','_loginAppsScript','_tiempoRealIntervalId',
+        'exportarInformeIndividual','limpiarOrdenesAutomaticas','subirFotoNovedad','abrirFormFotoNovedad','confirmarSubidaFotoNovedad',
+        'OPERARIOS_ZIPAQUIRA','_cronModalOperariosPrevios'];
       let sidebarErr = null; try { renderSidebarOperaciones(); } catch (e) { sidebarErr = e.message; }
       return {
         dups: Object.keys(ids).filter(k => ids[k] > 1),
@@ -633,6 +635,172 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       return (await (await _postScriptFotos({ accion: 'eliminarFoto', driveFileId: 'X' })).json()).ok;
     });
     check('C1: con el proxy viejo las fotos siguen funcionando (sin pase)', ok && alScript.length === 1 && !('pase' in alScript[0]), alScript);
+    await ctx.close();
+  }
+
+  // 19) Bajos (B1–B18)
+  {
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      const out = {};
+      // B17: números como los escribe una persona
+      out.numeros = ['12', '-40', '0.75', '.5'].every(_esNumeroDecimal) && !['0x10', '1e5', 'Infinity', '', '1,5', '-'].some(_esNumeroDecimal);
+      // B16: dinero escrito a mano en Proyectos
+      out.dinero = [proyDineroEscrito('1.500'), proyDineroEscrito('25.000'), proyDineroEscrito('$ 1.500.000'), proyDineroEscrito('15063161.664'), proyDineroEscrito('1.5')];
+      // B1: el filtro trae solo los estados de hoy, y agrega los viejos que existan
+      const sel = document.getElementById('filtroEstado');
+      out.estadosBase = [...sel.options].map(o => o.value).join(',');
+      allOrdenes = [{ NumeroOrden: 'X1', Estado: 'Aprobada' }, { NumeroOrden: 'X2', Estado: 'Pendiente' }];
+      _completarFiltroEstado();
+      out.estadosConViejos = [...sel.options].map(o => o.value).join(',');
+      allOrdenes = [];
+      // B5: título y barra del navegador según el tema
+      out.titulo = document.title;
+      alternarTema(); out.barraOscura = document.querySelector('meta[name="theme-color"]').content;
+      // B4: el documento impreso trae la paleta clara, aun con la app en oscuro
+      _mostrarDocumentoEnVisor(_conPaletaDePapel('<html><head><title>T</title><style>h1{color:var(--brand)}</style></head><body><h1 id="tituloDoc">x</h1></body></html>'));
+      out.colorDoc = getComputedStyle(document.getElementById('tituloDoc')).color;
+      out.fondoDoc = getComputedStyle(document.querySelector('.visor-doc-hoja')).backgroundColor;
+      document.querySelector('.visor-doc [data-accion="cerrar"]').click();
+      alternarTema(); out.barraClara = document.querySelector('meta[name="theme-color"]').content;
+      // B3: un guardado anterior dejó el aviso en verde; el siguiente error sale en rojo
+      const msg = document.getElementById('rc_msg'); msg.style.color = '#15803d';
+      await guardarReporteCompresor();
+      out.colorError = msg.style.color;
+      // B11: aviso de rango recortado
+      out.recorte = !!_avisoRangoRecortado(['2026-01-01'], '2026-03-01', 45) && !_avisoRangoRecortado(['2026-03-01'], '2026-03-01', 45);
+      // B10: actividades realizadas por turno
+      window.asegurarHoja = async (n, cols) => cols;
+      window.leerHojaGenericaCacheada = async () => [
+        { Fecha: '2026-10-10', TurnoId: 't1', ActividadId: 'a1', Realizado: 'SI' },
+        { Fecha: '2026-10-10', TurnoId: 't1', ActividadId: 'a2', Realizado: 'NO' },
+      ];
+      const cumpl = await _leerCumplimientoTurnosCronograma();
+      out.realizadas = cumpl.cumplido['2026-10-10|t1'] === true && cumpl.realizadas['2026-10-10|t1'].has('a1') && !cumpl.realizadas['2026-10-10|t1'].has('a2');
+      // B9: el stock para pantalla se reutiliza y se borra al escribir
+      let lecturas = 0;
+      window.obtenerStockInventarioDirecto = async () => { lecturas++; return [{ codigo: 'A', nombre: 'A' }]; };
+      await _stockInventarioParaPantalla('zipaquira'); await _stockInventarioParaPantalla('zipaquira');
+      const antes = lecturas;
+      _invalidarStockPantalla(); await _stockInventarioParaPantalla('zipaquira');
+      out.cacheStock = [antes, lecturas];
+      // B15: la limpieza de caché muestra la descripción de la orden
+      let textoPrompt = '';
+      window.prompt = m => { textoPrompt = m; return null; };
+      localStorage.setItem(LS_KEY, JSON.stringify([{ NumeroOrden: 'OT-9', Equipo: 'CA', Estado: 'Pendiente', Title: 'Cambiar filtro de aceite' }]));
+      limpiarCacheLocal();
+      out.cacheConDescripcion = /Cambiar filtro de aceite/.test(textoPrompt);
+      localStorage.removeItem(LS_KEY);
+      // B12/B18: la lista de operarios sale de la hoja; la primera vez se llena con los registros
+      usuarioRol = 'admin';
+      const hoja = [];
+      window._leerHojaGenerica = async n => n === 'OperariosPlanta' ? hoja.map((f, i) => ({ _row: i + 2, Nombre: f[0], Activo: f[1] }))
+        : n === 'CronogramaRegistros' ? [{ OperariosRealizaron: 'Ana Uno, Beto  Dos' }, { OperariosRealizaron: 'Ana Uno' }]
+        : n === 'ObservacionesOperarios' ? [{ Operario: 'Caro Tres' }] : [];
+      window.appendHoja = async (n, filas) => { if (n === 'OperariosPlanta') hoja.push(...filas); };
+      await cargarOperariosPlanta(true);
+      out.operarios = operariosPlantaActivos().join(',');
+      document.body.insertAdjacentHTML('beforeend', '<div id="cronModalOperariosLista"></div>');
+      await _pintarOperariosModalCronograma();
+      out.casillas = document.querySelectorAll('.cronOpChk').length;
+      let cuerpoQuitar = null;
+      const fetchOriginal = window.fetch;
+      window.fetch = async (url, init) => { if (String(url).includes('values:batchUpdate')) { cuerpoQuitar = JSON.parse(init.body); return new Response('{}'); } return fetchOriginal(url, init); };
+      await _marcarOperarioPlanta('Beto Dos', false);
+      window.fetch = fetchOriginal;
+      out.quitar = cuerpoQuitar && cuerpoQuitar.data.length === 1 && cuerpoQuitar.data[0].range === 'OperariosPlanta!B3' && cuerpoQuitar.data[0].values[0][0] === 'NO';
+      out.listaFija = typeof OPERARIOS_ZIPAQUIRA;
+      // B14: el inventario completa solo los encabezados que faltan
+      const escritos = [];
+      window.fetch = async (url, init) => {
+        url = decodeURIComponent(String(url));
+        if (init && init.method === 'PUT') { escritos.push({ url, body: JSON.parse(init.body) }); return new Response('{}'); }
+        return new Response(JSON.stringify({ values: [['Codigo', 'Nombre']] }));
+      };
+      await _invAsegurarHoja('INV', 'Productos', ['Codigo', 'Nombre', 'Unidad']);
+      window.fetch = fetchOriginal;
+      out.encabezados = escritos.length === 1 && /Productos!C1:C1/.test(escritos[0].url) && JSON.stringify(escritos[0].body.values) === '[["Unidad"]]';
+      // B14: al editar una orden, primero se agregan las filas nuevas y después se borran las viejas
+      const pasos = [];
+      window.appendHoja = async n => { pasos.push('agregar ' + n); };
+      window.fetch = async (url, init) => {
+        url = decodeURIComponent(String(url));
+        if (url.endsWith(':batchUpdate')) { pasos.push('borrar ' + JSON.parse(init.body).requests.length); return new Response('{}'); }
+        if (url.includes('fields=sheets.properties')) return new Response(JSON.stringify({ sheets: [{ properties: { title: 'Tareas', sheetId: 7 } }] }));
+        if (url.includes('Tareas!A:A')) return new Response(JSON.stringify({ values: [['NumeroOrden'], ['OT-B14'], ['OT-B14']] }));
+        if (url.includes('Ordenes!A:A')) return new Response(JSON.stringify({ values: [['NumeroOrden'], ['OT-B14']] }));
+        if (init && init.method === 'PUT') return new Response('{}');
+        return new Response(JSON.stringify({ values: [['OT-B14']] }));
+      };
+      try { await actualizarOrdenEnSheets('OT-B14', { tareas: [{ descripcion: 'x' }] }); } catch (e) { pasos.push('error ' + e.message); }
+      window.fetch = fetchOriginal;
+      out.pasosOrden = pasos.join(' | ');
+      return out;
+    });
+    check('B17: los números solo aceptan dígitos con punto (y el menos)', r.numeros);
+    check('B16: "1.500" escrito en Proyectos son mil quinientos', JSON.stringify(r.dinero) === '[1500,25000,1500000,15063161.664,1.5]', r.dinero);
+    check('B1: el filtro de estados trae los de hoy y suma los viejos que existan', r.estadosBase === ',Pendiente,En ejecución,Cerrada' && r.estadosConViejos === ',Pendiente,En ejecución,Cerrada,Aprobada', r);
+    check('B5: título sin "Microsoft 365" y barra del color del tema', /SolucionAIRE/.test(r.titulo) && !/Microsoft/.test(r.titulo) && r.barraOscura === '#1b212a' && r.barraClara === '#ffffff', r);
+    check('B4: el documento impreso sale con los colores de la marca aun en modo oscuro', r.colorDoc === 'rgb(2, 69, 122)' && r.fondoDoc === 'rgb(255, 255, 255)', r);
+    check('B3: después de un guardado bueno, el siguiente error sale en rojo', r.colorError === 'var(--danger)', r.colorError);
+    check('B11: avisa cuando el rango de fechas se recorta', r.recorte);
+    check('B10: cuenta qué actividades del turno se hicieron', r.realizadas);
+    check('B9: el stock de pantalla se reutiliza y se vuelve a leer tras escribir', JSON.stringify(r.cacheStock) === '[1,2]', r.cacheStock);
+    check('B15: limpiar caché muestra la descripción de la orden', r.cacheConDescripcion);
+    check('B12/B18: operarios desde la hoja (se llena con los registros la primera vez)', r.operarios === 'Ana Uno,Beto Dos,Caro Tres' && r.casillas === 3 && r.listaFija === 'undefined', r);
+    check('B18: quitar un operario lo deja inactivo sin borrar la fila', r.quitar, r);
+    check('B14: el inventario completa solo los encabezados que faltan', r.encabezados);
+    check('B14: al editar una orden se agrega antes de borrar', r.pasosOrden === 'agregar Tareas | borrar 2', r.pasosOrden);
+    check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // B2: la fecha del reporte técnico sale de su franja y no se guarda antes de que abra
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    const p = await ctx.newPage();
+    await p.clock.install({ time: new Date('2026-10-12T02:30:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    const r = await p.evaluate(() => ({
+      abierta: _motivoReporteFueraDeVentana('2:00 a.m.'),
+      antes: _motivoReporteFueraDeVentana('6:00 a.m.'),
+      cerrada: _motivoReporteFueraDeVentana('10:00 p.m.'),
+      fecha2am: _fechaDeFranjaReporte('2:00 a.m.'),
+      fecha10pm: _fechaDeFranjaReporte('10:00 p.m.'),
+      soloLectura: document.getElementById('rc_fecha').readOnly,
+    }));
+    check('B2: reporte técnico no se guarda antes de abrir ni después de cerrar', r.abierta === '' && /todavía no abre/.test(r.antes) && /ya pasó/.test(r.cerrada), r);
+    check('B2: la fecha la pone la franja (2 a.m. de hoy, 10 p.m. de anoche)', r.fecha2am === '2026-10-12' && r.fecha10pm === '2026-10-11' && r.soloLectura, r);
+    await ctx.close();
+  }
+  {
+    // B6: con el almacenamiento bloqueado la app igual arranca; B7: "Salir" pide otra vez la clave de sede
+    const ctx = await b.newContext();
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.addInitScript(() => {
+      if (!location.search.includes('bloqueado')) return;
+      for (const nombre of ['localStorage', 'sessionStorage']) {
+        Object.defineProperty(window, nombre, { configurable: true, get() { throw new DOMException('bloqueado', 'SecurityError'); } });
+      }
+    });
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE + '?bloqueado', { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const login = await p.evaluate(() => !!document.getElementById('loginDocumento') && document.getElementById('loginDocumento').offsetParent !== null);
+    check('B6: con el almacenamiento bloqueado la app arranca y muestra el login', errs.length === 0 && login, errs.slice(0, 2));
+
+    await p.goto(BASE, { waitUntil: 'load' });
+    // cerrarSesion recarga la página: se deja salir la llamada y se espera la recarga.
+    await Promise.all([p.waitForEvent('load'), p.evaluate(() => { sessionStorage.setItem('operacionAutenticada', 'zipaquira'); setTimeout(() => cerrarSesion(), 50); })]);
+    const tras = await p.evaluate(() => sessionStorage.getItem('operacionAutenticada'));
+    await Promise.all([p.waitForEvent('load'), p.evaluate(() => { setTimeout(() => cerrarSesion(true), 50); })]);
+    const trasSalir = await p.evaluate(() => sessionStorage.getItem('operacionAutenticada'));
+    check('B7: "Salir" borra la sede validada; la sesión vencida no', tras === 'zipaquira' && trasSalir === null, { tras, trasSalir });
+
+    await p.setViewportSize({ width: 390, height: 800 });
+    const altoMapa = await p.evaluate(() => getComputedStyle(document.getElementById('mapaOperacion')).height);
+    check('B13: el mapa de Inicio es más bajo en celular', altoMapa === '300px', altoMapa);
     await ctx.close();
   }
 
