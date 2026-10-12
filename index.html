@@ -20,7 +20,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap');
+/* Sin @import de Google Fonts: pedía "Segoe UI", que Google Fonts no tiene,
+   y mientras esa petición respondía el navegador no arrancaba el código de
+   la app (una hoja de estilos pendiente detiene los scripts que vienen
+   después). Segoe UI viene instalada en Windows; en el resto se usa la
+   letra del sistema (ver body). */
 
 /* ── Reset & base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3472,6 +3476,23 @@ body.rol-operario .solo-admin { display: none !important; }
             <div style="overflow-x:auto;margin-top:14px" id="invHistorialTabla"></div>
           </div>
         </div>
+        <!-- Órdenes cerradas a las que no se les descontó el inventario (por
+             ejemplo, las que cerraron operarios mientras el proxy no les
+             dejaba tomar el candado del inventario). Solo admin. -->
+        <div class="card solo-admin" style="margin:16px 0 0">
+          <div class="card-head">Descuentos pendientes por cierre de órdenes</div>
+          <div style="padding:18px">
+            <p style="font-size:13px;color:var(--text2);margin:0 0 12px;line-height:1.5">
+              Busca órdenes cerradas cuyos repuestos o insumos no quedaron descontados del inventario
+              y te deja registrar esas salidas. Revisa la lista antes de registrar: solo se descuenta lo que marques.
+            </p>
+            <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+              <div class="field" style="margin:0"><label>Cerradas desde</label><input id="invdp_desde" type="date"></div>
+              <button class="btn btn-primary" onclick="invRevisarDescuentosPendientes()">Revisar</button>
+            </div>
+            <div id="invdp_resultado" style="overflow-x:auto"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ── Sub-panel: Proveedores ── -->
@@ -5106,8 +5127,32 @@ async function _sha256Hex(texto) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Valida la clave de una sede en el proxy (POST /sede): el hash de
+ *  Config!A1 ya no sale de la hoja ni llega al navegador, y el proxy cuenta
+ *  los intentos fallidos. Devuelve true/false; lanza error si no se pudo
+ *  comprobar (sin señal, demasiados intentos, sede sin clave). */
 async function validarClaveSedeDirecto(sede, clave) {
   const spreadsheetId = _invSpreadsheetId(sede);
+  const resp = await fetch(PROXY_URL + '/sede', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spreadsheetId, clave }),
+  });
+  let datos = {};
+  try { datos = await resp.json(); } catch (_) {}
+  // Proxy todavía sin la ruta /sede (se publica a mano en Cloudflare): se
+  // usa la comprobación anterior hasta que esté.
+  if (resp.status === 404 && /Ruta no encontrada/i.test(datos.mensaje || '')) return _validarClaveSedeLocal(spreadsheetId, clave);
+  if (resp.ok && datos.ok) return true;
+  if (resp.status === 401 && /Contraseña incorrecta/i.test(datos.mensaje || '')) return false;
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('La sesión venció — vuelve a iniciar sesión'); }
+  throw new Error(datos.mensaje || ('el proxy respondió ' + resp.status));
+}
+
+/** Comprobación anterior (el navegador lee el hash). Solo se usa mientras
+ *  el proxy publicado no tenga /sede; con el proxy nuevo, un operario ya no
+ *  puede leer Config!A1. */
+async function _validarClaveSedeLocal(spreadsheetId, clave) {
   const filas = await _invGet(spreadsheetId, 'Config!A1:A1');
   const hashGuardado = (filas[0] && filas[0][0]) ? filas[0][0].toString().trim() : '';
   if (!hashGuardado) throw new Error('Esta sede aún no tiene configurada su clave de acceso (falta la pestaña "Config", celda A1, con el hash).');
@@ -5543,6 +5588,135 @@ async function descontarInventarioPorCierreOrden(o) {
   return resultado;
 }
 
+/* ══════════════════════════════════════════════
+   DESCUENTOS PENDIENTES (solo admin)
+   Mientras el proxy no dejaba a los operarios tomar el candado del
+   inventario, las órdenes que ellos cerraban quedaban cerradas pero sin
+   descontar sus repuestos e insumos. Aquí se comparan las órdenes cerradas
+   con las salidas que tienen registradas (columna "Quién saca" = número de
+   la orden) y se listan las diferencias para registrarlas.
+══════════════════════════════════════════════ */
+let _invDescuentosPendientes = [];
+
+async function invRevisarDescuentosPendientes() {
+  if (!esAdmin()) { alert('Solo un administrador puede revisar los descuentos pendientes.'); return; }
+  const cont = document.getElementById('invdp_resultado');
+  const inputDesde = document.getElementById('invdp_desde');
+  if (!inputDesde.value) {
+    const d = new Date(); d.setDate(d.getDate() - 60); inputDesde.value = _isoLocal(d);
+  }
+  if (inventarioOperacionActual !== operacionActual) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Abre el inventario de la sede en la que estás (las órdenes que se revisan son las de esa sede).</div>';
+    return;
+  }
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Revisando…</div>';
+  try {
+    _invDescuentosPendientes = await _calcularDescuentosPendientes(inputDesde.value);
+  } catch (e) {
+    cont.innerHTML = `<div style="color:var(--danger);font-size:13px">No se pudo revisar: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!_invDescuentosPendientes.length) {
+    cont.innerHTML = '<div style="color:#15803d;font-size:13px;font-weight:600">Todo cuadra: las órdenes cerradas desde esa fecha ya tienen sus salidas registradas.</div>';
+    return;
+  }
+  cont.innerHTML = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="background:var(--surface2)">
+        <th style="padding:7px 8px;text-align:center"><input type="checkbox" checked onchange="document.querySelectorAll('.invdp-check').forEach(c => c.checked = this.checked)" aria-label="Marcar todas"></th>
+        <th style="padding:7px 8px;text-align:left">Orden</th><th style="padding:7px 8px;text-align:left">Cerrada</th>
+        <th style="padding:7px 8px;text-align:left">Producto</th><th style="padding:7px 8px;text-align:right">Falta descontar</th>
+      </tr></thead><tbody>
+      ${_invDescuentosPendientes.map((p, i) => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="invdp-check" data-i="${i}" checked aria-label="Descontar"></td>
+        <td style="padding:6px 8px;font-weight:600">${esc(p.numeroOrden)}<div style="font-weight:400;color:var(--text3);font-size:11.5px">${esc(p.equipo || '')}</div></td>
+        <td style="padding:6px 8px">${esc(fmtFecha(p.fechaCierre))}<div style="color:var(--text3);font-size:11.5px">${esc(p.cerradaPor || '')}</div></td>
+        <td style="padding:6px 8px">${esc(p.codigo)} — ${esc(p.nombre)}</td>
+        <td style="padding:6px 8px;text-align:right;font-weight:700">${esc(String(p.faltante))}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    <button class="btn btn-primary" style="margin-top:12px" onclick="invRegistrarDescuentosPendientes()">Registrar las salidas marcadas</button>
+    <div id="invdp_msg" style="margin-top:8px;font-size:12.5px"></div>`;
+}
+
+/** Lo que cada orden cerrada (desde la fecha dada) debió descontar, menos
+ *  lo que ya tiene como salida. Se empareja igual que al cerrar: por código
+ *  y, si no hay código, por nombre exacto. */
+async function _calcularDescuentosPendientes(desdeIso) {
+  const spreadsheetId = _invSpreadsheetId(operacionActual);
+  const [stock, movimientos] = await Promise.all([
+    obtenerStockInventarioDirecto(operacionActual),
+    _invGet(spreadsheetId, 'Movimientos!A2:M100000'),
+  ]);
+  const porCodigo = new Map(), porNombre = new Map();
+  stock.forEach(p => {
+    porCodigo.set(String(p.codigo).trim().toLowerCase(), p);
+    porNombre.set(String(p.nombre).trim().toLowerCase(), p);
+  });
+  // Salidas ya registradas por orden: "Quién saca" (columna G) = número de orden.
+  const yaSalio = new Map();
+  movimientos.forEach(r => {
+    const tipo = String(r[2] || '').trim().toUpperCase();
+    if (tipo !== 'SALIDA' && tipo !== 'AJUSTE_NEGATIVO') return;
+    const clave = String(r[6] || '').trim() + '|' + String(r[0] || '').trim().toUpperCase();
+    yaSalio.set(clave, (yaSalio.get(clave) || 0) + (parseFloat(r[3]) || 0));
+  });
+  const pendientes = [];
+  allOrdenes
+    .filter(o => ['Cerrada', 'Realizada'].includes(o.Estado) && o.NumeroOrden)
+    .filter(o => {
+      const d = o.FechaCierre ? _fechaLocalDesdeString(o.FechaCierre) : null;
+      return d && !isNaN(d) && _isoLocal(d) >= desdeIso;
+    })
+    .forEach(o => {
+      const debia = new Map(); // código → { producto, cantidad }
+      [...(Array.isArray(o.repuestos) ? o.repuestos : []), ...(Array.isArray(o.insumos) ? o.insumos : [])]
+        .filter(it => (it.nombre || it.codigo) && Number(it.cantidad) > 0)
+        .forEach(it => {
+          const p = (it.codigo && porCodigo.get(String(it.codigo).trim().toLowerCase()))
+                 || (it.nombre && porNombre.get(String(it.nombre).trim().toLowerCase()));
+          if (!p) return; // no existe en el inventario: tampoco se descontó al cerrar
+          const k = String(p.codigo).trim().toUpperCase();
+          const prev = debia.get(k) || { producto: p, cantidad: 0 };
+          prev.cantidad += Number(it.cantidad);
+          debia.set(k, prev);
+        });
+      debia.forEach(({ producto, cantidad }, codigo) => {
+        const faltante = Math.round((cantidad - (yaSalio.get(o.NumeroOrden + '|' + codigo) || 0)) * 100) / 100;
+        if (faltante > 0) pendientes.push({
+          numeroOrden: o.NumeroOrden, equipo: o.Equipo || '', fechaCierre: o.FechaCierre || '',
+          cerradaPor: o.EjecutadoPor || '', codigo: producto.codigo, nombre: producto.nombre, faltante,
+        });
+      });
+    });
+  return pendientes.sort((a, b) => String(a.fechaCierre).localeCompare(String(b.fechaCierre)));
+}
+
+async function invRegistrarDescuentosPendientes() {
+  if (!esAdmin()) return;
+  const marcados = [...document.querySelectorAll('.invdp-check:checked')].map(c => _invDescuentosPendientes[Number(c.dataset.i)]).filter(Boolean);
+  if (!marcados.length) { alert('Marca al menos una salida.'); return; }
+  if (!confirm(`Se registrarán ${marcados.length} salida(s) del inventario con fecha de hoy. ¿Continuar?`)) return;
+  const msg = document.getElementById('invdp_msg');
+  const errores = [];
+  let hechas = 0;
+  for (const p of marcados) {
+    msg.style.color = 'var(--text3)'; msg.textContent = `Registrando ${hechas + 1} de ${marcados.length}…`;
+    try {
+      await registrarMovimientoInventarioDirecto(operacionActual, {
+        codigo: p.codigo, fecha: _isoLocal(new Date()), tipo: 'SALIDA', cantidad: p.faltante,
+        responsable: p.numeroOrden, equipo: p.equipo,
+        observaciones: 'Salida pendiente por cierre de orden de trabajo (registrada después)',
+      });
+      hechas++;
+    } catch (e) {
+      errores.push(`${p.numeroOrden} · ${p.nombre}: ${e.message}`);
+    }
+  }
+  _stockInventarioCache = null;
+  alert(`Se registraron ${hechas} salida(s).` + (errores.length ? `\n\nNo se pudieron registrar:\n${errores.join('\n')}` : ''));
+  invRevisarDescuentosPendientes();
+}
+
 /** Arma un mensaje corto y legible con el resultado del descuento de inventario,
  *  para mostrarlo junto al aviso de "orden cerrada". Devuelve '' si no hay nada
  *  que reportar (por ejemplo, la orden no tenía repuestos/insumos). */
@@ -5811,15 +5985,14 @@ async function abrirPoliticaPrivacidad() {
   }
 }
 
-/** Pide contraseña antes de cambiar de operación/sede. La clave YA NO vive
- *  en este archivo (nadie puede leerla con "Ver código fuente") — se valida
- *  contra un hash guardado en la hoja de cálculo de inventario de esa sede,
- *  leído directo con la API de Google Sheets (sin pasar por Apps Script). */
+/** Pide contraseña antes de cambiar de operación/sede. La clave no vive en
+ *  este archivo: el proxy la compara con el hash guardado en la hoja de
+ *  inventario de esa sede (Config!A1), sin que ese hash llegue al navegador. */
 async function seleccionarOperacion(key) {
   if (!OPERACIONES[key]) return;
   if (key === operacionActual && operacionAutenticada) return; // ya estás adentro esta sesión, nada que hacer
 
-  const pass = prompt(`🔒 Ingresa la contraseña para entrar a "${OPERACIONES[key].nombre}":`);
+  const pass = await _pedirClaveSede(OPERACIONES[key].nombre);
   if (pass === null) return; // canceló
 
   let valida;
@@ -5834,6 +6007,35 @@ async function seleccionarOperacion(key) {
     return;
   }
   cambiarOperacion(key);
+}
+
+/** Ventana para escribir la clave de una sede. Antes era un prompt() del
+ *  navegador, que muestra lo que se escribe a quien esté mirando la
+ *  pantalla; aquí es un campo de contraseña. Devuelve la clave, o null si
+ *  se cancela. */
+function _pedirClaveSede(nombreSede) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `
+      <form style="background:var(--surface);color:var(--text);border-radius:12px;max-width:360px;width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3)">
+        <div style="font-size:16px;font-weight:700;color:var(--brand);margin-bottom:6px">Entrar a ${esc(nombreSede)}</div>
+        <label for="claveSedeInput" style="display:block;font-size:12.5px;color:var(--text2);margin-bottom:6px">Contraseña de la sede</label>
+        <input id="claveSedeInput" type="password" autocomplete="off" style="width:100%;padding:10px 12px;font-size:15px;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button type="button" class="btn btn-ghost" data-accion="cancelar">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </div>
+      </form>`;
+    const cerrar = valor => { ov.remove(); resolve(valor); };
+    const form = ov.querySelector('form');
+    form.addEventListener('submit', e => { e.preventDefault(); cerrar(ov.querySelector('#claveSedeInput').value); });
+    ov.querySelector('[data-accion="cancelar"]').addEventListener('click', () => cerrar(null));
+    ov.addEventListener('click', e => { if (e.target === ov) cerrar(null); });
+    ov.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(null); });
+    document.body.appendChild(ov);
+    ov.querySelector('#claveSedeInput').focus();
+  });
 }
 
 /** Compara la clave ingresada contra el hash guardado en la pestaña "Config"
@@ -5971,7 +6173,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'eliminarFotoOrden', 'eliminarFotoCronograma', 'confirmarSubidaFotoNovedad',
   'eliminarFechaRacha', 'registrarNovedadRacha',
   'invRegistrarProducto', 'invRegistrarServicio', 'registrarInventarioEquipo',
-  'hvdGuardarSpecs', 'pmGuardarHoraBase', 'eliminarOrdenCompleta',
+  'hvdGuardarSpecs', 'pmGuardarHoraBase', 'eliminarOrdenCompleta', 'invRegistrarDescuentosPendientes',
   'proyGuardarAvances', 'proyNuevoProyecto', 'proyNuevoAlcance', 'proyNuevoPago',
   'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
 ];
@@ -6632,9 +6834,9 @@ function renderPendientes() {
         </div>
       </div>
       <div class="item-actions">
-        <button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
-        <button class="btn btn-success btn-sm solo-admin" onclick="marcarRealizada('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
-        <button class="btn btn-primary btn-sm" onclick="showPanel('pendientes');abrirModalCompletar('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Completar</button>
+        <button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
+        <button class="btn btn-success btn-sm solo-admin" onclick="marcarRealizada(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
+        <button class="btn btn-primary btn-sm" onclick="showPanel('pendientes');abrirModalCompletar(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Completar</button>
       </div>
     </div>`;
   });
@@ -6689,8 +6891,8 @@ function renderRealizadas() {
         ${o.ObsCierre ? `<div style="margin-top:6px;font-size:12px;color:var(--text2);font-style:italic;display:flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex-shrink:0"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> ${esc(o.ObsCierre.slice(0,120))}${o.ObsCierre.length>120?'…':''}</div>` : ''}
       </div>
       <div class="item-actions">
-        <button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
-        <button class="btn btn-primary btn-sm" onclick="descargarOrdenPDF('${esc(o.id||o.NumeroOrden)}')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
+        <button class="btn btn-primary btn-sm" onclick="descargarOrdenPDF(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Descargar PDF</button>
       </div>
     </div>`);
 }
@@ -6842,7 +7044,7 @@ function abrirModalCompletar(id) {
   // ── 7. Firma original del solicitante
   const firmaWrap = document.getElementById('e_firmaCreadorWrap');
   if (o.FirmaCreador) {
-    firmaWrap.innerHTML = `<img src="${esc(o.FirmaCreador)}" style="max-height:70px;max-width:100%;object-fit:contain">`;
+    firmaWrap.innerHTML = `<img src="${_srcFirma(o.FirmaCreador)}" style="max-height:70px;max-width:100%;object-fit:contain">`;
   } else {
     firmaWrap.innerHTML = '<span style="color:var(--text3);font-size:12px;font-style:italic">No registrada</span>';
   }
@@ -7011,9 +7213,11 @@ async function guardarEdicion() {
 
   guardarLocal(); // 💾 Persistir en localStorage
 
-  // Intentar actualizar en Google Sheets
+  // Actualizar en Google Sheets. Si falla, se dice: el cambio quedó solo en
+  // este equipo y al recargar se pierde.
   try {
-    if (o && o.NumeroOrden && googleAccessToken) {
+    if (!googleAccessToken) throw new Error('no hay sesión');
+    if (o && o.NumeroOrden) {
       await actualizarOrdenEnSheets(o.NumeroOrden, {
         Title:             datos.Title,
         Equipo:            datos.Equipo,
@@ -7034,7 +7238,12 @@ async function guardarEdicion() {
         FirmaCreador:      o.FirmaCreador || '',
       });
     }
-  } catch(e) { console.warn('No se pudo actualizar Sheets:', e.message); }
+  } catch(e) {
+    alerta.className = 'alert alert-err show';
+    alerta.textContent = '⚠️ No se guardó en Google Sheets (' + e.message + '). Los cambios quedaron solo en este equipo y se pierden al recargar: revisa la conexión y vuelve a tocar Guardar.';
+    alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
 
   alerta.className = 'alert alert-ok show';
   alerta.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Cambios guardados correctamente.';
@@ -7125,6 +7334,10 @@ async function verificarStockSuficiente(o) {
     if (p.nombre) porNombre.set(String(p.nombre).trim().toLowerCase(), p);
   });
 
+  // Se suma por producto: si el mismo repuesto viene en dos filas (o como
+  // repuesto y como insumo), cada fila por separado cabía en el stock pero
+  // juntas no, y el segundo descuento fallaba con la orden ya cerrada.
+  const pedidoPorProducto = new Map();
   for (const it of items) {
     const codigoBuscado = (it.codigo || '').trim().toLowerCase();
     const nombreBuscado = (it.nombre || '').trim().toLowerCase();
@@ -7132,12 +7345,16 @@ async function verificarStockSuficiente(o) {
                    || (nombreBuscado && porNombre.get(nombreBuscado))
                    || null;
     if (!producto) continue; // no está en inventario — no bloquea, mismo criterio de siempre
-
-    const cantidadPedida = Number(it.cantidad) || 0;
-    if (cantidadPedida > producto.cantidad) {
-      faltantes.push({ nombre: producto.nombre || it.nombre || it.codigo, pedido: cantidadPedida, disponible: producto.cantidad });
-    }
+    const k = String(producto.codigo);
+    const prev = pedidoPorProducto.get(k) || { producto, pedido: 0 };
+    prev.pedido += Number(it.cantidad) || 0;
+    pedidoPorProducto.set(k, prev);
   }
+  pedidoPorProducto.forEach(({ producto, pedido }) => {
+    if (pedido > producto.cantidad) {
+      faltantes.push({ nombre: producto.nombre || producto.codigo, pedido: Math.round(pedido * 100) / 100, disponible: producto.cantidad });
+    }
+  });
   return faltantes;
 }
 
@@ -7180,6 +7397,10 @@ async function guardarCierre() {
       alerta.textContent = '';
     }
 
+    // Copia de cómo estaba la orden, para dejarla igual si Google no recibe
+    // el cierre.
+    const antes = JSON.parse(JSON.stringify(o));
+
     Object.assign(o, datos);
     const nuevaFirma = sigDataUrl('e_sigCanvas');
     if (nuevaFirma) o.FirmaCreador = nuevaFirma;
@@ -7202,7 +7423,8 @@ async function guardarCierre() {
     guardarLocal();
 
     try {
-      if (o.NumeroOrden && googleAccessToken) {
+      if (!googleAccessToken) throw new Error('no hay sesión');
+      if (o.NumeroOrden) {
         await actualizarOrdenEnSheets(o.NumeroOrden, {
           Estado:       'Cerrada',
           EjecutadoPor: ejecutor,
@@ -7219,7 +7441,19 @@ async function guardarCierre() {
           FirmaCierre:  o.FirmaCierre || '',
         });
       }
-    } catch(e) { console.warn('No se pudo actualizar Sheets:', e.message); }
+    } catch(e) {
+      // Google no recibió el cierre: la orden vuelve a como estaba en este
+      // equipo y NO se descuenta nada del inventario (antes se descontaba
+      // igual, y al recargar la orden aparecía abierta; cerrarla otra vez
+      // descontaba dos veces). El formulario queda lleno para reintentar.
+      Object.keys(o).forEach(k => { if (!(k in antes)) delete o[k]; });
+      Object.assign(o, antes);
+      guardarLocal();
+      alerta.className = 'alert alert-err show';
+      alerta.textContent = '⚠️ No se pudo cerrar la orden en Google Sheets (' + e.message + '). No se descontó nada del inventario. Revisa la conexión y vuelve a tocar Cerrar.';
+      alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     // Descontar repuestos/insumos del inventario — solo la primera vez que se cierra
     if (!yaEstabaCerrada) {
@@ -10335,7 +10569,7 @@ function renderFotosOrden(orden, contId, readonly) {
         <a id="${aId}" href="#" target="_blank" rel="noopener" onclick="return this.href!=='#'">
           <img id="${imgId}" alt="Foto evidencia" style="width:100%;height:${imgH}px;object-fit:${fit};display:block;background:${bg}">
         </a>
-        ${readonly ? '' : `<button onclick="eliminarFotoOrden('${esc(orden.id||orden.NumeroOrden)}','${esc(f.driveFileId)}','${contId}')"
+        ${readonly ? '' : `<button onclick="eliminarFotoOrden(${_jsArg(orden.id||orden.NumeroOrden)},${_jsArg(f.driveFileId)},${_jsArg(contId)})"
           title="Eliminar foto"
           style="position:absolute;top:3px;right:3px;background:rgba(180,30,30,.85);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1">✕</button>`}
         ${f.tareaDescripcion ? `<div style="font-size:9px;color:var(--text3);padding:3px 5px;background:var(--surface2);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.tareaDescripcion)}</div>` : ''}
@@ -10819,8 +11053,13 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
     const colAResp = await fetch(base + '/values/' + encodeURIComponent(SH.ordenes + '!A:A'), { headers: hdrs });
     if (!colAResp.ok) throw new Error('No se pudo leer la hoja de Órdenes (HTTP ' + colAResp.status + ')');
     const colAData = await colAResp.json();
+    // Si la orden no está en la hoja (por ejemplo, la borraron desde otro
+    // equipo), antes se seguía de largo sin avisar y solo se escribían sus
+    // tareas y repuestos, huérfanos.
+    const rowIdxOrden = (colAData.values || []).findIndex((r, i) => i > 0 && r[0] === numeroOrden);
+    if (rowIdxOrden < 0) throw new Error('La orden ' + numeroOrden + ' no está en la hoja de Órdenes (¿la eliminaron desde otro equipo?)');
     if (colAData.values) {
-      const rowIdx = colAData.values.findIndex((r, i) => i > 0 && r[0] === numeroOrden);
+      const rowIdx = rowIdxOrden;
       if (rowIdx >= 0) {
         const sheetRow = rowIdx + 1;
         const rowResp  = await fetch(base + '/values/' + encodeURIComponent(SH.ordenes + '!A' + sheetRow + ':' + colFin + sheetRow), { headers: hdrs });
@@ -10964,7 +11203,12 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
     }
 
   } catch(e) {
+    // El error sube a quien llamó: antes se quedaba aquí y la pantalla decía
+    // "guardado" aunque Google no hubiera recibido nada; al recargar, el
+    // cambio desaparecía (y en un cierre, el inventario ya se había
+    // descontado).
     console.warn('No se pudo actualizar en Sheets:', e.message);
+    throw e;
   }
 }
 
@@ -11096,6 +11340,7 @@ async function intentarSincronizarPendientes() {
     try {
       await guardarOrdenEnSheets(orden, { reintento: true });
       delete orden._pendienteSync;
+      orden._enSheets = true;
       subidas++;
     } catch (e) {
       console.warn('No se pudo sincronizar la orden', orden.NumeroOrden, e.message);
@@ -11185,7 +11430,7 @@ function _bloqueFirmaPdf(orden, campo, titulo) {
   if (orden[campo]) {
     return `<div class="section-title">${titulo}</div>
 <div style="padding:10px;background:var(--surface2);border-radius:4px;margin-bottom:16px">
-  <img src="${esc(orden[campo])}" style="max-height:70px;max-width:260px">
+  <img src="${_srcFirma(orden[campo])}" style="max-height:70px;max-width:260px">
 </div>`;
   }
   if (_firmaGuardadaPeroNoDisponible(orden, campo)) {
@@ -11383,6 +11628,8 @@ async function guardarOrden() {
       try {
         await guardarOrdenEnSheets(nuevaOrden);
         sheetsOk = true;
+        nuevaOrden._enSheets = true;
+        guardarLocal();
       } catch(e) {
         sheetsError = e.message;
         console.error('Error Sheets:', e);
@@ -11398,7 +11645,7 @@ async function guardarOrden() {
 
     if (sheetsOk) {
       alert.className = 'alert alert-ok show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Orden <strong>${numOrden}</strong> guardada en Google Sheets. <a href="#" onclick="verDetalle('${numOrden}');showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Orden <strong>${numOrden}</strong> guardada en Google Sheets. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(true);
     } else if (esSinConexion) {
       // Sin internet: queda en cola y se sube SOLA cuando vuelva la señal — no hay que recrearla.
@@ -11417,12 +11664,12 @@ async function guardarOrden() {
         return;   // sin limpiar el formulario: los datos siguen a la vista
       }
       alert.className = 'alert alert-ok show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> Sin conexión: la orden <strong>${numOrden}</strong> quedó guardada en este dispositivo y se subirá sola a Google Sheets apenas vuelva el internet (no necesitas crearla de nuevo). <a href="#" onclick="verDetalle('${numOrden}');showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> Sin conexión: la orden <strong>${numOrden}</strong> quedó guardada en este dispositivo y se subirá sola a Google Sheets apenas vuelva el internet (no necesitas crearla de nuevo). <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(false);
     } else {
       // Hubo internet, pero Google rechazó la solicitud por otra razón (permisos, etc.)
       alert.className = 'alert alert-err show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> La orden <strong>${numOrden}</strong> NO se pudo guardar en Google Sheets (${esc(sheetsError)}). Se guardó solo en este navegador como respaldo — vuelve a iniciar sesión y créala de nuevo para que quede en el Sheet. <a href="#" onclick="verDetalle('${numOrden}');showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> La orden <strong>${numOrden}</strong> NO se pudo guardar en Google Sheets (${esc(sheetsError)}). Se guardó solo en este navegador como respaldo — vuelve a iniciar sesión y créala de nuevo para que quede en el Sheet. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(false);
     }
     actualizarContadorTab && actualizarContadorTab();
@@ -11487,10 +11734,19 @@ async function cargarOrdenes() {
         }
       });
 
-      // Agregar locales que no estén en Sheets
+      // Cada orden que vino de Sheets queda marcada: así se sabe, la próxima
+      // vez, que ya estuvo allá.
+      sheetsOrdenes.forEach(o => { o._enSheets = true; });
+
+      // Locales que no están en Sheets: solo vuelven las que nunca llegaron
+      // allá (en cola sin señal, o que Google rechazó y quedaron de respaldo
+      // en este equipo). Una que SÍ estuvo en Sheets y ya no está fue
+      // eliminada desde otro equipo; antes se volvía a agregar y la orden
+      // borrada reaparecía en todos los celulares que la tenían guardada.
       local.forEach(localItem => {
         const existe = sheetsOrdenes.find(o => o.NumeroOrden === localItem.NumeroOrden);
-        if (!existe) sheetsOrdenes.push(localItem);
+        if (existe) return;
+        if (localItem._pendienteSync || !localItem._enSheets) sheetsOrdenes.push(localItem);
       });
 
       allOrdenes = sheetsOrdenes;
@@ -11547,7 +11803,7 @@ function filtrarOrdenes() {
   }
 
   div.innerHTML = filtered.slice().reverse().map(o => `
-    <div class="order-item" onclick="verDetalle('${o.id||o.NumeroOrden}')">
+    <div class="order-item" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)})">
       <div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
           <span class="order-num">${esc(o.NumeroOrden||'—')}</span>
@@ -11806,13 +12062,13 @@ async function verDetalle(id) {
     + 'La firma está guardada, pero no se pudo traer sin conexión. Ábrela con internet para verla.</div></div>';
   if (orden.FirmaCreador) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>';
-    html += '<div style="padding:12px 18px"><img src="' + orden.FirmaCreador + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+    html += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCreador) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
   } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCreador')) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>' + _firmaFaltaTxt;
   }
   if (orden.FirmaCierre) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>';
-    html += '<div style="padding:12px 18px"><img src="' + orden.FirmaCierre + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+    html += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCierre) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
   } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCierre')) {
     html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>' + _firmaFaltaTxt;
   }
@@ -11872,19 +12128,37 @@ async function marcarRealizada(id) {
   const o = allOrdenes.find(x => String(x.id) === String(id) || x.NumeroOrden === id);
   if (!o) return;
   const yaEstabaCerrada = o.Estado === 'Cerrada';
+  // Misma revisión de stock que al cerrar desde el editor (antes este
+  // camino no la hacía y la orden se cerraba aunque no alcanzara).
+  if (!yaEstabaCerrada) {
+    const faltantes = await verificarStockSuficiente(o);
+    if (faltantes.length) {
+      alert('No se puede marcar como realizada: no hay stock suficiente en el inventario.\n\n'
+        + faltantes.map(f => `${f.nombre}: pide ${f.pedido}, hay ${f.disponible}`).join('\n'));
+      return;
+    }
+  }
+  const antes = { Estado: o.Estado, FechaCierre: o.FechaCierre, EjecutadoPor: o.EjecutadoPor };
   o.Estado = 'Cerrada';
   o.FechaCierre = new Date().toISOString();
   o.EjecutadoPor = o.EjecutadoPor || currentUser.name;
   guardarLocal();
   try {
-    if (o.NumeroOrden && googleAccessToken) {
+    if (!googleAccessToken) throw new Error('no hay sesión');
+    if (o.NumeroOrden) {
       await actualizarOrdenEnSheets(o.NumeroOrden, {
         Estado: 'Cerrada',
         FechaCierre: o.FechaCierre,
         EjecutadoPor: o.EjecutadoPor
       });
     }
-  } catch(e) { console.warn('No se pudo actualizar Sheets:', e.message); }
+  } catch(e) {
+    Object.assign(o, antes);
+    guardarLocal();
+    alert('⚠️ No se pudo marcar como realizada en Google Sheets (' + e.message + '). No se descontó nada del inventario. Revisa la conexión y vuelve a intentar.');
+    renderPendientes();
+    return;
+  }
 
   // Descontar repuestos/insumos del inventario — solo la primera vez que se cierra
   if (!yaEstabaCerrada) {
@@ -12370,8 +12644,29 @@ function limpiarCacheLocal() {
    HELPERS
 ══════════════════════════════════════════════ */
 function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // 0 se muestra como "0" (antes quedaba en blanco); null, undefined, false y NaN, vacíos.
+  if (str === null || str === undefined || str === false || (typeof str === 'number' && isNaN(str))) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/** Una firma guardada, lista para el src de una imagen. Las firmas son
+ *  imágenes que dibuja la propia app (data:image/...;base64). Cualquier otra
+ *  cosa en esa celda se descarta: antes se pegaba tal cual dentro del HTML
+ *  del detalle y un texto preparado en la hoja se ejecutaba como código. */
+function _srcFirma(valor) {
+  const v = String(valor || '').trim();
+  return /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=\s]+$/.test(v) ? v : '';
+}
+
+/** Un dato como argumento de un onclick="fn(...)" armado en HTML. esc()
+ *  sola no basta ahí: el navegador deshace los &#39; antes de ejecutar el
+ *  código, así que un dato con una comilla simple (un código de reporte,
+ *  un número de orden traído de la hoja) cerraba el texto y lo que venía
+ *  después se ejecutaba. Aquí el dato va como texto de JavaScript con sus
+ *  comillas (JSON) y luego escapado para el atributo:
+ *    onclick="verDetalle(${_jsArg(id)})"  →  verDetalle("OT-1") */
+function _jsArg(valor) {
+  return esc(JSON.stringify(valor === null || valor === undefined ? '' : String(valor)));
 }
 
 /** Devuelve el logo de SolucionAIRE/Atera ya cargado en el header de la app
@@ -14242,7 +14537,7 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecu
   cont.innerHTML = `
     <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <label style="font-size:12px;color:var(--text3);font-weight:600">Tipo de equipo:</label>
-      <select onchange="pmCambiarTipoInforme('${informeId}', this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);font-size:12.5px">
+      <select onchange="pmCambiarTipoInforme(${_jsArg(informeId)}, this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);font-size:12.5px">
         ${opcionesTipo}
       </select>
       ${tipoSel !== 'compresores' ? '<span style="font-size:11px;color:var(--text3)">Checklist provisional (copia del de Compresores) — horas en 0 hasta tener una fuente de datos real.</span>' : ''}
@@ -14852,7 +15147,7 @@ function invFiltrarListaLotes() {
     const resumen = p.tipo === 'servicio'
       ? `${p.lotes.length} precio${p.lotes.length!==1?'s':''} registrado${p.lotes.length!==1?'s':''}`
       : `${p.lotes.length} lote${p.lotes.length!==1?'s':''} · ${p.lotes.filter(l => l.restante > 0.0001).length} disponible${p.lotes.filter(l => l.restante > 0.0001).length!==1?'s':''}`;
-    return `<div onclick="invSeleccionarProductoLotes('${esc(p.codigo).replace(/'/g,"\\'")}')"
+    return `<div onclick="invSeleccionarProductoLotes(${_jsArg(p.codigo)})"
         style="padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--border);
                background:${activo ? 'var(--surface2)' : 'transparent'}"
         onmouseover="this.style.background='var(--surface2)'"
@@ -15218,7 +15513,7 @@ function renderHistorialRacha(racha) {
     [...racha].reverse().map(r =>
       `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 6px 3px 10px;margin:2px 5px 2px 0;font-size:11.5px">
         ${fmtFecha(r.fecha)}${r.registradoPor ? ' · ' + esc(r.registradoPor) : ''}
-        <button class="solo-admin" onclick="eliminarFechaRacha('${esc(r.fecha)}')" title="Eliminar este registro" style="background:none;border:none;color:var(--warn);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
+        <button class="solo-admin" onclick="eliminarFechaRacha(${_jsArg(r.fecha)})" title="Eliminar este registro" style="background:none;border:none;color:var(--warn);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
       </span>`
     ).join('');
 }
@@ -15569,9 +15864,9 @@ function filtrarNovedadesUI() {
       <td style="padding:7px 10px">${esc(n.ElaboradoNombre || n.Correo || '')}</td>
       <td style="padding:7px 10px;text-align:center">${n.InformeDriveFileId ? '📄' : '—'}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="abrirModalNovedad('${esc(n.Codigo)}')">${iconoEditar}</button>
-        <button class="btn btn-ghost btn-sm" onclick="verInformePdf('${esc(n.Codigo)}')" title="Ver PDF del informe">${iconoExportar}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarNovedad('${esc(n.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="abrirModalNovedad(${_jsArg(n.Codigo)})">${iconoEditar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verInformePdf(${_jsArg(n.Codigo)})" title="Ver PDF del informe">${iconoExportar}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarNovedad(${_jsArg(n.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
 
@@ -17175,7 +17470,7 @@ function _htmlMiniaturaFotoCronograma(foto, actividadId, fecha, conBorrar) {
     <a id="${esc(aId)}" href="#" target="_blank" rel="noopener" onclick="return this.href!=='#'">
       <img id="${esc(imgId)}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2)" alt="Foto">
     </a>
-    ${conBorrar ? `<button type="button" onclick="eliminarFotoCronograma('${esc(foto.driveFileId)}','${esc(actividadId)}','${esc(fecha)}',this)"
+    ${conBorrar ? `<button type="button" onclick="eliminarFotoCronograma(${_jsArg(foto.driveFileId)},${_jsArg(actividadId)},${_jsArg(fecha)},this)"
         style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#b91c1c;color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer">✕</button>` : ''}
   </span>`;
 }
@@ -17214,7 +17509,7 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   const fotosHtml = (fotosActividad || []).map(f => _htmlMiniaturaFotoCronograma(f, actividadId, fecha, editable)).join('');
   const botonCamara = editable ? `<label style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px dashed var(--border);border-radius:6px;color:var(--text3)" title="Adjuntar foto">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-      <input type="file" accept="image/*" style="display:none" onchange="manejarSubidaFotoCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
+      <input type="file" accept="image/*" style="display:none" onchange="manejarSubidaFotoCronograma(this,${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})">
     </label>` : '';
   // Una vez que ya hay una decisión guardada (realizada o no), tanto el
   // checkbox como el botón "No realizado" quedan bloqueados — no hay forma
@@ -17222,10 +17517,10 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   const puedeMarcar = editable && !reg;
   const botonNoRealizado = puedeMarcar ? `<button type="button" id="cronBtnNoReal_${actividadId}"
       style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--danger);color:var(--danger);background:var(--surface);cursor:pointer;margin-top:5px"
-      onclick="abrirModalNoRealizadaCronograma('${actividadId}','${turnoId}','${fecha}')">✗ No realizado</button>` : '';
+      onclick="abrirModalNoRealizadaCronograma(${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})">✗ No realizado</button>` : '';
   return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
     <input type="checkbox" id="cronCheck_${actividadId}" ${marcado} ${puedeMarcar ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${puedeMarcar?'pointer':'not-allowed'}"
-      onchange="onCambioActividadCronograma(this,'${actividadId}','${turnoId}','${fecha}')">
+      onchange="onCambioActividadCronograma(this,${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})">
     <div style="flex:1">
       <div style="font-size:13px;line-height:1.5">${esc(texto)}</div>
       <div id="cronMarca_${actividadId}" style="font-size:11px;color:#15803d;font-weight:700;margin-top:3px">${marcaTxt}</div>
@@ -17308,9 +17603,9 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
   return `<div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <button type="button" id="cronBtnReal_${checkpointId}" ${puedeMarcarReal ? '' : 'disabled'} style="${estiloBtn};border-color:#15803d;color:#15803d;opacity:${puedeMarcarReal ? '1' : '.5'};cursor:${puedeMarcarReal ? 'pointer' : 'not-allowed'}"
-        onclick="onClickRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}','${esc(hora || '')}')">✓ Realizado</button>
+        onclick="onClickRealizadoCheckpoint(${_jsArg(checkpointId)},${_jsArg(turnoId)},${_jsArg(fecha)},${_jsArg(hora || '')})">✓ Realizado</button>
       <button type="button" id="cronBtnNoReal_${checkpointId}" ${puedeMarcarNoReal ? '' : 'disabled'} style="${estiloBtn};border-color:var(--danger);color:var(--danger);cursor:${puedeMarcarNoReal ? 'pointer' : 'not-allowed'}"
-        onclick="onClickNoRealizadoCheckpoint('${checkpointId}')">✗ No realizado</button>
+        onclick="onClickNoRealizadoCheckpoint(${_jsArg(checkpointId)})">✗ No realizado</button>
       <span id="cronMarca_${checkpointId}" style="font-size:10.5px;font-weight:600;text-transform:none">${marcaTxt}</span>
       <span id="cronCerrada_${checkpointId}" style="display:${ventanaCerrada ? '' : 'none'};font-size:10.5px;font-weight:700;color:#b91c1c;text-transform:none">⏱ Ventana cerrada — ya no se puede marcar como realizado</span>
     </div>
@@ -17319,7 +17614,7 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
       <textarea id="cronMotivo_${checkpointId}" rows="2" style="width:100%;resize:vertical;font-size:12.5px" placeholder="Explica brevemente el motivo..."></textarea>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('cronMotivoWrap_${checkpointId}').style.display='none'">Cancelar</button>
-        <button type="button" class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="guardarNoRealizadoCheckpoint('${checkpointId}','${turnoId}','${fecha}')">Guardar</button>
+        <button type="button" class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="guardarNoRealizadoCheckpoint(${_jsArg(checkpointId)},${_jsArg(turnoId)},${_jsArg(fecha)})">Guardar</button>
       </div>
     </div>
   </div>`;
@@ -17431,8 +17726,8 @@ function _htmlAdicionalesCronograma(turnoId, fecha, adicionales, registros, foto
     .map(a => _htmlFilaActividadCronograma(a.id, a.descripcion, turnoId, fecha, registros[a.id], (fotos && fotos[a.id]) || [], editable))
     .join('');
   const formAgregar = editable ? `<div style="display:flex;gap:8px;padding:10px 14px">
-      <input type="text" id="cronNuevaAdicional_${esc(turnoId)}" placeholder="Describe la actividad adicional..." style="flex:1;margin:0" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarActividadAdicionalCronograma('${esc(turnoId)}','${esc(fecha)}');}">
-      <button type="button" class="btn btn-primary" style="white-space:nowrap" onclick="agregarActividadAdicionalCronograma('${esc(turnoId)}','${esc(fecha)}')">+ Agregar</button>
+      <input type="text" id="cronNuevaAdicional_${esc(turnoId)}" placeholder="Describe la actividad adicional..." style="flex:1;margin:0" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarActividadAdicionalCronograma(${_jsArg(turnoId)},${_jsArg(fecha)});}">
+      <button type="button" class="btn btn-primary" style="white-space:nowrap" onclick="agregarActividadAdicionalCronograma(${_jsArg(turnoId)},${_jsArg(fecha)})">+ Agregar</button>
     </div>` : '';
   return `<div style="margin-bottom:12px">
     <div style="background:var(--surface2);color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 14px">Actividades adicionales</div>
@@ -17658,7 +17953,7 @@ function renderHistorialInvh() {
       <td style="padding:7px 10px">${esc(f.Turno)}</td>
       <td style="padding:7px 10px">${esc(f.RegistradoPor || '')}</td>
       <td style="padding:7px 10px;text-align:center">${completo ? '<span style="color:#15803d;font-weight:700">✅ Completo</span>' : `<span style="color:#b91c1c;font-weight:700">⚠️ ${n} novedad${n === 1 ? '' : 'es'}</span>`}</td>
-      <td style="padding:7px 10px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" onclick="verInventarioInvh('${esc(f.FechaHora)}')" style="white-space:nowrap">👁 Ver</button></td>
+      <td style="padding:7px 10px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" onclick="verInventarioInvh(${_jsArg(f.FechaHora)})" style="white-space:nowrap">👁 Ver</button></td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -18533,9 +18828,9 @@ function renderTablaEntregasTurno() {
       <td style="padding:7px 10px">${esc(e.EntregadoPor)}</td>
       <td style="padding:7px 10px">${esc(e.RecibidoPor)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verEntregaTurno('${esc(e.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarEntregaTurnoPDF('${esc(e.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarEntregaTurno('${esc(e.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verEntregaTurno(${_jsArg(e.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarEntregaTurnoPDF(${_jsArg(e.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarEntregaTurno(${_jsArg(e.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19009,9 +19304,9 @@ function renderTablaReportesCompresores() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteCompresor('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteCompresor('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReporteCompresor(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteCompresor(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19316,9 +19611,9 @@ function renderTablaReportesSecadores() {
       <td style="padding:7px 10px">${esc(r.Secador)}</td>
       <td style="padding:7px 10px">${esc(r.Tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteSecador('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteSecadorPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteSecador('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReporteSecador(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteSecadorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteSecador(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19623,9 +19918,9 @@ function renderTablaReportesDrycoolers() {
       <td style="padding:7px 10px">${esc(r.Drycooler)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteDrycooler('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReporteDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -19905,9 +20200,9 @@ function renderTablaReportesDecorado() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteDecorado('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDecorado('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReporteDecorado(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDecorado(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -20189,9 +20484,9 @@ function renderTablaReportesEmergencia() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteEmergencia('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteEmergenciaPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteEmergencia('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReporteEmergencia(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteEmergenciaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteEmergencia(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -20456,9 +20751,9 @@ function renderTablaReportesPresionDrycooler() {
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
       <td style="padding:7px 10px">${esc(r.Tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReportePresionDrycooler('${esc(r.Codigo)}')">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReportePresionDrycoolerPDF('${esc(r.Codigo)}')">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReportePresionDrycooler('${esc(r.Codigo)}')" style="color:var(--danger)">${iconoEliminar}</button>
+        <button class="btn btn-ghost btn-sm" onclick="verReportePresionDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReportePresionDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReportePresionDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -21286,7 +21581,7 @@ async function hvdRenderListaEquipos() {
 
 function _htmlItemListaHVD(clave, etiquetaHtml) {
   const activo = clave === hvdEquipoActual;
-  return `<div onclick="hvdSeleccionarEquipo('${esc(clave).replace(/'/g,"\\'")}')"
+  return `<div onclick="hvdSeleccionarEquipo(${_jsArg(clave)})"
       style="padding:11px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);
              font-weight:${activo ? '700' : '400'};
              background:${activo ? 'var(--surface2)' : 'transparent'};
@@ -21585,15 +21880,22 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
   const idxCol = colsReales.indexOf(colClave);
   const filasExistentes = (d.values || []).slice(1); // sin encabezado
 
+  // Solo se escriben las filas que cambian (cada una en su rango, todas en
+  // una sola petición) y las nuevas se anexan al final. Antes se reescribía
+  // la hoja completa con lo que este equipo había leído: si otro celular
+  // guardaba algo en esos segundos, se perdía.
+  const colFin = numToCol(colsReales.length - 1);
   const clavesEncontradas = new Set();
-  const filasActualizadas = filasExistentes.map(fila => {
+  const rangosCambiados = [];
+  filasExistentes.forEach((fila, i) => {
     const valorClave = fila[idxCol];
     const cambios = cambiosPorClave[valorClave];
-    if (!cambios) return colsReales.map((c, i) => fila[i] || '');
+    if (!cambios || clavesEncontradas.has(valorClave)) return;
     clavesEncontradas.add(valorClave);
-    return colsReales.map((c, i) => {
-      if (Object.prototype.hasOwnProperty.call(cambios, c)) return cambios[c];
-      return fila[i] || '';
+    const numeroFila = i + 2; // +1 encabezado, +1 base 1
+    rangosCambiados.push({
+      range: hoja + `!A${numeroFila}:${colFin}${numeroFila}`,
+      values: [colsReales.map((c, j) => Object.prototype.hasOwnProperty.call(cambios, c) ? cambios[c] : (fila[j] || ''))],
     });
   });
 
@@ -21605,13 +21907,14 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
     });
   });
 
-  const todasLasFilas = [...filasActualizadas, ...filasNuevas];
-  if (!todasLasFilas.length) return;
-  const colFin = numToCol(colsReales.length - 1);
-  const putResp = await fetch(base + '/values/' + encodeURIComponent(hoja + `!A2:${colFin}${1 + todasLasFilas.length}`) + '?valueInputOption=RAW', {
-    method: 'PUT', headers: hdrs, body: JSON.stringify({ values: todasLasFilas })
-  });
-  if (!putResp.ok) throw new Error('No se pudo guardar el lote de cambios en ' + hoja + ' (HTTP ' + putResp.status + ')');
+  if (rangosCambiados.length) {
+    const putResp = await fetch(base + '/values:batchUpdate', {
+      method: 'POST', headers: hdrs, body: JSON.stringify({ valueInputOption: 'RAW', data: rangosCambiados }),
+    });
+    if (putResp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
+    if (!putResp.ok) throw new Error('No se pudo guardar el lote de cambios en ' + hoja + ' (HTTP ' + putResp.status + ')');
+  }
+  if (filasNuevas.length) await appendHoja(hoja, filasNuevas);
   _invalidarCacheHoja(hoja);
 }
 
@@ -22123,14 +22426,30 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
     return { creadas: 0, sembradas, error: null };
   }
 
+  // Dos celulares que abren la app al mismo tiempo hacen esta misma cuenta y
+  // los dos crearían la orden. Se toma el candado de la sede (el mismo del
+  // inventario) y, ya con él, se vuelve a leer qué órdenes automáticas hay
+  // en la hoja: las que otro alcanzó a crear se descartan aquí.
+  let candado = null;
+  const hojaCandado = _invSpreadsheetId(operacionActual);
+  try { candado = await _invAdquirirLock(hojaCandado); }
+  catch (e) { console.warn('Órdenes automáticas sin candado (se sigue con la relectura):', e.message); }
   try {
-    nuevasOrdenes.forEach(o => allOrdenes.push(o));
-    guardarLocal();
-    await guardarOrdenesEnSheetsEnLote(nuevasOrdenes);
+    const yaEnLaHoja = await _origenesInformeEnSheets();
+    for (let i = nuevasOrdenes.length - 1; i >= 0; i--) {
+      if (yaEnLaHoja.has(nuevasOrdenes[i].OrigenInforme)) nuevasOrdenes.splice(i, 1);
+    }
+    if (nuevasOrdenes.length) {
+      nuevasOrdenes.forEach(o => allOrdenes.push(o));
+      guardarLocal();
+      await guardarOrdenesEnSheetsEnLote(nuevasOrdenes);
+    }
   } catch (e) {
     console.warn(`No se pudieron guardar las órdenes automáticas del ${nombre}:`, e.message);
     actualizarBadgeNotificaciones();
     return { creadas: 0, sembradas: 0, error: e.message };
+  } finally {
+    if (candado) await _invLiberarLock(hojaCandado, candado);
   }
 
   // El estado y las notificaciones van APARTE del guardado de la orden y
@@ -22159,6 +22478,21 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
 
   actualizarBadgeNotificaciones();
   return { creadas: nuevasOrdenes.length, sembradas: 0, error: null };
+}
+
+/** Las marcas OrigenInforme de las órdenes automáticas que ya están en la
+ *  hoja de Órdenes, leídas en el momento (no de la copia en memoria). */
+async function _origenesInformeEnSheets() {
+  const cols = await asegurarHoja(SH.ordenes, SHEETS_COLS);
+  const idx = cols.indexOf('OrigenInforme');
+  if (idx < 0) return new Set();
+  const letra = numToCol(idx);
+  const resp = await fetch(SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId + '/values/'
+    + encodeURIComponent(SH.ordenes + '!' + letra + ':' + letra), { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
+  if (!resp.ok) throw new Error('No se pudo leer la hoja de Órdenes (HTTP ' + resp.status + ')');
+  const d = await resp.json();
+  return new Set((d.values || []).slice(1).map(f => String((f && f[0]) || '')).filter(Boolean));
 }
 
 /* ── ¿Hace falta revisar los informes por horas en esta carga? ──
@@ -22290,7 +22624,7 @@ async function _renderDropdownNotificaciones() {
 
   panel.innerHTML = cabecera + notifs.map(n => {
     const noLeida = !leidas.has(n.ID);
-    return `<div onclick="marcarNotificacionLeida('${esc(n.ID)}');actualizarBadgeNotificaciones();this.style.background='transparent';this.querySelector('.notif-dot')?.remove();"
+    return `<div onclick="marcarNotificacionLeida(${_jsArg(n.ID)});actualizarBadgeNotificaciones();this.style.background='transparent';this.querySelector('.notif-dot')?.remove();"
       style="padding:16px 26px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;background:${noLeida ? 'var(--brand-light)' : 'transparent'};display:flex;gap:10px;align-items:flex-start">
       ${noLeida ? '<span class="notif-dot" style="width:8px;height:8px;border-radius:50%;background:var(--accent2);margin-top:5px;flex-shrink:0"></span>' : '<span style="width:8px;flex-shrink:0"></span>'}
       <div>
@@ -22356,7 +22690,7 @@ function _renderHistorialOrdenesEquipo(equipo) {
         <td>${esc(o.Title || '')}${o.ObsCierre ? ' — ' + esc(o.ObsCierre) : ''}</td>
         <td>${esc(o.HorasEquipo || '')}</td>
         <td>${fmtCOP(costoTotal)}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
       </tr>`;
     }).join('') + `</tbody></table>`;
 }
@@ -22408,7 +22742,7 @@ function renderListaEquiposHistorico() {
     const totalOrdenes = allOrdenes.filter(o => (o.Equipo || '').trim() === eq).length;
     const activo = eq === equipoHistoricoSeleccionado;
     return `
-      <div onclick="seleccionarEquipoHistorico('${esc(eq).replace(/'/g, "\\'")}')"
+      <div onclick="seleccionarEquipoHistorico(${_jsArg(eq)})"
         style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;font-size:13px;
                background:${activo ? 'rgba(20,60,110,.08)' : 'white'};font-weight:${activo ? '700' : '400'};
                border-left:3px solid ${activo ? 'var(--accent)' : 'transparent'};border-bottom:1px solid var(--border)"
@@ -22435,7 +22769,7 @@ function filtrarListaEquiposHistorico() {
     const totalOrdenes = allOrdenes.filter(o => (o.Equipo || '').trim() === eq).length;
     const activo = eq === equipoHistoricoSeleccionado;
     return `
-      <div onclick="seleccionarEquipoHistorico('${esc(eq).replace(/'/g, "\\'")}')"
+      <div onclick="seleccionarEquipoHistorico(${_jsArg(eq)})"
         style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;font-size:13px;
                background:${activo ? 'rgba(20,60,110,.08)' : 'white'};font-weight:${activo ? '700' : '400'};
                border-left:3px solid ${activo ? 'var(--accent)' : 'transparent'};border-bottom:1px solid var(--border)"
@@ -22515,7 +22849,7 @@ function renderHistoricoEquipoSeleccionado() {
       <td style="padding:7px 10px">${fmtFecha(o.FechaInicio || o.FechaCreacion)}</td>
       <td style="padding:7px 10px;text-align:center"><span class="badge" style="${estilo}">${esc(o.Estado)}</span></td>
       <td style="padding:7px 10px;text-align:center">${costo ? fmtCOP(costo) : '—'}</td>
-      <td style="padding:7px 10px;text-align:center"><button class="btn btn-ghost btn-sm" onclick="verDetalle('${esc(o.id||o.NumeroOrden)}');showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button></td>
+      <td style="padding:7px 10px;text-align:center"><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button></td>
     </tr>`;
   });
 
@@ -23735,7 +24069,7 @@ function proyRenderAlcances() {
       <td><input type="date" value="${esc(proyIso(p.FechaInicio))}" onchange="proyEditarProyecto(${p._row}, 'FechaInicio', this.value)"></td>
       <td><input type="date" value="${esc(proyIso(p.FechaFin))}" onchange="proyEditarProyecto(${p._row}, 'FechaFin', this.value)"></td>
       <td><input type="text" value="${esc(p.Estado || '')}" onchange="proyEditarProyecto(${p._row}, 'Estado', this.value)"></td>
-      <td>${p.Codigo === proyActual ? '<span class="proy-estado aldia">Activo</span>' : `<button class="proy-btn-ghost" onclick="proyCambiarProyecto('${esc(p.Codigo)}')">Ver</button>`}</td>
+      <td>${p.Codigo === proyActual ? '<span class="proy-estado aldia">Activo</span>' : `<button class="proy-btn-ghost" onclick="proyCambiarProyecto(${_jsArg(p.Codigo)})">Ver</button>`}</td>
     </tr>`).join('') : _proySinDatos('Todavía no hay proyectos. Crea el primero con "+ Nuevo proyecto".'));
 
   const alcances = proyAlcances();

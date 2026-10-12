@@ -14,14 +14,16 @@
    - El Worker guarda la CUENTA DE SERVICIO de Google (secreto) y con ella
      lee/escribe las hojas. El token de Google nunca baja al navegador.
    - Antes de cada operación, el Worker revisa el pase y el rol:
-       • Tocar la hoja "Usuarios" o rangos "Config!", abrir la hoja de
-         Proyectos (HOJAS_SOLO_ADMIN, incluso para leer) o las pestañas de
-         personal "Operarios" y "ObservacionesOperarios" → SOLO admin.
+       • Un admin puede todo.
+       • Un operario solo puede lo que la app usa (lista blanca, ver
+         _motivoNoPermitido): leer, escribir y anexar rangos con su pestaña,
+         agregar pestañas y borrar filas de datos. Nunca la hoja Usuarios,
+         la de Proyectos (HOJAS_SOLO_ADMIN), las pestañas de personal
+         "Operarios" y "ObservacionesOperarios", ni "Config" (salvo su celda
+         B1, el candado del inventario).
        • Cada petición se cruza con la hoja Usuarios (releída cada 5 min):
          quien quede inactivo o borrado pierde el acceso, y un cambio de
          rol aplica sin esperar a que venza el pase.
-       • Leer y escribir normal (órdenes, inventario, cronograma) → cualquier
-         sesión válida.
 
    Endpoints
    ---------
@@ -31,6 +33,9 @@
          Requiere header  Authorization: Bearer <session>
          El Worker valida sesión + rol, mete el token de la cuenta de
          servicio y reenvía a Google. Devuelve la respuesta tal cual.
+   • POST /sede             body {spreadsheetId, clave}   (con el pase)
+         → {ok:true} si la clave coincide con el hash de Config!A1 de esa
+         hoja. El hash nunca sale del Worker; hay bloqueo por intentos.
    • GET  /foto?id=<driveFileId>   (requiere Authorization: Bearer <session>)
          Devuelve la foto directo desde Google Drive con la cuenta de servicio.
    • GET  /ping             → {ok:true} (para probar que está arriba)
@@ -94,6 +99,10 @@ export default {
 
       if (url.pathname.startsWith('/sheets/')) {
         return _cors(await _gatewaySheets(peticion, entorno, url), entorno, origen);
+      }
+
+      if (url.pathname === '/sede' && peticion.method === 'POST') {
+        return _cors(await _sede(peticion, entorno), entorno, origen);
       }
 
       if (url.pathname === '/foto' && peticion.method === 'GET') {
@@ -297,13 +306,14 @@ async function _gatewaySheets(peticion, entorno, url) {
   const esEscritura = peticion.method !== 'GET' && peticion.method !== 'HEAD';
   const cuerpoTexto = esEscritura ? await peticion.text() : null;
 
-  // ── Chequeo de rol para operaciones sensibles (solo admin) ──
+  const token = await _tokenCuentaServicio(entorno);
+
+  // ── Chequeo de rol: un operario solo puede hacer lo que la app usa ──
   if (sesion.rol !== 'admin') {
-    const motivo = _requiereAdmin(peticion.method, rutaGoogle, cuerpoTexto, spreadsheetId, entorno);
+    const motivo = await _motivoNoPermitido(peticion.method, rutaGoogle, cuerpoTexto, spreadsheetId, entorno, token);
     if (motivo) return _json({ ok: false, mensaje: 'Esta acción es solo para administradores (' + motivo + ').' }, 403);
   }
 
-  const token = await _tokenCuentaServicio(entorno);
   const cabeceras = { Authorization: 'Bearer ' + token };
   const ct = peticion.headers.get('Content-Type');
   if (ct) cabeceras['Content-Type'] = ct;
@@ -328,40 +338,199 @@ async function _gatewaySheets(peticion, entorno, url) {
   });
 }
 
-/* Decide si una operación es "sensible" (solo admin). Devuelve el motivo
-   (texto) si lo es, o null si cualquier sesión puede hacerla. */
-function _requiereAdmin(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno) {
-  // Hojas reservadas a admin (Proyectos): bloqueadas también para LEER.
-  if (spreadsheetId && HOJAS_SOLO_ADMIN.includes(spreadsheetId)) {
-    return 'hoja de Proyectos';
+/* ── QUÉ PUEDE HACER UN OPERARIO ─────────────────────────────────────────
+   Lista blanca: solo las operaciones que la app usa de verdad. Antes era al
+   revés —se bloqueaba lo peligroso que se alcanzaba a reconocer en la
+   dirección— y quedaban caminos por fuera (escrituras en lote con el rango
+   en el cuerpo, ediciones estructurales que borran pestañas enteras).
+
+     • Leer los datos de la hoja (metadatos de las pestañas).
+     • Leer un rango, o varios en una lectura en lote.
+     • Escribir, anexar o borrar el contenido de UN rango que va en la
+       dirección, o escribir varios rangos en lote (cada uno revisado).
+     • Edición estructural, solo para agregar una pestaña nueva o borrar
+       filas (nunca la de encabezados).
+   Siempre con el nombre de la pestaña escrito, y nunca sobre:
+     • la hoja de Usuarios ni la de Proyectos (ni para leer),
+     • las pestañas de personal "Operarios" y "ObservacionesOperarios",
+     • la pestaña "Config", salvo su celda B1, que es el candado del
+       inventario (cada movimiento lo toma y lo suelta). La A1 guarda la
+       clave de la sede, que solo se comprueba aquí, en /sede.
+   Un admin puede todo. Devuelve el motivo del bloqueo, o null. */
+const PESTANAS_SOLO_ADMIN = ['config', 'operarios', 'observacionesoperarios', 'usuarios'];
+
+async function _motivoNoPermitido(metodo, rutaGoogle, cuerpoTexto, spreadsheetId, entorno, token) {
+  if (!spreadsheetId) return 'operación no permitida';
+  if (HOJAS_SOLO_ADMIN.includes(spreadsheetId)) return 'hoja de Proyectos';
+  if (spreadsheetId === entorno.USUARIOS_SHEET_ID) return 'hoja de usuarios';
+
+  const destino = new URL('https://x' + rutaGoogle);
+  const ruta = destino.pathname;
+  const base = '/v4/spreadsheets/' + spreadsheetId;
+
+  if (ruta === base) return metodo === 'GET' ? null : 'operación no permitida';
+
+  if (ruta === base + '/values:batchGet') {
+    if (metodo !== 'GET') return 'operación no permitida';
+    const rangos = destino.searchParams.getAll('ranges');
+    if (!rangos.length) return 'operación no permitida';
+    for (const r of rangos) { const m = _motivoRango(r); if (m) return m; }
+    return null;
   }
-  // Escribir en la hoja de Usuarios = gestionar usuarios → admin.
-  if (spreadsheetId && spreadsheetId === entorno.USUARIOS_SHEET_ID && metodo !== 'GET') {
-    return 'gestión de usuarios';
+
+  // Escritura en lote: varias filas sueltas en una sola petición (la app la
+  // usa para no reescribir hojas enteras). Cada rango viene en el cuerpo y
+  // se revisa igual que uno en la dirección.
+  if (ruta === base + '/values:batchUpdate') {
+    if (metodo !== 'POST') return 'operación no permitida';
+    let cuerpo;
+    try { cuerpo = JSON.parse(cuerpoTexto || '{}'); } catch (_) { return 'cuerpo inválido'; }
+    const datos = Array.isArray(cuerpo.data) ? cuerpo.data : [];
+    if (!datos.length) return 'operación no permitida';
+    for (const d of datos) {
+      if (!d || typeof d.range !== 'string') return 'operación no permitida';
+      const motivo = _motivoRango(d.range);
+      if (motivo) return motivo;
+    }
+    return null;
   }
-  // Tocar rangos "Config!" (claves de sede, etc.) → admin.
-  if (metodo !== 'GET' && /Config!/i.test(decodeURIComponent(rutaGoogle))) {
-    return 'configuración de sede';
+
+  if (ruta === base + ':batchUpdate') {
+    return metodo === 'POST' ? _motivoEdicionEstructural(cuerpoTexto, spreadsheetId, token) : 'operación no permitida';
   }
-  // Pestañas de personal, ni para leer: "Operarios" (los celulares que el bot
-  // de WhatsApp atiende — agregar un número le daría acceso a alguien de
-  // afuera) y "ObservacionesOperarios" (llamados de atención). Se revisa la
-  // dirección completa (incluidos los rangos de una lectura en lote) y el
-  // cuerpo (escrituras en lote), con o sin comillas en el nombre.
-  const HOJAS_DE_PERSONAL = /(^|[^A-Za-z0-9_])'?(ObservacionesOperarios|Operarios)'?!/i;
-  let ruta = rutaGoogle;
-  try { ruta = decodeURIComponent(rutaGoogle); } catch (_) {}
-  if (HOJAS_DE_PERSONAL.test(ruta) || (cuerpoTexto && HOJAS_DE_PERSONAL.test(cuerpoTexto))) {
-    return 'datos del personal';
+
+  const m = ruta.match(/^\/v4\/spreadsheets\/[^/]+\/values\/([^/]+?)(:append|:clear)?$/);
+  if (m) {
+    const accion = m[2] || '';
+    const permitido = accion ? metodo === 'POST' : (metodo === 'GET' || metodo === 'PUT');
+    if (!permitido) return 'operación no permitida';
+    let rango;
+    try { rango = decodeURIComponent(m[1]); } catch (_) { return 'rango inválido'; }
+    return _motivoRango(rango);
   }
-  // NOTA: no se bloquea deleteDimension de forma genérica. El sistema lo usa
-  // internamente al EDITAR una orden (reemplaza las filas de tareas/repuestos),
-  // algo que también hace un operario; distinguir "borrar una orden" de
-  // "reescribir filas al editar" no es posible a este nivel. Por eso la
-  // restricción de borrar/cerrar para operarios se hará ocultando esos botones
-  // en la interfaz (y, más adelante, con endpoints dedicados). Del lado del
-  // servidor queda protegido lo inequívoco: usuarios y configuración.
+  return 'operación no permitida';
+}
+
+/** Pestaña y celdas de un rango A1: "'Hoja 2'!A1:B2" → { pestana: 'Hoja 2',
+ *  celdas: 'A1:B2' }. Sin nombre de pestaña ("A1:C9") devuelve pestana null:
+ *  apuntaría a la primera pestaña, sea cual sea. */
+function _partesRango(rango) {
+  const r = String(rango || '').trim();
+  if (r.startsWith("'")) {
+    let i = 1, nombre = '';
+    while (i < r.length) {
+      if (r[i] === "'") {
+        if (r[i + 1] === "'") { nombre += "'"; i += 2; continue; }
+        break;
+      }
+      nombre += r[i++];
+    }
+    if (r[i] !== "'") return { pestana: null, celdas: '' };
+    const resto = r.slice(i + 1);
+    if (resto && !resto.startsWith('!')) return { pestana: null, celdas: '' };
+    return { pestana: nombre, celdas: resto.slice(1) };
+  }
+  const k = r.indexOf('!');
+  if (k >= 0) return { pestana: r.slice(0, k), celdas: r.slice(k + 1) };
+  // Sin "!": o es la pestaña completa ("Ordenes") o son celdas sueltas
+  // ("A1:C9", "B:B", "3:5"), que caerían en la primera pestaña.
+  if (/^\$?[A-Z]*\$?\d*(:\$?[A-Z]*\$?\d*)?$/i.test(r)) return { pestana: null, celdas: r };
+  return { pestana: r, celdas: '' };
+}
+
+function _motivoRango(rango) {
+  const { pestana, celdas } = _partesRango(rango);
+  if (pestana === null) return 'rango sin nombre de pestaña';
+  const p = pestana.trim().toLowerCase();
+  if (p === 'config') {
+    return /^\$?B\$?1(:\$?B\$?1)?$/i.test(String(celdas).trim()) ? null : 'configuración de sede';
+  }
+  if (PESTANAS_SOLO_ADMIN.includes(p)) return 'datos del personal';
   return null;
+}
+
+/** Edición estructural de un operario: solo agregar pestañas (que no se
+ *  llamen como las protegidas) o borrar filas de datos de pestañas no
+ *  protegidas. Para saber qué pestaña es cada sheetId se piden los nombres
+ *  a Google (solo cuando hay filas que borrar). */
+async function _motivoEdicionEstructural(cuerpoTexto, spreadsheetId, token) {
+  let cuerpo;
+  try { cuerpo = JSON.parse(cuerpoTexto || '{}'); } catch (_) { return 'cuerpo inválido'; }
+  const pedidos = Array.isArray(cuerpo.requests) ? cuerpo.requests : [];
+  if (!pedidos.length) return 'operación no permitida';
+  let nombres = null;
+  for (const pedido of pedidos) {
+    const tipos = Object.keys(pedido || {});
+    if (tipos.length !== 1) return 'operación no permitida';
+    if (tipos[0] === 'addSheet') {
+      const titulo = String((pedido.addSheet && pedido.addSheet.properties && pedido.addSheet.properties.title) || '').trim().toLowerCase();
+      if (!titulo || PESTANAS_SOLO_ADMIN.includes(titulo)) return 'operación no permitida';
+      continue;
+    }
+    if (tipos[0] === 'deleteDimension') {
+      const r = (pedido.deleteDimension && pedido.deleteDimension.range) || {};
+      if (r.dimension !== 'ROWS' || !(Number(r.startIndex) >= 1) || !(Number(r.endIndex) > Number(r.startIndex))) {
+        return 'operación no permitida';
+      }
+      if (!nombres) nombres = await _nombresDePestanas(spreadsheetId, token);
+      const nombre = nombres.get(Number(r.sheetId));
+      if (nombre === undefined || PESTANAS_SOLO_ADMIN.includes(nombre.trim().toLowerCase())) return 'operación no permitida';
+      continue;
+    }
+    return 'operación no permitida';
+  }
+  return null;
+}
+
+async function _nombresDePestanas(spreadsheetId, token) {
+  const resp = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${spreadsheetId}?fields=${encodeURIComponent('sheets.properties(sheetId,title)')}`, {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  const nombres = new Map();
+  if (!resp.ok) return nombres; // sin nombres, nada pasa
+  const datos = await resp.json();
+  (datos.sheets || []).forEach(h => nombres.set(Number(h.properties.sheetId), String(h.properties.title || '')));
+  return nombres;
+}
+
+/* ── CLAVE DE SEDE ──────────────────────────────────────────────────────
+   POST /sede  body {spreadsheetId, clave}  (con el pase de sesión)
+   Compara la clave con el hash guardado en Config!A1 de esa hoja. Antes el
+   navegador leía ese hash y comparaba él mismo, así que cualquiera con
+   sesión podía llevárselo y probar claves sin límite. Ahora el hash no sale
+   de aquí y hay bloqueo por intentos, igual que en el login. */
+async function _sede(peticion, entorno) {
+  const sesion = await _sesionVigente(peticion, entorno);
+  if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+
+  let cuerpo;
+  try { cuerpo = await peticion.json(); } catch { return _json({ ok: false, mensaje: 'Body inválido.' }, 400); }
+  const spreadsheetId = String(cuerpo.spreadsheetId || '').trim();
+  const clave = String(cuerpo.clave || '');
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId) || !clave) return _json({ ok: false, mensaje: 'Falta la hoja o la clave.' }, 400);
+  const permitidas = String(entorno.ALLOWED_SHEETS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (permitidas.length && !permitidas.includes(spreadsheetId)) return _json({ ok: false, mensaje: 'Hoja no permitida por el proxy.' }, 403);
+
+  const llave = 'sede:' + sesion.doc + ':' + spreadsheetId;
+  const minBloqueo = _revisarBloqueo(llave);
+  if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
+
+  const token = await _tokenCuentaServicio(entorno);
+  const resp = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent('Config!A1:A1')}`, {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (!resp.ok) return _json({ ok: false, mensaje: 'No se pudo leer la configuración de la sede (Google respondió ' + resp.status + ').' }, 502);
+  const valores = (await resp.json()).values || [];
+  const hash = String((valores[0] && valores[0][0]) || '').trim().toLowerCase();
+  if (!hash) return _json({ ok: false, mensaje: 'Esta sede aún no tiene configurada su clave de acceso (falta la pestaña "Config", celda A1, con el hash).' }, 404);
+
+  const ingresada = (await _sha256HexUpper(clave)).toLowerCase();
+  if (!_igualSeguro(ingresada, hash)) {
+    _registrarFallo(llave);
+    return _json({ ok: false, mensaje: 'Contraseña incorrecta.' }, 401);
+  }
+  _limpiarFallos(llave);
+  return _json({ ok: true });
 }
 
 /* ── SESIÓN (pase firmado con HMAC-SHA256, tipo JWT) ──────────────────── */
