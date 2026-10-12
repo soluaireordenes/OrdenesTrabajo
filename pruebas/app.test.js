@@ -648,6 +648,17 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
         && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
+      // Pantalla de carga: se quita sola al terminar de arrancar
+      const carga = document.getElementById('pantallaCarga');
+      out.cargaFuera = !carga || carga.classList.contains('oculta');
+      // Saludo de Inicio con el primer nombre y las pendientes de la sede
+      googleAccessToken = 'SESS.x'; currentUser = { name: 'ANA PÉREZ', initials: 'AP' }; operacionAutenticada = true;
+      allOrdenes = [{ Estado: 'Pendiente', Prioridad: 'Urgente' }, { Estado: 'En ejecución' }, { Estado: 'Cerrada' }];
+      renderSaludoInicio();
+      out.saludo = document.getElementById('saludoInicio').innerText;
+      operacionAutenticada = false; renderSaludoInicio();
+      out.saludoSinSede = document.getElementById('saludoInicio').innerText;
+      googleAccessToken = null; allOrdenes = [];
       // B17: números como los escribe una persona
       out.numeros = ['12', '-40', '0.75', '.5'].every(_esNumeroDecimal) && !['0x10', '1e5', 'Infinity', '', '1,5', '-'].some(_esNumeroDecimal);
       // B16: dinero escrito a mano en Proyectos
@@ -764,6 +775,9 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('B14: al editar una orden se agrega antes de borrar', r.pasosOrden === 'agregar Tareas | borrar 2', r.pasosOrden);
     check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
+    check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
+    check('Inicio: saludo con el nombre y las órdenes pendientes', /^Buen[oa]s (días|tardes|noches), Ana\b/.test(r.saludo) && /Hay 2 órdenes pendientes en .+, 1 urgente\./.test(r.saludo)
+      && /Elige una operación/.test(r.saludoSinSede), { saludo: r.saludo, sinSede: r.saludoSinSede });
     check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
