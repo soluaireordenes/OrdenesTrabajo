@@ -6,13 +6,14 @@ No tocan datos reales: Google Sheets, Drive, el Apps Script y el proxy van **sim
 | Archivo | Qué revisa | Necesita |
 |---|---|---|
 | `sintaxis.js` | Que los bloques `<script>` de `index.html` y el `sw.js` no tengan errores de sintaxis. | Node |
-| `worker.test.mjs` | El proxy de Cloudflare (`proxy-seguridad/cloudflare-proxy.js`): login, bloqueo por intentos fallidos, pases de sesión, cupo de Sheets por persona (`quotaUser`), permisos por rol (Proyectos, Usuarios, Config, pestañas de personal Operarios y ObservacionesOperarios), que desactivar o cambiar el rol en la hoja aplique sin esperar a que venza el pase, ruta `/foto` y que `/diag` ya no exista. | Node 18 o más reciente |
+| `worker.test.mjs` | El proxy de Cloudflare (`proxy-seguridad/cloudflare-proxy.js`): login, bloqueo por intentos fallidos, pases de sesión, cupo de Sheets por persona (`quotaUser`), permisos por rol (Proyectos, Usuarios, Config, pestañas de personal Operarios y ObservacionesOperarios), que desactivar o cambiar el rol en la hoja aplique sin esperar a que venza el pase, la lista blanca del operario, la clave de sede (`/sede`), los PIN con clave secreta (`PIN_PEPPER`), el pase de fotos (`/pase-fotos`), ruta `/foto` y que `/diag` ya no exista. | Node 18 o más reciente |
+| `fotos-script.test.mjs` | El script de fotos de cada sede (`fotos-apps-script.gs`) con Google simulado y pases generados por el proxy real: sin pase válido no hace nada, solo borra dentro de la carpeta de fotos, solo sube y entrega imágenes y PDF. | Node 18 o más reciente |
 | `whatsapp-worker.test.mjs` | El intermediario del bot (`whatsapp-agente/cloudflare-worker.js`): verificación del webhook y firma de Meta (`APP_SECRET`). | Node 18 o más reciente |
 | `app.test.js` | La app (`index.html`) en un navegador real: carga sin errores, login por el proxy, roles operario/admin (Dashboard, Nueva orden, Proyectos, eliminar órdenes, Hoja de Vida, novedades, Plan, Reparar hoja, llamados de atención, borrar reportes, registrar equipos/servicios/proveedores), fotos por el proxy con respaldo por Apps Script y pausa tras un fallo, reintento cuando Google dice "cuota agotada", informe del cronograma (6 fotos, sin fotos, servidor colgado), inventario de herramienta, ver inspección, repuestos de la Hoja de Vida, PDF y exportación de órdenes, reintento sin duplicar, dashboard sin la librería de gráficas, salidas de inventario por fecha y login en modo oscuro. | Node + Playwright + Chromium |
 
 GitHub las corre solas: en cada pull request y en cada cambio a `main` (flujo
 "Validar sintaxis"), y antes de publicar la página se corren la de sintaxis y
-las dos de los Workers; si alguna falla, no se publica.
+las de los Workers y el script de fotos; si alguna falla, no se publica.
 
 ## Cómo correrlas
 
@@ -23,6 +24,7 @@ Desde la carpeta raíz del repositorio:
 node pruebas/sintaxis.js
 node pruebas/worker.test.mjs
 node pruebas/whatsapp-worker.test.mjs
+node pruebas/fotos-script.test.mjs
 
 # App (la primera vez hay que instalar Playwright y su navegador)
 npm install --no-save playwright
@@ -31,7 +33,7 @@ node pruebas/app.test.js
 ```
 
 Cada archivo muestra una línea `PASS` / `FAIL` por prueba y al final el total
-(por ejemplo `31/31 pruebas del Worker OK`). Si alguna falla, el proceso termina
+(por ejemplo `56/56 pruebas del Worker OK`). Si alguna falla, el proceso termina
 con error y la línea `FAIL` dice qué esperaba.
 
 La prueba del informe con "servidor colgado" tarda unos 45 segundos a propósito:
