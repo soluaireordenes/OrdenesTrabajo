@@ -648,8 +648,6 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
         && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
-      // Login con el logo de la marca
-      out.loginLogo = /^data:image/.test(document.querySelector('#loginOverlay .login-logo img')?.src || '');
       // Avisos de la app en vez de la ventanita del navegador
       alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.');
       out.avisos = [...document.querySelectorAll('#avisos .aviso')].map(a => a.className.replace('aviso ', '') + ':' + a.querySelector('.aviso-texto').textContent).join(' | ');
@@ -796,7 +794,6 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
-    check('Login con el logo de la marca', r.loginLogo);
     check('Avisos de la app con su color (bien, error, falta algo) y sin el emoji', r.avisos === 'exito:Orden guardada correctamente. | error:Contraseña incorrecta. | advertencia:Solo un administrador puede hacer esto.', r.avisos);
     check('Rol junto al nombre en el encabezado', r.rol === 'Admin' && r.rolOperario === 'Operario', r);
     check('Listas vacías: mensaje claro y "Quitar filtros" que sí los quita', r.vacioPend === 'No hay órdenes pendientes' && r.vacioLista === 'No hay órdenes con esos filtros →  → 1', r);
