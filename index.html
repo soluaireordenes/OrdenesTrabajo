@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Órdenes de Trabajo — Microsoft 365</title>
+<title>Órdenes de Trabajo — SolucionAIRE</title>
 <!-- Aplica el tema guardado ANTES de pintar, para que no haya destello claro
      al abrir en modo oscuro. Por defecto queda en claro (el modo oscuro es
      opcional y se activa desde el botón del encabezado). -->
@@ -497,6 +497,10 @@ body.rol-operario .solo-admin { display: none !important; }
 .visor-doc-barra button { flex-shrink: 0; }
 .visor-doc-hoja { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 16px; background:var(--surface); color:var(--text); font-family: Arial, sans-serif; font-size: 12px; }
 .visor-doc-hoja img { max-width: 100%; }
+/* Mapa "Dónde Operamos" de Inicio: en celular, 560 px era más de una pantalla
+   entera solo para el mapa. */
+#mapaOperacion { width: 100%; height: 560px; }
+@media (max-width: 700px) { #mapaOperacion { height: 300px; } }
 @media print {
   body.imprimiendo-doc { display: block !important; overflow: visible !important; height: auto !important; background:var(--surface) !important; }
   body.imprimiendo-doc > *:not(.visor-doc) { display: none !important; }
@@ -1240,7 +1244,7 @@ body.rol-operario .solo-admin { display: none !important; }
 </style>
 </head>
 <body>
-<script>if (localStorage.getItem('sidebarColapsado') === '1') document.body.classList.add('sidebar-colapsado');</script>
+<script>try { if (localStorage.getItem('sidebarColapsado') === '1') document.body.classList.add('sidebar-colapsado'); } catch (_) {}</script>
 
 <!-- Indicador de versión — discreto, en una esquina, para detectar de un
      vistazo si alguien quedó con una copia vieja en caché. Sube este
@@ -1262,7 +1266,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <span id="userName">Cargando...</span>
     </div>
     <button id="btnTema" onclick="alternarTema()" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema"></button>
-    <button onclick="cerrarSesion()" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
+    <button onclick="cerrarSesion(true)" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
   </div>
 </header>
 
@@ -1318,7 +1322,7 @@ body.rol-operario .solo-admin { display: none !important; }
     <div class="card" style="margin-bottom:24px">
       <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dónde Operamos</div>
       <div class="card-body" style="padding:22px">
-        <div id="mapaOperacion" style="width:100%;height:560px"></div>
+        <div id="mapaOperacion"></div>
 
         <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#3D6FB4;display:inline-block;flex-shrink:0"></span> México</div>
@@ -1885,11 +1889,8 @@ body.rol-operario .solo-admin { display: none !important; }
       <input type="text" id="filtroTexto" placeholder="Buscar por número, equipo, descripción..." oninput="filtrarOrdenes()">
       <select id="filtroEstado" onchange="filtrarOrdenes()">
         <option value="">Todos los estados</option>
-        <option value="Borrador">Borrador</option>
         <option value="Pendiente">Pendiente</option>
         <option value="En ejecución">En ejecución</option>
-        <option value="Aprobada">Aprobadas</option>
-        <option value="Rechazada">Rechazadas</option>
         <option value="Cerrada">Cerradas</option>
       </select>
       <select id="filtroTipo" onchange="filtrarOrdenes()">
@@ -2533,7 +2534,7 @@ body.rol-operario .solo-admin { display: none !important; }
               <label>Nombre del técnico</label>
               <input id="rc_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rc_hora" onchange="_onCambioHoraReporte('rc')">
@@ -2593,7 +2594,7 @@ body.rol-operario .solo-admin { display: none !important; }
               <label>Técnico que realiza el reporte *</label>
               <select id="rs_tecnico"><option value="">Seleccionar...</option></select>
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rs_fecha"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rs_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rs_hora" onchange="_onCambioHoraReporte('rs')"><option value="">Seleccionar...</option></select>
@@ -2673,7 +2674,7 @@ body.rol-operario .solo-admin { display: none !important; }
               <label>Nombre del técnico</label>
               <input id="rd_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rd_fecha"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rd_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rd_hora" onchange="_onCambioHoraReporte('rd')"><option value="">Seleccionar...</option></select>
@@ -2752,7 +2753,7 @@ body.rol-operario .solo-admin { display: none !important; }
               <label>Nombre del técnico</label>
               <input id="rdec_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rdec_fecha"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rdec_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rdec_hora" onchange="_onCambioHoraReporte('rdec')"><option value="">Seleccionar...</option></select>
@@ -2825,7 +2826,7 @@ body.rol-operario .solo-admin { display: none !important; }
               <label>Nombre del técnico</label>
               <input id="re_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="re_fecha"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="re_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="re_hora" onchange="_onCambioHoraReporte('re')"><option value="">Seleccionar...</option></select>
@@ -2968,6 +2969,25 @@ body.rol-operario .solo-admin { display: none !important; }
           </div>
           <div id="obs_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
           <button class="btn btn-primary" style="width:100%" onclick="guardarObservacionOperario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Observación</button>
+        </div>
+      </div>
+
+      <!-- Operarios de planta: la lista que sale en "¿Quién la realizó?" del
+           Cronograma y en el formulario de arriba. Vive en la pestaña
+           "OperariosPlanta" de la hoja de la sede. -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">Operarios de planta</div>
+        <div class="card-body" style="padding:14px 18px">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Esta lista sale en el Cronograma ("¿Quién la realizó?") y en el formulario de arriba. Quitar a alguien no borra sus registros ni sus observaciones.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+            <div class="field" style="flex:1;min-width:180px;margin:0">
+              <label for="opPlanta_nombre">Agregar operario</label>
+              <input type="text" id="opPlanta_nombre" placeholder="Nombre y apellido" maxlength="60" style="margin:0" onkeydown="if (event.key === 'Enter') agregarOperarioPlanta()">
+            </div>
+            <button class="btn btn-primary" onclick="agregarOperarioPlanta()">Agregar</button>
+          </div>
+          <div id="opPlanta_msg" style="font-size:12px;margin-bottom:8px"></div>
+          <div id="opPlanta_lista"><div style="font-size:12px;color:var(--text3)">Cargando...</div></div>
         </div>
       </div>
 
@@ -4059,6 +4079,13 @@ function renderMapaOperacion() {
   if (!cont || typeof jsVectorMap === 'undefined') return;
   if (_mapaOperacionInstancia) { _mapaOperacionInstancia.destroy(); _mapaOperacionInstancia = null; }
 
+  // Los colores del mapa van en el propio mapa (no en CSS), así que se
+  // eligen según el tema y el mapa se vuelve a pintar al cambiarlo.
+  const oscuro = document.documentElement.getAttribute('data-theme') === 'dark';
+  const c = oscuro
+    ? { tierra: '#2c3a4a', borde: '#1b212a', mx: '#35618f', co: '#2b7f78', pe: '#6a5596', marcaMx: '#7fb0ea', marcaCo: '#5fd0c4', marcaPe: '#b79be6', texto: '#e5e8ee' }
+    : { tierra: '#dbe4f0', borde: '#fff', mx: '#A8C8EC', co: '#8FD9D3', pe: '#C9B6E4', marcaMx: '#3D6FB4', marcaCo: '#1E8C82', marcaPe: '#7C4FC2', texto: '#02457A' };
+
   _mapaOperacionInstancia = new jsVectorMap({
     selector: '#mapaOperacion',
     map: 'world',
@@ -4069,30 +4096,30 @@ function renderMapaOperacion() {
     backgroundColor: 'transparent',
     focusOn: { regions: ['MX', 'CO', 'PE'], animate: false },
     regionStyle: {
-      initial: { fill: '#dbe4f0', stroke: '#fff', strokeWidth: .6 },
+      initial: { fill: c.tierra, stroke: c.borde, strokeWidth: .6 },
       hover: { fillOpacity: 1, cursor: 'default' },
     },
     series: {
       regions: [{
         attribute: 'fill',
         values: { MX: 'mx', CO: 'co', PE: 'pe' },
-        scale: { mx: '#A8C8EC', co: '#8FD9D3', pe: '#C9B6E4' },
+        scale: { mx: c.mx, co: c.co, pe: c.pe },
       }],
     },
     markers: [
-      { name: 'México',    coords: [19.43, -99.13], style: { initial: { fill: '#3D6FB4' } } },
-      { name: 'Antioquia', coords: [7.4, -76.9],     style: { initial: { fill: '#1E8C82' } } },
-      { name: 'Zipaquirá', coords: [5.3, -73.0],     style: { initial: { fill: '#1E8C82' } } },
-      { name: 'Soacha',    coords: [3.6, -74.4],     style: { initial: { fill: '#1E8C82' } } },
-      { name: 'Perú',      coords: [-12.05, -77.03], style: { initial: { fill: '#7C4FC2' } } },
+      { name: 'México',    coords: [19.43, -99.13], style: { initial: { fill: c.marcaMx } } },
+      { name: 'Antioquia', coords: [7.4, -76.9],     style: { initial: { fill: c.marcaCo } } },
+      { name: 'Zipaquirá', coords: [5.3, -73.0],     style: { initial: { fill: c.marcaCo } } },
+      { name: 'Soacha',    coords: [3.6, -74.4],     style: { initial: { fill: c.marcaCo } } },
+      { name: 'Perú',      coords: [-12.05, -77.03], style: { initial: { fill: c.marcaPe } } },
     ],
     markerStyle: {
-      initial: { r: 6, fill: '#02457A', fillOpacity: 1, stroke: '#fff', strokeWidth: 2 },
+      initial: { r: 6, fill: c.texto, fillOpacity: 1, stroke: c.borde, strokeWidth: 2 },
       hover: { cursor: 'default' },
     },
     labels: { markers: { render: (marker) => marker.name } },
     markerLabelStyle: {
-      initial: { fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, fill: '#02457A', cursor: 'default' },
+      initial: { fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, fill: c.texto, cursor: 'default' },
       hover: { cursor: 'default' },
     },
   });
@@ -4180,7 +4207,8 @@ function _esIOS() {
 
 function _mostrarBarraInstalar() {
   if (_appYaInstalada()) return; // ya está instalada, no molestar
-  const descartadoHasta = Number(localStorage.getItem('barraInstalarDescartadaHasta') || 0);
+  let descartadoHasta = 0;
+  try { descartadoHasta = Number(localStorage.getItem('barraInstalarDescartadaHasta') || 0); } catch (_) {}
   if (Date.now() < descartadoHasta) return; // el usuario la cerró hace poco
   const barra = document.getElementById('barraInstalarApp');
   if (barra) barra.style.display = 'flex';
@@ -4191,7 +4219,7 @@ function cerrarBarraInstalar() {
   if (barra) barra.style.display = 'none';
   document.body.style.paddingBottom = '';
   // No volver a mostrarla por 7 días, para no ser insistentes
-  localStorage.setItem('barraInstalarDescartadaHasta', String(Date.now() + 7*24*60*60*1000));
+  try { localStorage.setItem('barraInstalarDescartadaHasta', String(Date.now() + 7*24*60*60*1000)); } catch (_) {}
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -4323,7 +4351,10 @@ const OPERACIONES = {
 
 // Operación activa (se recuerda entre sesiones en este equipo, solo como
 // referencia de cuál mostrar primero en el candado — pero NO da acceso)
-let operacionActual = localStorage.getItem('operacionActual') || 'zipaquira';
+// En navegación privada estricta (o con los datos del sitio bloqueados) leer
+// el almacenamiento lanza un error: sin el try/catch la app no arrancaba.
+let operacionActual = 'zipaquira';
+try { operacionActual = localStorage.getItem('operacionActual') || 'zipaquira'; } catch (_) {}
 if (!OPERACIONES[operacionActual]) operacionActual = Object.keys(OPERACIONES)[0];
 GOOGLE_CONFIG.spreadsheetId = OPERACIONES[operacionActual].spreadsheetId;
 
@@ -4336,7 +4367,8 @@ let _notifBadgeEstado = { visible: false, texto: '0' };
 // navegador) hay que volver a ingresar la contraseña de la operación, aunque
 // ya se haya usado antes en este equipo. sessionStorage se borra al cerrar
 // la pestaña, así que esto NO persiste entre sesiones (a diferencia de operacionActual).
-let operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === operacionActual;
+let operacionAutenticada = false;
+try { operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === operacionActual; } catch (_) {}
 
 // Estado (solo en memoria, se reinicia con cada carga de página) de qué
 // grupos del menú lateral (Operaciones/Inventario/Tiempo Real/Plan de
@@ -4397,7 +4429,10 @@ function _catalogoDeVariables() {
  *  un campo, cambia la huella y toca republicar. */
 function _huellaCatalogo(filas) {
   let h = 0;
-  const texto = filas.map(f => [f.hoja, f.equipo, f.codigoCorto, f.columna, f.etiqueta, f.rango].join('|')).join('\n');
+  // Todo lo que se publica entra en la huella: si solo cambiaba el grupo o
+  // el orden de un campo, la hoja no se volvía a escribir y el bot seguía
+  // con los grupos viejos.
+  const texto = filas.map(f => [f.hoja, f.colEquipo, f.equipo, f.codigoCorto, f.orden, f.grupo, f.columna, f.etiqueta, f.rango].join('|')).join('\n');
   for (let i = 0; i < texto.length; i++) { h = ((h << 5) - h + texto.charCodeAt(i)) | 0; }
   return filas.length + '-' + (h >>> 0).toString(36);
 }
@@ -4674,6 +4709,32 @@ async function _invAppend(spreadsheetId, hoja, rows) {
   const resp = await fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ values: rows }) });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!resp.ok) { const t = await resp.text(); throw new Error('Error guardando en inventario: ' + t); }
+  _invalidarStockPantalla(); // un producto o movimiento nuevo cambia el stock
+}
+
+/* Stock para MOSTRAR (Dashboard, Stock, autocompletado de la orden, lista de
+   productos de Reportes). Antes cada cambio de pestaña volvía a leer
+   Productos y Movimientos completos, y el caché del autocompletado no vencía
+   nunca: después de cerrar una orden seguía mostrando el stock de antes.
+   Ahora dura 30 s y se borra con cualquier escritura al inventario. Lo que
+   DESCUENTA o valida existencias sigue leyendo directo y fresco
+   (obtenerStockInventarioDirecto). */
+const STOCK_PANTALLA_MS = 30000;
+const _stockPantalla = {}; // sede -> { ms, promesa }
+
+function _stockInventarioParaPantalla(sede) {
+  const c = _stockPantalla[sede];
+  if (c && Date.now() - c.ms < STOCK_PANTALLA_MS) return c.promesa;
+  const promesa = obtenerStockInventarioDirecto(sede);
+  _stockPantalla[sede] = { ms: Date.now(), promesa };
+  // Un error no se guarda: la próxima vez se vuelve a intentar.
+  promesa.catch(() => { if (_stockPantalla[sede]?.promesa === promesa) delete _stockPantalla[sede]; });
+  return promesa;
+}
+
+function _invalidarStockPantalla() {
+  Object.keys(_stockPantalla).forEach(k => delete _stockPantalla[k]);
+  Object.keys(_comprometidosPantalla).forEach(k => delete _comprometidosPantalla[k]);
 }
 
 async function _invAsegurarHoja(spreadsheetId, nombre, cols) {
@@ -4721,11 +4782,13 @@ async function _invAsegurarHoja(spreadsheetId, nombre, cols) {
   } else if (existing.length < cols.length) {
     // La pestaña ya existía, pero le faltan encabezados de columnas
     // agregadas después (ej. cuando el sistema evoluciona) — se completan
-    // solo los que faltan, sin tocar los que ya estaban.
+    // solo los que faltan, sin tocar los que ya estaban. (Antes se
+    // reescribía la fila entera desde A1, encima de los que ya estaban.)
+    const colIni = numToCol(existing.length);
     const colFin = numToCol(cols.length - 1);
-    const putResp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!A1:' + colFin + '1')}?valueInputOption=RAW`, {
+    const putResp = await fetch(`${SHEETS_API}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(nombre + '!' + colIni + '1:' + colFin + '1')}?valueInputOption=RAW`, {
       method: 'PUT', headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [cols] })
+      body: JSON.stringify({ values: [cols.slice(existing.length)] })
     });
     if (!putResp.ok) throw new Error('No se pudieron escribir los encabezados de ' + nombre + ' (HTTP ' + putResp.status + ')');
   }
@@ -5371,17 +5434,11 @@ let planMantOperacionActual    = null; // qué OPERACIÓN de plan de mantenimien
    lo encuentra, solo avisa — nunca bloquea ni borra lo
    que el usuario ya escribió.
 ══════════════════════════════════════════════ */
-let _stockInventarioCache = null;
-let _stockInventarioCacheSede = null;
-
-/** Trae el stock de inventario de la sede activa, cacheado en memoria para
- *  no volver a pedirlo cada vez que el usuario escribe en otra fila. */
+/** Trae el stock de inventario de la sede activa, con el caché corto de
+ *  pantalla, para no volver a pedirlo cada vez que el usuario escribe en
+ *  otra fila. */
 async function _obtenerStockSedeActual() {
-  if (_stockInventarioCache && _stockInventarioCacheSede === operacionActual) return _stockInventarioCache;
-  const stock = await obtenerStockInventarioDirecto(operacionActual);
-  _stockInventarioCache = stock || [];
-  _stockInventarioCacheSede = operacionActual;
-  return _stockInventarioCache;
+  return (await _stockInventarioParaPantalla(operacionActual)) || [];
 }
 
 let _serviciosInventarioCache = null;
@@ -5763,7 +5820,7 @@ async function invRegistrarDescuentosPendientes() {
       errores.push(`${p.numeroOrden} · ${p.nombre}: ${e.message}`);
     }
   }
-  _stockInventarioCache = null;
+  _invalidarStockPantalla();
   alert(`Se registraron ${hechas} salida(s).` + (errores.length ? `\n\nNo se pudieron registrar:\n${errores.join('\n')}` : ''));
   invRevisarDescuentosPendientes();
 }
@@ -5812,7 +5869,7 @@ function toggleSidebarMovil(forzar) {
   } else {
     const colapsar = (typeof forzar === 'boolean') ? !forzar : !document.body.classList.contains('sidebar-colapsado');
     document.body.classList.toggle('sidebar-colapsado', colapsar);
-    localStorage.setItem('sidebarColapsado', colapsar ? '1' : '0');
+    try { localStorage.setItem('sidebarColapsado', colapsar ? '1' : '0'); } catch (_) {}
     actualizarIconoMenuSidebar(!colapsar);
   }
 }
@@ -6102,8 +6159,8 @@ async function _validarClaveSede(key, clave) {
  *  para evitar mezclar en memoria datos de una sede con otra. */
 function cambiarOperacion(key) {
   if (!OPERACIONES[key]) return;
-  localStorage.setItem('operacionActual', key);
-  sessionStorage.setItem('operacionAutenticada', key);
+  try { localStorage.setItem('operacionActual', key); } catch (_) {}
+  try { sessionStorage.setItem('operacionAutenticada', key); } catch (_) {}
   location.reload();
 }
 
@@ -6129,11 +6186,17 @@ let sigPad = null;
 let isDrawing = false, drawCtx = null, drawCanvas = null;
 let googleAccessToken = null;
 
-function cerrarSesion() {
-  sessionStorage.removeItem('gUser');
-  sessionStorage.removeItem('gToken');
-  sessionStorage.removeItem('docPinDocumento');
-  sessionStorage.removeItem('docPinPin');
+/** salir=true es el botón "Salir": quien entre después en el mismo equipo
+ *  tiene que volver a poner la clave de sede. Cuando la sesión solo venció
+ *  ("Volver a iniciar sesión") se conserva, porque es la misma persona. */
+function cerrarSesion(salir) {
+  try {
+    sessionStorage.removeItem('gUser');
+    sessionStorage.removeItem('gToken');
+    sessionStorage.removeItem('docPinDocumento');
+    sessionStorage.removeItem('docPinPin');
+    if (salir === true) sessionStorage.removeItem('operacionAutenticada');
+  } catch (_) {}
   googleAccessToken = null;
   location.reload();
 }
@@ -6221,7 +6284,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'agregarObservacionEquipo', 'invRegistrarProveedor', 'pmGuardarActividades',
   'guardarReporteCompresor', 'guardarReporteSecador', 'guardarReporteDrycooler',
   'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler',
-  'eliminarFotoOrden', 'eliminarFotoCronograma', 'confirmarSubidaFotoNovedad',
+  'eliminarFotoOrden', 'eliminarFotoCronograma',
   'eliminarFechaRacha', 'registrarNovedadRacha',
   'invRegistrarProducto', 'invRegistrarServicio', 'registrarInventarioEquipo',
   'hvdGuardarSpecs', 'pmGuardarHoraBase', 'eliminarOrdenCompleta', 'invRegistrarDescuentosPendientes',
@@ -6286,13 +6349,15 @@ window.addEventListener('load', async () => {
   _iniciarAvisoOffline();
   _aplicarTemaGuardado(); // pinta el ícono del botón de tema según lo guardado
 
-  const savedUser  = sessionStorage.getItem('gUser');
-  const savedToken = sessionStorage.getItem('gToken');
-  if (savedUser && savedToken) {
-    currentUser = JSON.parse(savedUser);
-    googleAccessToken = savedToken; // ahora es el pase de sesión del proxy
-    usuarioRol = (sessionStorage.getItem('gRol') === 'admin') ? 'admin' : 'operario';
-  }
+  try {
+    const savedUser  = sessionStorage.getItem('gUser');
+    const savedToken = sessionStorage.getItem('gToken');
+    if (savedUser && savedToken) {
+      currentUser = JSON.parse(savedUser);
+      googleAccessToken = savedToken; // ahora es el pase de sesión del proxy
+      usuarioRol = (sessionStorage.getItem('gRol') === 'admin') ? 'admin' : 'operario';
+    }
+  } catch (_) {} // almacenamiento bloqueado: se muestra el login
   _aplicarRolUI(); // oculta acciones de admin si el usuario es operario
 
   if (!googleAccessToken) {
@@ -6572,6 +6637,10 @@ function _temaActual() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 function _iconoTema(tema) {
+  // La barra del navegador (o de la app instalada) toma el color del
+  // encabezado: antes quedaba blanca también en modo oscuro.
+  const barra = document.querySelector('meta[name="theme-color"]');
+  if (barra) barra.setAttribute('content', tema === 'dark' ? '#1b212a' : '#ffffff');
   const btn = document.getElementById('btnTema');
   if (!btn) return;
   // En claro se ofrece pasar a oscuro (luna); en oscuro, pasar a claro (sol).
@@ -6586,6 +6655,7 @@ function alternarTema() {
   document.documentElement.setAttribute('data-theme', nuevo);
   try { localStorage.setItem('tema', nuevo); } catch (_) {}
   _iconoTema(nuevo);
+  if (_mapaOperacionInstancia) { try { renderMapaOperacion(); } catch (_) {} }
 }
 function _aplicarTemaGuardado() {
   let t = null;
@@ -7622,7 +7692,23 @@ function _mostrarDocumentoEnVisor(html) {
 /** Punto único por donde salen TODOS los PDF del sistema: en computador
  *  abre la pestaña ya reservada con el documento (auto-imprime), y en
  *  celular usa el visor interno con botón de descarga. */
+/* Los documentos para imprimir son papel: van siempre con la paleta clara de
+   la marca. En la ventana nueva las variables de la app (var(--brand)...) no
+   existen, y los títulos de los reportes técnicos salían negros y los bordes
+   no se veían; en el visor del celular, con el modo oscuro puesto, salía
+   texto claro sobre la hoja blanca. Va en "body" para que el visor, que
+   cambia body por su hoja, la aplique ahí. */
+const CSS_PALETA_PAPEL = 'body{--brand:#02457A;--brand-dark:#001848;--brand-light:#D6EBEE;--brand-mid:#97CADB;'
+  + '--accent:#018ABE;--accent2:#2f9e52;--warn:#d9663f;--danger:#c62828;--pending:#8a8785;--surface:#ffffff;'
+  + '--surface2:#f2f5f9;--bg:#f6f8fb;--border:#e6eaf1;--text:#2b2e33;--text2:#666b73;--text3:#9599a1}';
+
+function _conPaletaDePapel(html) {
+  const estilo = '<style>' + CSS_PALETA_PAPEL + '</style>';
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + estilo) : estilo + html;
+}
+
 function _entregarDocumentoImprimible(html, ventana) {
+  html = _conPaletaDePapel(html);
   if (ventana && !_esNavegadorMovil()) {
     const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
     ventana.location.href = url;
@@ -7954,14 +8040,16 @@ const EQUIPOS_MEXICO = {
   ],
 };
 
-// Operarios de planta de Zipaquirá — para la lista desplegable de la
-// sección "Observaciones" del Cronograma (llamados de atención por
-// operario). Solo aplica a esta sede.
-const OPERARIOS_ZIPAQUIRA = [
-  'Alex Prieto', 'Juan Pablo', 'Laura Acosta', 'Jefry Gomez', 'Marcos Rubiano',
-  'George Mazuera', 'Daniel Rodriguez', 'Diego Triviño', 'Eduar Triviño',
-  'Cristian Rozo', 'Jhonny Rojas', 'David Avila', 'Sebastian Rodriguez',
-];
+// Operarios de planta de Zipaquirá — para "¿Quién la realizó?" del
+// Cronograma y para las observaciones (llamados de atención). La lista vive
+// en la pestaña "OperariosPlanta" de la hoja de la sede y la lleva un admin
+// desde Cronograma → Observaciones. Antes estaba escrita aquí, con nombres y
+// apellidos en el código público, y cada alta o baja era cambiar el código.
+// (No es la pestaña "Operarios": esa tiene los celulares que autoriza el bot
+// de WhatsApp y un operario no puede leerla.)
+const OPERARIOS_PLANTA_COLS = ['Nombre', 'Activo'];
+let _operariosPlanta = null;         // filas de la pestaña, tal como se leyeron
+let _operariosPlantaEnVuelo = null;
 
 // Datos de prueba: Empresa 1 → 123, Empresa 2 → 456, Empresa 3 → 789, etc. (+333 cada vez)
 const EQUIPOS_POR_EMPRESA_ANTIOQUIA = {};
@@ -9284,6 +9372,7 @@ const SH = {
   informeSemestralEstado: 'InformeSemestralEstado',
   informeAnualEstado: 'InformeAnualEstado',
   operarios: 'Operarios',
+  operariosPlanta: 'OperariosPlanta',
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
@@ -10304,6 +10393,13 @@ async function _asegurarHojaReal(nombre, cols) {
   return existing;
 }
 
+/** Una fila en el orden REAL de las columnas de la hoja (el que devuelve
+ *  asegurarHoja), a partir de { columna: valor }. Anexar por posición
+ *  descuadra los datos si alguien movió o agregó una columna en la hoja. */
+function _filaSegunEncabezados(cols, valores) {
+  return cols.map(c => (Object.prototype.hasOwnProperty.call(valores, c) ? valores[c] : ''));
+}
+
 // ── Helper: append filas a una hoja ──
 async function appendHoja(nombre, rows) {
   if (!rows || rows.length === 0) return;
@@ -11165,15 +11261,23 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
       for (let i = 1; i < allRows.length; i++) { // skip header row (i=0)
         if (allRows[i] && allRows[i][0] === numeroOrden) toDelete.push(i + 1); // +1 = sheet row number
       }
+      // Primero se agregan las filas nuevas y DESPUÉS se borran las viejas.
+      // Al revés (como era antes), si el agregado fallaba —red, cuota— la
+      // orden se quedaba sin sus tareas o repuestos. Así, lo peor que puede
+      // pasar es que queden repetidas, y el siguiente guardado las limpia
+      // (borra todas las de esta orden que había antes de agregar). Las
+      // nuevas van al final de la hoja, así que no corren los números de
+      // fila de las viejas.
+      if (filas.length) await appendHoja(sheetName, filas);
       // Borrar de abajo hacia arriba para no desplazar índices, pero todo en
       // UN solo batchUpdate: antes se pedía el sheetId y se mandaba un
       // borrado por cada fila (2 viajes de ida y vuelta por fila), así que
       // reemplazar 20 repuestos costaba 40 peticiones. Google aplica las
       // peticiones de un batchUpdate en orden, de modo que mandarlas de
       // mayor a menor conserva la misma seguridad de índices.
-      // Si no se puede obtener el sheetId o el borrado falla, se aborta en
-      // vez de continuar a insertar las filas nuevas encima de las viejas
-      // todavía no borradas (misma razón que arriba).
+      // Si no se puede obtener el sheetId o el borrado falla, se avisa con
+      // un error: las nuevas ya quedaron guardadas y volver a guardar
+      // limpia las viejas.
       if (toDelete.length) {
         const sheetId = await obtenerSheetId(sheetName);
         if (sheetId === null) throw new Error('No se pudo obtener el ID de la hoja ' + sheetName + ' para borrar filas viejas de la orden');
@@ -11188,9 +11292,8 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
           })
         });
         if (!delResp.ok) throw new Error('No se pudo borrar una fila vieja de ' + sheetName + ' (HTTP ' + delResp.status + ')');
+        _invalidarCacheHoja(sheetName);
       }
-      // Insertar las filas nuevas
-      if (filas.length) await appendHoja(sheetName, filas);
     }
 
     async function obtenerSheetId(sheetName) {
@@ -11326,11 +11429,16 @@ async function loginConDocumentoPinClick() {
       initials: (data.nombre || documento).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
     };
     usuarioRol = (data.rol === 'admin') ? 'admin' : 'operario';
-    sessionStorage.setItem('gUser', JSON.stringify(currentUser));
-    // El "token" que guarda la app ahora es el PASE DE SESIÓN del proxy
-    // (firmado, con el rol), no un token de Google.
-    sessionStorage.setItem('gToken', data.session);
-    sessionStorage.setItem('gRol', usuarioRol);
+    try {
+      sessionStorage.setItem('gUser', JSON.stringify(currentUser));
+      // El "token" que guarda la app ahora es el PASE DE SESIÓN del proxy
+      // (firmado, con el rol), no un token de Google.
+      sessionStorage.setItem('gToken', data.session);
+      sessionStorage.setItem('gRol', usuarioRol);
+    } catch (_) {
+      errorEl.textContent = 'Este navegador tiene bloqueado guardar datos de este sitio (navegación privada estricta o cookies bloqueadas). Ábrelo en una ventana normal para poder entrar.';
+      return;
+    }
     location.reload();
   } catch (e) {
     errorEl.textContent = e.message;
@@ -11832,7 +11940,21 @@ function _ordenesFiltradasLista() {
   });
 }
 
+/** El filtro de estado trae los tres que usa la app hoy (Pendiente, En
+ *  ejecución, Cerrada). Si quedan órdenes viejas con otro estado (Borrador,
+ *  Aprobada, Rechazada...), ese estado se agrega para poder encontrarlas. */
+function _completarFiltroEstado() {
+  const sel = document.getElementById('filtroEstado');
+  if (!sel) return;
+  const presentes = new Set(Array.from(sel.options).map(o => o.value));
+  Array.from(new Set(allOrdenes.map(o => o.Estado).filter(Boolean)))
+    .filter(e => !presentes.has(e))
+    .sort()
+    .forEach(e => sel.insertAdjacentHTML('beforeend', `<option value="${esc(e)}">${esc(e)}</option>`));
+}
+
 function filtrarOrdenes() {
+  _completarFiltroEstado();
   const filtered = _ordenesFiltradasLista();
 
   const div = document.getElementById('listaContainer');
@@ -12632,7 +12754,7 @@ function limpiarCacheLocal() {
   }
 
   const lista = datos.map((o, i) =>
-    `${i + 1}. ${o.NumeroOrden || '—'} · ${o.Equipo || '—'} · ${o.Estado || '—'}\n   ${(o.Descripcion || '').slice(0, 60)}`
+    `${i + 1}. ${o.NumeroOrden || '—'} · ${o.Equipo || '—'} · ${o.Estado || '—'}\n   ${(o.Title || '').slice(0, 60)}`
   ).join('\n\n');
 
   const msg =
@@ -12672,7 +12794,7 @@ function limpiarCacheLocal() {
     `• Número: ${existe.NumeroOrden}\n` +
     `• Equipo: ${existe.Equipo || '—'}\n` +
     `• Estado: ${existe.Estado || '—'}\n` +
-    `• Descripción: ${(existe.Descripcion || '').slice(0, 80)}\n\n` +
+    `• Descripción: ${(existe.Title || '').slice(0, 80)}\n\n` +
     `Si esta orden NO está en Google Sheets, se borrará definitivamente.`
   );
   if (!confirmar) return;
@@ -12687,6 +12809,14 @@ function limpiarCacheLocal() {
 /* ══════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════ */
+/** Un número escrito como lo escribe una persona: "12", "-40", "0.75".
+ *  Number() también acepta "0x10", "1e5" o "Infinity", que en una medición
+ *  son errores de digitación. El signo menos sí vale: el punto de rocío de
+ *  los secadores, por ejemplo, es negativo. */
+function _esNumeroDecimal(v) {
+  return /^-?(\d+(\.\d*)?|\.\d+)$/.test(String(v ?? '').trim());
+}
+
 function esc(str) {
   // 0 se muestra como "0" (antes quedaba en blanco); null, undefined, false y NaN, vacíos.
   if (str === null || str === undefined || str === false || (typeof str === 'number' && isNaN(str))) return '';
@@ -13935,23 +14065,6 @@ async function eliminarFilasDondeCumple(hoja, predicado) {
   return filasABorrar.length;
 }
 
-/** Borra de Ordenes (y sus Tareas/Repuestos/Insumos) todas las órdenes
- *  marcadas como creadas automáticamente, y las quita también de la
- *  caché local. */
-async function limpiarOrdenesAutomaticas() {
-  const ordenes = await leerHojaGenerica(SH.ordenes);
-  const numeros = new Set(ordenes.filter(o => o.CreadaAutomaticamente === 'SI').map(o => o.NumeroOrden));
-  if (!numeros.size) return 0;
-  await eliminarFilasDondeCumple(SH.ordenes, o => numeros.has(o.NumeroOrden));
-  await eliminarFilasDondeCumple(SH.tareas, t => numeros.has(t.NumeroOrden));
-  await eliminarFilasDondeCumple(SH.repuestos, r => numeros.has(r.NumeroOrden));
-  await eliminarFilasDondeCumple(SH.insumos, i => numeros.has(i.NumeroOrden));
-  await eliminarFilasDondeCumple(SH.servicios, s => numeros.has(s.NumeroOrden));
-  allOrdenes = allOrdenes.filter(o => !numeros.has(o.NumeroOrden) && !numeros.has(o.id));
-  guardarLocal();
-  return numeros.size;
-}
-
 
 /** Sub-navegación del panel Plan de Mantenimiento (Registro / Horas de
  *  Mantenimiento) — con querySelectorAll acotado a este panel para no
@@ -14067,7 +14180,7 @@ async function pmGuardarHoraBase() {
   const cambios = {};
   for (const el of document.querySelectorAll('.pm-hora-base')) {
     const v = el.value.trim();
-    if (v !== '' && (isNaN(Number(v)) || Number(v) < 0)) {
+    if (v !== '' && (!_esNumeroDecimal(v) || Number(v) < 0)) {
       msg.style.color = 'var(--danger)';
       msg.textContent = `La hora base de ${el.dataset.equipo} debe ser un número positivo.`;
       return;
@@ -14231,10 +14344,12 @@ async function pmGuardarActividades() {
   const clave = frecuencia + '|' + tipo;
   try {
     const colsHoja = await asegurarHoja(SH.informeActividades, INFORME_ACTIVIDADES_COLS);
-    // Se reemplaza el conjunto completo de esa combinación: borrar y volver
-    // a insertar es más simple y seguro que casar fila por fila cuando el
-    // usuario reordena, agrega y quita en la misma edición.
-    await _eliminarFilasPorValorColumna(SH.informeActividades, 'Clave', clave);
+    // Se reemplaza el conjunto completo de esa combinación: insertar el
+    // nuevo y borrar el viejo es más simple y seguro que casar fila por fila
+    // cuando el usuario reordena, agrega y quita en la misma edición. Se
+    // inserta PRIMERO: si se borraba primero y el agregado fallaba, esa
+    // frecuencia se quedaba sin actividades.
+    const viejas = await _filasDondeColumnaEs(SH.informeActividades, 'Clave', clave);
     const filas = lista.map((a, i) => {
       const porColumna = {
         Clave: clave, Frecuencia: frecuencia, TipoEquipo: tipo,
@@ -14243,6 +14358,7 @@ async function pmGuardarActividades() {
       return colsHoja.map(c => porColumna[c] ?? '');
     });
     await appendHoja(SH.informeActividades, filas);
+    await _borrarFilasHoja(SH.informeActividades, viejas);
     await pmRenderActividadesInforme(frecuencia, tipo);
     const m2 = document.getElementById('pmActMsg');
     m2.style.color = 'var(--success, #1e7e34)';
@@ -14664,7 +14780,20 @@ function invMostrarSubTab(nombre) {
  *  agrupa por producto. Son cantidades "comprometidas": ya se prometieron en
  *  una orden pero aún no se descontaron del stock — el descuento ocurre al
  *  cerrar la orden (ver descontarInventarioPorCierreOrden). */
-async function obtenerRepuestosComprometidos(sede) {
+const _comprometidosPantalla = {}; // sede -> { ms, promesa } (mismo criterio que _stockPantalla)
+
+/** Lee tres hojas enteras de otra hoja de cálculo: antes se hacía en cada
+ *  carga del Dashboard de inventario. Ahora se reutiliza 30 s. */
+function obtenerRepuestosComprometidos(sede) {
+  const c = _comprometidosPantalla[sede];
+  if (c && Date.now() - c.ms < STOCK_PANTALLA_MS) return c.promesa;
+  const promesa = _leerRepuestosComprometidos(sede);
+  _comprometidosPantalla[sede] = { ms: Date.now(), promesa };
+  promesa.catch(() => { if (_comprometidosPantalla[sede]?.promesa === promesa) delete _comprometidosPantalla[sede]; });
+  return promesa;
+}
+
+async function _leerRepuestosComprometidos(sede) {
   const spreadsheetId = OPERACIONES[sede]?.spreadsheetId;
   if (!spreadsheetId) return [];
 
@@ -14766,8 +14895,7 @@ function invRenderComprometidos(comprometidos, stock) {
 async function invCargarDashboard() {
   const msg = document.getElementById('invMsg');
   try {
-    const stock = await obtenerStockInventarioDirecto(inventarioOperacionActual);
-    _stockInventarioCache = stock; _stockInventarioCacheSede = inventarioOperacionActual; // reutiliza el mismo caché del autocompletado
+    const stock = await _stockInventarioParaPantalla(inventarioOperacionActual);
 
     document.getElementById('invKpiTotal').textContent    = stock.length;
     document.getElementById('invKpiSinStock').textContent = stock.filter(p => p.cantidad <= 0).length;
@@ -14941,7 +15069,7 @@ async function invRegistrarProducto() {
     ['invp_codigo','invp_nombre','invp_stockmin','invp_ubicacion'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invp_unidad').value = 'Unidades';
     document.getElementById('invp_proveedor').value = '';
-    _stockInventarioCache = null; // invalida el caché del autocompletado, para que vea el producto nuevo
+    _invalidarStockPantalla(); // para que el autocompletado vea el producto nuevo
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
   }
@@ -15100,7 +15228,7 @@ async function invRegistrarMovimiento() {
     document.getElementById('invm_tipoDocumento').value = '';
     document.getElementById('invm_grupoDocNumero').style.display = 'none';
     document.getElementById('invm_fecha').valueAsDate = new Date();
-    _stockInventarioCache = null;
+    _invalidarStockPantalla();
     // Refresca el Dashboard en segundo plano — si ya estaba abierto en otra
     // pestaña del navegador o si el usuario vuelve a él sin recargar toda
     // la app, no debe quedarse mostrando el stock de antes de este
@@ -15121,7 +15249,7 @@ async function invCargarStock() {
   const cont = document.getElementById('invStockTabla');
   cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
   try {
-    const stock = await obtenerStockInventarioDirecto(inventarioOperacionActual);
+    const stock = await _stockInventarioParaPantalla(inventarioOperacionActual);
     _invStockCacheTabla = stock;
     invFiltrarStock();
   } catch (e) {
@@ -15275,7 +15403,7 @@ async function invPoblarCodigosReporte() {
   if (!sel) return;
   const actual = sel.value;
   try {
-    const stock = await obtenerStockInventarioDirecto(inventarioOperacionActual);
+    const stock = await _stockInventarioParaPantalla(inventarioOperacionActual);
     sel.innerHTML = '<option value="">Todos los productos</option>' +
       stock.map(p => `<option value="${esc(p.codigo)}">${esc(p.codigo)} — ${esc(p.nombre)}</option>`).join('');
     if (stock.some(p => p.codigo === actual)) sel.value = actual;
@@ -16319,114 +16447,6 @@ async function eliminarNovedad(codigo) {
   }
 }
 
-/* ── Fotos / Evidencias gráficas (con título y descripción por imagen) ── */
-
-async function subirFotoNovedad(file, codigo, titulo, descripcion) {
-  const foto = await _prepararFotoParaSubir(file, codigo + '_' + Date.now() + '_' + (file.name || 'foto'));
-
-  const subidoPor = currentUser?.email || 'Usuario';
-  const fecha = new Date().toISOString();
-
-  const resp = await _postScriptFotos({
-    accion: 'subirFoto',
-    tipo: 'novedad',
-    codigo,
-    nombreArchivo: foto.nombreArchivo,
-    mimeType: foto.mimeType,
-    base64: foto.base64,
-    titulo: titulo || '',
-    descripcion: descripcion || '',
-    subidoPor,
-    correo: currentUser?.email || ''
-  });
-  const data = await resp.json();
-  if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
-
-  const colsFotos = await asegurarHoja(SH.fotosNovedades, FOTOS_NOVEDADES_COLS);
-  const porColumna = {};
-  FOTOS_NOVEDADES_COLS.forEach((c, i) => {
-    porColumna[c] = [codigo, '', data.driveFileId, data.urlVer, data.urlVer, titulo || '', descripcion || '', subidoPor, fecha][i] ?? '';
-  });
-  await appendHoja(SH.fotosNovedades, [colsFotos.map(c => porColumna[c] ?? '')]);
-
-  return { driveFileId: data.driveFileId, urlVer: data.urlVer, titulo: titulo||'', descripcion: descripcion||'', subidoPor, fecha };
-}
-
-/** Pide título y descripción antes de subir la foto a un informe */
-async function abrirFormFotoNovedad(inputEl) {
-  const file = inputEl.files && inputEl.files[0];
-  if (!file) return;
-  inputEl.value = '';
-
-  const overlay = document.createElement('div');
-  overlay.id = 'modalFotoNovedadOverlay';
-  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:3500;padding:16px';
-  overlay.innerHTML = `
-    <div style="background:var(--surface);border-radius:10px;max-width:380px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
-      <div style="font-weight:700;color:var(--brand);margin-bottom:12px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Detalles de la evidencia gráfica</div>
-      <div class="field" style="margin-bottom:10px"><label>Título *</label><input id="foto_nov_titulo" placeholder="Ej: Hora de falla (caída de presión)"></div>
-      <div class="field" style="margin-bottom:14px"><label>Descripción breve</label><textarea id="foto_nov_desc" rows="2" placeholder="Opcional"></textarea></div>
-      <div id="foto_nov_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modalFotoNovedadOverlay').remove()">Cancelar</button>
-        <button class="btn btn-primary" style="flex:1" onclick="confirmarSubidaFotoNovedad()">Subir foto</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay._archivoPendiente = file;
-}
-
-async function confirmarSubidaFotoNovedad() {
-  const overlayFoto = document.getElementById('modalFotoNovedadOverlay');
-  const overlayNov  = document.getElementById('modalNovedadOverlay');
-  const codigo = overlayNov ? overlayNov._codigoActual : null;
-  const file = overlayFoto._archivoPendiente;
-  const titulo = document.getElementById('foto_nov_titulo').value.trim();
-  const descripcion = document.getElementById('foto_nov_desc').value.trim();
-  const msg = document.getElementById('foto_nov_msg');
-
-  if (!titulo) { msg.textContent = 'El título es obligatorio.'; return; }
-
-  msg.style.color = 'var(--text3)'; msg.textContent = 'Subiendo...';
-  try {
-    const foto = await subirFotoNovedad(file, codigo, titulo, descripcion);
-    overlayFoto.remove();
-    if (overlayNov) {
-      overlayNov._fotosLocal = overlayNov._fotosLocal || [];
-      overlayNov._fotosLocal.push(foto);
-      renderGaleriaFotosNovedadLocal(overlayNov._fotosLocal);
-    }
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = 'Error: ' + e.message;
-  }
-}
-
-/** Pinta la galería de fotos dentro del modal usando la lista local
- *  (funciona tanto para novedades nuevas sin guardar como para editar). */
-function renderGaleriaFotosNovedadLocal(fotos) {
-  const cont = document.getElementById('nov_galeria_fotos');
-  if (!cont) return;
-  fotos = fotos || [];
-
-  if (!fotos.length) {
-    cont.innerHTML = '<div style="font-size:12px;color:var(--text3);font-style:italic">Sin evidencias gráficas aún.</div>';
-    return;
-  }
-
-  cont.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">' +
-    fotos.map((f, i) => `
-      <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden">
-        <img id="nov_foto_img_${i}" style="width:100%;height:110px;object-fit:cover;background:var(--surface2)" alt="${esc(f.titulo)}">
-        <div style="padding:5px 7px">
-          <div style="font-size:11px;font-weight:700;color:var(--brand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.titulo)}</div>
-          ${f.descripcion ? `<div style="font-size:10px;color:var(--text3)">${esc(f.descripcion)}</div>` : ''}
-        </div>
-      </div>`).join('') + '</div>';
-
-  fotos.forEach((f, i) => _cargarFotoEnImg(f.driveFileId, document.getElementById('nov_foto_img_' + i)));
-}
-
 /** Gráfica de barras: cuántas novedades cayeron en cada mes del año
  *  (Ene–Dic), sobre la lista YA filtrada, para ver en qué mes se presentan
  *  más. Cuando el filtro es "Todos los años", agrupa por mes de todos los
@@ -16702,75 +16722,6 @@ function _leyendaRangosHtml() {
   </div>`;
 }
 
-/** Misma leyenda de rangos, pero en lista vertical elegante (para el informe individual) */
-function _leyendaRangosVerticalHtml() {
-  return `<div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto">
-    ${RANGOS_NOVEDAD.map((r, i) => `
-      <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text);padding:6px 10px;background:var(--surface2);border-radius:6px;border:1px solid #eee">
-        <span style="width:22px;height:14px;background:${r.color};border-radius:3px;display:inline-block;flex-shrink:0"></span>
-        <span style="flex:1">${esc(r.nombre)}</span>
-        <span style="color:var(--text3);font-size:11px">${r.max === Infinity ? `> ${RANGOS_NOVEDAD[i-1].max} min` : `≤ ${r.max} min`}</span>
-      </div>`).join('')}
-  </div>`;
-}
-
-async function _crearMiniDashboardNovedad(n) {
-  // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
-  // del panel (tablas, totales) sí tiene que seguir funcionando.
-  if (typeof Chart === 'undefined') return;
-  const total = Number(n.TiempoTotalMin) || 0;
-  const rango = _rangoPorMinutos(total);
-
-  const c1 = document.createElement('canvas'); c1.width = 700; c1.height = 700;
-  c1.style.position = 'fixed';
-  c1.style.left = '-9999px';
-  document.body.appendChild(c1);
-
-  const chartDona = new Chart(c1.getContext('2d'), {
-    type: 'doughnut',
-    data: { labels: [`${total} min — ${rango.nombre}`], datasets: [{ data: [1], backgroundColor: [rango.color], borderWidth: 0 }] },
-    options: { responsive: false, animation: false, cutout: '62%', plugins: { legend: { display: false } } }
-  });
-
-  await new Promise(r => setTimeout(r, 60)); // dejar que Chart.js termine de pintar antes de capturar
-
-  const imgDona = c1.toDataURL('image/png');
-
-  chartDona.destroy();
-  c1.remove();
-
-  return { imgDona, total, rango };
-}
-
-async function exportarInformeIndividual(codigo) {
-  const n = allNovedades.find(x => x.Codigo === codigo);
-  if (!n) return;
-  const cont = document.getElementById('novedadesInformeImprimible');
-
-  const { imgDona, total, rango } = await _crearMiniDashboardNovedad(n);
-
-  let html = `
-    ${_encabezadoPdfHtml('Informe de Novedad — ' + n.Codigo, OPERACIONES[operacionActual].nombre + ' · Generado el ' + new Date().toLocaleDateString('es-CO'))}
-
-    <h2 style="color:var(--brand);font-size:16px;margin:14px 0 14px;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación de esta Novedad</h2>
-    <div style="max-width:380px;margin:0 auto 6px">
-      <img src="${imgDona}" style="width:100%;height:auto;display:block">
-    </div>
-    <div style="text-align:center;font-size:15px;font-weight:700;color:${esc(rango.color)};margin-bottom:18px">${total} min — ${esc(rango.nombre)}</div>
-
-    <div style="margin-bottom:6px"></div>
-    ${_leyendaRangosVerticalHtml()}
-    <div style="page-break-after:always"></div>
-    <div style="padding-top:6px">` + await _construirHtmlInformeNovedad(n, true) + `</div>`;
-
-  cont.innerHTML = html;
-  document.body.classList.add('imprimiendo-novedades');
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => document.body.classList.remove('imprimiendo-novedades'), 500);
-  }, 200);
-}
-
 /** Exporta el consolidado: dashboard de tiempos + todos los informes completos */
 async function generarInformeConsolidado() {
   const cont = document.getElementById('novedadesInformeImprimible');
@@ -17014,13 +16965,23 @@ async function _leerCumplimientoTurnosCronograma() {
   await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
   const filas = await leerHojaGenericaCacheada(SH.cronogramaRegistros);
   const cumplido = {};
+  const realizadas = {}; // 'fecha|turno' -> Set de ActividadId realizadas
   filas.forEach(f => {
     if (!f.Fecha || !f.TurnoId) return;
     const key = f.Fecha + '|' + f.TurnoId;
-    if (f.Realizado === 'SI') cumplido[key] = true;
-    else if (!(key in cumplido)) cumplido[key] = false;
+    if (f.Realizado === 'SI') {
+      cumplido[key] = true;
+      (realizadas[key] = realizadas[key] || new Set()).add(f.ActividadId);
+    } else if (!(key in cumplido)) cumplido[key] = false;
   });
-  return cumplido;
+  return { cumplido, realizadas };
+}
+
+/** Las actividades del cronograma fijo que le tocan a un turno ese día
+ *  (sin los reportes de datos ni las adicionales): la base del porcentaje. */
+function _actividadesPlaneadasTurno(turno, fecha) {
+  const dia = _diaSemanaDe(fecha);
+  return turno.checkpoints.flatMap(cp => cp.bloques.filter(b => (b.actividad[dia] || '').trim()).map(b => b.id));
 }
 
 /** Se dispara al hacer clic en el checkbox de una actividad — el checkbox
@@ -17085,7 +17046,6 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   const ahora = new Date();
   const horaDefault = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
   const conOperarios = operacionActual === 'zipaquira';
-  _cronModalOperariosPrevios = [];
 
   // El procedimiento paso a paso viene de PROCEDIMIENTOS_ACTIVIDADES (mapeado
   // por el texto de la actividad). Si la actividad no tiene un procedimiento
@@ -17143,7 +17103,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
         <div class="field" style="margin-bottom:12px">
           <label style="margin-bottom:4px;display:block">¿Quién la realizó? <span style="color:var(--text3);font-weight:400">(máximo 3)</span></label>
           <div style="border:1px solid var(--border);border-radius:8px;max-height:170px;overflow:auto;padding:2px">
-            ${OPERARIOS_ZIPAQUIRA.map(o => `<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-radius:6px;font-size:13px"><input type="checkbox" class="cronOpChk" value="${esc(o)}" onchange="_limitarOperariosCronCheck()" style="width:18px;height:18px;flex:none;cursor:pointer">${esc(o)}</label>`).join('')}
+            <div id="cronModalOperariosLista" style="padding:8px 10px;font-size:12px;color:var(--text3)">Cargando operarios…</div>
           </div>
           <div id="cronModalOperariosMsg" style="color:var(--danger);font-size:11px;margin-top:3px"></div>
         </div>` : ''}
@@ -17163,6 +17123,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (conOperarios) _pintarOperariosModalCronograma();
 
   let paso = 1;
   const $ = id => document.getElementById(id);
@@ -17206,6 +17167,21 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
   mostrarPaso(1);
 }
 
+/** Llena las casillas de "¿Quién la realizó?" con la lista de operarios de
+ *  la hoja, que llega después de abrir el asistente. */
+async function _pintarOperariosModalCronograma() {
+  const pintar = html => { const el = document.getElementById('cronModalOperariosLista'); if (el) el.outerHTML = html; };
+  try {
+    await cargarOperariosPlanta();
+    const nombres = operariosPlantaActivos();
+    pintar(nombres.length
+      ? nombres.map(o => `<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-radius:6px;font-size:13px"><input type="checkbox" class="cronOpChk" value="${esc(o)}" onchange="_limitarOperariosCronCheck()" style="width:18px;height:18px;flex:none;cursor:pointer">${esc(o)}</label>`).join('')
+      : '<div style="padding:8px 10px;font-size:12px;color:var(--text3)">Todavía no hay operarios en la lista. Un administrador los agrega en Cronograma → Observaciones.</div>');
+  } catch (e) {
+    pintar(`<div style="padding:8px 10px;font-size:12px;color:var(--danger)">No se pudo cargar la lista de operarios: ${esc(e.message)}</div>`);
+  }
+}
+
 /** Los operarios se eligen con casillas (checkboxes). Máximo 3: al llegar a
  *  3 marcadas se deshabilitan las demás; al desmarcar alguna se vuelven a
  *  habilitar. */
@@ -17234,17 +17210,17 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
     .map(id => document.getElementById(id)).filter(Boolean);
   controles.forEach(el => { el.disabled = true; });
   try {
-    await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
-    await appendHoja(SH.cronogramaRegistros, [[
-      fecha, turnoId, actividadId, realizado ? 'SI' : 'NO',
-      currentUser?.name || currentUser?.email || 'Sistema',
-      new Date().toISOString(),
-      realizado ? (horaRealizada || '') : '',
-      observacion || '',
-      realizado ? (operariosRealizaron || '') : '',
-      _textoDeActividadCronograma(actividadId, fecha),
-      condicionInsegura || '',
-    ]]);
+    const cols = await asegurarHoja(SH.cronogramaRegistros, CRONOGRAMA_REGISTROS_COLS);
+    await appendHoja(SH.cronogramaRegistros, [_filaSegunEncabezados(cols, {
+      Fecha: fecha, TurnoId: turnoId, ActividadId: actividadId, Realizado: realizado ? 'SI' : 'NO',
+      RealizadoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaHora: new Date().toISOString(),
+      HoraRealizada: realizado ? (horaRealizada || '') : '',
+      Observacion: observacion || '',
+      OperariosRealizaron: realizado ? (operariosRealizaron || '') : '',
+      ActividadTexto: _textoDeActividadCronograma(actividadId, fecha),
+      CondicionInsegura: condicionInsegura || '',
+    })]);
     _invalidarCacheHoja(SH.cronogramaRegistros);
     const marcaEl = document.getElementById('cronMarca_' + actividadId);
     if (marcaEl) {
@@ -17281,22 +17257,32 @@ async function marcarActividadCronograma(actividadId, turnoId, fecha, realizado,
  *  de filas viejas en reemplazarFilasOrden, pero genérico por nombre de
  *  columna en vez de por NumeroOrden en la columna A). */
 async function _eliminarFilasPorValorColumna(sheetName, nombreColumna, valor) {
+  await _borrarFilasHoja(sheetName, await _filasDondeColumnaEs(sheetName, nombreColumna, valor));
+}
+
+/** Números de fila (1-based) donde la columna dada vale exactamente valor. */
+async function _filasDondeColumnaEs(sheetName, nombreColumna, valor) {
   const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
   const r = await fetch(base + '/values/' + encodeURIComponent(sheetName + '!A:ZZ'), { headers: hdrs });
   if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
   if (!r.ok) throw new Error('No se pudo leer ' + sheetName + ' para borrar filas (HTTP ' + r.status + ')');
   const d = await r.json();
   const values = d.values || [];
-  if (!values.length) return;
+  if (!values.length) return [];
   const colIdx = values[0].indexOf(nombreColumna);
-  if (colIdx < 0) return;
-
-  const filasABorrar = [];
+  if (colIdx < 0) return [];
+  const filas = [];
   for (let i = 1; i < values.length; i++) {
-    if (values[i] && values[i][colIdx] === valor) filasABorrar.push(i + 1); // número de fila real en la hoja (1-based)
+    if (values[i] && values[i][colIdx] === valor) filas.push(i + 1); // número de fila real en la hoja (1-based)
   }
-  if (!filasABorrar.length) return;
+  return filas;
+}
+
+async function _borrarFilasHoja(sheetName, filasABorrar) {
+  if (!filasABorrar || !filasABorrar.length) return;
+  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
 
   const metaResp = await fetch(base + '?fields=sheets.properties', { headers: hdrs });
   const meta = await metaResp.json();
@@ -17381,12 +17367,12 @@ async function agregarActividadAdicionalCronograma(turnoId, fecha) {
   const actividadId = 'adic_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   input.disabled = true;
   try {
-    await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
-    await appendHoja(SH.cronogramaAdicionales, [[
-      fecha, turnoId, actividadId, descripcion,
-      currentUser?.name || currentUser?.email || 'Sistema',
-      new Date().toISOString(),
-    ]]);
+    const cols = await asegurarHoja(SH.cronogramaAdicionales, CRONOGRAMA_ADICIONALES_COLS);
+    await appendHoja(SH.cronogramaAdicionales, [_filaSegunEncabezados(cols, {
+      Fecha: fecha, TurnoId: turnoId, ActividadId: actividadId, Descripcion: descripcion,
+      AgregadoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaHora: new Date().toISOString(),
+    })]);
     _invalidarCacheHoja(SH.cronogramaAdicionales);
 
     const cont = document.getElementById('cronAdicionales_' + turnoId);
@@ -17428,8 +17414,11 @@ async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
 
-  await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
-  await appendHoja(SH.cronogramaFotos, [[fecha, turnoId, actividadId, data.driveFileId, data.urlVer, subidoPor, fechaHora]]);
+  const cols = await asegurarHoja(SH.cronogramaFotos, CRONOGRAMA_FOTOS_COLS);
+  await appendHoja(SH.cronogramaFotos, [_filaSegunEncabezados(cols, {
+    Fecha: fecha, TurnoId: turnoId, ActividadId: actividadId, DriveFileId: data.driveFileId,
+    UrlVer: data.urlVer, SubidoPor: subidoPor, FechaHora: fechaHora,
+  })]);
   _invalidarCacheHoja(SH.cronogramaFotos);
 
   return { driveFileId: data.driveFileId, urlVer: data.urlVer, subidoPor, fechaHora };
@@ -18138,9 +18127,10 @@ function _actualizarCronometrosCheckpoints() {
       const btn = document.getElementById(prefijo + '_btnGuardar');
       if (btn) {
         const cerrada = now >= fin;
-        btn.disabled = cerrada;
-        btn.style.opacity = cerrada ? '.5' : '';
-        btn.style.cursor = cerrada ? 'not-allowed' : '';
+        const bloqueado = cerrada || now < inicio; // todavía no abre, o ya cerró
+        btn.disabled = bloqueado;
+        btn.style.opacity = bloqueado ? '.5' : '';
+        btn.style.cursor = bloqueado ? 'not-allowed' : '';
         const aviso = document.getElementById(prefijo + '_avisoCerrado');
         if (aviso) aviso.style.display = cerrada ? '' : 'none';
       }
@@ -18162,11 +18152,31 @@ function _iniciarCronometrosCheckpoints() {
  *  mueve los cronómetros del cronograma) se encarga de la cuenta regresiva.
  *  Presión Drycooler no tiene franjas horarias (es un reporte por día), así
  *  que no lleva cronómetro. */
-/** ¿La franja elegida en un formulario de reporte ya se pasó de su hora?
- *  (backstop de guardado, además del botón deshabilitado en vivo). */
-function _reporteFueraDeHora(horaValue) {
+/** Por qué no se puede guardar ahora un reporte de esa franja, o '' si sí
+ *  se puede (backstop de guardado, además del botón deshabilitado en vivo).
+ *  Antes solo se frenaba la franja ya cerrada: la que todavía no abría (por
+ *  ejemplo la de las 6 p.m., elegida a las 7 a.m.) se guardaba igual. */
+function _motivoReporteFueraDeVentana(horaValue) {
   const hhmm = HORA_REPORTE_A_24H[horaValue] || '';
-  return !!hhmm && _estadoVentanaReporte(hhmm) === 'cerrada';
+  const estado = hhmm ? _estadoVentanaReporte(hhmm) : 'abierta';
+  if (estado === 'cerrada') return 'La hora de este reporte (' + horaValue + ') ya pasó. La sección está cerrada y no se puede guardar.';
+  if (estado === 'antes') return 'El reporte de las ' + horaValue + ' todavía no abre: se puede guardar desde esa hora y durante una hora.';
+  return '';
+}
+
+/** La fecha del reporte es la del día de su franja (la ocurrencia más
+ *  cercana a ahora, igual que el cronómetro): la de las 2 a.m. que se hace
+ *  de madrugada es de hoy, aunque el formulario se haya abierto anoche.
+ *  Antes la fecha se podía cambiar a mano y la ventana horaria la ignoraba. */
+function _fechaDeFranjaReporte(horaValue) {
+  const hhmm = HORA_REPORTE_A_24H[horaValue] || '';
+  const p = hhmm.split(':');
+  const now = new Date();
+  if (p.length !== 2) return _isoLocal(now);
+  let inicio = new Date(now); inicio.setHours(Number(p[0]), Number(p[1]), 0, 0);
+  if (inicio - now > 12 * 3600000) inicio = new Date(inicio.getTime() - 86400000);
+  else if (now - inicio > 12 * 3600000) inicio = new Date(inicio.getTime() + 86400000);
+  return _isoLocal(inicio);
 }
 
 function _onCambioHoraReporte(prefijo) {
@@ -18176,6 +18186,8 @@ function _onCambioHoraReporte(prefijo) {
   const hhmm = HORA_REPORTE_A_24H[sel && sel.value] || '';
   if (hhmm) {
     chip.setAttribute('data-hora', hhmm);
+    const fechaEl = document.getElementById(prefijo + '_fecha');
+    if (fechaEl) fechaEl.value = _fechaDeFranjaReporte(sel.value);
   } else {
     // Sin franja elegida no hay contra qué medir: se muestra el aviso de
     // "elige la hora" y se libera el formulario (el botón queda activo; la
@@ -18342,6 +18354,17 @@ function _renderTodosCumplimientosReportesTecnicos() {
   _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', desde, hasta, null);
 }
 
+/** Aviso para cuando un rango de fechas se cortó por el tope de días.
+ *  Antes se recortaba en silencio y parecía que el resto no tenía datos. */
+function _avisoRangoRecortado(fechas, hasta, tope) {
+  if (!fechas.length || fechas[fechas.length - 1] >= hasta) return '';
+  return `Se muestran solo los primeros ${tope} días (hasta el ${fmtFecha(fechas[fechas.length - 1])}). Para ver el resto, elige un rango más corto.`;
+}
+
+function _htmlAvisoRangoRecortado(aviso) {
+  return aviso ? `<div style="flex-basis:100%;margin-top:6px;font-size:12px;color:#a15c00">⚠ ${esc(aviso)}</div>` : '';
+}
+
 /** Gráfica de cumplimiento por turno: un punto por cada combinación
  *  turno+fecha del rango seleccionado (1 = se marcó al menos una actividad
  *  como realizada ese turno, 0 = ninguna) — igual estilo que la gráfica de
@@ -18366,7 +18389,7 @@ async function renderDashboardCronograma() {
   if (resumenEl) resumenEl.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
 
   try {
-    const cumplido = await _leerCumplimientoTurnosCronograma();
+    const { cumplido, realizadas } = await _leerCumplimientoTurnosCronograma();
     const ahora = new Date();
     const hoyIso = _isoLocal(ahora);
     const horaAhora = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
@@ -18381,9 +18404,12 @@ async function renderDashboardCronograma() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const labels = [], valores = [], colores = [];
-    const totalesPorTurno = {}; // turnoId -> { cumplidos, total }
-    cfg.turnos.forEach(t => { totalesPorTurno[t.id] = { nombre: t.nombre, cumplidos: 0, total: 0 }; });
+    const labels = [], valores = [], colores = [], detalle = [];
+    // "Cumplido" sigue siendo marcar al menos una actividad (así se acordó),
+    // pero eso solo hace ver el indicador más alto de lo real: por eso se
+    // lleva también cuántas de las actividades planeadas se hicieron.
+    const totalesPorTurno = {}; // turnoId -> { cumplidos, total, hechas, planeadas }
+    cfg.turnos.forEach(t => { totalesPorTurno[t.id] = { nombre: t.nombre, cumplidos: 0, total: 0, hechas: 0, planeadas: 0 }; });
 
     fechas.forEach(fecha => {
       cfg.turnos.forEach(turno => {
@@ -18393,11 +18419,17 @@ async function renderDashboardCronograma() {
         if (fecha > hoyIso) return;
         const key = fecha + '|' + turno.id;
         const val = cumplido[key] === true ? 1 : 0;
+        const planeadas = _actividadesPlaneadasTurno(turno, fecha);
+        const hechas = planeadas.filter(id => realizadas[key]?.has(id)).length;
         labels.push(turno.nombre.replace('Turno ', 'T') + ' · ' + fmtFecha(fecha).slice(0, 5));
         valores.push(val);
         colores.push(val ? '#15803d' : '#b91c1c');
-        totalesPorTurno[turno.id].total++;
-        if (val) totalesPorTurno[turno.id].cumplidos++;
+        detalle.push({ hechas, planeadas: planeadas.length });
+        const tot = totalesPorTurno[turno.id];
+        tot.total++;
+        if (val) tot.cumplidos++;
+        tot.hechas += hechas;
+        tot.planeadas += planeadas.length;
       });
     });
 
@@ -18419,7 +18451,11 @@ async function renderDashboardCronograma() {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ' ' + (ctx.raw ? '✓ Cumplido — se marcó al menos una actividad' : '✗ No cumplido — ninguna actividad marcada') } },
+          tooltip: { callbacks: { label: ctx => {
+            const d = detalle[ctx.dataIndex];
+            const actividades = d && d.planeadas ? ` (${d.hechas} de ${d.planeadas} actividades, ${Math.round(d.hechas / d.planeadas * 100)}%)` : '';
+            return ' ' + (ctx.raw ? '✓ Cumplido — se marcó al menos una actividad' : '✗ No cumplido — ninguna actividad marcada') + actividades;
+          } } },
         },
         scales: {
           y: { min: -0.1, max: 1.1, ticks: { stepSize: 1, callback: v => (v === 1 ? 'Cumplido' : v === 0 ? 'No cumplido' : '') } },
@@ -18437,10 +18473,12 @@ async function renderDashboardCronograma() {
       resumenEl.innerHTML = Object.values(totalesPorTurno).map(t => {
         const pct = t.total ? Math.round((t.cumplidos / t.total) * 100) : 0;
         const color = pct >= 80 ? '#15803d' : (pct >= 50 ? '#a15c00' : '#b91c1c');
+        const pctAct = t.planeadas ? Math.round((t.hechas / t.planeadas) * 100) : null;
+        const colorAct = pctAct === null ? 'var(--text3)' : pctAct >= 80 ? '#15803d' : (pctAct >= 50 ? '#a15c00' : '#b91c1c');
         return `<span style="background:var(--surface2);border-radius:12px;padding:5px 14px;font-size:12px;font-weight:600">
-          ${esc(t.nombre)}: <b style="color:${color}">${pct}%</b> cumplimiento (${t.cumplidos}/${t.total})
+          ${esc(t.nombre)}: <b style="color:${color}">${pct}%</b> cumplimiento (${t.cumplidos}/${t.total})${pctAct === null ? '' : ` · <b style="color:${colorAct}">${pctAct}%</b> de las actividades (${t.hechas}/${t.planeadas})`}
         </span>`;
-      }).join('');
+      }).join('') + _htmlAvisoRangoRecortado(_avisoRangoRecortado(fechas, hasta, 45));
     }
   } catch (e) {
     if (resumenEl) resumenEl.innerHTML = `<div style="color:var(--danger);font-size:13px">Error cargando el dashboard: ${esc(e.message)}</div>`;
@@ -18696,7 +18734,8 @@ async function descargarInformeCronograma(boton) {
   @media print{body{padding:0}}
 </style></head><body>
 <h1>⚙ Actividades Diarias</h1>
-<div class="sub">${esc(fmtFecha(desde))} a ${esc(fmtFecha(hasta))}${turnoIdFiltro ? ' · ' + esc(turnosAIncluir[0].nombre) : ''} · Generado el ${new Date().toLocaleString('es-CO')}</div>
+<div class="sub">${esc(fmtFecha(desde))} a ${esc(fmtFecha(fechas[fechas.length - 1] || hasta))}${turnoIdFiltro ? ' · ' + esc(turnosAIncluir[0].nombre) : ''} · Generado el ${new Date().toLocaleString('es-CO')}</div>
+${_avisoRangoRecortado(fechas, hasta, 62) ? `<div class="sub" style="color:#a15c00">⚠ ${esc(_avisoRangoRecortado(fechas, hasta, 62))}</div>` : ''}
 ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
@@ -18881,11 +18920,7 @@ function _siguienteCodigoObservacion() {
 
 async function inicializarObservacionesOperarios() {
   if (!esAdmin()) return;
-  const selOperario = document.getElementById('obs_operario');
-  if (selOperario) {
-    selOperario.innerHTML = '<option value="">Seleccionar operario...</option>' +
-      OPERARIOS_ZIPAQUIRA.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
-  }
+  await _pintarOperariosPlanta();
   const ahora = new Date();
   const fechaEl = document.getElementById('obs_fecha');
   if (fechaEl) fechaEl.value = _isoLocal(ahora);
@@ -18954,15 +18989,17 @@ function _observacionesFiltradas() {
   });
 }
 
-/** Tabla con el total de Amarillas/Rojas por cada operario del roster fijo
+/** Tabla con el total de Amarillas/Rojas por cada operario de la lista
  *  (aparecen todos, incluso con 0, para ver de un vistazo quién no tiene
- *  ninguna) — ordenados de más a menos observaciones en total, dentro del
+ *  ninguna) y por quien ya no está en ella pero tiene observaciones en el
+ *  periodo — ordenados de más a menos observaciones en total, dentro del
  *  periodo filtrado por mes/año. */
 function renderConteoObservaciones() {
   const wrap = document.getElementById('obs_conteoWrap');
   if (!wrap) return;
   const filtradas = _observacionesFiltradas();
-  const conteo = OPERARIOS_ZIPAQUIRA.map(nombre => {
+  const nombres = Array.from(new Set([...operariosPlantaActivos(), ...filtradas.map(o => o.Operario).filter(Boolean)]));
+  const conteo = nombres.map(nombre => {
     const propias = filtradas.filter(o => o.Operario === nombre);
     const amarillas = propias.filter(o => o.Tipo === 'Amarilla').length;
     const rojas = propias.filter(o => o.Tipo === 'Roja').length;
@@ -19022,6 +19059,153 @@ function renderHistorialObservaciones() {
   wrap.innerHTML = html;
 }
 
+/** Nombre escrito de una sola forma, sin espacios de más. */
+function _normalizarNombreOperario(n) {
+  return String(n || '').replace(/\s+/g, ' ').trim();
+}
+
+/** Filas de la pestaña OperariosPlanta. La primera vez que se usa en una
+ *  sede la pestaña no existe: se crea y se llena con los nombres que ya
+ *  aparecen en los registros, para que la lista no arranque vacía. */
+async function cargarOperariosPlanta(forzar) {
+  if (_operariosPlanta && !forzar) return _operariosPlanta;
+  if (!_operariosPlantaEnVuelo) {
+    _operariosPlantaEnVuelo = (async () => {
+      const cols = await asegurarHoja(SH.operariosPlanta, OPERARIOS_PLANTA_COLS);
+      let filas = await _leerHojaGenerica(SH.operariosPlanta);
+      if (!filas.length) {
+        const nombres = await _nombresOperariosEnRegistros();
+        if (nombres.length) {
+          await appendHoja(SH.operariosPlanta, nombres.map(n => cols.map(c => c === 'Nombre' ? n : c === 'Activo' ? 'SI' : '')));
+          filas = await _leerHojaGenerica(SH.operariosPlanta);
+        }
+      }
+      _operariosPlanta = filas;
+      return filas;
+    })().finally(() => { _operariosPlantaEnVuelo = null; });
+  }
+  return _operariosPlantaEnVuelo;
+}
+
+/** Quién ya aparece en los registros: los que realizaron actividades del
+ *  cronograma y, si entra un admin, a quién se le hizo una observación.
+ *  Solo sirve para llenar la lista la primera vez. */
+async function _nombresOperariosEnRegistros() {
+  const nombres = new Map();
+  const sumar = n => {
+    n = _normalizarNombreOperario(n);
+    if (n && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n);
+  };
+  try {
+    (await _leerHojaGenerica(SH.cronogramaRegistros)).forEach(f => String(f.OperariosRealizaron || '').split(',').forEach(sumar));
+  } catch (_) {}
+  if (esAdmin()) {
+    try { (await _leerHojaGenerica(SH.observacionesOperarios)).forEach(f => sumar(f.Operario)); } catch (_) {}
+  }
+  return Array.from(nombres.values()).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** Nombres de los operarios activos, sin repetidos y en orden alfabético. */
+function operariosPlantaActivos() {
+  const vistos = new Set();
+  return (_operariosPlanta || [])
+    .filter(f => !/^(no|inactivo|false|0)$/i.test(String(f.Activo || '').trim()))
+    .map(f => _normalizarNombreOperario(f.Nombre))
+    .filter(n => {
+      if (!n || vistos.has(n.toLowerCase())) return false;
+      vistos.add(n.toLowerCase());
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** Pinta la lista de operarios (para editarla) y el desplegable del
+ *  formulario de observaciones. */
+async function _pintarOperariosPlanta() {
+  const lista = document.getElementById('opPlanta_lista');
+  const sel = document.getElementById('obs_operario');
+  try {
+    await cargarOperariosPlanta();
+  } catch (e) {
+    if (lista) lista.innerHTML = `<div style="font-size:12px;color:var(--danger)">No se pudo cargar la lista: ${esc(e.message)}</div>`;
+    return;
+  }
+  const nombres = operariosPlantaActivos();
+  if (sel) {
+    const anterior = sel.value;
+    sel.innerHTML = '<option value="">Seleccionar operario...</option>' +
+      nombres.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+    if (nombres.includes(anterior)) sel.value = anterior;
+  }
+  if (lista) {
+    lista.innerHTML = nombres.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${nombres.map(n => `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:16px;padding:3px 4px 3px 10px;font-size:12.5px;background:var(--surface2)">${esc(n)}<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;min-height:0;color:var(--danger)" title="Quitar de la lista" aria-label="Quitar a ${esc(n)} de la lista" onclick="quitarOperarioPlanta(${_jsArg(n)})">✕</button></span>`).join('')}</div>`
+      : '<div style="font-size:12px;color:var(--text3)">La lista está vacía. Agrega a los operarios de planta.</div>';
+  }
+}
+
+/** Activa o desactiva a un operario. Quitarlo no borra la fila (ni sus
+ *  registros): queda con Activo = NO y deja de salir en las listas. */
+async function _marcarOperarioPlanta(nombre, activo) {
+  const cols = await asegurarHoja(SH.operariosPlanta, OPERARIOS_PLANTA_COLS);
+  const filas = await cargarOperariosPlanta(true);
+  const propias = filas.filter(f => _normalizarNombreOperario(f.Nombre).toLowerCase() === nombre.toLowerCase());
+  if (!propias.length) {
+    if (activo) await appendHoja(SH.operariosPlanta, [cols.map(c => c === 'Nombre' ? nombre : c === 'Activo' ? 'SI' : '')]);
+  } else {
+    const letra = numToCol(cols.indexOf('Activo'));
+    const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
+    const resp = await fetch(base + '/values:batchUpdate', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        valueInputOption: 'RAW',
+        data: propias.map(f => ({ range: SH.operariosPlanta + '!' + letra + f._row, values: [[activo ? 'SI' : 'NO']] })),
+      }),
+    });
+    if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
+    if (!resp.ok) throw new Error('No se pudo actualizar la lista (HTTP ' + resp.status + ')');
+  }
+  _invalidarCacheHoja(SH.operariosPlanta);
+  await cargarOperariosPlanta(true);
+}
+
+async function agregarOperarioPlanta() {
+  if (!esAdmin()) return;
+  const input = document.getElementById('opPlanta_nombre');
+  const msg = document.getElementById('opPlanta_msg');
+  const nombre = _normalizarNombreOperario(input.value);
+  if (!nombre) { msg.style.color = 'var(--danger)'; msg.textContent = 'Escribe el nombre del operario.'; return; }
+  if (operariosPlantaActivos().some(n => n.toLowerCase() === nombre.toLowerCase())) {
+    msg.style.color = 'var(--danger)'; msg.textContent = nombre + ' ya está en la lista.'; return;
+  }
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+  try {
+    await _marcarOperarioPlanta(nombre, true);
+    input.value = '';
+    msg.style.color = '#15803d'; msg.textContent = nombre + ' quedó en la lista.';
+    await _pintarOperariosPlanta();
+    renderConteoObservaciones();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo agregar: ' + e.message;
+  }
+}
+
+async function quitarOperarioPlanta(nombre) {
+  if (!esAdmin()) return;
+  if (!confirm('¿Quitar a ' + nombre + ' de la lista de operarios? Sus registros y observaciones no se borran.')) return;
+  const msg = document.getElementById('opPlanta_msg');
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+  try {
+    await _marcarOperarioPlanta(nombre, false);
+    msg.style.color = '#15803d'; msg.textContent = nombre + ' ya no sale en la lista.';
+    await _pintarOperariosPlanta();
+    renderConteoObservaciones();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo quitar: ' + e.message;
+  }
+}
+
 async function guardarObservacionOperario() {
   if (!esAdmin()) { alert('Solo un administrador puede registrar llamados de atención.'); return; }
   const fecha = document.getElementById('obs_fecha').value;
@@ -19030,6 +19214,7 @@ async function guardarObservacionOperario() {
   const tipo = document.getElementById('obs_tipo').value;
   const texto = document.getElementById('obs_texto').value.trim();
   const msg = document.getElementById('obs_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
 
   if (!fecha || !hora || !operario || !tipo || !texto) {
     msg.textContent = 'Completa todos los campos: fecha, hora, operario, tipo y observación.';
@@ -19039,13 +19224,13 @@ async function guardarObservacionOperario() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
   try {
-    await asegurarHoja(SH.observacionesOperarios, OBSERVACIONES_OPERARIOS_COLS);
+    const cols = await asegurarHoja(SH.observacionesOperarios, OBSERVACIONES_OPERARIOS_COLS);
     const codigo = _siguienteCodigoObservacion();
-    await appendHoja(SH.observacionesOperarios, [[
-      codigo, fecha, hora, operario, tipo, texto,
-      currentUser?.name || currentUser?.email || 'Sistema',
-      new Date().toISOString(),
-    ]]);
+    await appendHoja(SH.observacionesOperarios, [_filaSegunEncabezados(cols, {
+      Codigo: codigo, Fecha: fecha, Hora: hora, Operario: operario, Tipo: tipo, Observacion: texto,
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaRegistro: new Date().toISOString(),
+    })]);
     _invalidarCacheHoja(SH.observacionesOperarios);
     msg.style.color = '#15803d'; msg.textContent = 'Observación guardada correctamente.';
     await inicializarObservacionesOperarios();
@@ -19218,7 +19403,8 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
     const detalle = colEquipo
       ? ` <span style="color:var(--text3);font-weight:400">(${sumaReportados} de ${posibles} reportes · ${totalEquipos} equipo${totalEquipos === 1 ? '' : 's'} × ${total} franja${total === 1 ? '' : 's'})</span>`
       : ` <span style="color:var(--text3);font-weight:400">(${sumaReportados}/${total})</span>`;
-    resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b>${detalle}</span>`;
+    resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b>${detalle}</span>`
+      + _htmlAvisoRangoRecortado(_avisoRangoRecortado(fechas, hasta, 45));
   }
 }
 
@@ -19351,9 +19537,10 @@ function renderTablaReportesCompresores() {
  *  sistema). "Horas de uso" además debe ser un número entero. */
 async function guardarReporteCompresor() {
   const msg = document.getElementById('rc_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const tecnico = document.getElementById('rc_tecnico').value;
   const tecnicoOtro = document.getElementById('rc_tecnicoOtro').value.trim();
-  const fecha = document.getElementById('rc_fecha').value;
+  let fecha = document.getElementById('rc_fecha').value;
   const hora = document.getElementById('rc_hora').value;
   const compresor = document.getElementById('rc_compresor').value;
   const estadoHoraFecha = document.getElementById('rc_estadoHoraFecha').value;
@@ -19363,17 +19550,20 @@ async function guardarReporteCompresor() {
     return;
   }
 
-  if (_reporteFueraDeHora(hora)) {
+  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+  if (fueraDeVentana) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    msg.textContent = fueraDeVentana;
     return;
   }
+  fecha = _fechaDeFranjaReporte(hora);
+  document.getElementById('rc_fecha').value = fecha;
 
   const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
   const porColumna = {};
   for (const c of campos) {
     const valor = document.getElementById('rc_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
+    if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -19657,8 +19847,9 @@ function renderTablaReportesSecadores() {
  *  su propio set de campos, todos obligatorios. */
 async function guardarReporteSecador() {
   const msg = document.getElementById('rs_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const tecnico = document.getElementById('rs_tecnico').value;
-  const fecha = document.getElementById('rs_fecha').value;
+  let fecha = document.getElementById('rs_fecha').value;
   const hora = document.getElementById('rs_hora').value;
   const secador = document.getElementById('rs_secador').value;
 
@@ -19667,11 +19858,14 @@ async function guardarReporteSecador() {
     return;
   }
 
-  if (_reporteFueraDeHora(hora)) {
+  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+  if (fueraDeVentana) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    msg.textContent = fueraDeVentana;
     return;
   }
+  fecha = _fechaDeFranjaReporte(hora);
+  document.getElementById('rs_fecha').value = fecha;
 
   const porColumna = {};
   const esFriulair = esSecadorFriulair(secador);
@@ -19679,7 +19873,7 @@ async function guardarReporteSecador() {
   if (esFriulair) {
     for (const c of REPORTE_SECADORES_CAMPOS_FRIULAIR) {
       const valor = document.getElementById('rs_' + c.id).value.trim();
-      if (!valor || isNaN(Number(valor))) {
+      if (!valor || !_esNumeroDecimal(valor)) {
         msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
         return;
       }
@@ -19695,18 +19889,18 @@ async function guardarReporteSecador() {
       msg.textContent = 'Completa el modo del ciclo y el parámetro de la torre derecha.';
       return;
     }
-    if (!s0Adsorption || isNaN(Number(s0Adsorption))) {
+    if (!s0Adsorption || !_esNumeroDecimal(s0Adsorption)) {
       msg.textContent = 'El campo "S0 Adsorption [min]" debe tener un número (usa punto para decimales, no coma).';
       return;
     }
-    if (!torreDerechaValorSecundario || isNaN(Number(torreDerechaValorSecundario))) {
+    if (!torreDerechaValorSecundario || !_esNumeroDecimal(torreDerechaValorSecundario)) {
       msg.textContent = `El campo "${torreDerechaParametro} [min]" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
 
     for (const c of REPORTE_SECADORES_CAMPOS) {
       const valor = document.getElementById('rs_' + c.id).value.trim();
-      if (!valor || isNaN(Number(valor))) {
+      if (!valor || !_esNumeroDecimal(valor)) {
         msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
         return;
       }
@@ -19714,7 +19908,7 @@ async function guardarReporteSecador() {
     }
     // PA es opcional — solo se valida como número SI se llenó.
     const pa = document.getElementById('rs_pa').value.trim();
-    if (pa && isNaN(Number(pa))) {
+    if (pa && !_esNumeroDecimal(pa)) {
       msg.textContent = 'El campo "PA: Presión tanques [bar]" debe ser un número (usa punto para decimales, no coma).';
       return;
     }
@@ -19962,9 +20156,10 @@ function renderTablaReportesDrycoolers() {
  *  selects (Adiabático, Entálpico, Bomba) y Observaciones se validan aparte. */
 async function guardarReporteDrycooler() {
   const msg = document.getElementById('rd_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const tecnico = document.getElementById('rd_tecnico').value;
   const tecnicoOtro = document.getElementById('rd_tecnicoOtro').value.trim();
-  const fecha = document.getElementById('rd_fecha').value;
+  let fecha = document.getElementById('rd_fecha').value;
   const hora = document.getElementById('rd_hora').value;
   const drycooler = document.getElementById('rd_drycooler').value;
   const adiabatico = document.getElementById('rd_adiabatico').value;
@@ -19977,16 +20172,19 @@ async function guardarReporteDrycooler() {
     return;
   }
 
-  if (_reporteFueraDeHora(hora)) {
+  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+  if (fueraDeVentana) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    msg.textContent = fueraDeVentana;
     return;
   }
+  fecha = _fechaDeFranjaReporte(hora);
+  document.getElementById('rd_fecha').value = fecha;
 
   const porColumna = {};
   for (const c of REPORTE_DRYCOOLERS_CAMPOS) {
     const valor = document.getElementById('rd_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
+    if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -20243,9 +20441,10 @@ function renderTablaReportesDecorado() {
  *  técnicos (punto decimal, no coma) para los 13 campos de medición. */
 async function guardarReporteDecorado() {
   const msg = document.getElementById('rdec_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const tecnico = document.getElementById('rdec_tecnico').value;
   const tecnicoOtro = document.getElementById('rdec_tecnicoOtro').value.trim();
-  const fecha = document.getElementById('rdec_fecha').value;
+  let fecha = document.getElementById('rdec_fecha').value;
   const hora = document.getElementById('rdec_hora').value;
   const compresor = document.getElementById('rdec_compresor').value;
   const nivelAceite = document.getElementById('rdec_nivelAceite').value;
@@ -20255,16 +20454,19 @@ async function guardarReporteDecorado() {
     return;
   }
 
-  if (_reporteFueraDeHora(hora)) {
+  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+  if (fueraDeVentana) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    msg.textContent = fueraDeVentana;
     return;
   }
+  fecha = _fechaDeFranjaReporte(hora);
+  document.getElementById('rdec_fecha').value = fecha;
 
   const porColumna = {};
   for (const c of REPORTE_DECORADO_CAMPOS) {
     const valor = document.getElementById('rdec_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
+    if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -20527,9 +20729,10 @@ function renderTablaReportesEmergencia() {
  *  técnicos (punto decimal, no coma) para los 26 campos de medición. */
 async function guardarReporteEmergencia() {
   const msg = document.getElementById('re_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const tecnico = document.getElementById('re_tecnico').value;
   const tecnicoOtro = document.getElementById('re_tecnicoOtro').value.trim();
-  const fecha = document.getElementById('re_fecha').value;
+  let fecha = document.getElementById('re_fecha').value;
   const hora = document.getElementById('re_hora').value;
   const compresor = document.getElementById('re_compresor').value;
   const estadoEquipo = document.getElementById('re_estadoEquipo').value;
@@ -20540,16 +20743,19 @@ async function guardarReporteEmergencia() {
     return;
   }
 
-  if (_reporteFueraDeHora(hora)) {
+  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+  if (fueraDeVentana) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'La hora de este reporte (' + hora + ') ya pasó. La sección está cerrada y no se puede guardar.';
+    msg.textContent = fueraDeVentana;
     return;
   }
+  fecha = _fechaDeFranjaReporte(hora);
+  document.getElementById('re_fecha').value = fecha;
 
   const porColumna = {};
   for (const c of REPORTE_EMERGENCIA_CAMPOS) {
     const valor = document.getElementById('re_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
+    if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -20559,7 +20765,7 @@ async function guardarReporteEmergencia() {
   // Secador: opcional — solo se valida como número lo que sí se llenó.
   for (const c of REPORTE_EMERGENCIA_CAMPOS_SECADOR) {
     const valor = document.getElementById('re_' + c.id).value.trim();
-    if (valor && isNaN(Number(valor))) {
+    if (valor && !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo del secador "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -20792,6 +20998,7 @@ function renderTablaReportesPresionDrycooler() {
 
 async function guardarReportePresionDrycooler() {
   const msg = document.getElementById('rpd_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const fecha = document.getElementById('rpd_fecha').value;
   const tecnico = document.getElementById('rpd_tecnico').value;
 
@@ -20803,7 +21010,7 @@ async function guardarReportePresionDrycooler() {
   const porColumna = {};
   for (const c of REPORTE_PRESION_DRYCOOLER_CAMPOS) {
     const valor = document.getElementById('rpd_' + c.id).value.trim();
-    if (!valor || isNaN(Number(valor))) {
+    if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -20910,6 +21117,7 @@ async function guardarEntregaTurno() {
   const recibidoPor = document.getElementById('et_recibidoPor').value.trim();
   const novedadesTurno = document.getElementById('et_novedadesTurno').value.trim();
   const msg = document.getElementById('et_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
 
   if (!fecha || !turnoId || !entregadoPor) {
     msg.textContent = 'Completa al menos: fecha, turno y quién entrega (*).';
@@ -21429,7 +21637,9 @@ async function cargarInventarioEquipos() {
     // Unir cada observación con los datos fijos de su equipo
     const baseMap = new Map(base.map(b => [b.Codificacion, b]));
     _ieFilasCache = obs.map(o => {
-      const b = baseMap.get(o.Codificacion) || {};
+      // Una observación de un equipo que ya no está en la base salía como
+      // una fila vacía: se muestra con su codificación y el aviso.
+      const b = baseMap.get(o.Codificacion) || { Codificacion: o.Codificacion, Equipo: 'Equipo ya no registrado' };
       return { ...b, Anio: o.Anio, Observaciones: o.Observaciones };
     });
     // Los equipos que aún no tienen ninguna observación también se muestran, con Año/Observaciones vacíos
@@ -22156,12 +22366,12 @@ function _idsNotificacionesLeidas() {
 function marcarNotificacionLeida(id) {
   const leidas = new Set(_idsNotificacionesLeidas());
   leidas.add(id);
-  localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas]));
+  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) {}
 }
 function marcarTodasNotificacionesLeidas(ids) {
   const leidas = new Set(_idsNotificacionesLeidas());
   ids.forEach(id => leidas.add(id));
-  localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas]));
+  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) {}
 }
 
 /** Revisa los planes de mantenimiento de la sede activa y genera UNA
@@ -22934,8 +23144,13 @@ async function _proyPrepararHojas() {
   const url = `${SHEETS_API}/v4/spreadsheets/${PROY_SPREADSHEET_ID}?fields=sheets(properties(sheetId,title))`;
   const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  // Todo pasa por el proxy, que entra con la cuenta de servicio del sistema:
+  // compartir la hoja con la cuenta personal ya no sirve de nada.
   if (resp.status === 403 || resp.status === 404) {
-    throw new Error('No se pudo abrir la hoja de Proyectos. Comparte el archivo de Google Sheets con la cuenta con la que entraste al sistema.');
+    let mensajeProxy = '';
+    try { mensajeProxy = (await resp.clone().json()).mensaje || ''; } catch (_) {}
+    if (mensajeProxy) throw new Error(mensajeProxy);
+    throw new Error('No se pudo abrir la hoja de Proyectos. Compártela (como editor) con la cuenta de servicio del sistema, la misma que tienen las hojas de las sedes.');
   }
   if (!resp.ok) throw new Error('No se pudo abrir la hoja de Proyectos (HTTP ' + resp.status + ')');
   const data = await resp.json();
@@ -23079,6 +23294,15 @@ async function _proyBorrarFila(tab, row, codigo) {
 /* ── Cálculo ───────────────────────────────────────────────────────
    Todo lo que el panel muestra sale de estas funciones puras, para
    poder probarlas sin tocar Google ni el DOM. */
+
+/** Dinero que escribe una persona en una ventana de texto: "1.500" o
+ *  "25.000" son miles (así se escribe en Colombia), no 1,5 ni 25. Solo para
+ *  lo que llega de un prompt(); los campos numéricos del formulario ya
+ *  entregan el número sin separadores. */
+function proyDineroEscrito(v) {
+  const t = String(v ?? '').replace(/[^\d.,-]/g, '');
+  return /^-?\d{1,3}(\.\d{3})+$/.test(t) ? proyNum(t.replace(/\./g, '')) : proyNum(v);
+}
 
 /** Convierte a número lo que venga de la hoja o de un campo del formulario.
  *
@@ -24240,7 +24464,7 @@ async function proyNuevoAlcance() {
   await _proyAgregarFila(PROY_SH.alcances, {
     Codigo: _codigoConsecutivoUnico('ALC', proyDatos.alcances, 3),
     Proyecto: proyActual, Alcance: nombre.trim(),
-    ValorContrato: proyNum(valor), HorasProgramadas: proyNum(horas),
+    ValorContrato: proyDineroEscrito(valor), HorasProgramadas: proyNum(horas),
     FechaInicio: '', FechaFin: '', Orden: mios.length + 1,
   });
 }

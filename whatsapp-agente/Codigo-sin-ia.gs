@@ -13,9 +13,10 @@
    cuesta nada de operación. A cambio, el operario escribe el nombre del
    producto o una de esas tres palabras, en vez de preguntar libremente.
 
-   ⚠ ESTE ARCHIVO REEMPLAZA A Codigo.gs — no los pongas juntos en el mismo
-   proyecto de Apps Script. Los dos definen doPost() y doGet(), así que si
-   conviven se pisan entre ellos y el que quede de último manda.
+   ⚠ ESTE ARCHIVO REEMPLAZÓ A Codigo.gs, la versión con IA (ya retirada del
+   repositorio). Si el proyecto de Apps Script todavía tiene ese archivo,
+   bórralo: los dos definen doPost() y doGet(), y si conviven se pisan entre
+   ellos y el que quede de último manda.
 
    El stock se calcula con el MISMO método FIFO que usa la aplicación web
    (ver _agruparLotesFIFO en index.html), para que el número que da el bot
@@ -55,8 +56,9 @@
       de guardar.
    6. Escríbele al número desde un celular que esté registrado como
       operario en el sistema. Si responde "Este número no está registrado",
-      el bot funciona: solo falta agregar ese celular en la aplicación,
-      en Encargados Turnos → Operarios.
+      el bot funciona: solo falta agregar ese celular en la pestaña
+      "Operarios" del libro de Órdenes Zipaquirá (HOJA_SISTEMA, abajo):
+      una fila con Nombre, Numero y Activo = SI.
 
    Antes de conectar nada, corre desde el editor las funciones de prueba
    del final: probarLectura, probarOperario y probarRespuestas.
@@ -131,8 +133,10 @@ function _extraerMensaje(cuerpo) {
 
 /** Solo responde a números registrados como operarios en el sistema. Sin
  *  esto, cualquiera que dé con el número podría consultar el inventario de
- *  la empresa. Dar y quitar acceso es agregar o borrar al operario en
- *  Encargados Turnos → Operarios; aquí no hay nada que tocar.
+ *  la empresa. Dar acceso es agregar una fila (Nombre, Numero, Activo) en la
+ *  pestaña "Operarios" del libro HOJA_SISTEMA, y quitarlo es poner Activo =
+ *  NO o borrar la fila; aquí no hay nada que tocar. (La aplicación ya no
+ *  tiene una sección para esto: se hace directamente en la hoja.)
  *
  *  Devuelve el nombre del operario, o null si el número no está. */
 function _operarioDe(numero) {
