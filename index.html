@@ -150,10 +150,17 @@ body::before {
   animation: loginMarcaSube 24s linear infinite;
   pointer-events: none;
 }
+/* La tarjeta entra subiendo un poco; el logo va sobre blanco porque la
+   imagen tiene fondo blanco (así no queda un recuadro en modo oscuro). */
+.login-tarjeta { animation: loginTarjetaEntra .45s var(--ease) both; }
+@keyframes loginTarjetaEntra { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.login-logo { display: inline-block; background: #fff; border-radius: 10px; padding: 6px 10px; margin-bottom: 16px; }
+.login-logo img { display: block; width: 220px; max-width: 100%; height: auto; }
+@media (max-width: 480px) { .login-tarjeta { padding: 32px 24px 36px !important; } }
 /* 548 px = 10 filas exactas: al volver a empezar no se nota el salto. */
 @keyframes loginMarcaSube { from { background-position: 0 0; } to { background-position: 0 -548px; } }
 :root[data-theme="dark"] .login-marca { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; opacity: .22; }
-@media (prefers-reduced-motion: reduce) { .login-marca { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .login-marca, .login-tarjeta { animation: none; } }
 
 /* Pantalla de carga: el logo mientras arranca la app. Se quita sola al
    terminar el arranque (_ocultarPantallaCarga) y nunca bloquea toques. El
@@ -184,6 +191,39 @@ body::before {
   #pantallaCarga { transition: none; }
   #pantallaCarga .carga-logo, #pantallaCarga .carga-barra::after { animation: none; }
 }
+
+/* Avisos de la app (aviso()): reemplazan la ventanita gris de alert().
+   Arriba a la derecha en computador; arriba y a lo ancho en celular, donde
+   abajo está la barra de secciones. */
+#avisos {
+  position: fixed; top: 80px; right: 20px; z-index: 10001;
+  display: flex; flex-direction: column; gap: 10px;
+  width: min(380px, calc(100vw - 32px)); pointer-events: none;
+}
+.aviso {
+  pointer-events: auto; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 10px 12px 14px; box-shadow: var(--shadow-lg);
+  font-size: 13.5px; line-height: 1.45;
+  animation: avisoEntra .25s var(--ease) both;
+}
+.aviso.saliendo { animation: avisoSale .2s ease both; }
+.aviso-icono { flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.aviso-icono svg { width: 16px; height: 16px; stroke: currentColor; }
+.aviso-texto { flex: 1; min-width: 0; padding-top: 3px; white-space: pre-line; overflow-wrap: anywhere; max-height: 40vh; overflow: auto; }
+.aviso-cerrar { flex: none; background: none; border: none; color: var(--text3); font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.aviso-cerrar:hover { background: var(--surface2); color: var(--text); }
+.aviso.exito       .aviso-icono { background: rgba(21,128,61,.13);  color: #15803d; }
+.aviso.error       .aviso-icono { background: rgba(198,40,40,.12);  color: var(--danger); }
+.aviso.advertencia .aviso-icono { background: rgba(180,83,9,.13);   color: #b45309; }
+.aviso.info        .aviso-icono { background: var(--brand-light);   color: var(--brand); }
+.aviso.error { border-color: rgba(198,40,40,.35); }
+:root[data-theme="dark"] .aviso.exito .aviso-icono { color: #4ade80; }
+:root[data-theme="dark"] .aviso.advertencia .aviso-icono { color: #f0a35e; }
+@keyframes avisoEntra { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes avisoSale { to { opacity: 0; transform: translateY(-6px); } }
+@media (max-width: 600px) { #avisos { top: 10px; left: 16px; right: 16px; width: auto; } }
+@media (prefers-reduced-motion: reduce) { .aviso, .aviso.saliendo { animation: none; } }
 
 /* Saludo de Inicio (renderSaludoInicio) */
 .saludo-inicio { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; margin: 2px 2px 16px; }
@@ -242,6 +282,12 @@ body::after {
   font-size: 12px;
   color: var(--brand);
 }
+.user-rol {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 10px; line-height: 1.3;
+  background: var(--surface); color: var(--brand); border: 1px solid var(--brand-mid);
+}
+.user-rol[hidden] { display: none; }
 .user-avatar {
   width: 26px; height: 26px; border-radius: 50%;
   background: var(--accent); color: #fff;
@@ -908,10 +954,22 @@ body.rol-operario .solo-admin { display: none !important; }
 
 /* ── Empty state ── */
 .empty-state {
-  text-align: center; padding: 48px 24px;
+  text-align: center; padding: 40px 24px;
   color: var(--text3); font-size: 14px;
 }
 .empty-state svg { width: 48px; height: 48px; margin: 0 auto 12px; opacity: .3; }
+/* Lista vacía (_estadoVacio): ícono en un círculo suave, qué pasa y qué
+   hacer. Antes cada lista vacía era una línea gris distinta. */
+.empty-state .vacio-icono {
+  width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%;
+  background: var(--brand-light); color: var(--brand);
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-state .vacio-icono svg { width: 26px; height: 26px; margin: 0; opacity: 1; stroke: currentColor; }
+.empty-state .vacio-titulo { font-size: 14.5px; font-weight: 700; color: var(--text2); text-wrap: balance; }
+.empty-state .vacio-detalle { font-size: 12.5px; color: var(--text3); margin: 5px auto 0; max-width: 340px; line-height: 1.5; text-wrap: balance; }
+.empty-state .btn { margin-top: 14px; }
+.empty-state.compacto { padding: 22px 16px; }
 
 /* ── Filter bar ── */
 .filter-bar {
@@ -1326,6 +1384,7 @@ body.rol-operario .solo-admin { display: none !important; }
     <div class="user-chip">
       <div class="user-avatar" id="userInitials">??</div>
       <span id="userName">Cargando...</span>
+      <span id="userRol" class="user-rol" hidden></span>
     </div>
     <button id="btnTema" onclick="alternarTema()" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema"></button>
     <button onclick="cerrarSesion(true)" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
@@ -4409,6 +4468,9 @@ const PANELES_SOLO_ADMIN = ['nueva', 'dashboard'];
 // Marca el body según el rol: con rol-operario, el CSS oculta todo lo .solo-admin.
 function _aplicarRolUI() {
   try { document.body.classList.toggle('rol-operario', !esAdmin()); } catch (e) {}
+  // Etiqueta del rol al lado del nombre, en el encabezado.
+  const rolEl = document.getElementById('userRol');
+  if (rolEl) { rolEl.textContent = esAdmin() ? 'Admin' : 'Operario'; rolEl.hidden = !googleAccessToken; }
   // El menú lateral arma sus entradas según el rol (Nueva Orden y Dashboard
   // solo para admin), y se dibuja una primera vez al arrancar, antes de saber
   // el rol: se vuelve a dibujar con el rol ya aplicado. Solo se llama desde
@@ -6445,6 +6507,7 @@ window.addEventListener('load', async () => {
   // en la pantalla de acceso y no depende de haber entrado a una sede.
   _iniciarAvisoOffline();
   _aplicarTemaGuardado(); // pinta el ícono del botón de tema según lo guardado
+  _mostrarAvisoPendiente();
 
   try {
     const savedUser  = sessionStorage.getItem('gUser');
@@ -7069,12 +7132,7 @@ function renderPendientes() {
   actualizarContadorTab();
 
   if (!items.length) {
-    div.innerHTML = `<div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;opacity:.3;display:block">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-      </svg>
-      No hay órdenes pendientes
-    </div>`;
+    div.innerHTML = _estadoVacio({ icono: 'listo', titulo: 'No hay órdenes pendientes', detalle: 'Todo al día. Las órdenes nuevas aparecerán aquí.' });
     return;
   }
 
@@ -7126,12 +7184,7 @@ function renderRealizadas() {
   actualizarContadorTab();
 
   if (!items.length) {
-    div.innerHTML = `<div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;opacity:.3;display:block">
-        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
-      No hay órdenes realizadas aún
-    </div>`;
+    div.innerHTML = _estadoVacio({ icono: 'lista', titulo: 'Todavía no hay órdenes realizadas', detalle: 'Cuando se cierre una orden, aparecerá aquí.' });
     return;
   }
 
@@ -11512,8 +11565,8 @@ function mostrarLoginOverlay() {
   `;
   overlay.innerHTML = `
     <div class="login-marca" aria-hidden="true"></div>
-    <div style="position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:44px 52px;text-align:center;max-width:400px;width:90%;box-shadow:0 18px 50px rgba(2,69,122,.22)">
-      <div style="margin-bottom:12px;color:var(--brand)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:42px;height:42px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></div>
+    <div class="login-tarjeta" style="position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:40px 52px 44px;text-align:center;max-width:400px;width:90%;box-shadow:0 18px 50px rgba(2,69,122,.22)">
+      <div class="login-logo"><img src="${getLogoDataUrl()}" alt="SolucionAIRE · atera"></div>
       <h2 style="font-size:22px;font-weight:700;color:var(--brand);margin-bottom:8px">Sistema Integral de Gestión</h2>
       <p style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.5">
         Ingresa con tu número de documento y tu PIN para acceder a la aplicación.
@@ -12102,12 +12155,9 @@ function filtrarOrdenes() {
 
   const div = document.getElementById('listaContainer');
   if (!filtered.length) {
-    div.innerHTML = `<div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-      </svg>
-      No hay órdenes que coincidan con los filtros.
-    </div>`;
+    div.innerHTML = allOrdenes.length
+      ? _estadoVacio({ icono: 'buscar', titulo: 'No hay órdenes con esos filtros', detalle: 'Prueba con otra búsqueda o quita los filtros.', boton: { texto: 'Quitar filtros', onclick: 'limpiarFiltrosLista()' } })
+      : _estadoVacio({ icono: 'lista', titulo: 'Todavía no hay órdenes', detalle: 'Las órdenes que se creen en esta sede aparecerán aquí.' });
     return;
   }
 
@@ -12952,6 +13002,104 @@ function limpiarCacheLocal() {
 /* ══════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════ */
+/** Lista vacía con el mismo aspecto en toda la app: ícono, qué pasa y,
+ *  si sirve, qué hacer (detalle) o un botón. icono: 'listo', 'lista',
+ *  'buscar', 'campana', 'caja', 'calendario', 'escudo'. */
+const ICONOS_VACIO = {
+  listo:      '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
+  lista:      '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line>',
+  buscar:     '<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
+  campana:    '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>',
+  caja:       '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>',
+  calendario: '<rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>',
+  escudo:     '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline>',
+};
+function _estadoVacio({ icono = 'lista', titulo, detalle = '', boton = null, compacto = false }) {
+  return `<div class="empty-state${compacto ? ' compacto' : ''}">
+    <div class="vacio-icono"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONOS_VACIO[icono] || ICONOS_VACIO.lista}</svg></div>
+    <div class="vacio-titulo">${esc(titulo)}</div>
+    ${detalle ? `<div class="vacio-detalle">${esc(detalle)}</div>` : ''}
+    ${boton ? `<button type="button" class="btn btn-ghost btn-sm" onclick="${boton.onclick}">${esc(boton.texto)}</button>` : ''}
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   AVISOS
+   Los mensajes de la app salían en la ventanita gris del navegador
+   (alert()), que tapa todo y se ve distinta en cada equipo. Ahora son
+   avisos de la app: verde si salió bien, rojo si falló, ámbar si falta
+   algo. Se cambia alert una sola vez, aquí, así que todas las llamadas
+   existentes (unas noventa) quedan con el aviso nuevo.
+   Un aviso seguido de una recarga ("Recargando...") se guarda y se vuelve
+   a mostrar al cargar, para que no se pierda.
+══════════════════════════════════════════════ */
+const ICONOS_AVISO = {
+  exito:       '<polyline points="20 6 9 17 4 12"></polyline>',
+  error:       '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+  advertencia: '<line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+  info:        '<line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="7" x2="12.01" y2="7"></line>',
+};
+
+/** De qué tipo es un mensaje, por cómo está escrito. */
+function _tipoDeAviso(m) {
+  if (/^\s*(❌|⛔|🚫)/.test(m) || /\b(error|no se pud(o|ieron)|no se encontr|inválid|incorrect|fall[oó])/i.test(m)) return 'error';
+  if (/^\s*✅/.test(m) || /\b(correctamente|se registraron|guardad[oa]s?|eliminad[oa]s?|actualizad[oa]s?|limpiad[oa])\b/i.test(m)) return 'exito';
+  if (/^\s*(⚠️?|⏱|🔒)/.test(m) || /\b(solo un administrador|solo para administradores|primero|debes|falta|completa|selecciona|elige|escribe)\b/i.test(m)) return 'advertencia';
+  return 'info';
+}
+
+function aviso(mensaje, tipo, { guardar = true } = {}) {
+  mensaje = String(mensaje ?? '').trim();
+  if (!mensaje) return;
+  tipo = tipo || _tipoDeAviso(mensaje);
+  const texto = mensaje.replace(/^\s*(✅|❌|⚠️|⚠|ℹ️|⏱|🔒)\s*/u, '');
+  let cont = document.getElementById('avisos');
+  if (!cont) {
+    cont = document.createElement('div');
+    cont.id = 'avisos'; cont.setAttribute('aria-live', 'polite');
+    document.body.appendChild(cont);
+  }
+  while (cont.children.length >= 4) cont.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = 'aviso ' + tipo;
+  el.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+  el.innerHTML = `<div class="aviso-icono"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${ICONOS_AVISO[tipo] || ICONOS_AVISO.info}</svg></div>
+    <div class="aviso-texto"></div>
+    <button type="button" class="aviso-cerrar" aria-label="Cerrar aviso">×</button>`;
+  el.querySelector('.aviso-texto').textContent = texto;
+  cont.appendChild(el);
+
+  const marca = Date.now();
+  if (guardar) { try { sessionStorage.setItem('avisoPendiente', JSON.stringify({ mensaje, tipo, t: marca })); } catch (_) {} }
+  let cerrado = false, reloj = null;
+  const cerrar = () => {
+    if (cerrado) return; cerrado = true; clearTimeout(reloj);
+    try { const p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); if (p && p.t === marca) sessionStorage.removeItem('avisoPendiente'); } catch (_) {}
+    el.classList.add('saliendo');
+    setTimeout(() => el.remove(), 200);
+  };
+  // Más tiempo para leer los largos y los errores; se pausa con el mouse encima.
+  const dura = Math.min(12000, Math.max(tipo === 'error' ? 7000 : 4000, 2500 + texto.length * 45));
+  reloj = setTimeout(cerrar, dura);
+  el.addEventListener('mouseenter', () => clearTimeout(reloj));
+  el.addEventListener('mouseleave', () => { if (!cerrado) reloj = setTimeout(cerrar, 2500); });
+  el.querySelector('.aviso-cerrar').addEventListener('click', cerrar);
+}
+window.alert = mensaje => aviso(mensaje);
+
+/** Un aviso que quedó a medias por una recarga se muestra otra vez. */
+function _mostrarAvisoPendiente() {
+  let p = null;
+  try { p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); sessionStorage.removeItem('avisoPendiente'); } catch (_) {}
+  if (p && p.mensaje && Date.now() - p.t < 15000) aviso(p.mensaje, p.tipo, { guardar: false });
+}
+
+/** "Quitar filtros" de la lista de órdenes. */
+function limpiarFiltrosLista() {
+  ['filtroTexto', 'filtroEstado', 'filtroTipo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  filtrarOrdenes();
+}
+
 /** Un número escrito como lo escribe una persona: "12", "-40", "0.75".
  *  Number() también acepta "0x10", "1e5" o "Infinity", que en una medición
  *  son errores de digitación. El signo menos sí vale: el punto de rocío de
@@ -15455,7 +15603,7 @@ function invFiltrarListaLotes() {
     ? _lotesListaCache.filter(p => p.codigo.toLowerCase().includes(texto) || p.nombre.toLowerCase().includes(texto))
     : _lotesListaCache;
 
-  if (!lista.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">No hay productos registrados.</div>'; return; }
+  if (!lista.length) { cont.innerHTML = _estadoVacio({ icono: 'caja', titulo: 'No hay productos para mostrar', detalle: 'Revisa la búsqueda o el filtro de tipo.', compacto: true }); return; }
 
   cont.innerHTML = lista.map(p => {
     const activo = p.codigo === _lotesProductoActual;
@@ -15639,7 +15787,7 @@ function invFiltrarProveedores() {
 
 function _renderTablaProveedores(proveedores) {
   const cont = document.getElementById('provTabla');
-  if (!proveedores.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">No hay proveedores que coincidan con el filtro.</div>'; return; }
+  if (!proveedores.length) { cont.innerHTML = _estadoVacio({ icono: 'buscar', titulo: 'No hay proveedores con ese filtro', compacto: true }); return; }
   cont.innerHTML = `<table class="ie-table"><thead><tr><th>Nombre Proveedor</th><th>Número Contacto</th><th>Ciudad / País</th><th>Dirección</th><th>Tipo</th><th>Qué provee</th></tr></thead><tbody>` +
     proveedores.map(p => `<tr>
       <td><strong>${esc(p.nombre)}</strong></td>
@@ -15740,14 +15888,14 @@ function _filtrarReportesPorFecha(lista, prefix) {
   });
 }
 
-/** Mensaje del estado vacío de la tabla: distingue "todavía no elegiste
- *  fecha" de "no hay reportes en ese rango". */
-function _mensajeVacioFiltroFecha(prefix) {
+/** Estado vacío de la tabla: distingue "todavía no elegiste fecha" de
+ *  "no hay reportes en ese rango". */
+function _estadoVacioFiltroFecha(prefix) {
   const desde = document.getElementById(prefix + '_filtroDesde')?.value;
   const hasta = document.getElementById(prefix + '_filtroHasta')?.value;
   return (!desde && !hasta)
-    ? 'Elige una fecha o un rango arriba (Desde/Hasta) para ver los reportes.'
-    : 'No hay reportes en el rango de fechas seleccionado.';
+    ? _estadoVacio({ icono: 'calendario', titulo: 'Elige las fechas', detalle: 'Pon una fecha o un rango arriba (Desde/Hasta) para ver los reportes.' })
+    : _estadoVacio({ icono: 'calendario', titulo: 'No hay reportes en esas fechas', detalle: 'Cambia el rango de fechas para ver otros.' });
 }
 
 /** Lee de Sheets el historial de fechas registradas en "RachaNovedades"
@@ -16151,7 +16299,7 @@ function filtrarNovedadesUI() {
 
   const wrap = document.getElementById('novTablaWrap');
   if (!lista.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay informes que coincidan con el filtro.</div>';
+    wrap.innerHTML = _estadoVacio({ icono: 'buscar', titulo: 'No hay informes con ese filtro', detalle: 'Cambia el tipo, el mes o el año de arriba.' });
     renderGraficasNovedades();
     return;
   }
@@ -17072,7 +17220,7 @@ function renderCondicionesInseguras() {
     return true;
   });
   if (!filas.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay condiciones inseguras registradas en este periodo.</div>';
+    wrap.innerHTML = _estadoVacio({ icono: 'escudo', titulo: 'Sin condiciones inseguras en este periodo', detalle: 'Las que se reporten al marcar actividades aparecerán aquí.' });
     return;
   }
   let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
@@ -19006,7 +19154,7 @@ function renderTablaEntregasTurno() {
     });
   }
   if (!lista.length) {
-    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">No hay entregas en el rango de fechas seleccionado.</div>';
+    wrap.innerHTML = _estadoVacio({ icono: 'calendario', titulo: 'No hay entregas de turno en esas fechas', detalle: 'Cambia el rango de fechas para ver otras.' });
     return;
   }
   const mostradas = hayFiltro ? lista : lista.slice(0, _ENTREGAS_LIMITE_DEFECTO);
@@ -19173,7 +19321,9 @@ function renderHistorialObservaciones() {
   if (!wrap) return;
   const filtradas = _observacionesFiltradas();
   if (!filtradas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${allObservacionesOperarios.length ? 'No hay observaciones en el periodo seleccionado.' : 'Todavía no hay observaciones registradas.'}</div>`;
+    wrap.innerHTML = allObservacionesOperarios.length
+      ? _estadoVacio({ icono: 'calendario', titulo: 'No hay observaciones en ese periodo', detalle: 'Cambia el mes o el año de arriba.' })
+      : _estadoVacio({ icono: 'listo', titulo: 'Todavía no hay observaciones registradas' });
     return;
   }
   let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -19637,7 +19787,7 @@ function renderTablaReportesCompresores() {
   }
   const filas = _filtrarReportesPorFecha(allReportesCompresores, 'rc');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rc')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('rc');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -19949,7 +20099,7 @@ function renderTablaReportesSecadores() {
   }
   const filas = _filtrarReportesPorFecha(allReportesSecadores, 'rs');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rs')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('rs');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -20259,7 +20409,7 @@ function renderTablaReportesDrycoolers() {
   }
   const filas = _filtrarReportesPorFecha(allReportesDrycoolers, 'rd');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rd')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('rd');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -20545,7 +20695,7 @@ function renderTablaReportesDecorado() {
   }
   const filas = _filtrarReportesPorFecha(allReportesDecorado, 'rdec');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rdec')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('rdec');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -20833,7 +20983,7 @@ function renderTablaReportesEmergencia() {
   }
   const filas = _filtrarReportesPorFecha(allReportesEmergencia, 're');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('re')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('re');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -21109,7 +21259,7 @@ function renderTablaReportesPresionDrycooler() {
   }
   const filas = _filtrarReportesPorFecha(allReportesPresionDrycooler, 'rpd');
   if (!filas.length) {
-    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3)">${_mensajeVacioFiltroFecha('rpd')}</div>`;
+    wrap.innerHTML = _estadoVacioFiltroFecha('rpd');
     return;
   }
   const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
@@ -21816,7 +21966,7 @@ function ieAplicarFiltros() {
 
 function _ieRenderTabla(filas) {
   const cont = document.getElementById('ieTabla');
-  if (!filas.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">No hay equipos registrados para este filtro.</div>'; return; }
+  if (!filas.length) { cont.innerHTML = _estadoVacio({ icono: 'buscar', titulo: 'No hay equipos para este filtro', detalle: 'Cambia el tipo o el año de arriba.', compacto: true }); return; }
   cont.innerHTML = `<table class="ie-table" style="table-layout:fixed;width:100%;min-width:0">
     <colgroup>
       <col style="width:10%"><col style="width:9%"><col style="width:8%"><col style="width:14%">
@@ -23000,7 +23150,7 @@ async function _renderDropdownNotificaciones() {
     </div>`;
 
   if (!notifs.length) {
-    panel.innerHTML = cabecera + '<div style="padding:60px 20px;color:var(--text3);font-size:14px;text-align:center">No hay notificaciones todavía.</div>';
+    panel.innerHTML = cabecera + _estadoVacio({ icono: 'campana', titulo: 'No hay notificaciones', detalle: 'Cuando el sistema tenga un aviso para ti, aparecerá aquí.' });
     return;
   }
 
@@ -23116,7 +23266,7 @@ function renderListaEquiposHistorico() {
   const wrap = document.getElementById('histListaEquipos');
 
   if (!equipos.length) {
-    wrap.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px">No hay equipos con órdenes registradas todavía.</div>';
+    wrap.innerHTML = _estadoVacio({ icono: 'lista', titulo: 'Todavía no hay equipos con órdenes', compacto: true });
     return;
   }
 
@@ -23198,7 +23348,7 @@ function renderHistoricoEquipoSeleccionado() {
 
   const wrap = document.getElementById('histTablaOrdenes');
   if (!ordenes.length) {
-    wrap.innerHTML = '<div style="padding:20px;color:var(--text3);font-size:13px;text-align:center">No hay órdenes de este equipo en el período seleccionado.</div>';
+    wrap.innerHTML = _estadoVacio({ icono: 'calendario', titulo: 'No hay órdenes de este equipo en ese periodo', detalle: 'Cambia el periodo para ver otras.', compacto: true });
     return;
   }
 

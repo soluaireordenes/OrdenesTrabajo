@@ -648,6 +648,26 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
         && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
+      // Login con el logo de la marca
+      out.loginLogo = /^data:image/.test(document.querySelector('#loginOverlay .login-logo img')?.src || '');
+      // Avisos de la app en vez de la ventanita del navegador
+      alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.');
+      out.avisos = [...document.querySelectorAll('#avisos .aviso')].map(a => a.className.replace('aviso ', '') + ':' + a.querySelector('.aviso-texto').textContent).join(' | ');
+      document.querySelectorAll('#avisos .aviso-cerrar').forEach(b => b.click());
+      // Rol junto al nombre
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; _aplicarRolUI();
+      out.rol = document.getElementById('userRol').hidden ? '' : document.getElementById('userRol').textContent;
+      usuarioRol = 'operario'; _aplicarRolUI(); out.rolOperario = document.getElementById('userRol').textContent;
+      googleAccessToken = null; usuarioRol = 'operario'; _aplicarRolUI();
+      // Listas vacías: mensaje claro y "Quitar filtros" en la lista con filtros
+      allOrdenes = []; renderPendientes();
+      out.vacioPend = document.querySelector('#pendientesContainer .vacio-titulo, .panel .vacio-titulo')?.textContent || '';
+      allOrdenes = [{ id: 'X1', NumeroOrden: 'OT-1', Estado: 'Pendiente', Title: 'a' }];
+      document.getElementById('filtroTexto').value = 'zzz'; filtrarOrdenes();
+      const vacioLista = document.querySelector('#listaContainer .vacio-titulo')?.textContent || '';
+      document.querySelector('#listaContainer .empty-state button').click();
+      out.vacioLista = vacioLista + ' → ' + document.getElementById('filtroTexto').value + ' → ' + document.querySelectorAll('#listaContainer .order-item').length;
+      allOrdenes = []; filtrarOrdenes();
       // Pantalla de carga: se quita sola al terminar de arrancar
       const carga = document.getElementById('pantallaCarga');
       out.cargaFuera = !carga || carga.classList.contains('oculta');
@@ -776,6 +796,10 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
+    check('Login con el logo de la marca', r.loginLogo);
+    check('Avisos de la app con su color (bien, error, falta algo) y sin el emoji', r.avisos === 'exito:Orden guardada correctamente. | error:Contraseña incorrecta. | advertencia:Solo un administrador puede hacer esto.', r.avisos);
+    check('Rol junto al nombre en el encabezado', r.rol === 'Admin' && r.rolOperario === 'Operario', r);
+    check('Listas vacías: mensaje claro y "Quitar filtros" que sí los quita', r.vacioPend === 'No hay órdenes pendientes' && r.vacioLista === 'No hay órdenes con esos filtros →  → 1', r);
     check('Inicio: saludo con el nombre y las órdenes pendientes', /^Buen[oa]s (días|tardes|noches), Ana\b/.test(r.saludo) && /Hay 2 órdenes pendientes en .+, 1 urgente\./.test(r.saludo)
       && /Elige una operación/.test(r.saludoSinSede), { saludo: r.saludo, sinSede: r.saludoSinSede });
     check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
@@ -824,6 +848,12 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await Promise.all([p.waitForEvent('load'), p.evaluate(() => { setTimeout(() => cerrarSesion(true), 50); })]);
     const trasSalir = await p.evaluate(() => sessionStorage.getItem('operacionAutenticada'));
     check('B7: "Salir" borra la sede validada; la sesión vencida no', tras === 'zipaquira' && trasSalir === null, { tras, trasSalir });
+
+    // Un aviso seguido de una recarga ("Recargando...") se vuelve a mostrar al cargar
+    await Promise.all([p.waitForEvent('load'), p.evaluate(() => { setTimeout(() => { alert('✅ Caché local limpiado. Recargando...'); location.reload(); }, 50); })]);
+    await p.waitForTimeout(300);
+    const avisoTrasRecarga = await p.evaluate(() => document.querySelector('#avisos .aviso.exito .aviso-texto')?.textContent || '');
+    check('Avisos: el que va antes de una recarga se ve después de recargar', /Caché local limpiado/.test(avisoTrasRecarga), avisoTrasRecarga);
 
     await p.setViewportSize({ width: 390, height: 800 });
     const altoMapa = await p.evaluate(() => getComputedStyle(document.getElementById('mapaOperacion')).height);
