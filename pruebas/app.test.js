@@ -643,6 +643,11 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     const { ctx, p, errs } = await nuevaPagina(b);
     const r = await p.evaluate(async () => {
       const out = {};
+      // Login: fondo claro de la app con la marca de agua subiendo
+      const marca = document.querySelector('#loginOverlay .login-marca');
+      out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
+        && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
+        && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
       // B17: números como los escribe una persona
       out.numeros = ['12', '-40', '0.75', '.5'].every(_esNumeroDecimal) && !['0x10', '1e5', 'Infinity', '', '1,5', '-'].some(_esNumeroDecimal);
       // B16: dinero escrito a mano en Proyectos
@@ -758,6 +763,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('B14: el inventario completa solo los encabezados que faltan', r.encabezados);
     check('B14: al editar una orden se agrega antes de borrar', r.pasosOrden === 'agregar Tareas | borrar 2', r.pasosOrden);
     check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
+    check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
