@@ -735,6 +735,12 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       try { await actualizarOrdenEnSheets('OT-B14', { tareas: [{ descripcion: 'x' }] }); } catch (e) { pasos.push('error ' + e.message); }
       window.fetch = fetchOriginal;
       out.pasosOrden = pasos.join(' | ');
+      // Menú: con la lista de sedes recogida se ofrece "Cambiar de sede", que la despliega
+      operacionAutenticada = true; sidebarGrupoExpandido.operaciones = false; renderSidebarOperaciones();
+      const menu = () => document.getElementById('sidebarOperaciones').innerText;
+      out.cambiarSedeVisible = /Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === 1;
+      [...document.querySelectorAll('#sidebarOperaciones div')].find(d => /^Cambiar de sede/.test(d.innerText.trim())).click();
+      out.cambiarSedeDespliega = !/Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === Object.keys(OPERACIONES).length;
       return out;
     });
     check('B17: los números solo aceptan dígitos con punto (y el menos)', r.numeros);
@@ -751,6 +757,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('B18: quitar un operario lo deja inactivo sin borrar la fila', r.quitar, r);
     check('B14: el inventario completa solo los encabezados que faltan', r.encabezados);
     check('B14: al editar una orden se agrega antes de borrar', r.pasosOrden === 'agregar Tareas | borrar 2', r.pasosOrden);
+    check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
     check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
