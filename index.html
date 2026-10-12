@@ -5198,6 +5198,57 @@ function _fotosUrlSede() {
   return url;
 }
 
+/* ── Pase de fotos ──
+   Los scripts de fotos solo atienden peticiones que traen un "pase" que
+   entrega el proxy a quien inició sesión (GET /pase-fotos). Se guarda en
+   memoria hasta 5 minutos antes de que venza. Si el proxy publicado todavía
+   no tiene esa ruta, o le falta configurar la clave, se sigue sin pase:
+   los scripts viejos no lo piden. */
+let _paseFotosCache = null; // { pase, exp }
+
+async function _paseFotos(renovar) {
+  if (!renovar && _paseFotosCache && _paseFotosCache.exp * 1000 - Date.now() > 5 * 60 * 1000) return _paseFotosCache.pase;
+  _paseFotosCache = null;
+  if (!googleAccessToken) return '';
+  try {
+    const resp = await fetch(PROXY_URL + '/pase-fotos', { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+    if (resp.status === 401) { mostrarModalSesionExpirada(); return ''; }
+    const datos = await resp.json();
+    if (!resp.ok || !datos.ok) return '';
+    _paseFotosCache = { pase: datos.pase, exp: datos.exp };
+    return datos.pase;
+  } catch (e) {
+    return '';
+  }
+}
+
+/** Dirección del script de fotos con sus parámetros y el pase (para leer). */
+async function _urlScriptFotos(params, renovarPase) {
+  const q = new URLSearchParams(params);
+  const pase = await _paseFotos(renovarPase);
+  if (pase) q.set('pase', pase);
+  return _fotosUrlSede() + '?' + q.toString();
+}
+
+/** POST al script de fotos (subir o borrar) con el pase. Si el script dice
+ *  que el pase venció, se pide otro y se reintenta una vez. Devuelve la
+ *  respuesta igual que fetch. */
+async function _postScriptFotos(cuerpo) {
+  let resp;
+  for (let intento = 0; intento < 2; intento++) {
+    const pase = await _paseFotos(intento > 0);
+    resp = await fetch(_fotosUrlSede(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(pase ? { ...cuerpo, pase } : cuerpo),
+    });
+    let datos = null;
+    try { datos = await resp.clone().json(); } catch (_) {}
+    if (!(datos && datos.paseInvalido)) break;
+  }
+  return resp;
+}
+
 /* ══════════════════════════════════════════════
    ACHICAR LA FOTO ANTES DE SUBIRLA
 
@@ -10302,20 +10353,16 @@ async function subirFotoOrden(file, numeroOrden, tareaDescripcion) {
 
   // 2. Subirla al Apps Script de fotos: la guarda SIEMPRE en la misma cuenta
   //    dueña del proyecto, sin importar quién la suba.
-  const resp = await fetch(_fotosUrlSede(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      accion: 'subirFoto',
-      tipo: 'orden',
-      codigo: numeroOrden,
-      nombreArchivo: foto.nombreArchivo,
-      mimeType: foto.mimeType,
-      base64: foto.base64,
-      tareaDescripcion: tareaDescripcion || '',
-      subidoPor,
-      correo: currentUser?.email || ''
-    })
+  const resp = await _postScriptFotos({
+    accion: 'subirFoto',
+    tipo: 'orden',
+    codigo: numeroOrden,
+    nombreArchivo: foto.nombreArchivo,
+    mimeType: foto.mimeType,
+    base64: foto.base64,
+    tareaDescripcion: tareaDescripcion || '',
+    subidoPor,
+    correo: currentUser?.email || ''
   });
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
@@ -10392,11 +10439,7 @@ async function eliminarFotoOrden(ordenId, driveFileId, contId) {
  *  falla, solo queda el archivo huérfano en Drive; el registro ya se quitó). */
 async function _borrarArchivoFotoDrive(driveFileId) {
   try {
-    await fetch(_fotosUrlSede(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' })
-    });
+    await _postScriptFotos({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' });
   } catch(e) { console.warn('No se pudo borrar la foto de Drive:', e.message); }
 }
 
@@ -10489,9 +10532,10 @@ async function _obtenerDataUrlFoto(driveFileId) {
   let ultimoError = '';
   for (let intento = 0; intento < 3; intento++) {
     try {
-      const resp = await _fetchFotoConTimeout(_fotosUrlSede() + "?id=" + encodeURIComponent(driveFileId), 90000);
+      const resp = await _fetchFotoConTimeout(await _urlScriptFotos({ id: driveFileId }, intento > 0 && _paseFotosCache === null), 90000);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
+      if (data.paseInvalido) _paseFotosCache = null; // el siguiente intento pide un pase nuevo
       if (!data.ok) throw new Error(data.mensaje || 'Respuesta inválida del servidor');
       const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
       _fotoDataUrlCache[cacheKey] = dataUrl;
@@ -16071,21 +16115,17 @@ async function subirInformePdfNovedad(file, codigo) {
   // Se usa el MISMO tipo que las fotos ('novedad'): es el que el Apps Script
   // de la sede sabe manejar (guarda el archivo en Drive y devuelve su id/enlace).
   // El mimeType 'application/pdf' hace que quede como PDF.
-  const resp = await fetch(_fotosUrlSede(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      accion: 'subirFoto',
-      tipo: 'novedad',
-      codigo,
-      nombreArchivo,
-      mimeType: 'application/pdf',
-      base64,
-      titulo: 'Informe ' + codigo,
-      descripcion: '',
-      subidoPor: currentUser?.email || 'Usuario',
-      correo: currentUser?.email || ''
-    })
+  const resp = await _postScriptFotos({
+    accion: 'subirFoto',
+    tipo: 'novedad',
+    codigo,
+    nombreArchivo,
+    mimeType: 'application/pdf',
+    base64,
+    titulo: 'Informe ' + codigo,
+    descripcion: '',
+    subidoPor: currentUser?.email || 'Usuario',
+    correo: currentUser?.email || ''
   });
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir el PDF');
@@ -16126,8 +16166,9 @@ async function verInformePdf(codigo) {
       } catch (e) { _fotosProxyFallo(); blob = null; }
     }
     if (!blob) {
-      const resp = await fetch(_fotosUrlSede() + '?id=' + encodeURIComponent(id));
-      const data = await resp.json();
+      let resp = await fetch(await _urlScriptFotos({ id }));
+      let data = await resp.json();
+      if (data.paseInvalido) { resp = await fetch(await _urlScriptFotos({ id }, true)); data = await resp.json(); }
       if (!data.ok || !data.base64) throw new Error(data.mensaje || 'no se pudo obtener el archivo');
       blob = _base64ABlob(data.base64, data.mimeType || 'application/pdf');
     }
@@ -16286,21 +16327,17 @@ async function subirFotoNovedad(file, codigo, titulo, descripcion) {
   const subidoPor = currentUser?.email || 'Usuario';
   const fecha = new Date().toISOString();
 
-  const resp = await fetch(_fotosUrlSede(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      accion: 'subirFoto',
-      tipo: 'novedad',
-      codigo,
-      nombreArchivo: foto.nombreArchivo,
-      mimeType: foto.mimeType,
-      base64: foto.base64,
-      titulo: titulo || '',
-      descripcion: descripcion || '',
-      subidoPor,
-      correo: currentUser?.email || ''
-    })
+  const resp = await _postScriptFotos({
+    accion: 'subirFoto',
+    tipo: 'novedad',
+    codigo,
+    nombreArchivo: foto.nombreArchivo,
+    mimeType: foto.mimeType,
+    base64: foto.base64,
+    titulo: titulo || '',
+    descripcion: descripcion || '',
+    subidoPor,
+    correo: currentUser?.email || ''
   });
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
@@ -17377,20 +17414,16 @@ async function subirFotoCronograma(file, fecha, turnoId, actividadId) {
   const codigo = fecha + '_' + actividadId;
   const foto = await _prepararFotoParaSubir(file, `${codigo}_${Date.now()}`);
 
-  const resp = await fetch(_fotosUrlSede(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      accion: 'subirFoto',
-      tipo: 'cronograma',
-      codigo,
-      nombreArchivo: foto.nombreArchivo,
-      mimeType: foto.mimeType,
-      base64: foto.base64,
-      tareaDescripcion: actividadId,
-      subidoPor,
-      correo: currentUser?.email || ''
-    })
+  const resp = await _postScriptFotos({
+    accion: 'subirFoto',
+    tipo: 'cronograma',
+    codigo,
+    nombreArchivo: foto.nombreArchivo,
+    mimeType: foto.mimeType,
+    base64: foto.base64,
+    tareaDescripcion: actividadId,
+    subidoPor,
+    correo: currentUser?.email || ''
   });
   const data = await resp.json();
   if (!data.ok) throw new Error(data.mensaje || 'Error al subir la foto');
@@ -17442,11 +17475,7 @@ async function manejarSubidaFotoCronograma(inputEl, actividadId, turnoId, fecha)
 async function eliminarFotoCronograma(driveFileId, actividadId, fecha, elEl) {
   if (!confirm('¿Eliminar esta foto del registro?')) return;
   try {
-    await fetch(_fotosUrlSede(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' })
-    });
+    await _postScriptFotos({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' });
   } catch (e) { console.warn('No se pudo borrar la foto de Drive:', e.message); }
 
   try {

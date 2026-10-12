@@ -29,6 +29,7 @@ jobs:
       - run: node pruebas/sintaxis.js
       - run: node pruebas/worker.test.mjs
       - run: node pruebas/whatsapp-worker.test.mjs
+      - run: node pruebas/fotos-script.test.mjs
 
   deploy:
     needs: validar

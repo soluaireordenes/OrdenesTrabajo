@@ -28,6 +28,9 @@ jobs:
       - name: Pruebas del intermediario de WhatsApp
         run: node pruebas/whatsapp-worker.test.mjs
 
+      - name: Pruebas del script de fotos
+        run: node pruebas/fotos-script.test.mjs
+
   app:
     # La app en un navegador real (Chromium). Tarda un par de minutos: una de
     # las pruebas espera ~45 s a propósito (informe con el servidor colgado).

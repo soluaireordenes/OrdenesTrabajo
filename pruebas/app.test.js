@@ -45,6 +45,11 @@ function check(nombre, ok, detalle) { resultados.push({ nombre, ok: !!ok, detall
 async function nuevaPagina(b, rutas = {}) {
   const ctx = await b.newContext();
   const errs = [];
+  // Nada sale al proxy real de producción (en GitHub sí hay internet): lo que
+  // una prueba no simule responde como un proxy sin esa ruta. Playwright usa
+  // primero la última ruta registrada, así que las de cada prueba mandan.
+  await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+  await ctx.route('**/pase-fotos', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, pase: 'PASE.prueba.firma', exp: Math.floor(Date.now() / 1000) + 3600 }) }));
   for (const [patron, fn] of Object.entries(rutas)) await ctx.route(patron, fn);
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push(String(e)));
@@ -585,6 +590,49 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     });
     const lote = escrituras.find(e => /values:batchUpdate/.test(e)) || '';
     check('A8: lote escribe solo la fila que cambió y anexa la nueva', escrituras.length === 2 && /HorasEquipos!A3:B3/.test(lote) && !/CA1|CA3/.test(lote) && escrituras.some(e => /:append/.test(e) && /CA9/.test(e)), escrituras);
+    await ctx.close();
+  }
+
+  // 18) C1: el script de fotos recibe el pase en cada operación
+  {
+    const alScript = [];
+    let paseInvalidoUnaVez = true, pedidosDePase = 0;
+    const { ctx, p } = await nuevaPagina(b, {
+      '**/foto?id=*': r => r.fulfill({ status: 503, body: '' }),
+      '**/pase-fotos': r => { pedidosDePase++; return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, pase: 'PASE' + pedidosDePase, exp: Math.floor(Date.now() / 1000) + 3600 }) }); },
+      'https://fake-apps/**': route => {
+        const rq = route.request();
+        alScript.push(rq.method() === 'GET' ? rq.url() : JSON.parse(rq.postData() || '{}'));
+        if (rq.method() === 'POST' && paseInvalidoUnaVez) { paseInvalidoUnaVez = false; return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"paseInvalido":true}' }); }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64, driveFileId: 'NUEVA' }) });
+      },
+    });
+    const r = await p.evaluate(async () => {
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec';
+      const subida = await (await _postScriptFotos({ accion: 'subirFoto', tipo: 'orden', base64: 'AA==' })).json();
+      _fotosProxyPausaHasta = 0;
+      const foto = await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXZ9');
+      return { subida, foto: foto.startsWith('data:image') };
+    });
+    const posts = alScript.filter(x => typeof x === 'object');
+    const gets = alScript.filter(x => typeof x === 'string');
+    check('C1: al subir, el script recibe el pase; si venció, se pide otro y se reintenta', r.subida.ok && posts.length === 2
+      && posts[0].pase === 'PASE1' && posts[1].pase === 'PASE2' && pedidosDePase === 2, { posts: posts.map(x => x.pase), pedidosDePase });
+    check('C1: al leer una foto por el script, va el pase en la dirección', r.foto && gets.length === 1 && new URL(gets[0]).searchParams.get('pase') === 'PASE2', gets);
+    await ctx.close();
+  }
+  {
+    // Proxy publicado sin /pase-fotos: se sigue sin pase (los scripts viejos no lo piden).
+    const alScript = [];
+    const { ctx, p } = await nuevaPagina(b, {
+      '**/pase-fotos': r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }),
+      'https://fake-apps/**': route => { alScript.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); },
+    });
+    const ok = await p.evaluate(async () => {
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec';
+      return (await (await _postScriptFotos({ accion: 'eliminarFoto', driveFileId: 'X' })).json()).ok;
+    });
+    check('C1: con el proxy viejo las fotos siguen funcionando (sin pase)', ok && alScript.length === 1 && !('pase' in alScript[0]), alScript);
     await ctx.close();
   }
 
