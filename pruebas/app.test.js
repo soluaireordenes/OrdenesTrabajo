@@ -781,10 +781,32 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       await hvdSeleccionarEquipo('Tie off 2');
       out.otrosEquipos = {
         pestana: document.getElementById('hvdTabSeguridad').textContent,
-        lista: listaHvd.join(' | '),
+        lista: listaHvd.filter(x => !/^Extintor/.test(x)).join(' | '),
         sinVoltaje: camposArnes.includes('Marca') && !camposArnes.some(c => /Voltaje|RPM|Potencia/.test(c)),
         historialDe,
         aviso: /dado de baja/.test(document.getElementById('hvdContenido').innerText),
+      };
+      // Extintores: recargas (la última hace más de un año → vencida) y agregar una
+      const filasRecarga = [{ Codigo: 'REC-0001', Equipo: 'Extintor CO2 1', FechaRecarga: '2024-01-10', RegistradoPor: 'X' }];
+      window.leerHojaGenericaCacheada = async n => n === 'RecargasExtintores' ? filasRecarga.slice() : [];
+      const anexadasRecarga = []; window.appendHoja = async (n, filas) => { anexadasRecarga.push([n, filas]); };
+      hvdCambiarModo('operacion'); hvdCambiarModo('seguridad');
+      await new Promise(x => setTimeout(x, 50));
+      const itemCo2 = [...document.querySelectorAll('#hvdListaEquipos > div')].find(d => /Extintor CO2 1\b/.test(d.innerText));
+      await hvdSeleccionarEquipo('Extintor CO2 1');
+      await new Promise(x => setTimeout(x, 50));
+      const recargaChip = document.querySelector('#hvdRecargas .hvd-recargas-cab .hvd-recarga')?.textContent || '';
+      document.getElementById('hvdRecargaFecha').value = '2026-01-05';
+      document.getElementById('hvdRecargaObs').value = 'Proveedor';
+      await agregarRecargaExtintor();
+      const fila = anexadasRecarga[0] && anexadasRecarga[0][1][0];
+      out.extintores = {
+        total: listaHvd.filter(x => /^Extintor/.test(x)).length,
+        co2: listaHvd.filter(x => /^Extintor CO2/.test(x)).length,
+        multi: listaHvd.filter(x => /^Extintor multipropósito/.test(x)).length,
+        vencidaEnLista: /Recarga vencida/.test(itemCo2?.innerText || ''),
+        recargaChip,
+        anexada: fila ? [anexadasRecarga[0][0], fila[1], fila[2], fila[3]].join(',') : '',
       };
       hvdCambiarModo('operacion');
       // Menú: con la lista de sedes recogida se ofrece "Cambiar de sede", que la despliega
@@ -814,6 +836,9 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       r.otrosEquipos.pestana === 'Otros equipos'
       && r.otrosEquipos.lista === 'Hidrolavadora | Arnés de cuerpo completo 1 | Arnés de cuerpo completo 2 | Tie off 1 | Tie off 2 De baja | Eslinga de restricción | Eslinga en Y 1 | Eslinga en Y 2 | EXT-1 — EXTINTOR'
       && r.otrosEquipos.sinVoltaje && r.otrosEquipos.historialDe === 'Tie off 2' && r.otrosEquipos.aviso, r.otrosEquipos);
+    check('Hoja de Vida: 18 extintores (12 CO2, 6 multipropósito) con recargas: avisa la vencida y se agregan fechas',
+      r.extintores.total === 18 && r.extintores.co2 === 12 && r.extintores.multi === 6 && r.extintores.vencidaEnLista
+      && /Recarga vencida desde/.test(r.extintores.recargaChip) && r.extintores.anexada === 'RecargasExtintores,Extintor CO2 1,2026-01-05,Proveedor', r.extintores);
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
     check('Avisos de la app con su color (bien, error, falta algo) y sin el emoji', r.avisos === 'exito:Orden guardada correctamente. | error:Contraseña incorrecta. | advertencia:Solo un administrador puede hacer esto.', r.avisos);

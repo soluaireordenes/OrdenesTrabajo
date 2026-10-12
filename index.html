@@ -224,6 +224,16 @@ body::before {
 
 /* Hoja de Vida: equipos dados de baja */
 .hvd-de-baja { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 1px 7px; margin-left: 6px; border-radius: 10px; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); white-space: nowrap; }
+.hvd-recarga { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 1px 7px; margin-left: 6px; border-radius: 10px; white-space: nowrap; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+.hvd-recarga.vigente { background: rgba(21,128,61,.12); color: #15803d; border-color: rgba(21,128,61,.3); }
+.hvd-recarga.pronto  { background: rgba(180,83,9,.12);  color: #b45309; border-color: rgba(180,83,9,.3); }
+.hvd-recarga.vencida { background: rgba(198,40,40,.1);  color: var(--danger); border-color: rgba(198,40,40,.3); }
+:root[data-theme="dark"] .hvd-recarga.vigente { color: #4ade80; }
+:root[data-theme="dark"] .hvd-recarga.pronto  { color: #f0a35e; }
+.hvd-recargas { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.hvd-recargas-cab { padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-weight: 700; color: var(--brand); font-size: 13px; }
+.hvd-recargas-cab .hvd-recarga { font-size: 11px; padding: 3px 10px; margin: 0; }
+.hvd-recargas-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
 .hvd-aviso-baja { margin-bottom: 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
 
 /* Saludo de Inicio (renderSaludoInicio) */
@@ -6450,6 +6460,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'hvdGuardarSpecs', 'pmGuardarHoraBase', 'eliminarOrdenCompleta', 'invRegistrarDescuentosPendientes',
   'proyGuardarAvances', 'proyNuevoProyecto', 'proyNuevoAlcance', 'proyNuevoPago',
   'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
+  'agregarRecargaExtintor', 'eliminarRecargaExtintor',
 ];
 
 function _protegerContraDobleToque(nombres) {
@@ -8294,6 +8305,9 @@ const OTROS_EQUIPOS_POR_SEDE = {
     { nombre: 'Eslinga de restricción', campos: CAMPOS_HVD_EPP },
     { nombre: 'Eslinga en Y 1', campos: CAMPOS_HVD_EPP },
     { nombre: 'Eslinga en Y 2', campos: CAMPOS_HVD_EPP },
+    // extintor: su hoja de vida lleva el registro de recargas.
+    ...Array.from({ length: 12 }, (_, i) => ({ nombre: `Extintor CO2 ${i + 1}`, campos: CAMPOS_HVD_EPP, extintor: true })),
+    ...Array.from({ length: 6 }, (_, i) => ({ nombre: `Extintor multipropósito ${i + 1}`, campos: CAMPOS_HVD_EPP, extintor: true })),
   ],
 };
 
@@ -9594,6 +9608,7 @@ const SH = {
   informeAnualEstado: 'InformeAnualEstado',
   operarios: 'Operarios',
   operariosPlanta: 'OperariosPlanta',
+  recargasExtintores: 'RecargasExtintores',
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
@@ -9815,6 +9830,8 @@ const CRONOGRAMA_ADICIONALES_COLS = ['Fecha', 'TurnoId', 'ActividadId', 'Descrip
 // nunca se sobrescribe; el conteo por operario (Amarillas/Rojas) se calcula
 // sumando todas las filas de esa persona.
 const OBSERVACIONES_OPERARIOS_COLS = ['Codigo', 'Fecha', 'Hora', 'Operario', 'Tipo', 'Observacion', 'RegistradoPor', 'FechaRegistro'];
+// Una fila por cada recarga de un extintor de "Otros equipos" (Hoja de Vida).
+const RECARGAS_EXTINTORES_COLS = ['Codigo', 'Equipo', 'FechaRecarga', 'Observacion', 'RegistradoPor', 'FechaRegistro'];
 // Reporte de entrega de turno del operario (estado de la operación al
 // terminar/entregar su turno) — una fila por entrega, nunca se sobrescribe;
 // el "borrado" es lógico (Estado='Eliminada'), igual que en Novedades.
@@ -22107,6 +22124,8 @@ function hvdCambiarModo(modo) {
   if (modo === hvdModoActual) return;
   hvdModoActual = modo;
   hvdEquipoActual = null;
+  const listaEl = document.getElementById('hvdListaEquipos');
+  if (listaEl) listaEl.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
   document.getElementById('hvdTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Selecciona un equipo';
   document.getElementById('hvdContenido').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:30px">Elige un equipo de la lista para ver su hoja de vida.</div>';
   hvdRenderListaEquipos();
@@ -22132,8 +22151,20 @@ async function hvdRenderListaEquipos() {
   // Otros equipos: los fijos de la sede (OTROS_EQUIPOS_POR_SEDE) y los que
   // se registraron en Inventario de Equipos con ese tipo (hay que traerlos
   // de Sheets).
-  const fijos = (OTROS_EQUIPOS_POR_SEDE[operacionActual] || []).map(eq => _htmlItemListaHVD(eq.nombre,
-    esc(eq.nombre) + (eq.deBaja ? ' <span class="hvd-de-baja">De baja</span>' : ''))).join('');
+  const listaFijos = OTROS_EQUIPOS_POR_SEDE[operacionActual] || [];
+  // Los extintores muestran si la recarga está vencida o por vencer.
+  let ultimaRecarga = {};
+  if (listaFijos.some(eq => eq.extintor)) {
+    try { ultimaRecarga = _ultimaRecargaPorEquipo(await _leerRecargasExtintores()); } catch (_) {}
+  }
+  const etiquetaRecarga = eq => {
+    if (!eq.extintor) return '';
+    const est = _estadoRecarga(ultimaRecarga[eq.nombre]);
+    return est.estado === 'vencida' ? ' <span class="hvd-recarga vencida">Recarga vencida</span>'
+      : est.estado === 'pronto' ? ' <span class="hvd-recarga pronto">Recarga pronto</span>' : '';
+  };
+  const fijos = listaFijos.map(eq => _htmlItemListaHVD(eq.nombre,
+    esc(eq.nombre) + (eq.deBaja ? ' <span class="hvd-de-baja">De baja</span>' : '') + etiquetaRecarga(eq))).join('');
   cont.innerHTML = fijos + '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
   try {
     const equipos = await _listaEquiposSeguridad();
@@ -22243,6 +22274,7 @@ async function hvdSeleccionarEquipo(equipo) {
       ? `<div style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:6px 14px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Solo lectura — un administrador puede editar la hoja de vida</div>`
       : `<button class="btn btn-primary" onclick="hvdGuardarSpecs()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar especificaciones</button>`}
     <div id="hvdSpecsMsg" style="margin-top:8px;font-size:13px"></div>
+    ${fijo && fijo.extintor ? '<div id="hvdRecargas" style="margin-top:28px"></div>' : ''}
 
     <div style="margin-top:28px">
       <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${conComentarios ? 'Comentarios (los que se agreguen desde Inventario de Equipos de Seguridad)' : 'Historial de mantenimientos (se agrega solo al cerrar una orden)'}</div>
@@ -22256,6 +22288,7 @@ async function hvdSeleccionarEquipo(equipo) {
     });
   }
 
+  if (fijo && fijo.extintor) _renderRecargasExtintor(equipo);
   if (conComentarios) {
     _renderComentariosEquipoSeguridad(equipo); // aquí "equipo" es la Codificación
   } else {
@@ -23265,6 +23298,129 @@ function _renderHistorialOrdenesEquipo(equipo) {
         <td><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
       </tr>`;
     }).join('') + `</tbody></table>`;
+}
+
+/* ══════════════════════════════════════════════
+   RECARGAS DE EXTINTORES (Hoja de Vida → Otros equipos)
+   Cada extintor lleva su lista de fechas de recarga. La siguiente se
+   calcula a un año de la última (la recarga es anual) y la lista avisa
+   cuáles están vencidos o vencen en los próximos 30 días.
+══════════════════════════════════════════════ */
+async function _leerRecargasExtintores() {
+  await asegurarHoja(SH.recargasExtintores, RECARGAS_EXTINTORES_COLS);
+  return leerHojaGenericaCacheada(SH.recargasExtintores);
+}
+
+/** { equipo: 'AAAA-MM-DD' de su última recarga } */
+function _ultimaRecargaPorEquipo(filas) {
+  const ultima = {};
+  (filas || []).forEach(f => {
+    const fecha = String(f.FechaRecarga || '').slice(0, 10);
+    if (f.Equipo && fecha && (!ultima[f.Equipo] || fecha > ultima[f.Equipo])) ultima[f.Equipo] = fecha;
+  });
+  return ultima;
+}
+
+/** Próxima recarga (un año después de la última) y en qué estado está. */
+function _estadoRecarga(ultimaIso) {
+  if (!ultimaIso) return { estado: 'sin', proxima: '' };
+  const d = new Date(ultimaIso + 'T12:00:00');
+  if (isNaN(d)) return { estado: 'sin', proxima: '' };
+  d.setFullYear(d.getFullYear() + 1);
+  const proxima = _isoLocal(d);
+  const dias = Math.round((new Date(proxima + 'T12:00:00') - new Date(_isoLocal(new Date()) + 'T12:00:00')) / 86400000);
+  return { estado: dias < 0 ? 'vencida' : dias <= 30 ? 'pronto' : 'vigente', proxima, dias };
+}
+
+async function _renderRecargasExtintor(equipo) {
+  const cont = document.getElementById('hvdRecargas');
+  if (!cont) return;
+  cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando recargas…</div>';
+  let filas;
+  try {
+    filas = (await _leerRecargasExtintores()).filter(f => f.Equipo === equipo)
+      .sort((a, b) => String(b.FechaRecarga).localeCompare(String(a.FechaRecarga)));
+  } catch (e) {
+    cont.innerHTML = `<div style="color:var(--danger);font-size:13px">No se pudieron leer las recargas: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (hvdEquipoActual !== equipo) return; // se cambió de equipo mientras cargaba
+  const est = _estadoRecarga(filas[0] && String(filas[0].FechaRecarga).slice(0, 10));
+  const chip = {
+    sin:     '<span class="hvd-recarga">Sin recargas registradas</span>',
+    vigente: `<span class="hvd-recarga vigente">Próxima recarga: ${esc(fmtFecha(est.proxima))}</span>`,
+    pronto:  `<span class="hvd-recarga pronto">Recargar antes del ${esc(fmtFecha(est.proxima))}</span>`,
+    vencida: `<span class="hvd-recarga vencida">Recarga vencida desde el ${esc(fmtFecha(est.proxima))}</span>`,
+  }[est.estado];
+  const admin = esAdmin();
+  cont.innerHTML = `
+    <div class="hvd-recargas">
+      <div class="hvd-recargas-cab">
+        <span>RECARGAS DEL EXTINTOR</span>
+        ${chip}
+      </div>
+      <div style="padding:14px 16px">
+        ${admin ? `<div class="hvd-recargas-form">
+          <div class="field" style="margin:0"><label for="hvdRecargaFecha">Fecha de recarga</label><input type="date" id="hvdRecargaFecha" value="${_isoLocal(new Date())}" max="${_isoLocal(new Date())}" style="margin:0"></div>
+          <div class="field" style="margin:0;flex:1;min-width:180px"><label for="hvdRecargaObs">Observación (opcional)</label><input type="text" id="hvdRecargaObs" maxlength="200" placeholder="Ej: recargado por el proveedor" style="margin:0"></div>
+          <button type="button" class="btn btn-primary" onclick="agregarRecargaExtintor()">Agregar recarga</button>
+        </div>
+        <div id="hvdRecargaMsg" style="font-size:12px;margin:-4px 0 10px"></div>` : ''}
+        ${filas.length ? `<table class="ie-table" style="min-width:0">
+          <thead><tr><th style="width:24%">Fecha de recarga</th><th>Observación</th><th style="width:24%">Registró</th>${admin ? '<th style="width:56px"></th>' : ''}</tr></thead>
+          <tbody>${filas.map(f => `<tr>
+            <td>${esc(fmtFecha(String(f.FechaRecarga).slice(0, 10)))}</td>
+            <td style="white-space:pre-wrap;word-break:break-word">${esc(f.Observacion) || '—'}</td>
+            <td>${esc(f.RegistradoPor) || '—'}</td>
+            ${admin ? `<td style="text-align:center"><button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Eliminar esta recarga" aria-label="Eliminar esta recarga" onclick="eliminarRecargaExtintor(${_jsArg(f.Codigo)})">✕</button></td>` : ''}
+          </tr>`).join('')}</tbody></table>`
+          : _estadoVacio({ icono: 'calendario', titulo: 'Este extintor todavía no tiene recargas', detalle: admin ? 'Agrega la fecha de la última recarga arriba.' : '', compacto: true })}
+      </div>
+    </div>`;
+}
+
+async function agregarRecargaExtintor() {
+  if (!esAdmin()) { alert('Solo un administrador puede registrar recargas.'); return; }
+  const equipo = hvdEquipoActual;
+  const fecha = document.getElementById('hvdRecargaFecha')?.value || '';
+  const obs = (document.getElementById('hvdRecargaObs')?.value || '').trim();
+  const msg = document.getElementById('hvdRecargaMsg');
+  msg.style.color = 'var(--danger)';
+  if (!fecha) { msg.textContent = 'Elige la fecha de la recarga.'; return; }
+  if (fecha > _isoLocal(new Date())) { msg.textContent = 'La fecha de recarga no puede ser futura.'; return; }
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
+  try {
+    const filas = await _leerRecargasExtintores();
+    if (filas.some(f => f.Equipo === equipo && String(f.FechaRecarga).slice(0, 10) === fecha)) {
+      msg.style.color = 'var(--danger)'; msg.textContent = 'Esa recarga ya está registrada.'; return;
+    }
+    const cols = await asegurarHoja(SH.recargasExtintores, RECARGAS_EXTINTORES_COLS);
+    await appendHoja(SH.recargasExtintores, [_filaSegunEncabezados(cols, {
+      Codigo: _codigoConsecutivoUnico('REC', filas, 4), Equipo: equipo, FechaRecarga: fecha, Observacion: obs,
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema', FechaRegistro: new Date().toISOString(),
+    })]);
+    _invalidarCacheHoja(SH.recargasExtintores);
+    aviso('Recarga del ' + fmtFecha(fecha) + ' registrada en ' + equipo + '.', 'exito');
+    await _renderRecargasExtintor(equipo);
+    hvdRenderListaEquipos();
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo guardar: ' + e.message;
+  }
+}
+
+async function eliminarRecargaExtintor(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar recargas.'); return; }
+  if (!codigo || !confirm('¿Eliminar esta recarga del registro?')) return;
+  const equipo = hvdEquipoActual;
+  try {
+    await asegurarHoja(SH.recargasExtintores, RECARGAS_EXTINTORES_COLS);
+    await _borrarFilasHoja(SH.recargasExtintores, await _filasDondeColumnaEs(SH.recargasExtintores, 'Codigo', codigo));
+    _invalidarCacheHoja(SH.recargasExtintores);
+    await _renderRecargasExtintor(equipo);
+    hvdRenderListaEquipos();
+  } catch (e) {
+    alert('No se pudo eliminar la recarga: ' + e.message);
+  }
 }
 
 /** HVD de equipos de SEGURIDAD: en vez del historial de órdenes, muestra
