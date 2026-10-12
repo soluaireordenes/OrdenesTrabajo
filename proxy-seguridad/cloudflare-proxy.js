@@ -36,12 +36,20 @@
    • POST /sede             body {spreadsheetId, clave}   (con el pase)
          → {ok:true} si la clave coincide con el hash de Config!A1 de esa
          hoja. El hash nunca sale del Worker; hay bloqueo por intentos.
+   • GET  /pase-fotos       (con el pase) → {ok, pase, exp} para los scripts
+         de fotos de cada sede.
    • GET  /foto?id=<driveFileId>   (requiere Authorization: Bearer <session>)
          Devuelve la foto directo desde Google Drive con la cuenta de servicio.
    • GET  /ping             → {ok:true} (para probar que está arriba)
 
    ── VARIABLES Y SECRETOS DEL WORKER (Configuración → Variables y secretos) ──
    Secretos (tipo "Secreto"):
+     • PIN_PEPPER             → frase larga y aleatoria con la que se guardan
+                                 los PIN (ver _pinCoincide). NO se puede
+                                 cambiar ni perder una vez en uso.
+     • FOTOS_SECRETO          → frase larga y aleatoria que firma el pase de
+                                 fotos; la MISMA va en las Propiedades de cada
+                                 script de fotos (fotos-apps-script.gs).
      • GOOGLE_SA_EMAIL        → client_email del JSON de la cuenta de servicio
      • GOOGLE_SA_PRIVATE_KEY  → private_key del JSON (pega el valor COMPLETO,
                                  incluido -----BEGIN PRIVATE KEY----- ...).
@@ -101,6 +109,10 @@ export default {
         return _cors(await _gatewaySheets(peticion, entorno, url), entorno, origen);
       }
 
+      if (url.pathname === '/pase-fotos' && peticion.method === 'GET') {
+        return _cors(await _paseFotos(peticion, entorno), entorno, origen);
+      }
+
       if (url.pathname === '/sede' && peticion.method === 'POST') {
         return _cors(await _sede(peticion, entorno), entorno, origen);
       }
@@ -149,17 +161,90 @@ async function _login(peticion, entorno) {
   // Usuario inactivo/deshabilitado no entra.
   if (!u.activo) return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
 
-  // El PIN se guarda como hash SHA-256 (hex mayúsculas), igual que el
-  // Apps Script de login original. Se compara hash contra hash.
-  const pinHash = await _sha256HexUpper(pin);
-  if (pinHash !== u.pinHash) {
+  if (!(await _pinCoincide(pin, documento, u.pinHash, entorno))) {
     _registrarFallo(documento);
     return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
   }
+  // PIN todavía en el formato viejo: se pasa al nuevo ahora que se conoce.
+  if (entorno.PIN_PEPPER && !/^v2\$/i.test(u.pinHash)) await _guardarPinV2(entorno, u, documento, pin);
 
   _limpiarFallos(documento);
   const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
   return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede });
+}
+
+/* ── PIN ────────────────────────────────────────────────────────────────
+   Formato viejo: SHA-256 del PIN (hex). Un PIN numérico corto se saca de
+   ese resumen en segundos, así que quien viera la hoja Usuarios tenía los
+   PIN de todos.
+   Formato nuevo ("v2$sal$firma"): HMAC-SHA256 del PIN con PIN_PEPPER, una
+   clave que solo vive en el Worker, y una sal distinta por persona. Sin esa
+   clave, lo que hay en la hoja no sirve para nada.
+   No hay que cambiar ningún PIN: cada persona pasa al formato nuevo la
+   próxima vez que entra (el Worker escribe el valor nuevo en su celda). Un
+   PIN nuevo o restablecido se puede seguir escribiendo en el formato viejo;
+   también se convierte solo al entrar.
+   ⚠ PIN_PEPPER no se puede cambiar ni perder: los PIN ya convertidos dejan
+   de funcionar. Guárdala en un lugar seguro. */
+async function _pinCoincide(pin, documento, guardado, entorno) {
+  const g = String(guardado || '').trim();
+  if (/^v2\$/i.test(g)) {
+    if (!entorno.PIN_PEPPER) return false; // sin la clave no hay cómo comprobarlo
+    const [, sal, firma] = g.split('$');
+    if (!sal || !firma) return false;
+    return _igualSeguro(await _firmaPinV2(pin, documento, sal.toLowerCase(), entorno.PIN_PEPPER), firma.toLowerCase());
+  }
+  return _igualSeguro(await _sha256HexUpper(pin), g.toUpperCase());
+}
+
+async function _firmaPinV2(pin, documento, sal, pepper) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(sal + '|' + documento + '|' + pin)));
+  return Array.from(mac).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Escribe el PIN en el formato nuevo en la celda de esa persona. Si no se
+ *  puede (Google no responde), no pasa nada: entra igual y se intenta la
+ *  próxima vez. */
+async function _guardarPinV2(entorno, u, documento, pin) {
+  try {
+    const salBytes = crypto.getRandomValues(new Uint8Array(16));
+    const sal = Array.from(salBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const nuevo = 'v2$' + sal + '$' + await _firmaPinV2(pin, documento, sal, entorno.PIN_PEPPER);
+    const tab = entorno.USUARIOS_TAB || 'Usuarios';
+    const celda = "'" + tab.replace(/'/g, "''") + "'!" + _letraColumna(u.colPin) + u.fila;
+    const token = await _tokenCuentaServicio(entorno);
+    const resp = await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${entorno.USUARIOS_SHEET_ID}/values/${encodeURIComponent(celda)}?valueInputOption=RAW`, {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [[nuevo]] }),
+    });
+    if (resp.ok) u.pinHash = nuevo;
+  } catch (_) { /* se reintenta en el próximo ingreso */ }
+}
+
+function _letraColumna(indice) {
+  let n = indice + 1, letra = '';
+  while (n > 0) { const r = (n - 1) % 26; letra = String.fromCharCode(65 + r) + letra; n = Math.floor((n - 1) / 26); }
+  return letra;
+}
+
+/* ── PASE DE FOTOS ──────────────────────────────────────────────────────
+   GET /pase-fotos (con el pase de sesión) → { ok, pase, exp }
+   Los scripts de fotos de cada sede (fotos-apps-script.gs) solo atienden
+   peticiones que traen este pase, firmado con FOTOS_SECRETO (la misma
+   clave va en las Propiedades de cada script). Así nadie de afuera puede
+   leer, subir ni borrar archivos con ellos. Dura 6 horas; la app pide
+   otro cuando vence. */
+async function _paseFotos(peticion, entorno) {
+  const sesion = await _sesionVigente(peticion, entorno);
+  if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (!entorno.FOTOS_SECRETO) return _json({ ok: false, mensaje: 'Falta configurar FOTOS_SECRETO en el Worker.' }, 501);
+  const exp = Math.floor(Date.now() / 1000) + 6 * 60 * 60;
+  const head = _b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = _b64url(JSON.stringify({ doc: sesion.doc, rol: sesion.rol, exp }));
+  const firma = await _hmac(head + '.' + body, entorno.FOTOS_SECRETO);
+  return _json({ ok: true, pase: head + '.' + body + '.' + firma, exp });
 }
 
 /* ── USUARIOS: lectura y estado vigente ──────────────────────────────────
@@ -211,7 +296,9 @@ async function _leerUsuarios(entorno) {
     if (rol !== 'admin') rol = 'operario'; // cualquier valor que no sea admin = operario
     porDoc.set(doc, {
       nombre: idxNom >= 0 ? String(fila[idxNom] || '').trim() : doc,
-      pinHash: String(fila[idxPin] || '').trim().toUpperCase(),
+      pinHash: String(fila[idxPin] || '').trim(),
+      fila: i + 1,          // número de fila en la hoja (para actualizar el PIN)
+      colPin: idxPin,
       rol,
       activo: !['no', 'inactivo', 'false', '0', 'deshabilitado'].includes(estado),
       sede: idxSede >= 0 ? String(fila[idxSede] || '').trim().toLowerCase() : '',

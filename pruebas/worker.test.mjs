@@ -34,6 +34,7 @@ const env = { ALLOWED_ORIGIN: 'https://soluaireordenes.github.io', GOOGLE_SA_EMA
   SESSION_SECRET: 'secreto', USUARIOS_SHEET_ID: 'HOJAUSUARIOS' };
 const PROY = '1rICqEwDTOjA8cxFIEa7m5rIw0gs2fd7CB682dRUj0nk';
 let llamadas = [];
+const escriturasUsuarios = [];
 // La hoja Usuarios simulada se puede cambiar a mitad de prueba (desactivar a
 // alguien, quitarle el rol) para ver que el proxy lo note.
 let hojaUsuarios = [['Documento', 'Nombre', 'PINHash', 'Rol', 'Activo'],
@@ -42,6 +43,12 @@ let hojaUsuarios = [['Documento', 'Nombre', 'PINHash', 'Rol', 'Activo'],
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   if (url.includes('oauth2.googleapis.com')) return new Response(JSON.stringify({ access_token: 'TOKEN_SA', expires_in: 3600 }));
+  if (url.includes('HOJAUSUARIOS') && init.method === 'PUT' && !init.headers?.['Authorization']?.includes('SESS')) {
+    // El Worker guarda el PIN en el formato nuevo: se aplica a la hoja simulada.
+    const celda = decodeURIComponent(url).match(/!([A-Z]+)(\d+)\?/);
+    if (celda) { escriturasUsuarios.push(decodeURIComponent(url)); hojaUsuarios[Number(celda[2]) - 1][celda[1].charCodeAt(0) - 65] = JSON.parse(init.body).values[0][0]; }
+    return new Response('{}');
+  }
   if (url.includes('HOJAUSUARIOS') && !(init.method && init.method !== 'GET')) return new Response(JSON.stringify({ values: hojaUsuarios }));
   llamadas.push({ url, init });
   // Nombres de pestañas (para revisar qué filas se borran)
@@ -155,6 +162,33 @@ await login('111', '1111');
 check('Usuario desactivado pierde el acceso sin esperar a que venza el pase (401)', (await st(op2.session, 'HOJASEDE')) === 401);
 check('Admin al que le quitan el rol ya no abre Proyectos (403)', (await st(ad2.session, PROY)) === 403);
 check('Los demás siguen entrando', (await st(op.session, 'HOJASEDE')) === 200 && (await st(ad.session, PROY)) === 200);
+
+// PIN con clave secreta (PIN_PEPPER): se convierte al entrar, sin cambiar el PIN.
+const envPepper = { ...env, PIN_PEPPER: 'pimienta-de-prueba', FOTOS_SECRETO: 'secreto-fotos' };
+const reqP = (ruta, opts = {}) => worker.fetch(new Request('https://w' + ruta, { ...opts, headers: { ...O, ...(opts.headers || {}) } }), envPepper);
+const loginP = async (d, pin) => (await reqP('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ documento: d, pin }) })).json();
+check('Sin PIN_PEPPER no se toca la hoja Usuarios', escriturasUsuarios.length === 0);
+const l1 = await loginP('111', '1111');
+const celdaOp = hojaUsuarios.find(f => f[0] === '111')[2];
+check('Con PIN_PEPPER: entra con el PIN de siempre y su celda pasa al formato nuevo', l1.ok && /^v2\$[0-9a-f]{32}\$[0-9a-f]{64}$/.test(celdaOp)
+  && escriturasUsuarios.length === 1 && escriturasUsuarios[0].includes("'Usuarios'!C2"), { l1, celdaOp, escriturasUsuarios });
+check('El formato nuevo no contiene el resumen SHA-256 del PIN', !celdaOp.toUpperCase().includes(h('1111')));
+const l2 = await loginP('111', '1111');
+check('Con el formato nuevo: PIN correcto entra, incorrecto no, y no se reescribe', l2.ok && !(await loginP('111', '1112')).ok && escriturasUsuarios.length === 1);
+check('Formato nuevo sin PIN_PEPPER no entra (la clave no se puede perder)', !(await login('111', '1111')).ok);
+const sal1 = celdaOp.split('$')[1];
+await loginP('222', '2222');
+check('Cada persona queda con su propia sal', hojaUsuarios.find(f => f[0] === '222')[2].split('$')[1] !== sal1);
+
+// Pase de fotos
+const pf = await (await reqP('/pase-fotos', { headers: H(l2.session) })).json();
+const [ph, pb, pfirma] = String(pf.pase || '').split('.');
+const firmaEsperada = crypto.createHmac('sha256', 'secreto-fotos').update(ph + '.' + pb).digest('base64url');
+const cuerpoPase = pb ? JSON.parse(Buffer.from(pb, 'base64url').toString()) : {};
+check('Pase de fotos firmado con FOTOS_SECRETO, dura 6 horas', pf.ok && pfirma === firmaEsperada && cuerpoPase.doc === '111'
+  && Math.abs(cuerpoPase.exp - (Date.now() / 1000 + 6 * 3600)) < 60, { pf, cuerpoPase });
+check('Pase de fotos sin sesión → 401; sin FOTOS_SECRETO → 501', (await reqP('/pase-fotos')).status === 401
+  && (await req('/pase-fotos', { headers: H(ad.session) })).status === 501);
 
 const f1 = await req('/foto?id=FOTOIDXXXXXXXXXX1', { headers: H(op.session) });
 check('/foto entrega la imagen con sesión', f1.status === 200 && f1.headers.get('Content-Type') === 'image/jpeg' && f1.headers.get('Access-Control-Allow-Origin') === O.Origin);
