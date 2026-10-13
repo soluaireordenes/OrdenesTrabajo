@@ -646,6 +646,11 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     const navegaciones = [];
     p.on('framenavigated', f => { if (f === p.mainFrame()) navegaciones.push(f.url()); });
     p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') navegaciones.push('console.' + m.type() + ': ' + m.text().slice(0, 200)); });
+    const cdp = await ctx.newCDPSession(p);
+    await cdp.send('Page.enable'); await cdp.send('Runtime.enable');
+    for (const ev of ['Page.frameRequestedNavigation', 'Page.frameStartedLoading', 'Page.frameNavigated', 'Page.navigatedWithinDocument', 'Runtime.executionContextDestroyed', 'Runtime.executionContextsCleared', 'Inspector.targetCrashed', 'Page.javascriptDialogOpening']) {
+      cdp.on(ev, d => navegaciones.push(new Date().toISOString().slice(11, 23) + ' ' + ev + ' ' + JSON.stringify(d).slice(0, 220)));
+    }
     let r;
     try {
     r = await p.evaluate(async () => {
@@ -854,8 +859,12 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       operacionAutenticada = true; sidebarGrupoExpandido.operaciones = false; renderSidebarOperaciones();
       const menu = () => document.getElementById('sidebarOperaciones').innerText;
       out.cambiarSedeVisible = /Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === 1;
-      [...document.querySelectorAll('#sidebarOperaciones div')].find(d => /^Cambiar de sede/.test(d.innerText.trim())).click();
+      const renglonSede = [...document.querySelectorAll('#sidebarOperaciones div')].find(d => /^Cambiar de sede/.test(d.innerText.trim()));
+      paso('24b: antes del clic en ' + (renglonSede ? renglonSede.outerHTML.slice(0, 80) : 'nada'));
+      renglonSede.click();
+      paso('24c: después del clic');
       out.cambiarSedeDespliega = !/Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === Object.keys(OPERACIONES).length;
+      paso('25: devolviendo el resultado');
       return out;
     });
     } catch (e) {
