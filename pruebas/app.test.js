@@ -841,12 +841,12 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('B14: el inventario completa solo los encabezados que faltan', r.encabezados);
     check('B14: al editar una orden se agrega antes de borrar', r.pasosOrden === 'agregar Tareas | borrar 2', r.pasosOrden);
     check('Menú: "Cambiar de sede" aparece con la lista recogida y la despliega', r.cambiarSedeVisible && r.cambiarSedeDespliega, r);
-    check('Hoja de Vida: "Otros equipos" con los 8 de Zipaquirá (un tie off de baja) y los registrados',
+    check('Hoja de Vida: "Otros equipos" con los 10 de Zipaquirá (un tie off de baja) y los registrados',
       r.otrosEquipos.pestana === 'Otros equipos'
-      && r.otrosEquipos.lista === 'Hidrolavadora | Arnés de cuerpo completo 1 | Arnés de cuerpo completo 2 | Tie off 1 | Tie off 2 De baja | Eslinga de restricción | Eslinga en Y 1 | Eslinga en Y 2 | EXT-1 — EXTINTOR'
+      && r.otrosEquipos.lista === 'Hidrolavadora | Pulidora | Taladro | Arnés de cuerpo completo 1 | Arnés de cuerpo completo 2 | Tie off 1 | Tie off 2 De baja | Eslinga de restricción | Eslinga en Y 1 | Eslinga en Y 2 | EXT-1 — EXTINTOR'
       && r.otrosEquipos.sinVoltaje && r.otrosEquipos.historialDe === 'Tie off 2' && r.otrosEquipos.aviso, r.otrosEquipos);
-    check('Órdenes: se pueden elegir los "Otros equipos" (25, sin el tie off de baja)',
-      r.ordenOtros.cantidad === 25 && r.ordenOtros.hidro && r.ordenOtros.extintor && !r.ordenOtros.deBaja && r.ordenOtros.editar === 'Tie off 2', r.ordenOtros);
+    check('Órdenes: se pueden elegir los "Otros equipos" (27, sin el tie off de baja)',
+      r.ordenOtros.cantidad === 27 && r.ordenOtros.hidro && r.ordenOtros.extintor && !r.ordenOtros.deBaja && r.ordenOtros.editar === 'Tie off 2', r.ordenOtros);
     check('Hoja de Vida: 18 extintores (12 CO2, 6 multipropósito) con recargas: avisa la vencida y se agregan fechas',
       r.extintores.total === 18 && r.extintores.co2 === 12 && r.extintores.multi === 6 && r.extintores.vencidaEnLista
       && /Recarga vencida desde/.test(r.extintores.recargaChip) && r.extintores.anexada === 'RecargasExtintores,Extintor CO2 1,2026-01-05,Proveedor', r.extintores);
