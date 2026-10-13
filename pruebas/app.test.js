@@ -641,22 +641,34 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
   // 19) Bajos (B1–B18)
   {
     const { ctx, p, errs } = await nuevaPagina(b);
-    const r = await p.evaluate(async () => {
+    // Diagnóstico: si la página navega a mitad de la prueba, decir a dónde y
+    // en qué paso iba (el paso queda en sessionStorage, que sobrevive).
+    const navegaciones = [];
+    p.on('framenavigated', f => { if (f === p.mainFrame()) navegaciones.push(f.url()); });
+    p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') navegaciones.push('console.' + m.type() + ': ' + m.text().slice(0, 200)); });
+    let r;
+    try {
+    r = await p.evaluate(async () => {
       const out = {};
+      const paso = n => { try { sessionStorage.setItem('__paso', n); } catch (_) {} };
+      paso('1: Login: fondo claro de la app con la marca de agua subiendo');
       // Login: fondo claro de la app con la marca de agua subiendo
       const marca = document.querySelector('#loginOverlay .login-marca');
       out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
         && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
+      paso('2: Avisos de la app en vez de la ventanita del navegador');
       // Avisos de la app en vez de la ventanita del navegador
       alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.');
       out.avisos = [...document.querySelectorAll('#avisos .aviso')].map(a => a.className.replace('aviso ', '') + ':' + a.querySelector('.aviso-texto').textContent).join(' | ');
       document.querySelectorAll('#avisos .aviso-cerrar').forEach(b => b.click());
+      paso('3: Rol junto al nombre');
       // Rol junto al nombre
       googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; _aplicarRolUI();
       out.rol = document.getElementById('userRol').hidden ? '' : document.getElementById('userRol').textContent;
       usuarioRol = 'operario'; _aplicarRolUI(); out.rolOperario = document.getElementById('userRol').textContent;
       googleAccessToken = null; usuarioRol = 'operario'; _aplicarRolUI();
+      paso('4: Listas vacías: mensaje claro y "Quitar filtros" en la lista ');
       // Listas vacías: mensaje claro y "Quitar filtros" en la lista con filtros
       allOrdenes = []; renderPendientes();
       out.vacioPend = document.querySelector('#pendientesContainer .vacio-titulo, .panel .vacio-titulo')?.textContent || '';
@@ -666,9 +678,11 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       document.querySelector('#listaContainer .empty-state button').click();
       out.vacioLista = vacioLista + ' → ' + document.getElementById('filtroTexto').value + ' → ' + document.querySelectorAll('#listaContainer .order-item').length;
       allOrdenes = []; filtrarOrdenes();
+      paso('5: Pantalla de carga: se quita sola al terminar de arrancar');
       // Pantalla de carga: se quita sola al terminar de arrancar
       const carga = document.getElementById('pantallaCarga');
       out.cargaFuera = !carga || carga.classList.contains('oculta');
+      paso('6: Saludo de Inicio con el primer nombre y las pendientes de la');
       // Saludo de Inicio con el primer nombre y las pendientes de la sede
       googleAccessToken = 'SESS.x'; currentUser = { name: 'ANA PÉREZ', initials: 'AP' }; operacionAutenticada = true;
       allOrdenes = [{ Estado: 'Pendiente', Prioridad: 'Urgente' }, { Estado: 'En ejecución' }, { Estado: 'Cerrada' }];
@@ -677,10 +691,13 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       operacionAutenticada = false; renderSaludoInicio();
       out.saludoSinSede = document.getElementById('saludoInicio').innerText;
       googleAccessToken = null; allOrdenes = [];
+      paso('7: B17: números como los escribe una persona');
       // B17: números como los escribe una persona
       out.numeros = ['12', '-40', '0.75', '.5'].every(_esNumeroDecimal) && !['0x10', '1e5', 'Infinity', '', '1,5', '-'].some(_esNumeroDecimal);
+      paso('8: B16: dinero escrito a mano en Proyectos');
       // B16: dinero escrito a mano en Proyectos
       out.dinero = [proyDineroEscrito('1.500'), proyDineroEscrito('25.000'), proyDineroEscrito('$ 1.500.000'), proyDineroEscrito('15063161.664'), proyDineroEscrito('1.5')];
+      paso('9: B1: el filtro trae solo los estados de hoy, y agrega los vie');
       // B1: el filtro trae solo los estados de hoy, y agrega los viejos que existan
       const sel = document.getElementById('filtroEstado');
       out.estadosBase = [...sel.options].map(o => o.value).join(',');
@@ -688,21 +705,26 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       _completarFiltroEstado();
       out.estadosConViejos = [...sel.options].map(o => o.value).join(',');
       allOrdenes = [];
+      paso('10: B5: título y barra del navegador según el tema');
       // B5: título y barra del navegador según el tema
       out.titulo = document.title;
       alternarTema(); out.barraOscura = document.querySelector('meta[name="theme-color"]').content;
+      paso('11: B4: el documento impreso trae la paleta clara, aun con la ap');
       // B4: el documento impreso trae la paleta clara, aun con la app en oscuro
       _mostrarDocumentoEnVisor(_conPaletaDePapel('<html><head><title>T</title><style>h1{color:var(--brand)}</style></head><body><h1 id="tituloDoc">x</h1></body></html>'));
       out.colorDoc = getComputedStyle(document.getElementById('tituloDoc')).color;
       out.fondoDoc = getComputedStyle(document.querySelector('.visor-doc-hoja')).backgroundColor;
       document.querySelector('.visor-doc [data-accion="cerrar"]').click();
       alternarTema(); out.barraClara = document.querySelector('meta[name="theme-color"]').content;
+      paso('12: B3: un guardado anterior dejó el aviso en verde; el siguient');
       // B3: un guardado anterior dejó el aviso en verde; el siguiente error sale en rojo
       const msg = document.getElementById('rc_msg'); msg.style.color = '#15803d';
       await guardarReporteCompresor();
       out.colorError = msg.style.color;
+      paso('13: B11: aviso de rango recortado');
       // B11: aviso de rango recortado
       out.recorte = !!_avisoRangoRecortado(['2026-01-01'], '2026-03-01', 45) && !_avisoRangoRecortado(['2026-03-01'], '2026-03-01', 45);
+      paso('14: B10: actividades realizadas por turno');
       // B10: actividades realizadas por turno
       window.asegurarHoja = async (n, cols) => cols;
       window.leerHojaGenericaCacheada = async () => [
@@ -711,6 +733,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       ];
       const cumpl = await _leerCumplimientoTurnosCronograma();
       out.realizadas = cumpl.cumplido['2026-10-10|t1'] === true && cumpl.realizadas['2026-10-10|t1'].has('a1') && !cumpl.realizadas['2026-10-10|t1'].has('a2');
+      paso('15: B9: el stock para pantalla se reutiliza y se borra al escrib');
       // B9: el stock para pantalla se reutiliza y se borra al escribir
       let lecturas = 0;
       window.obtenerStockInventarioDirecto = async () => { lecturas++; return [{ codigo: 'A', nombre: 'A' }]; };
@@ -718,6 +741,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       const antes = lecturas;
       _invalidarStockPantalla(); await _stockInventarioParaPantalla('zipaquira');
       out.cacheStock = [antes, lecturas];
+      paso('16: B15: la limpieza de caché muestra la descripción de la orden');
       // B15: la limpieza de caché muestra la descripción de la orden
       let textoPrompt = '';
       window.prompt = m => { textoPrompt = m; return null; };
@@ -725,6 +749,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       limpiarCacheLocal();
       out.cacheConDescripcion = /Cambiar filtro de aceite/.test(textoPrompt);
       localStorage.removeItem(LS_KEY);
+      paso('17: B12/B18: la lista de operarios sale de la hoja; la primera v');
       // B12/B18: la lista de operarios sale de la hoja; la primera vez se llena con los registros
       usuarioRol = 'admin';
       const hoja = [];
@@ -744,6 +769,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       window.fetch = fetchOriginal;
       out.quitar = cuerpoQuitar && cuerpoQuitar.data.length === 1 && cuerpoQuitar.data[0].range === 'OperariosPlanta!B3' && cuerpoQuitar.data[0].values[0][0] === 'NO';
       out.listaFija = typeof OPERARIOS_ZIPAQUIRA;
+      paso('18: B14: el inventario completa solo los encabezados que faltan');
       // B14: el inventario completa solo los encabezados que faltan
       const escritos = [];
       window.fetch = async (url, init) => {
@@ -754,6 +780,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       await _invAsegurarHoja('INV', 'Productos', ['Codigo', 'Nombre', 'Unidad']);
       window.fetch = fetchOriginal;
       out.encabezados = escritos.length === 1 && /Productos!C1:C1/.test(escritos[0].url) && JSON.stringify(escritos[0].body.values) === '[["Unidad"]]';
+      paso('19: B14: al editar una orden, primero se agregan las filas nueva');
       // B14: al editar una orden, primero se agregan las filas nuevas y después se borran las viejas
       const pasos = [];
       window.appendHoja = async n => { pasos.push('agregar ' + n); };
@@ -769,6 +796,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       try { await actualizarOrdenEnSheets('OT-B14', { tareas: [{ descripcion: 'x' }] }); } catch (e) { pasos.push('error ' + e.message); }
       window.fetch = fetchOriginal;
       out.pasosOrden = pasos.join(' | ');
+      paso('20: Hoja de Vida: "Otros equipos" con la lista fija de Zipaquirá');
       // Hoja de Vida: "Otros equipos" con la lista fija de Zipaquirá y los registrados
       window._listaEquiposSeguridad = async () => [{ Codificacion: 'EXT-1', Equipo: 'EXTINTOR' }];
       window._leerFilaHVD = async () => null;
@@ -786,6 +814,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         historialDe,
         aviso: /dado de baja/.test(document.getElementById('hvdContenido').innerText),
       };
+      paso('21: Extintores: recargas (la última hace más de un año → vencida');
       // Extintores: recargas (la última hace más de un año → vencida) y agregar una
       const filasRecarga = [{ Codigo: 'REC-0001', Equipo: 'Extintor CO2 1', FechaRecarga: '2024-01-10', RegistradoPor: 'X' }];
       window.leerHojaGenericaCacheada = async n => n === 'RecargasExtintores' ? filasRecarga.slice() : [];
@@ -809,15 +838,18 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         anexada: fila ? [anexadasRecarga[0][0], fila[1], fila[2], fila[3]].join(',') : '',
       };
       hvdCambiarModo('operacion');
+      paso('22: Órdenes: los "Otros equipos" se pueden elegir (sin los de ba');
       // Órdenes: los "Otros equipos" se pueden elegir (sin los de baja)
       inicializarCampoEquipo();
       const grupoOtros = [...document.querySelectorAll('#f_equipo optgroup')].find(g => g.label === 'Otros equipos');
       const opcionesOtros = grupoOtros ? [...grupoOtros.querySelectorAll('option')].map(o => o.value) : [];
       out.ordenOtros = { cantidad: opcionesOtros.length, hidro: opcionesOtros.includes('Hidrolavadora'), extintor: opcionesOtros.includes('Extintor multipropósito 6'), deBaja: opcionesOtros.includes('Tie off 2') };
+      paso('23: Al editar una orden de un equipo que ya no está en la lista ');
       // Al editar una orden de un equipo que ya no está en la lista (de baja), no se pierde
       allOrdenes = [{ id: 'T9', NumeroOrden: 'OT-9', Equipo: 'Tie off 2', Estado: 'Pendiente', Title: 'Revisión', tareas: [], repuestos: [], insumos: [], servicios: [] }];
       try { abrirModalCompletar('T9'); out.ordenOtros.editar = document.getElementById('e_equipo').value; } catch (e) { out.ordenOtros.editar = 'error: ' + e.message; }
       allOrdenes = [];
+      paso('24: Menú: con la lista de sedes recogida se ofrece "Cambiar de s');
       // Menú: con la lista de sedes recogida se ofrece "Cambiar de sede", que la despliega
       operacionAutenticada = true; sidebarGrupoExpandido.operaciones = false; renderSidebarOperaciones();
       const menu = () => document.getElementById('sidebarOperaciones').innerText;
@@ -826,6 +858,13 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       out.cambiarSedeDespliega = !/Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === Object.keys(OPERACIONES).length;
       return out;
     });
+    } catch (e) {
+      await p.waitForLoadState('load').catch(() => {});
+      const ultimo = await p.evaluate(() => sessionStorage.getItem('__paso')).catch(x => 'no se pudo leer: ' + x.message);
+      console.log('DIAGNÓSTICO — último paso antes de navegar:', ultimo);
+      console.log('DIAGNÓSTICO — navegaciones y avisos:', JSON.stringify(navegaciones, null, 1));
+      throw e;
+    }
     check('B17: los números solo aceptan dígitos con punto (y el menos)', r.numeros);
     check('B16: "1.500" escrito en Proyectos son mil quinientos', JSON.stringify(r.dinero) === '[1500,25000,1500000,15063161.664,1.5]', r.dinero);
     check('B1: el filtro de estados trae los de hoy y suma los viejos que existan', r.estadosBase === ',Pendiente,En ejecución,Cerrada' && r.estadosConViejos === ',Pendiente,En ejecución,Cerrada,Aprobada', r);
