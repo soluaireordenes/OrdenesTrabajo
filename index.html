@@ -7268,9 +7268,14 @@ function abrirModalCompletar(id) {
 
   // ── 1. Identificación
   document.getElementById('e_descripcion').value   = o.Title || '';
-  const gruposEditEquipo = EQUIPOS_POR_SEDE[operacionActual] || EQUIPOS_LISTADO_GENERAL;
-  document.getElementById('e_equipo').innerHTML = '<option value="">Seleccionar equipo...</option>' + _renderOptionsGrupo(gruposEditEquipo);
-  document.getElementById('e_equipo').value         = o.Equipo || '';
+  const selEquipo = document.getElementById('e_equipo');
+  selEquipo.innerHTML = '<option value="">Seleccionar equipo...</option>' + _renderOptionsGrupo(_gruposEquiposParaOrden(operacionActual));
+  // Si el equipo de la orden ya no está en la lista (por ejemplo, se dio de
+  // baja), se agrega para no perderlo: si no, al guardar quedaba en blanco.
+  if (o.Equipo && ![...selEquipo.options].some(op => op.value === o.Equipo)) {
+    selEquipo.insertAdjacentHTML('beforeend', `<option value="${esc(o.Equipo)}">${esc(o.Equipo)}</option>`);
+  }
+  selEquipo.value = o.Equipo || '';
   document.getElementById('e_tipo').value           = o.TipoMantenimiento || '';
   document.getElementById('e_prioridad').value      = o.Prioridad || 'Media';
   document.getElementById('e_solicitadaPor').value  = o.SolicitadaPor || '';
@@ -8311,6 +8316,16 @@ const OTROS_EQUIPOS_POR_SEDE = {
   ],
 };
 
+/** Grupos de equipos para elegir en una orden (y como destino de una salida
+ *  de inventario): los de la sede y, al final, sus "Otros equipos" de la
+ *  Hoja de Vida, sin los dados de baja. Así se les pueden hacer órdenes y
+ *  esas órdenes salen en su historial. */
+function _gruposEquiposParaOrden(sede) {
+  const grupos = EQUIPOS_POR_SEDE[sede] || EQUIPOS_LISTADO_GENERAL;
+  const otros = (OTROS_EQUIPOS_POR_SEDE[sede] || []).filter(e => !e.deBaja).map(e => e.nombre);
+  return otros.length ? { ...grupos, 'Otros equipos': otros } : grupos;
+}
+
 /** El equipo fijo de "Otros equipos" de la sede activa con ese nombre, o null. */
 function _otroEquipoFijo(nombre) {
   return (OTROS_EQUIPOS_POR_SEDE[operacionActual] || []).find(e => e.nombre === nombre) || null;
@@ -8885,8 +8900,9 @@ function inicializarCampoEquipo() {
   }
 
   // Sede con lista propia ya definida (EQUIPOS_POR_SEDE) — si aún no la
-  // tiene, cae de vuelta a la lista general compartida como respaldo.
-  const grupos = EQUIPOS_POR_SEDE[operacionActual] || EQUIPOS_LISTADO_GENERAL;
+  // tiene, cae de vuelta a la lista general compartida como respaldo. Al
+  // final van sus "Otros equipos" (extintores, equipos de alturas...).
+  const grupos = _gruposEquiposParaOrden(operacionActual);
   wrap.innerHTML = `
     <label>Equipo / Activo *</label>
     <select id="f_equipo">
@@ -15473,7 +15489,7 @@ function invRenderTablaServicios(servicios) {
 function invPoblarEquipos() {
   const sel = document.getElementById('invm_equipo');
   if (!sel) return;
-  const grupos = EQUIPOS_POR_SEDE[inventarioOperacionActual] || EQUIPOS_LISTADO_GENERAL;
+  const grupos = _gruposEquiposParaOrden(inventarioOperacionActual);
   const gruposConSedes = { ...grupos, Sedes: ['SEDE ANTIOQUIA', 'SEDE PERÚ', 'SEDE MÉXICO', 'SEDE SOACHA'] };
   sel.innerHTML = '<option value="">Seleccionar equipo...</option>' + _renderOptionsGrupo(gruposConSedes);
 }
