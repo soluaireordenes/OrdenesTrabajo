@@ -849,11 +849,6 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       const grupoOtros = [...document.querySelectorAll('#f_equipo optgroup')].find(g => g.label === 'Otros equipos');
       const opcionesOtros = grupoOtros ? [...grupoOtros.querySelectorAll('option')].map(o => o.value) : [];
       out.ordenOtros = { cantidad: opcionesOtros.length, hidro: opcionesOtros.includes('Hidrolavadora'), extintor: opcionesOtros.includes('Extintor multipropósito 6'), deBaja: opcionesOtros.includes('Tie off 2') };
-      paso('23: Al editar una orden de un equipo que ya no está en la lista ');
-      // Al editar una orden de un equipo que ya no está en la lista (de baja), no se pierde
-      allOrdenes = [{ id: 'T9', NumeroOrden: 'OT-9', Equipo: 'Tie off 2', Estado: 'Pendiente', Title: 'Revisión', tareas: [], repuestos: [], insumos: [], servicios: [] }];
-      try { abrirModalCompletar('T9'); out.ordenOtros.editar = document.getElementById('e_equipo').value; } catch (e) { out.ordenOtros.editar = 'error: ' + e.message; }
-      allOrdenes = [];
       paso('24: Menú: con la lista de sedes recogida se ofrece "Cambiar de s');
       // Menú: con la lista de sedes recogida se ofrece "Cambiar de sede", que la despliega
       operacionAutenticada = true; sidebarGrupoExpandido.operaciones = false; renderSidebarOperaciones();
@@ -894,7 +889,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       && r.otrosEquipos.lista === 'Hidrolavadora | Pulidora | Taladro | Arnés de cuerpo completo 1 | Arnés de cuerpo completo 2 | Tie off 1 | Tie off 2 De baja | Eslinga de restricción | Eslinga en Y 1 | Eslinga en Y 2 | EXT-1 — EXTINTOR'
       && r.otrosEquipos.sinVoltaje && r.otrosEquipos.historialDe === 'Tie off 2' && r.otrosEquipos.aviso, r.otrosEquipos);
     check('Órdenes: se pueden elegir los "Otros equipos" (27, sin el tie off de baja)',
-      r.ordenOtros.cantidad === 27 && r.ordenOtros.hidro && r.ordenOtros.extintor && !r.ordenOtros.deBaja && r.ordenOtros.editar === 'Tie off 2', r.ordenOtros);
+      r.ordenOtros.cantidad === 27 && r.ordenOtros.hidro && r.ordenOtros.extintor && !r.ordenOtros.deBaja, r.ordenOtros);
     check('Hoja de Vida: 18 extintores (12 CO2, 6 multipropósito) con recargas: avisa la vencida y se agregan fechas',
       r.extintores.total === 18 && r.extintores.co2 === 12 && r.extintores.multi === 6 && r.extintores.vencidaEnLista
       && /Recarga vencida desde/.test(r.extintores.recargaChip) && r.extintores.anexada === 'RecargasExtintores,Extintor CO2 1,2026-01-05,Proveedor', r.extintores);
@@ -906,6 +901,20 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Inicio: saludo con el nombre y las órdenes pendientes', /^Buen[oa]s (días|tardes|noches), Ana\b/.test(r.saludo) && /Hay 2 órdenes pendientes en .+, 1 urgente\./.test(r.saludo)
       && /Elige una operación/.test(r.saludoSinSede), { saludo: r.saludo, sinSede: r.saludoSinSede });
     check('Bajos: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Editar una orden de un equipo que ya no está en la lista (de baja): se conserva.
+    // Va en su propia página y espera a que el editor termine lo que deja
+    // programado (firmas, desplazamiento) antes de leer.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const editar = await p.evaluate(async () => {
+      allOrdenes = [{ id: 'T9', NumeroOrden: 'OT-9', Equipo: 'Tie off 2', Estado: 'Pendiente', Title: 'Revisión', tareas: [], repuestos: [], insumos: [], servicios: [] }];
+      abrirModalCompletar('T9');
+      await new Promise(x => setTimeout(x, 400));
+      return document.getElementById('e_equipo').value;
+    });
+    check('Órdenes: al editar una orden de un equipo que ya no está en la lista, el equipo se conserva', editar === 'Tie off 2' && errs.length === 0, { editar, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
