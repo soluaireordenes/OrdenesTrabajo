@@ -244,6 +244,10 @@ body::before {
 .emp-equipo:hover { background: var(--brand-light); }
 .emp-equipo.activo { background: var(--brand-light); color: var(--brand); font-weight: 700; }
 .emp-equipo span:first-child { flex: 1; min-width: 0; }
+.emp-seccion { margin: 18px 0 10px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--brand); }
+.emp-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.emp-tabla-evaluacion { min-width: 640px; }
+.emp-tabla-evaluacion td:first-child { min-width: 240px; }
 .emp-docs { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 /* Dentro de un .field, las etiquetas van en mayúscula pequeña y los inputs a
    todo lo ancho: aquí son casillas con su texto y el botón de la foto. */
@@ -9898,6 +9902,7 @@ const SH = {
   empalmeRecepcion: 'EmpalmeRecepcion',
   empalmeHallazgos: 'EmpalmeHallazgos',
   empalmeFotos: 'EmpalmeFotos',
+  empalmeEvaluacion: 'EmpalmeEvaluacion',
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
@@ -22845,7 +22850,57 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
    (HVDRepuestos) y la bodega entra al Inventario como ingresos de
    "Inventario inicial". El acta junta todo en un PDF para firmar.
 ══════════════════════════════════════════════ */
-const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha','UltimoMantDetalle','Documentacion','Observaciones','RecibidoPor','FechaRegistro'];
+const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha','UltimoMantDetalle','Documentacion','Observaciones','RecibidoPor','FechaRegistro',
+  'Identificacion','CapacidadTipo','Arrancador','Subestacion','TorreEnfriamiento','HojaVida','MantMayores','Garantias','Certificados',
+  'RepuestosEntregados','RepuestosCriticosFabricante','MonitoreoTurno'];
+// Información de cada equipo al recibirlo (Parte 1 del formato de empalme).
+// largo: se escribe en un cuadro de varias líneas.
+const EMPALME_CAMPOS_FICHA = {
+  equipo: [
+    { col: 'Identificacion', label: 'Identificación', ayuda: 'Marca / modelo / N.° de serie / año' },
+    { col: 'CapacidadTipo', label: 'Capacidad y tipo', ayuda: 'CFM, kW; centrífugo, tornillo o reciprocante' },
+    { col: 'Arrancador', label: 'Arrancador', ayuda: 'Tipo, marca, estado, protecciones' },
+    { col: 'Subestacion', label: 'Subestación de origen / capacidad del transformador' },
+    { col: 'TorreEnfriamiento', label: 'Torre de enfriamiento a la que está conectado' },
+  ],
+  historial: [
+    { col: 'HojaVida', label: 'Hoja de vida', ayuda: 'Mantenimientos previos, fallas registradas', largo: true },
+    { col: 'MantMayores', label: 'Registros de mantenimientos mayores', ayuda: 'Motores, cooler, limpiezas aerodinámicas', largo: true },
+  ],
+  documentos: [
+    { col: 'Garantias', label: 'Garantías vigentes' },
+    { col: 'Certificados', label: 'Certificados', ayuda: 'Calibración, válvulas de seguridad, recipientes a presión' },
+  ],
+  repuestos: [
+    { col: 'RepuestosEntregados', label: 'Repuestos entregados físicamente', largo: true },
+    { col: 'RepuestosCriticosFabricante', label: 'Repuestos críticos recomendados por el fabricante', largo: true },
+  ],
+  operacion: [
+    { col: 'MonitoreoTurno', label: 'Monitoreo de variables de cada turno', ayuda: 'Qué variables se registran en cada turno y dónde', largo: true },
+  ],
+};
+// Evaluación técnica de los compresores (Parte 2, A. Compresores). El id es
+// la clave en la hoja: si se reescribe el texto, lo guardado no se pierde.
+const EMPALME_EVALUACION_COMPRESORES = [
+  { id: 'aceite',        texto: 'Análisis de aceite (muestra de línea base antes de operar)' },
+  { id: 'vibraciones',   texto: 'Medición de vibraciones' },
+  { id: 'inspeccion',    texto: 'Inspección visual: fugas, corrosión, aislamiento térmico/acústico' },
+  { id: 'arranqueVacio', texto: 'Prueba de arranque en vacío' },
+  { id: 'arranqueCarga', texto: 'Prueba de arranque con carga' },
+  { id: 'alineacion',    texto: 'Alineación motor-compresor' },
+  { id: 'filtrosAire',   texto: 'Estado de filtros de aire' },
+  { id: 'filtrosAceite', texto: 'Estado de filtros/separadores de aceite' },
+  { id: 'valvulas',      texto: 'Estado general de válvulas e instrumentación local (sensores)' },
+  { id: 'drenajes',      texto: 'Estado de drenajes. ¿Funcionan?' },
+  { id: 'flujoRespaldo', texto: 'Medición de flujo a los equipos que van a quedar de respaldo (antes y después)' },
+];
+const EMPALME_ESTADOS_EVALUACION = [
+  { valor: 'Bueno', clase: 'operativo' },
+  { valor: 'Regular', clase: 'fallas' },
+  { valor: 'Malo', clase: 'fuera' },
+  { valor: 'No aplica', clase: '' },
+];
+const EMPALME_EVALUACION_COLS = ['Clave','Equipo','Item','Descripcion','Estado','Observaciones','EvaluadoPor','FechaRegistro'];
 const EMPALME_HALLAZGOS_COLS = ['ID','Equipo','Descripcion','Prioridad','Estado','OrdenNumero','RegistradoPor','FechaRegistro'];
 const EMPALME_FOTOS_COLS = ['Equipo','DriveFileId','UrlVer','SubidoPor','FechaHora'];
 const EMPALME_ESTADOS_EQUIPO = [
@@ -22853,13 +22908,13 @@ const EMPALME_ESTADOS_EQUIPO = [
   { valor: 'Operativo con fallas', clase: 'fallas' },
   { valor: 'Fuera de servicio', clase: 'fuera' },
 ];
-const EMPALME_DOCUMENTOS = ['Manual del fabricante', 'Historial de mantenimiento', 'Planos o diagramas', 'Certificados o garantías'];
+const EMPALME_DOCUMENTOS = ['Manual de operación', 'Manual de mantenimiento', 'Planos'];
 const EMPALME_PRIORIDAD_ORDEN = { Alta: 0, Media: 1, Baja: 2 };
 const EMPALME_EQUIPO_GENERAL = 'Planta (general)';
 const EMPALME_OBS_BODEGA = 'Inventario inicial — empalme de entrega';
 const EMPALME_TIPOS_PRODUCTO = ['Repuestos', 'Insumos', 'Herramienta', 'Seguridad'];
 
-let _emp = { recepcion: [], hallazgos: [], fotos: [], repuestos: [] };
+let _emp = { recepcion: [], hallazgos: [], fotos: [], repuestos: [], evaluacion: [] };
 let _empEquipoActual = null;
 
 function _empalmeDisponible(sede) { return EMPALME_SEDES.includes(sede); }
@@ -22896,16 +22951,35 @@ async function _empCargarDatos() {
     asegurarHoja(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS),
     asegurarHoja(SH.empalmeFotos, EMPALME_FOTOS_COLS),
     asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS),
+    asegurarHoja(SH.empalmeEvaluacion, EMPALME_EVALUACION_COLS),
   ]);
-  const [recepcion, hallazgos, fotos, repuestos] = await Promise.all([
+  const [recepcion, hallazgos, fotos, repuestos, evaluacion] = await Promise.all([
     leerHojaGenericaCacheada(SH.empalmeRecepcion), leerHojaGenericaCacheada(SH.empalmeHallazgos),
     leerHojaGenericaCacheada(SH.empalmeFotos), leerHojaGenericaCacheada(SH.hvdRepuestos),
+    leerHojaGenericaCacheada(SH.empalmeEvaluacion),
   ]);
   const equipos = new Set(_empEquiposSede(operacionActual));
   _emp = {
     recepcion: recepcion.map(f => ({ ...f })), hallazgos: hallazgos.map(h => ({ ...h })),
     fotos: fotos.map(f => ({ ...f })), repuestos: repuestos.filter(r => equipos.has(r.Equipo)).map(r => ({ ...r })),
+    evaluacion: evaluacion.map(f => ({ ...f })),
   };
+}
+
+/** La evaluación técnica guardada de un equipo, por id de ítem. */
+function _empEvaluacion(equipo) {
+  const out = {};
+  (_emp.evaluacion || []).filter(f => f.Equipo === equipo).forEach(f => { out[f.Item] = f; });
+  return out;
+}
+/** Compresores con los once ítems de la evaluación técnica calificados. */
+function _empCompresoresEvaluados() {
+  const compresores = _pmGruposEquipos(operacionActual).flatMap(g => g.equipos);
+  const completos = compresores.filter(e => {
+    const ev = _empEvaluacion(e);
+    return EMPALME_EVALUACION_COMPRESORES.every(i => ev[i.id]?.Estado);
+  });
+  return { completos: completos.length, total: compresores.length };
 }
 
 async function inicializarPanelEmpalme() {
@@ -22958,11 +23032,13 @@ function _empRenderKpis() {
   const enOrden = _emp.hallazgos.filter(h => h.Estado === 'En orden').length;
   const comprar = _emp.repuestos.filter(r => r.Bodega === 'Comprar');
   const criticos = comprar.filter(r => r.Critico === 'SI').length;
+  const ev = _empCompresoresEvaluados();
   document.getElementById('empKpis').innerHTML = `
     <div class="emp-kpi">
       <div class="emp-kpi-label">Equipos recibidos</div>
       <div class="emp-kpi-num">${recibidos} <small>de ${equipos.length}</small></div>
       <div class="emp-barra" role="progressbar" aria-label="Equipos recibidos" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+      ${ev.total ? `<div class="emp-kpi-sub">Evaluación técnica completa: ${ev.completos} de ${ev.total} compresores</div>` : ''}
     </div>
     <div class="emp-kpi">
       <div class="emp-kpi-label">Hallazgos abiertos</div>
@@ -23018,39 +23094,102 @@ function empRenderFicha() {
   }
   const f = _empFicha(equipo) || {};
   const docs = String(f.Documentacion || '').split('|').filter(Boolean);
+  // Lo marcado con opciones de antes se sigue viendo, para no perderlo al guardar.
+  const opcionesDocs = [...EMPALME_DOCUMENTOS, ...docs.filter(d => !EMPALME_DOCUMENTOS.includes(d))];
   const fotos = _emp.fotos.filter(x => x.Equipo === equipo);
+  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label>${c.largo
+    ? `<textarea id="empf_${c.col}" class="empf-campo" data-col="${c.col}" rows="2" placeholder="${esc(c.ayuda || '')}">${esc(f[c.col] || '')}</textarea>`
+    : `<input id="empf_${c.col}" class="empf-campo" data-col="${c.col}" value="${esc(f[c.col] || '')}" placeholder="${esc(c.ayuda || '')}">`}</div>`;
+  const seccion = (titulo, contenido) => `<div class="emp-seccion">${esc(titulo)}</div><div class="emp-campos">${contenido}</div>`;
   cont.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
       <div style="flex:1;font-weight:800;font-size:15px;color:var(--brand)">${esc(equipo)}</div>
       <span id="empfChip">${_empChipEstado(f.Estado)}</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+    ${seccion('Recepción', `
       <div class="field" style="margin:0"><label for="empf_estado">Estado al recibir *</label>
         <select id="empf_estado"><option value="">Elegir…</option>${EMPALME_ESTADOS_EQUIPO.map(e => `<option${e.valor === f.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></div>
-      <div class="field" style="margin:0"><label for="empf_horometro">Horómetro al recibir (h)</label>
-        <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>
-      <div class="field" style="margin:0"><label for="empf_mantFecha">Último mantenimiento conocido</label>
+      <div class="field" style="margin:0"><label for="empf_horometro">Horómetro / horas al momento de entrega</label>
+        <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>`)}
+    ${seccion('Información del equipo', EMPALME_CAMPOS_FICHA.equipo.map(campo).join(''))}
+    ${seccion('Historial y documentos', `
+      ${EMPALME_CAMPOS_FICHA.historial.map(campo).join('')}
+      <div class="field" style="margin:0"><label for="empf_mantFecha">Último mantenimiento: fecha</label>
         <input id="empf_mantFecha" type="date" value="${esc(f.UltimoMantFecha || '')}"></div>
-      <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_mantDetalle">Qué se le hizo en ese mantenimiento</label>
-        <input id="empf_mantDetalle" value="${esc(f.UltimoMantDetalle || '')}" placeholder="Ej: cambio de aceite y filtros, según el contratista anterior"></div>
-      <div class="field" style="margin:0;grid-column:1/-1"><label>Documentación que entregaron</label>
-        <div class="emp-docs">${EMPALME_DOCUMENTOS.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
+      <div class="field" style="margin:0"><label for="empf_mantDetalle">Último mantenimiento: tipo y responsable</label>
+        <input id="empf_mantDetalle" value="${esc(f.UltimoMantDetalle || '')}" placeholder="Ej: preventivo anual, contratista anterior"></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Manuales entregados</label>
+        <div class="emp-docs">${opcionesDocs.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
+      ${EMPALME_CAMPOS_FICHA.documentos.map(campo).join('')}`)}
+    ${seccion('Repuestos', EMPALME_CAMPOS_FICHA.repuestos.map(campo).join(''))}
+    ${seccion('Operación', `
+      ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
-        <textarea id="empf_obs" rows="3" placeholder="Fugas, ruidos, vibraciones, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>
-      <div class="field" style="margin:0;grid-column:1/-1"><label>Fotos (placa y estado general)</label>
+        <textarea id="empf_obs" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
+    ${seccion('Fotos (placa y estado general)', `
+      <div style="grid-column:1/-1">
         <div class="emp-fotos" id="empf_fotos">${fotos.map(_empHtmlFoto).join('')}
-          <label class="btn btn-ghost" style="cursor:pointer;font-size:12px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto
+          <label class="btn btn-ghost" style="cursor:pointer;font-size:12px;font-weight:600"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto
             <input type="file" accept="image/*" style="display:none" onchange="empSubirFoto(this)"></label>
         </div>
-        <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div></div>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px">
+        <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div>
+      </div>`)}
+    ${_empLlevaHoras(equipo) ? _empHtmlEvaluacion(equipo) : ''}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
       <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
       <button class="btn btn-ghost" onclick="empNuevoHallazgoDe(${_jsArg(equipo)})">Registrar un hallazgo de este equipo</button>
       <span id="empfMsg" style="font-size:12.5px"></span>
     </div>
     ${f.RecibidoPor ? `<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Última actualización: ${esc(f.RecibidoPor)} · ${esc(_empFechaLegible(f.FechaRegistro))}</div>` : ''}`;
   _empCargarMiniaturas(fotos);
+}
+
+/** Tabla de la evaluación técnica de un compresor: cada ítem con su estado
+ *  y observaciones. */
+function _empHtmlEvaluacion(equipo) {
+  const ev = _empEvaluacion(equipo);
+  return `<div class="emp-seccion">Evaluación técnica del compresor</div>
+    <div style="overflow-x:auto">
+      <table class="dyn-table emp-tabla-evaluacion">
+        <thead><tr><th>Ítem a verificar</th><th style="width:150px">Estado</th><th>Observaciones</th></tr></thead>
+        <tbody>${EMPALME_EVALUACION_COMPRESORES.map(item => {
+          const fila = ev[item.id] || {};
+          return `<tr data-item="${esc(item.id)}">
+            <td style="padding:6px 8px;font-size:13px">${esc(item.texto)}</td>
+            <td><select data-campo="estado" aria-label="Estado: ${esc(item.texto)}"><option value="">Sin evaluar</option>${
+              EMPALME_ESTADOS_EVALUACION.map(e => `<option${e.valor === fila.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></td>
+            <td><input data-campo="observaciones" aria-label="Observaciones: ${esc(item.texto)}" value="${esc(fila.Observaciones || '')}" placeholder="Valores medidos, qué se vio"></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+/** Guarda la evaluación técnica en pantalla: un renglón por ítem en
+ *  EmpalmeEvaluacion (clave "equipo|ítem"). Los ítems en blanco que nunca se
+ *  calificaron no se escriben. */
+async function _empGuardarEvaluacion(equipo) {
+  const filasPantalla = [...document.querySelectorAll('.emp-tabla-evaluacion tbody tr')];
+  if (!filasPantalla.length) return;
+  const ev = _empEvaluacion(equipo);
+  const ahora = new Date().toISOString();
+  const cambios = {};
+  filasPantalla.forEach(tr => {
+    const id = tr.dataset.item;
+    const item = EMPALME_EVALUACION_COMPRESORES.find(i => i.id === id);
+    const estado = tr.querySelector('[data-campo="estado"]').value;
+    const obs = tr.querySelector('[data-campo="observaciones"]').value.trim();
+    const antes = ev[id];
+    if (!antes && !estado && !obs) return;
+    if (antes && antes.Estado === estado && (antes.Observaciones || '') === obs) return;
+    cambios[equipo + '|' + id] = { Equipo: equipo, Item: id, Descripcion: item.texto, Estado: estado, Observaciones: obs, EvaluadoPor: _empQuien(), FechaRegistro: ahora };
+  });
+  if (!Object.keys(cambios).length) return;
+  await _actualizarFilasPorClaveEnLote(SH.empalmeEvaluacion, EMPALME_EVALUACION_COLS, 'Clave', cambios);
+  Object.entries(cambios).forEach(([clave, datos]) => {
+    const existente = (_emp.evaluacion || []).find(f => f.Clave === clave);
+    if (existente) Object.assign(existente, datos); else (_emp.evaluacion = _emp.evaluacion || []).push({ Clave: clave, ...datos });
+  });
 }
 
 /** Si el equipo lleva horas en el Plan de Mantenimiento (los compresores). */
@@ -23093,11 +23232,13 @@ async function empGuardarFicha() {
     Observaciones: document.getElementById('empf_obs').value.trim(),
     RecibidoPor: _empQuien(), FechaRegistro: new Date().toISOString(),
   };
+  document.querySelectorAll('#empFicha .empf-campo').forEach(el => { datos[el.dataset.col] = el.value.trim(); });
   const btn = document.getElementById('empfBtnGuardar');
   btn.disabled = true;
   _empMensaje('empfMsg', 'Guardando…');
   try {
     await _actualizarFilaPorClave(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS, 'Equipo', equipo, datos);
+    await _empGuardarEvaluacion(equipo);
     let extra = '';
     if (horometro && _empLlevaHoras(equipo)) {
       await _empPasarHorometro(equipo, Number(horometro), anterior?.Horometro);
@@ -23530,7 +23671,7 @@ function _htmlActaEmpalme(sede, bodega) {
 
   const tablaEquipos = grupos.map(g => `
     <div class="grupo">${esc(g.grupo)}</div>
-    <table><thead><tr><th style="width:15%">Equipo</th><th style="width:13%">Estado</th><th style="width:10%">Horómetro</th><th style="width:18%">Último mantenimiento</th><th style="width:17%">Documentación</th><th>Observaciones</th></tr></thead><tbody>
+    <table><thead><tr><th style="width:15%">Equipo</th><th style="width:13%">Estado</th><th style="width:10%">Horómetro</th><th style="width:18%">Último mantenimiento</th><th style="width:17%">Manuales entregados</th><th>Observaciones</th></tr></thead><tbody>
     ${g.equipos.map(e => {
       const f = _empFicha(e) || {};
       const fotos = _emp.fotos.filter(x => x.Equipo === e).length;
@@ -23540,6 +23681,26 @@ function _htmlActaEmpalme(sede, bodega) {
         <td>${v(String(f.Documentacion || '').split('|').filter(Boolean).join(', '))}</td>
         <td>${v(f.Observaciones)}${fotos ? `<br><span class="mut">${fotos} ${fotos === 1 ? 'foto' : 'fotos'} en el sistema</span>` : ''}</td></tr>`;
     }).join('')}</tbody></table>`).join('');
+
+  // Detalle por equipo: solo los campos que se llenaron y, en los
+  // compresores, los ítems de la evaluación técnica que tienen calificación.
+  const camposDetalle = [...EMPALME_CAMPOS_FICHA.equipo, ...EMPALME_CAMPOS_FICHA.historial, ...EMPALME_CAMPOS_FICHA.documentos,
+    ...EMPALME_CAMPOS_FICHA.repuestos, ...EMPALME_CAMPOS_FICHA.operacion];
+  const compresores = new Set(_pmGruposEquipos(sede).flatMap(g => g.equipos));
+  const detalle = equipos.map(e => {
+    const f = _empFicha(e) || {};
+    const llenos = camposDetalle.filter(c => String(f[c.col] || '').trim());
+    const ev = _empEvaluacion(e);
+    const items = compresores.has(e) ? EMPALME_EVALUACION_COMPRESORES.filter(i => ev[i.id]?.Estado || ev[i.id]?.Observaciones) : [];
+    if (!llenos.length && !items.length) return '';
+    return `<div class="equipo-detalle">
+      <div class="grupo">${esc(e)}${f.Estado ? ' · ' + esc(f.Estado) : ''}</div>
+      ${llenos.length ? `<table class="kv"><tbody>${llenos.map(c => `<tr><th>${esc(c.label)}</th><td style="white-space:pre-line">${esc(f[c.col])}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${items.length ? `<table><thead><tr><th>Evaluación técnica</th><th style="width:12%">Estado</th><th style="width:38%">Observaciones</th></tr></thead><tbody>
+        ${items.map(i => `<tr><td>${esc(i.texto)}</td><td>${v(ev[i.id].Estado)}</td><td>${v(ev[i.id].Observaciones)}</td></tr>`).join('')}</tbody></table>` : ''}
+    </div>`;
+  }).join('');
+  const evaluados = equipos.filter(e => compresores.has(e) && EMPALME_EVALUACION_COMPRESORES.every(i => _empEvaluacion(e)[i.id]?.Estado)).length;
 
   const tablaHallazgos = hallazgos.length
     ? `<table><thead><tr><th style="width:10%">Prioridad</th><th style="width:15%">Equipo</th><th>Qué se encontró</th><th style="width:16%">Estado</th></tr></thead><tbody>
@@ -23571,6 +23732,8 @@ function _htmlActaEmpalme(sede, bodega) {
   .sub{font-size:11px;color:#666;margin-bottom:18px}
   .section-title{background:#e8eef7;color:#02457A;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:6px 10px;margin:18px 0 10px;border-left:3px solid #02457A}
   .grupo{font-size:11px;font-weight:700;color:#02457A;text-transform:uppercase;margin:12px 0 6px}
+  .equipo-detalle{page-break-inside:avoid;margin-bottom:8px}
+  table.kv th{background:#f0f3f8;color:#02457A;width:32%;text-transform:none;font-size:10.5px}
   .resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
   .dato{padding:8px 10px;background:#f5f5f5;border-radius:4px}
   .dato b{display:block;font-size:18px;color:#02457A}
@@ -23599,10 +23762,13 @@ function _htmlActaEmpalme(sede, bodega) {
   <div class="dato"><b>${comprar.length}</b>repuestos por comprar</div>
   <div class="dato"><b>${bodega ? bodega.length : '—'}</b>productos en bodega</div>
   <div class="dato"><b>${sinRecibir}</b>equipos sin recibir</div>
+  ${compresores.size ? `<div class="dato"><b>${evaluados} de ${compresores.size}</b>compresores con evaluación técnica completa</div>` : ''}
 </div>
 
 <div class="section-title">Estado de los equipos al recibir</div>
 ${tablaEquipos}
+
+${detalle ? `<div class="section-title">Detalle por equipo</div>\n${detalle}` : ''}
 
 <div class="section-title">Hallazgos</div>
 ${tablaHallazgos}
