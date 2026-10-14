@@ -9592,6 +9592,26 @@ const INFORME_EQUIPOS_POR_TIPO = {
   compresores: ['CB1', 'CB2', 'CB3', 'CB4', 'CA1', 'CA2', 'CA3'],
   tornillo: ['COMPRESOR DE EMERGENCIA NX200', 'COMPRESOR EMERGENCIA IR160', 'COMPRESOR DECORADO NX55', 'COMPRESOR DECORADO NX18'],
 };
+
+/** Equipos que muestra el Plan de Mantenimiento de cada sede (Registro y
+ *  Configuración), en grupos. Zipaquirá usa los tipos de los informes por
+ *  horas. Zipaquirá 2 tiene sus compresores de baja y alta presión; los
+ *  secadores no van, porque el plan por horas es solo de compresores, igual
+ *  que en Zipaquirá. Una sede sin lista propia muestra la de Zipaquirá. */
+const PM_GRUPOS_POR_SEDE = {
+  zipaquira2: [
+    { nombre: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
+    { nombre: 'Alta Presión', equipos: EQUIPOS_ZIPAQUIRA2['Alta Presión'] },
+  ],
+};
+function _pmGruposEquipos(sede) {
+  return PM_GRUPOS_POR_SEDE[sede] || INFORME_TIPOS_EQUIPO.map(t => ({ nombre: t.nombreTipo, equipos: INFORME_EQUIPOS_POR_TIPO[t.tipo] }));
+}
+/** Solo Zipaquirá genera órdenes automáticas por horas: es la única sede
+ *  con Cronograma, que es de donde salen las horas. */
+function _pmGeneraOrdenesAutomaticas(sede) {
+  return sede === 'zipaquira';
+}
 /** Los 4 compresores de emergencia y decorado son de TORNILLO, no
  *  centrifugos como los 7 de alta y baja, asi que su mantenimiento es
  *  otro: no tiene sentido pedirles cojinetes, bomba auxiliar o limpieza
@@ -14285,12 +14305,6 @@ function volverDePlanMantenimiento() {
   renderSidebarOperaciones();
 }
 
-/** Grupos de equipo que se muestran en el cuadro de "Horas de Operación
- *  de Equipos" — la misma clasificación que usa el filtro "Tipo de
- *  equipo" de los informes periódicos, ya que es de ahí de donde se
- *  alimentan (además de los planes de mantenimiento por horas). */
-const REGISTRO_HORAS_GRUPOS = INFORME_TIPOS_EQUIPO;
-
 /** Pinta el cuadro de "Horas de Operación de Equipos": todos los equipos
  *  agrupados por tipo, cada uno con un campo para digitar sus horas
  *  actuales. Reemplaza el formulario anterior (uno-a-la-vez) por un
@@ -14317,14 +14331,16 @@ async function pmRenderRegistroHoras() {
     return fila && fila.UltimaActualizacion ? fila.UltimaActualizacion : '';
   }
   // Equipos cuyo formulario de reporte SI trae horometro. Los demas no
-  // pueden recibir horas solas: su reporte no las captura.
+  // pueden recibir horas solas: su reporte no las captura. Una sede sin
+  // Cronograma no tiene reportes, así que ahí solo se dice que no hay horas.
   const conHorometro = new Set(Object.values(EQUIPO_REPORTE_A_HORAS));
+  const conCronograma = !!CRONOGRAMA_POR_SEDE[planMantOperacionActual];
 
-  cont.innerHTML = REGISTRO_HORAS_GRUPOS.map(grupo => `
+  cont.innerHTML = _pmGruposEquipos(planMantOperacionActual).map(grupo => `
     <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(grupo.nombreTipo)}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(grupo.nombre)}</div>
       <table class="ie-table"><thead><tr><th>Equipo</th><th style="width:160px">Horas actuales</th><th style="width:220px">Última actualización</th></tr></thead><tbody>
-        ${INFORME_EQUIPOS_POR_TIPO[grupo.tipo].map(eq => {
+        ${grupo.equipos.map(eq => {
           const h = horasDe(eq);
           const cuando = actualizadoDe(eq);
           return `<tr>
@@ -14332,6 +14348,7 @@ async function pmRenderRegistroHoras() {
           <td style="font-variant-numeric:tabular-nums">${h === '' || h === undefined ? '<span style="color:var(--text3)">—</span>' : esc(Number(h).toLocaleString('es-CO')) + ' h'}</td>
           <td style="font-size:12px;color:var(--text3)">${
             cuando ? esc(cuando)
+                   : !conCronograma ? 'Sin horas registradas'
                    : (conHorometro.has(eq) ? 'Sin reportes todavía'
                                            : '<span style="color:#b45309">Su reporte no captura horómetro</span>')
           }</td>
@@ -14500,7 +14517,8 @@ async function pmRenderHoraBase() {
     (allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean)
   );
 
-  const equipos = Object.values(INFORME_EQUIPOS_POR_TIPO).flat();
+  const equipos = _pmGruposEquipos(planMantOperacionActual).flatMap(g => g.equipos);
+  const generaOrdenes = _pmGeneraOrdenesAutomaticas(planMantOperacionActual);
   const filas = equipos.map(eq => {
     const f = horasEquipos.find(x => x.Equipo === eq) || {};
     const actuales = f.HorasActuales === '' || f.HorasActuales === undefined ? null : Number(f.HorasActuales);
@@ -14510,6 +14528,8 @@ async function pmRenderHoraBase() {
     if (actuales === null || isNaN(actuales) || actuales <= 0) {
       estadoTxt = 'Sin horas registradas — no puede generar nada';
       color = '#b91c1c';
+    } else if (!generaOrdenes) {
+      estadoTxt = 'Esta sede todavía no genera órdenes automáticas';
     } else {
       const pendientes = [], proximas = [];
       for (const k of ['trimestral', 'semestral', 'anual']) {
@@ -14615,6 +14635,13 @@ async function pmRenderActividadesInforme(frecuencia, tipo) {
   const selT = document.getElementById('pmActTipo');
   frecuencia = frecuencia || (selF && selF.value) || INFORME_FRECUENCIAS[0].key;
   tipo = tipo || (selT && selT.value) || INFORME_TIPOS_EQUIPO[0].tipo;
+
+  // Las actividades solo sirven para las órdenes automáticas; en una sede
+  // que no las genera, el editor mostraría equipos de otra sede.
+  if (!_pmGeneraOrdenesAutomaticas(planMantOperacionActual)) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Las actividades de los informes por horas aplican a los equipos de Zipaquirá — todavía no están disponibles para esta sede.</div>';
+    return;
+  }
 
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
   let filas = [];
@@ -22919,7 +22946,7 @@ async function _resolverActividadesInforme(frecuencia, defaultsPorTipo) {
 }
 
 async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCorto, actividadesPorTipo, marcas, hojaEstado, colsEstado, equiposYaConOrden }) {
-  if (operacionActual !== 'zipaquira') return { creadas: 0, sembradas: 0, error: 'Los informes por horas solo aplican a Zipaquirá (operación actual: ' + operacionActual + ').' };
+  if (!_pmGeneraOrdenesAutomaticas(operacionActual)) return { creadas: 0, sembradas: 0, error:'Los informes por horas solo aplican a Zipaquirá (operación actual: ' + operacionActual + ').' };
 
   // Set compartido entre las tres frecuencias en una misma revisión: guarda
   // los equipos a los que YA se les generó una orden de mayor jerarquía en
