@@ -58,7 +58,70 @@ async function nuevaPagina(b, rutas = {}) {
   return { ctx, p, errs };
 }
 
-const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+/** Google Sheets en memoria, para las pruebas que escriben y vuelven a leer.
+ *  Atiende lo que usa la app: leer rangos, escribir, anexar, crear pestañas y
+ *  borrar filas. Un libro por spreadsheetId. */
+function sheetsEnMemoria() {
+  const libros = {};
+  let sigId = 1;
+  const libro = id => (libros[id] = libros[id] || { pestanas: {} });
+  const colANum = l => l.toUpperCase().split('').reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+  const rango = txt => {
+    const [hoja, r = ''] = txt.split('!');
+    const m = r.match(/^([A-Z]*)(\d*)(?::([A-Z]*)(\d*))?$/i) || [];
+    const fila = m[2] ? Number(m[2]) - 1 : 0;
+    return { hoja, fila, col: m[1] ? colANum(m[1]) : 0,
+      filaFin: m[4] ? Number(m[4]) - 1 : (m[2] && m[3] === undefined ? fila : Infinity),
+      colFin: m[3] ? colANum(m[3]) : (m[1] && m[3] === undefined ? colANum(m[1]) : Infinity) };
+  };
+  const escribir = (L, txt, valores) => {
+    const r = rango(txt); const p = L.pestanas[r.hoja];
+    valores.forEach((fila, i) => {
+      const destino = (p.filas[r.fila + i] = p.filas[r.fila + i] || []);
+      fila.forEach((v, j) => { destino[r.col + j] = String(v); });
+    });
+    for (let k = 0; k < p.filas.length; k++) p.filas[k] = p.filas[k] || [];
+  };
+  const route = async route => {
+    const req = route.request();
+    const url = decodeURIComponent(req.url());
+    const [, id, resto] = url.match(/\/v4\/spreadsheets\/([^/?:]+)(.*)$/);
+    const L = libro(id);
+    const cuerpo = req.postData() ? JSON.parse(req.postData()) : null;
+    const json = (status, b) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
+    if (!resto || resto.startsWith('?')) return json(200, { sheets: Object.entries(L.pestanas).map(([title, p]) => ({ properties: { sheetId: p.id, title } })) });
+    if (resto.startsWith(':batchUpdate')) {
+      for (const rq of cuerpo.requests || []) {
+        if (rq.addSheet) {
+          const t = rq.addSheet.properties.title;
+          if (L.pestanas[t]) return json(400, { error: { message: `A sheet with the name "${t}" already exists.` } });
+          L.pestanas[t] = { id: sigId++, filas: [] };
+        }
+        if (rq.deleteDimension) {
+          const r = rq.deleteDimension.range;
+          Object.values(L.pestanas).find(x => x.id === r.sheetId).filas.splice(r.startIndex, r.endIndex - r.startIndex);
+        }
+      }
+      return json(200, { replies: [] });
+    }
+    if (resto.startsWith('/values:batchUpdate')) { cuerpo.data.forEach(d => escribir(L, d.range, d.values)); return json(200, {}); }
+    const mv = resto.match(/^\/values\/([^?]+?)(:append)?(\?.*)?$/);
+    const r = rango(mv[1]); const p = L.pestanas[r.hoja];
+    if (!p) return json(400, { error: { code: 400, message: 'Unable to parse range: ' + mv[1], status: 'INVALID_ARGUMENT' } });
+    if (mv[2]) { p.filas.push(...cuerpo.values.map(f => f.map(String))); return json(200, { updates: {} }); }
+    if (req.method() === 'PUT') { escribir(L, mv[1], cuerpo.values); return json(200, {}); }
+    const filas = p.filas.slice(r.fila, r.filaFin === Infinity ? undefined : r.filaFin + 1)
+      .map(f => f.slice(r.col, r.colFin === Infinity ? undefined : r.colFin + 1));
+    return json(200, { values: filas });
+  };
+  return {
+    route,
+    crear: (id, nombre, filas) => { libro(id).pestanas[nombre] = { id: sigId++, filas: filas.map(f => f.map(String)) }; },
+    hoja: (id, nombre) => (libros[id] && libros[id].pestanas[nombre] ? libros[id].pestanas[nombre].filas : []),
+  };
+}
+
+const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 
 (async () => {
   const srv = await iniciarServidor();
@@ -247,18 +310,20 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
 
-  // 8) Repuestos de la Hoja de Vida (sin Ubicación)
+  // 8) Repuestos de la Hoja de Vida (sin Ubicación; con N° de parte, crítico, bodega y proveedor)
   {
     const { ctx, p } = await nuevaPagina(b);
     const r = await p.evaluate(() => {
       usuarioRol = 'admin';
       const host = document.createElement('div');
-      host.innerHTML = `<table><tbody id="hvd_tbody_repuestos">${_htmlFilaRepuestoHVD({ codigo: 'C1', nombre: 'Filtro', cantidad: '2', ubicacion: 'B', observacion: 'o' })}</tbody></table>`;
+      host.innerHTML = `<table><tbody id="hvd_tbody_repuestos">${_htmlFilaRepuestoHVD({ codigo: 'C1', nombre: 'Filtro', cantidad: '2', ubicacion: 'B', observacion: 'o', numeroParte: 'P-9', critico: true, bodega: 'Comprar', proveedor: 'Prov' })}</tbody></table>`;
       document.body.appendChild(host);
       const leido = _leerRepuestosEditorHVD()[0];
-      return { inputs: host.querySelectorAll('input').length, leido };
+      return { campos: [...host.querySelectorAll('[data-campo]')].map(e => e.dataset.campo).join(','), leido };
     });
-    check('Repuestos HVD: Código, Repuesto, Cantidad, Observación', r.inputs === 4 && r.leido.cantidad === '2' && r.leido.ubicacion === '' && r.leido.observacion === 'o', r);
+    check('Repuestos HVD: código, repuesto, N° de parte, cantidad, crítico, bodega, proveedor y observación (sin Ubicación)',
+      r.campos === 'codigo,nombre,numeroParte,cantidad,critico,bodega,proveedor,observacion' && r.leido.cantidad === '2' && r.leido.ubicacion === ''
+      && r.leido.observacion === 'o' && r.leido.numeroParte === 'P-9' && r.leido.critico === true && r.leido.bodega === 'Comprar' && r.leido.proveedor === 'Prov', r);
     await ctx.close();
   }
 
@@ -493,6 +558,10 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         async () => { const t = await _invAdquirirLock(_invSpreadsheetId('zipaquira')); await _invLiberarLock(_invSpreadsheetId('zipaquira'), t); },
         () => _origenesInformeEnSheets(),
         () => guardarOrdenEnSheets({ NumeroOrden: 'OT-P1', Title: 'x', tareas: [{ descripcion: 'y' }] }, { reintento: true }),
+        // Empalme de entrega: lo que llena el operario en planta.
+        () => _actualizarFilaPorClave(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS, 'Equipo', 'JOY 2', { Estado: 'Operativo' }),
+        () => appendHoja(SH.empalmeHallazgos, [['H-1', 'JOY 2', 'Fuga', 'Alta', 'Abierto', '', 'Op', '2026-10-14']]),
+        () => appendHoja(SH.empalmeFotos, [['JOY 2', 'F1', '', 'Op', '2026-10-14']]),
       ];
       for (const paso of pasos) { try { await paso(); } catch (e) { fallos.push(String(e.message).slice(0, 120)); } await new Promise(x => setTimeout(x, 250)); }
       const sedeOk = await validarClaveSedeDirecto('zipaquira', 'clave-sede');
@@ -941,6 +1010,122 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Zipaquirá 2: su propia lista de equipos (4 grupos, 31 equipos sin repetidos) en órdenes y Hoja de Vida; Soacha sigue con la general',
       r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores' && r.total === 31 && r.unicos === 31
       && r.sinGeneral && r.hvd === 31 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
+    // Empalme de entrega de Zipaquirá 2, de punta a punta, contra Sheets en memoria
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const ids = await p.evaluate(() => ({ ord: OPERACIONES.zipaquira2.spreadsheetId, inv: INVENTARIO_SHEETS.zipaquira2 }));
+    fake.crear(ids.inv, 'Config', [['hash']]);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const hasta = async cond => { for (let i = 0; i < 80 && !cond(); i++) await espera(100); };
+      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirm = () => true;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      renderSidebarOperaciones();
+      const out = { menu: /Empalme de entrega/.test(document.getElementById('sidebarOperaciones').innerText) };
+      await showPanel('empalme'); await hasta(() => document.querySelector('#empListaEquipos .emp-equipo'));
+      out.lista = document.querySelectorAll('#empListaEquipos .emp-equipo').length;
+      out.kpiAntes = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
+
+      // 1. Ficha de recepción
+      empSeleccionarEquipo('JOY 2');
+      document.getElementById('empf_horometro').value = '45210';
+      await empGuardarFicha();
+      out.sinEstado = document.getElementById('empfMsg').textContent;
+      document.getElementById('empf_estado').value = 'Operativo con fallas';
+      document.querySelectorAll('.empf-doc')[0].checked = true;
+      document.getElementById('empf_obs').value = 'Fuga leve en el enfriador';
+      await empGuardarFicha();
+      out.fichaMsg = document.getElementById('empfMsg').textContent;
+      out.kpiDespues = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
+      out.chip = document.querySelector('#empListaEquipos .emp-equipo.activo .emp-chip').textContent;
+
+      // 2. Hallazgo y su orden
+      empNuevoHallazgoDe('JOY 2');
+      document.getElementById('emph_descripcion').value = 'Válvula de alivio sin certificar';
+      document.getElementById('emph_prioridad').value = 'Alta';
+      await empRegistrarHallazgo();
+      await empCrearOrdenDeHallazgo(_emp.hallazgos[0].ID);
+      const h = _emp.hallazgos[0];
+      const o = allOrdenes.find(x => x.NumeroOrden === h.OrdenNumero) || {};
+      out.hallazgo = { estado: h.Estado, orden: h.OrdenNumero, equipo: o.Equipo, tipo: o.TipoMantenimiento, prioridad: o.Prioridad, tarea: (o.tareas || [])[0]?.descripcion };
+      out.botonesHallazgo = document.getElementById('empHallazgosLista').innerText;
+
+      // 3. Repuestos
+      empMostrarSubTab('repuestos');
+      document.getElementById('empr_equipo').value = 'JOY 2'; empCargarRepuestosEquipo();
+      const llenar = (tr, datos) => Object.entries(datos).forEach(([c, v]) => { const el = tr.querySelector(`[data-campo="${c}"]`); if (el.type === 'checkbox') el.checked = v; else el.value = v; });
+      llenar(document.querySelector('#empr_tbody tr'), { codigo: 'RK-1', nombre: 'Kit de sellos', critico: true, bodega: 'Comprar' });
+      hvdAgregarFilaRepuesto('empr_tbody');
+      llenar(document.querySelectorAll('#empr_tbody tr')[1], { codigo: 'FA-1', nombre: 'Filtro de aceite', bodega: 'En bodega' });
+      await empGuardarRepuestos();
+      out.comprar = [...document.querySelectorAll('#emprConsolidado tbody tr')].map(tr => tr.cells[1].textContent).join(',');
+      out.kpiRepuestos = document.querySelectorAll('#empKpis .emp-kpi-num')[2].textContent.trim();
+
+      // 4. Bodega inicial pegada desde Excel
+      empMostrarSubTab('bodega'); await hasta(() => !/Cargando/.test(document.getElementById('empbCargado').innerText));
+      document.getElementById('empb_pegar').value = 'Código\tNombre\tCantidad\nFA-1\tFiltro de aceite\t4\tUnidades\t$ 85.000\tEstante 2\nGR-2\tGrasa\t1.200,5\tKg';
+      empPegarBodega();
+      out.filasBodega = document.querySelectorAll('#empb_tbody tr').length;
+      await empCargarBodega();
+      out.bodegaMsg = document.getElementById('empbMsg').textContent;
+      await hasta(() => document.querySelectorAll('#empbCargado tbody tr').length);
+      out.cargado = document.querySelectorAll('#empbCargado tbody tr').length;
+
+      // 5. Acta
+      out.acta = _htmlActaEmpalme('zipaquira2', await _empMovimientosBodegaInicial('zipaquira2'));
+
+      // Operario: llena, pero no crea órdenes ni toca repuestos
+      usuarioRol = 'operario';
+      empRenderHallazgos();
+      out.operarioCreaOrden = /Crear orden/.test(document.getElementById('empHallazgosLista').innerText);
+      empCargarRepuestosEquipo();
+      out.operarioRepuestosRO = [...document.querySelectorAll('#empr_tbody input[type="text"]')].every(i => i.readOnly);
+      usuarioRol = 'admin';
+
+      operacionActual = 'zipaquira'; renderSidebarOperaciones();
+      out.menuZipa1 = /Empalme de entrega/.test(document.getElementById('sidebarOperaciones').innerText);
+      out.avisos = avisos;
+      return out;
+    });
+    const ficha = fake.hoja(ids.ord, 'EmpalmeRecepcion');
+    const horas = fake.hoja(ids.ord, 'HorasEquipos');
+    const hall = fake.hoja(ids.ord, 'EmpalmeHallazgos');
+    const ordenes = fake.hoja(ids.ord, 'Ordenes');
+    const rep = fake.hoja(ids.ord, 'HVDRepuestos');
+    const productos = fake.hoja(ids.inv, 'Productos');
+    const movs = fake.hoja(ids.inv, 'Movimientos');
+    const col = (filas, nombre) => filas[0] ? filas[0].indexOf(nombre) : -1;
+    const filaJoy = horas.find(f => f[0] === 'JOY 2') || [];
+    check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 31 equipos', r.menu && !r.menuZipa1 && r.lista === 31 && r.kpiAntes === '0 de 31', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
+    check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
+      /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 31' && r.chip === 'Operativo con fallas'
+      && ficha.length === 2 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual del fabricante'
+      && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
+      { sinEstado: r.sinEstado, msg: r.fichaMsg, kpi: r.kpiDespues, ficha: ficha[1], horas: filaJoy });
+    check('Empalme: un hallazgo se vuelve orden correctiva con el hallazgo como tarea',
+      r.hallazgo.estado === 'En orden' && /^OT-/.test(r.hallazgo.orden) && r.hallazgo.equipo === 'JOY 2' && r.hallazgo.tipo === 'Correctivo' && r.hallazgo.prioridad === 'Alta'
+      && r.hallazgo.tarea === 'Válvula de alivio sin certificar' && ordenes.some(f => f.includes(r.hallazgo.orden))
+      && hall[1] && hall[1][col(hall, 'OrdenNumero')] === r.hallazgo.orden && !/Crear orden/.test(r.botonesHallazgo),
+      { hallazgo: r.hallazgo, filaHallazgo: hall[1] });
+    check('Empalme: repuestos con crítico y bodega; la lista de compras trae solo lo que hay que comprar',
+      r.comprar === 'RK-1' && r.kpiRepuestos === '1' && rep.length === 3 && rep[1][col(rep, 'Critico')] === 'SI' && rep[1][col(rep, 'Bodega')] === 'Comprar',
+      { comprar: r.comprar, kpi: r.kpiRepuestos, rep });
+    const movGrasa = movs.find(f => f[0] === 'GR-2') || [];
+    check('Empalme: la bodega pegada desde Excel entra al inventario como inventario inicial (cantidades y precios en formato colombiano)',
+      r.filasBodega === 2 && /2 productos cargados.*2 nuevos/.test(r.bodegaMsg) && r.cargado === 2 && productos.length === 3
+      && movs.length === 3 && movGrasa[3] === '1200.5' && movGrasa[8] === 'Inventario inicial — empalme de entrega'
+      && (movs.find(f => f[0] === 'FA-1') || [])[10] === '85000',
+      { msg: r.bodegaMsg, filas: r.filasBodega, cargado: r.cargado, productos, movs });
+    check('Empalme: el acta trae equipos, horómetro, hallazgos, compras, bodega y firmas',
+      /Acta de empalme de entrega — CO O-I ZIPAQUIRA 2/.test(r.acta) && /JOY 2/.test(r.acta) && /45\.210 h/.test(r.acta)
+      && /Válvula de alivio sin certificar/.test(r.acta) && /Kit de sellos/.test(r.acta) && /GRASA/.test(r.acta) && /<b>Entrega<\/b>/.test(r.acta) && /<b>Recibe<\/b>/.test(r.acta),
+      r.acta.length);
+    check('Empalme: el operario no crea órdenes ni edita repuestos', !r.operarioCreaOrden && r.operarioRepuestosRO, r);
+    check('Empalme: sin errores de JS ni avisos de error', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
     await ctx.close();
   }
   {

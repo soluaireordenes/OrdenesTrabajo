@@ -222,6 +222,48 @@ body::before {
 @media (max-width: 600px) { #avisos { top: 10px; left: 16px; right: 16px; width: auto; } }
 @media (prefers-reduced-motion: reduce) { .aviso, .aviso.saliendo { animation: none; } }
 
+/* Empalme de entrega: avance, estado de cada equipo y hallazgos */
+.emp-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 720px) { .emp-kpis { grid-template-columns: 1fr; } }
+.emp-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm); }
+.emp-kpi-num { font-size: 26px; font-weight: 800; line-height: 1; color: var(--brand); font-variant-numeric: tabular-nums; }
+.emp-kpi-num small { font-size: 14px; font-weight: 700; color: var(--text3); }
+.emp-kpi-label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.emp-kpi-sub { font-size: 11.5px; color: var(--text3); }
+.emp-barra { height: 6px; border-radius: 6px; background: var(--surface2); overflow: hidden; }
+.emp-barra > span { display: block; height: 100%; border-radius: 6px; background: var(--accent2); transition: width .3s var(--ease); }
+.emp-chip { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .2px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; background: var(--surface2); color: var(--text3); }
+.emp-chip.operativo, .emp-chip.resuelto { background: rgba(21,128,61,.13); color: #15803d; }
+.emp-chip.fallas, .emp-chip.media, .emp-chip.abierto { background: rgba(180,83,9,.13); color: #b45309; }
+.emp-chip.fuera, .emp-chip.alta { background: rgba(198,40,40,.12); color: var(--danger); }
+.emp-chip.en-orden { background: var(--brand-light); color: var(--brand); }
+:root[data-theme="dark"] .emp-chip.operativo, :root[data-theme="dark"] .emp-chip.resuelto { color: #4ade80; }
+:root[data-theme="dark"] .emp-chip.fallas, :root[data-theme="dark"] .emp-chip.media, :root[data-theme="dark"] .emp-chip.abierto { color: #f0a35e; }
+.emp-grupo { padding: 12px 14px 4px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text3); }
+.emp-equipo { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; border-bottom: 1px solid var(--border); font: inherit; font-size: 13px; color: var(--text); text-align: left; cursor: pointer; }
+.emp-equipo:hover { background: var(--brand-light); }
+.emp-equipo.activo { background: var(--brand-light); color: var(--brand); font-weight: 700; }
+.emp-equipo span:first-child { flex: 1; min-width: 0; }
+.emp-docs { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+/* Dentro de un .field, las etiquetas van en mayúscula pequeña y los inputs a
+   todo lo ancho: aquí son casillas con su texto y el botón de la foto. */
+.field .emp-docs label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 400; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
+.field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
+.field .emp-fotos label.btn { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--brand); }
+.emp-fotos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.emp-foto { position: relative; display: inline-block; width: 64px; height: 64px; }
+.emp-foto img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); }
+.emp-foto button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--danger); color: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
+.emp-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.emp-tabla th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--border); color: var(--text3); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.emp-tabla td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.emp-tabla td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.emp-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Ancho mínimo de las tablas que se editan; en celular se apilan (.tabla-apilada
+   va más abajo y lo deja en 0). */
+.tabla-repuestos { min-width: 980px; }
+.emp-tabla-editor { min-width: 820px; }
+
 /* Hoja de Vida: equipos dados de baja */
 .hvd-de-baja { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 1px 7px; margin-left: 6px; border-radius: 10px; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); white-space: nowrap; }
 .hvd-recarga { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 1px 7px; margin-left: 6px; border-radius: 10px; white-space: nowrap; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
@@ -3712,6 +3754,117 @@ body.rol-operario .solo-admin { display: none !important; }
   </div>
 
 
+  <!-- ════════════ PANEL: EMPALME DE ENTREGA ════════════ -->
+  <div id="panel-empalme" class="panel">
+    <div style="max-width:1100px;margin:0 auto;width:100%">
+      <div style="display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;min-width:240px;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px;text-wrap:balance"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> <span id="empTitulo">Empalme de entrega</span></div>
+        <button class="btn btn-success" onclick="descargarActaEmpalme()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Acta de empalme (PDF)</button>
+      </div>
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:14px;max-width:70ch">Lo que se recibe de la operación anterior: en qué estado llegó cada equipo, lo que se encontró mal, los repuestos que tiene y lo que había en bodega.</div>
+
+      <div id="empKpis" class="emp-kpis"></div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
+        <button class="inv-subtab active" data-emptab="recepcion" onclick="empMostrarSubTab('recepcion')">Recepción de equipos</button>
+        <button class="inv-subtab" data-emptab="hallazgos" onclick="empMostrarSubTab('hallazgos')">Hallazgos</button>
+        <button class="inv-subtab" data-emptab="repuestos" onclick="empMostrarSubTab('repuestos')">Repuestos</button>
+        <button class="inv-subtab" data-emptab="bodega" onclick="empMostrarSubTab('bodega')">Bodega inicial</button>
+      </div>
+
+      <div id="empSub-recepcion" class="inv-subpanel active">
+        <div class="grid-lista-detalle" style="--lista-w:280px">
+          <div class="card" style="overflow:hidden"><div id="empListaEquipos"></div></div>
+          <div class="card"><div class="card-body" id="empFicha" style="padding:18px"></div></div>
+        </div>
+      </div>
+
+      <div id="empSub-hallazgos" class="inv-subpanel">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-head">Registrar un hallazgo</div>
+          <div class="card-body" style="padding:16px 18px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+              <div class="field" style="margin:0"><label>Equipo</label><select id="emph_equipo"></select></div>
+              <div class="field" style="margin:0"><label>Prioridad</label><select id="emph_prioridad"><option value="Alta">Alta</option><option value="Media" selected>Media</option><option value="Baja">Baja</option></select></div>
+              <div class="field" style="margin:0;grid-column:1/-1"><label>Qué se encontró</label><textarea id="emph_descripcion" rows="3" placeholder="Ej: fuga de aceite en el enfriador, válvula de alivio sin certificar, falta guarda en el acople"></textarea></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="emphBtnRegistrar" onclick="empRegistrarHallazgo()">Registrar hallazgo</button>
+              <span id="emphMsg" style="font-size:12.5px"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="flex:1">Hallazgos registrados</span>
+            <select id="emph_filtro" onchange="empRenderHallazgos()" style="min-width:150px">
+              <option value="pendientes">Sin resolver</option>
+              <option value="Abierto">Abiertos</option>
+              <option value="En orden">En orden de trabajo</option>
+              <option value="Resuelto">Resueltos</option>
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="card-body" style="padding:0;overflow-x:auto" id="empHallazgosLista"></div>
+        </div>
+      </div>
+
+      <div id="empSub-repuestos" class="inv-subpanel">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-head">Repuestos de cada equipo</div>
+          <div class="card-body" style="padding:16px 18px">
+            <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;max-width:75ch">Son los mismos repuestos de la Hoja de Vida del equipo. Marca los críticos y si hay en bodega o hay que comprarlos: con eso se arma la lista de compras de abajo.</div>
+            <div class="field" style="max-width:320px"><label>Equipo</label><select id="empr_equipo" onchange="empCargarRepuestosEquipo()"></select></div>
+            <div id="emprEditor"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="flex:1">Lista de compras</span>
+            <select id="empr_filtro" onchange="empRenderRepuestosConsolidado()" style="min-width:170px">
+              <option value="comprar">Por comprar</option>
+              <option value="criticos">Críticos</option>
+              <option value="">Todos los repuestos</option>
+            </select>
+          </div>
+          <div class="card-body" style="padding:0;overflow-x:auto" id="emprConsolidado"></div>
+        </div>
+      </div>
+
+      <div id="empSub-bodega" class="inv-subpanel">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-head">Conteo inicial de bodega</div>
+          <div class="card-body" style="padding:16px 18px">
+            <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;max-width:75ch">Lo que se encontró en el almacén al recibir. Entra al Inventario de la sede como ingreso de "Inventario inicial": los productos que no existan se crean solos. Si no sabes el precio, déjalo vacío.</div>
+            <details style="margin-bottom:12px">
+              <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--brand)">Pegar desde Excel</summary>
+              <div style="margin-top:10px">
+                <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Copia las filas en Excel y pégalas aquí, con las columnas en este orden: Código · Nombre · Cantidad · Unidad · Precio unitario · Ubicación</div>
+                <textarea id="empb_pegar" rows="5" placeholder="FA-001&#9;FILTRO DE AIRE&#9;4&#9;Unidades&#9;85000&#9;Estante 2"></textarea>
+                <button class="btn btn-ghost" style="margin-top:8px" onclick="empPegarBodega()">Pasar a la tabla</button>
+              </div>
+            </details>
+            <div style="overflow-x:auto">
+              <table class="dyn-table emp-tabla-editor">
+                <thead><tr><th>Código</th><th>Nombre</th><th style="width:90px">Cantidad</th><th style="width:120px">Unidad</th><th style="width:130px">Precio unitario</th><th>Ubicación</th><th style="width:130px">Tipo</th><th></th></tr></thead>
+                <tbody id="empb_tbody"></tbody>
+              </table>
+            </div>
+            <button class="btn-add-row" onclick="empAgregarFilaBodega()" style="margin-top:10px">+ Agregar producto</button>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+              <button class="btn btn-primary solo-admin" id="empbBtnCargar" onclick="empCargarBodega()">Cargar al inventario</button>
+              <span id="empbMsg" style="font-size:12.5px"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">Ya cargado en el inventario</div>
+          <div class="card-body" style="padding:0;overflow-x:auto" id="empbCargado"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ════════════ PANEL: PLAN DE MANTENIMIENTO ════════════ -->
   <div id="panel-planmantenimiento" class="panel">
     <div style="max-width:1100px;margin:0 auto;width:100%">
@@ -4504,6 +4657,10 @@ const OPERACIONES = {
   mexico:    { nombre: 'PAVISA-MEXICO',                bandera: '🇲🇽', spreadsheetId: '13kf6xZPfdnxDJmCyKJ0q-1z7ijRak7oMNhzemzq2KpI' },
   peru:      { nombre: 'O-I PERU',                     bandera: '🇵🇪', spreadsheetId: '1UbN_mnzJZBxpaL0mZqE-z0U_CIA-MbGwPiokpmKRjvI' },
 };
+// Sedes que se están recibiendo de otro operador: tienen la sección
+// "Empalme de entrega" (ver EMPALME DE ENTREGA). Va aquí arriba porque el
+// menú lateral la consulta al arrancar.
+const EMPALME_SEDES = ['zipaquira2'];
 
 // Operación activa (se recuerda entre sesiones en este equipo, solo como
 // referencia de cuál mostrar primero en el candado — pero NO da acceso)
@@ -5320,6 +5477,63 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
   }
 }
 
+/** Carga de una vez lo que se contó en bodega al recibir una sede: crea los
+ *  productos que no existan y registra un INGRESO por cada uno, marcado
+ *  como inventario inicial del empalme. Producto por producto con
+ *  registrarMovimientoInventarioDirecto serían unas ocho peticiones cada
+ *  uno, y con un conteo de cien productos se agota el cupo de Google; así
+ *  son unas diez en total, con un solo bloqueo del inventario.
+ *  items: [{ codigo, nombre, cantidad, unidad, precio, ubicacion, tipo }] */
+async function registrarConteoInicialInventarioDirecto(sede, items, responsable) {
+  const spreadsheetId = _invSpreadsheetId(sede);
+  const limpios = items.map(it => ({
+    codigo: String(it.codigo || '').trim().toUpperCase(),
+    nombre: String(it.nombre || '').trim().toUpperCase(),
+    cantidad: parseFloat(it.cantidad) || 0,
+    unidad: String(it.unidad || '').trim() || 'Unidades',
+    precio: Math.max(0, parseFloat(it.precio) || 0),
+    ubicacion: String(it.ubicacion || '').trim(),
+    tipo: ['Insumos', 'Repuestos', 'Seguridad', 'Herramienta'].includes(it.tipo) ? it.tipo : '',
+  }));
+  if (!limpios.length) throw new Error('No hay productos para cargar.');
+  limpios.forEach((p, i) => {
+    if (!p.codigo || !p.nombre) throw new Error(`Fila ${i + 1}: falta el código o el nombre.`);
+    if (!(p.cantidad > 0)) throw new Error(`Fila ${i + 1}: la cantidad debe ser mayor que cero.`);
+  });
+  const repetido = limpios.find((p, i) => limpios.findIndex(q => q.codigo === p.codigo) !== i);
+  if (repetido) throw new Error(`El código ${repetido.codigo} está repetido en la lista.`);
+
+  await _invAsegurarHoja(spreadsheetId, 'Productos', INV_PRODUCTOS_COLS);
+  await _invAsegurarHoja(spreadsheetId, 'Movimientos', INV_MOVIMIENTOS_COLS);
+
+  const existentes = new Set((await _invGetPestana(spreadsheetId, 'Productos!A2:A100000'))
+    .map(r => String(r[0] || '').trim().toUpperCase()).filter(Boolean));
+  const nuevos = limpios.filter(p => !existentes.has(p.codigo));
+  const ahora = new Date().toISOString();
+  if (nuevos.length) {
+    await _invAppend(spreadsheetId, 'Productos', nuevos.map(p => [
+      p.codigo, p.nombre, p.unidad, 'General', 0, ahora, p.precio, p.tipo, p.ubicacion, '',
+    ]));
+  }
+
+  const lockToken = await _invAdquirirLock(spreadsheetId);
+  try {
+    const movimientos = await _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000');
+    const fecha = _isoLocal(new Date());
+    const usuario = (typeof currentUser !== 'undefined' && currentUser?.email) || 'Sistema';
+    const filas = limpios.map(p => [
+      p.codigo, fecha, 'INGRESO', p.cantidad, usuario, ahora, responsable || '', '',
+      EMPALME_OBS_BODEGA, Math.round((_invStockDeMovimientos(movimientos, p.codigo) + p.cantidad) * 100) / 100,
+      p.precio, '', '',
+    ]);
+    await _invConfirmarLock(spreadsheetId, lockToken);
+    await _invAppend(spreadsheetId, 'Movimientos', filas);
+  } finally {
+    await _invLiberarLock(spreadsheetId, lockToken);
+  }
+  return { productosNuevos: nuevos.length, ingresos: limpios.length };
+}
+
 async function obtenerHistorialInventarioDirecto(sede, filtros) {
   filtros = filtros || {};
   const spreadsheetId = _invSpreadsheetId(sede);
@@ -6091,13 +6305,16 @@ const SIDEBAR_SECCIONES_OPERACION = [
   { key: 'novedades',   label: 'Novedades',            icon: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path>' },
   { key: 'historico',   label: 'Histórico por Equipo', icon: '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>' },
   { key: 'cronograma',  label: 'Reportes',           icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path>' },
+  // Solo en las sedes que se están recibiendo (EMPALME_SEDES).
+  { key: 'empalme',     label: 'Empalme de entrega',   icon: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path>' },
 ];
 
 function _sidebarSeccionesOperacion() {
   // Las pestañas de arriba esconden "Nueva Orden" y "Dashboard" al operario
   // con la clase solo-admin; este menú se arma aparte y tiene que aplicar
   // la misma regla, o el operario ve dos entradas que después no le abren.
-  return SIDEBAR_SECCIONES_OPERACION.filter(s => esAdmin() || !PANELES_SOLO_ADMIN.includes(s.key)).map(s => {
+  return SIDEBAR_SECCIONES_OPERACION.filter(s => (esAdmin() || !PANELES_SOLO_ADMIN.includes(s.key))
+    && (s.key !== 'empalme' || _empalmeDisponible(operacionActual))).map(s => {
     const activo = document.getElementById('panel-' + s.key)?.classList.contains('active');
     return `
       <div onclick="showPanel('${s.key}')"
@@ -6398,7 +6615,7 @@ function cerrarSesion(salir) {
    nueva, por ejemplo). Así ninguna se queda por fuera, ni las que se
    agreguen después.
 ══════════════════════════════════════════════ */
-const TABLAS_APILABLES = 'table.ie-table, table.inv-table, table.dyn-table, table.tabla-datos, table.proy-table';
+const TABLAS_APILABLES = 'table.ie-table, table.inv-table, table.dyn-table, table.tabla-datos, table.proy-table, table.emp-tabla';
 
 function _rotularCeldasDeTablas(raiz) {
   (raiz || document).querySelectorAll(TABLAS_APILABLES).forEach(tabla => {
@@ -6647,7 +6864,7 @@ window.addEventListener('load', async () => {
    NAVEGACIÓN
 ══════════════════════════════════════════════ */
 
-const PANELES_DE_DATOS = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma'];
+const PANELES_DE_DATOS = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma', 'empalme'];
 
 /** Desliza la barrita naranja de abajo del menú superior hasta la pestaña
  *  activa (o la esconde si no hay ninguna, como en la pantalla de Inicio). */
@@ -6676,6 +6893,10 @@ async function showPanel(name) {
     alert('Esta sección es solo para administradores.');
     return;
   }
+  if (name === 'empalme' && !_empalmeDisponible(operacionActual)) {
+    alert('El empalme de entrega solo está abierto para las sedes que se están recibiendo.');
+    return;
+  }
 
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
@@ -6700,6 +6921,7 @@ async function showPanel(name) {
   if (name === 'novedades')    inicializarPanelNovedades();
   if (name === 'historico')    inicializarPanelHistorico();
   if (name === 'cronograma')   inicializarPanelCronograma();
+  if (name === 'empalme')      inicializarPanelEmpalme();
   if (typeof renderSidebarOperaciones === 'function') renderSidebarOperaciones();
 }
 
@@ -9673,6 +9895,9 @@ const SH = {
   operarios: 'Operarios',
   operariosPlanta: 'OperariosPlanta',
   recargasExtintores: 'RecargasExtintores',
+  empalmeRecepcion: 'EmpalmeRecepcion',
+  empalmeHallazgos: 'EmpalmeHallazgos',
+  empalmeFotos: 'EmpalmeFotos',
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
@@ -22120,7 +22345,10 @@ const HVD_EQUIPOS_COLS = ['Equipo','Descripcion','Marca','Modelo','Serie','Fabri
 // Repuestos de cada equipo: un CATÁLOGO por equipo (no es movimiento de stock,
 // solo la lista de los repuestos que lleva ese equipo). Una fila por repuesto;
 // al guardar se reemplazan todas las filas de ese equipo.
-const HVD_REPUESTOS_COLS = ['Equipo','#','Codigo','Nombre','Cantidad','Ubicacion','Observacion'];
+// NumeroParte, Critico, Bodega y Proveedor llegaron con el empalme de entrega
+// de Zipaquirá 2: con ellos se arma la lista de lo que hay que comprar.
+const HVD_REPUESTOS_COLS = ['Equipo','#','Codigo','Nombre','Cantidad','Ubicacion','Observacion','NumeroParte','Critico','Bodega','Proveedor'];
+const REPUESTO_BODEGA_OPCIONES = ['En bodega', 'Comprar'];
 
 // Campos de especificaciones de la Hoja de Vida (los que se muestran/guardan
 // además de la foto y el historial).
@@ -22329,18 +22557,7 @@ async function hvdSeleccionarEquipo(equipo) {
         REPUESTOS DEL EQUIPO
       </div>
       <div style="padding:14px 16px">
-        <div style="overflow-x:auto">
-          <table class="dyn-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
-            <thead>
-              <tr>
-                ${['Código','Repuesto','Cantidad','Observación',''].map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody id="hvd_tbody_repuestos">
-              ${repuestosHVD.map(_htmlFilaRepuestoHVD).join('')}
-            </tbody>
-          </table>
-        </div>
+        ${_htmlTablaRepuestos('hvd_tbody_repuestos', repuestosHVD)}
         ${soloLectura ? '' : `<button class="btn-add-row" onclick="hvdAgregarFilaRepuesto()" style="margin-top:10px">+ Agregar repuesto</button>`}
       </div>
     </div>`}
@@ -22414,26 +22631,52 @@ async function hvdGuardarSpecs() {
 
 /* ── Repuestos del equipo (catálogo por equipo, hoja HVDRepuestos) ── */
 
+// Columnas del editor de repuestos (Hoja de Vida y Empalme de entrega).
+const REPUESTOS_EDITOR_ENCABEZADOS = ['Código', 'Repuesto', 'N° de parte', 'Cantidad', 'Crítico', 'Bodega', 'Proveedor', 'Observación', ''];
+
 // HTML de una fila de repuesto en el editor. Se usa tanto al pintar los
-// repuestos ya guardados como al agregar una fila nueva (con r = {}).
+// repuestos ya guardados como al agregar una fila nueva (con r = {}). Cada
+// campo lleva data-campo: el editor se lee por nombre, no por posición.
 function _htmlFilaRepuestoHVD(r) {
   r = r || {};
   // Operarios: repuestos en solo lectura (campos bloqueados, sin botón borrar).
   const ro = !esAdmin() ? ' readonly' : '';
+  const dis = !esAdmin() ? ' disabled' : '';
+  const td = 'style="padding:3px 4px"';
   return `<tr>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"${ro}></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"${ro}></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.cantidad||'')}" placeholder="Ej: 2"${ro}></td>
-    <td style="padding:3px 4px"><input type="text" value="${esc(r.observacion||'')}" placeholder="Opcional"${ro}></td>
+    <td ${td}><input type="text" data-campo="codigo" value="${esc(r.codigo||'')}" placeholder="COD-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"${ro}></td>
+    <td ${td}><input type="text" data-campo="nombre" value="${esc(r.nombre||'')}" placeholder="Nombre del repuesto"${ro}></td>
+    <td ${td}><input type="text" data-campo="numeroParte" value="${esc(r.numeroParte||'')}" placeholder="Del fabricante"${ro}></td>
+    <td ${td}><input type="text" data-campo="cantidad" value="${esc(r.cantidad||'')}" placeholder="Ej: 2" style="max-width:80px"${ro}></td>
+    <td style="padding:3px 4px;text-align:center"><input type="checkbox" data-campo="critico" title="Repuesto crítico"${r.critico ? ' checked' : ''}${dis}></td>
+    <td ${td}><select data-campo="bodega" style="min-width:120px"${dis}><option value="">Por confirmar</option>${REPUESTO_BODEGA_OPCIONES.map(o => `<option${o === r.bodega ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
+    <td ${td}><input type="text" data-campo="proveedor" value="${esc(r.proveedor||'')}" placeholder="Opcional"${ro}></td>
+    <td ${td}><input type="text" data-campo="observacion" value="${esc(r.observacion||'')}" placeholder="Opcional"${ro}></td>
     <td style="padding:3px 4px;text-align:center">${!esAdmin() ? '' : `<button class="btn-del-row" onclick="this.closest('tr').remove()">✕</button>`}</td>
   </tr>`;
 }
 
+// Tabla del editor de repuestos, con el tbody que se le indique.
+function _htmlTablaRepuestos(tbodyId, repuestos) {
+  return `<div style="overflow-x:auto">
+    <table class="dyn-table tabla-repuestos" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>${REPUESTOS_EDITOR_ENCABEZADOS.map(h => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${h}</th>`).join('')}</tr></thead>
+      <tbody id="${tbodyId}">${repuestos.map(_htmlFilaRepuestoHVD).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
 // Agrega una fila vacía al final de la tabla de repuestos.
-function hvdAgregarFilaRepuesto() {
-  const tb = document.getElementById('hvd_tbody_repuestos');
+function hvdAgregarFilaRepuesto(tbodyId) {
+  const tb = document.getElementById(tbodyId || 'hvd_tbody_repuestos');
   if (!tb) return;
   tb.insertAdjacentHTML('beforeend', _htmlFilaRepuestoHVD({}));
+}
+
+function _repuestoDeFila(f) {
+  return { codigo: f.Codigo || '', nombre: f.Nombre || '', cantidad: f.Cantidad || '',
+           ubicacion: f.Ubicacion || '', observacion: f.Observacion || '',
+           numeroParte: f.NumeroParte || '', critico: f.Critico === 'SI', bodega: f.Bodega || '', proveedor: f.Proveedor || '' };
 }
 
 // Lee los repuestos guardados de un equipo (ordenados por el número de fila).
@@ -22443,20 +22686,19 @@ async function _leerRepuestosHVD(equipo) {
   return filas
     .filter(f => f.Equipo === equipo)
     .sort((a, b) => (Number(a['#']) || 0) - (Number(b['#']) || 0))
-    .map(f => ({ codigo: f.Codigo || '', nombre: f.Nombre || '', cantidad: f.Cantidad || '',
-                 ubicacion: f.Ubicacion || '', observacion: f.Observacion || '' }));
+    .map(_repuestoDeFila);
 }
 
 // Lee los repuestos escritos en el editor. Devuelve null si la tabla no está
 // en pantalla (p. ej. modo seguridad), para que el guardado no toque la hoja.
-function _leerRepuestosEditorHVD() {
-  const tb = document.getElementById('hvd_tbody_repuestos');
+function _leerRepuestosEditorHVD(tbodyId) {
+  const tb = document.getElementById(tbodyId || 'hvd_tbody_repuestos');
   if (!tb) return null;
   return Array.from(tb.querySelectorAll('tr')).map(tr => {
-    const ins = tr.querySelectorAll('input');
-    return { codigo: (ins[0]?.value || '').trim(), nombre: (ins[1]?.value || '').trim(),
-             cantidad: (ins[2]?.value || '').trim(), ubicacion: '',
-             observacion: (ins[3]?.value || '').trim() };
+    const valor = campo => (tr.querySelector(`[data-campo="${campo}"]`)?.value || '').trim();
+    return { codigo: valor('codigo'), nombre: valor('nombre'), cantidad: valor('cantidad'), ubicacion: '',
+             observacion: valor('observacion'), numeroParte: valor('numeroParte'),
+             critico: !!tr.querySelector('[data-campo="critico"]')?.checked, bodega: valor('bodega'), proveedor: valor('proveedor') };
   }).filter(r => r.codigo || r.nombre); // se descartan las filas en blanco
 }
 
@@ -22466,15 +22708,10 @@ async function _guardarRepuestosHVD(equipo, repuestos) {
   const colsReales = await asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS);
   await eliminarFilasDondeCumple(SH.hvdRepuestos, r => r.Equipo === equipo);
   if (!repuestos.length) return;
-  const filas = repuestos.map((r, i) => colsReales.map(c => {
-    if (c === 'Equipo') return equipo;
-    if (c === '#') return i + 1;
-    if (c === 'Codigo') return r.codigo || '';
-    if (c === 'Nombre') return r.nombre || '';
-    if (c === 'Cantidad') return r.cantidad || '';
-    if (c === 'Ubicacion') return r.ubicacion || '';
-    if (c === 'Observacion') return r.observacion || '';
-    return '';
+  const filas = repuestos.map((r, i) => _filaSegunEncabezados(colsReales, {
+    Equipo: equipo, '#': i + 1, Codigo: r.codigo || '', Nombre: r.nombre || '', Cantidad: r.cantidad || '',
+    Ubicacion: r.ubicacion || '', Observacion: r.observacion || '', NumeroParte: r.numeroParte || '',
+    Critico: r.critico ? 'SI' : '', Bodega: r.bodega || '', Proveedor: r.proveedor || '',
   }));
   await appendHoja(SH.hvdRepuestos, filas);
 }
@@ -22595,6 +22832,795 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
   }
   if (filasNuevas.length) await appendHoja(hoja, filasNuevas);
   _invalidarCacheHoja(hoja);
+}
+
+/* ══════════════════════════════════════════════
+   EMPALME DE ENTREGA
+   Al recibir una operación que ya venía funcionando (Zipaquirá 2: planta
+   montada, con compresores antiguos) queda registrado cómo se recibió: el
+   estado y el horómetro de cada equipo, lo que se encontró mal (hallazgos,
+   que se pueden volver órdenes), los repuestos de cada equipo y lo que
+   había en bodega. La ficha, los hallazgos y sus fotos van en la hoja de
+   órdenes de la sede; los repuestos son los mismos de la Hoja de Vida
+   (HVDRepuestos) y la bodega entra al Inventario como ingresos de
+   "Inventario inicial". El acta junta todo en un PDF para firmar.
+══════════════════════════════════════════════ */
+const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha','UltimoMantDetalle','Documentacion','Observaciones','RecibidoPor','FechaRegistro'];
+const EMPALME_HALLAZGOS_COLS = ['ID','Equipo','Descripcion','Prioridad','Estado','OrdenNumero','RegistradoPor','FechaRegistro'];
+const EMPALME_FOTOS_COLS = ['Equipo','DriveFileId','UrlVer','SubidoPor','FechaHora'];
+const EMPALME_ESTADOS_EQUIPO = [
+  { valor: 'Operativo', clase: 'operativo' },
+  { valor: 'Operativo con fallas', clase: 'fallas' },
+  { valor: 'Fuera de servicio', clase: 'fuera' },
+];
+const EMPALME_DOCUMENTOS = ['Manual del fabricante', 'Historial de mantenimiento', 'Planos o diagramas', 'Certificados o garantías'];
+const EMPALME_PRIORIDAD_ORDEN = { Alta: 0, Media: 1, Baja: 2 };
+const EMPALME_EQUIPO_GENERAL = 'Planta (general)';
+const EMPALME_OBS_BODEGA = 'Inventario inicial — empalme de entrega';
+const EMPALME_TIPOS_PRODUCTO = ['Repuestos', 'Insumos', 'Herramienta', 'Seguridad'];
+
+let _emp = { recepcion: [], hallazgos: [], fotos: [], repuestos: [] };
+let _empEquipoActual = null;
+
+function _empalmeDisponible(sede) { return EMPALME_SEDES.includes(sede); }
+
+/** Equipos de la sede por grupo, los mismos de las órdenes. */
+function _empGruposEquipos(sede) {
+  return Object.entries(_gruposEquiposParaOrden(sede)).map(([grupo, items]) => ({
+    grupo, equipos: items.map(i => (Array.isArray(i) ? i[0] : i)),
+  }));
+}
+function _empEquiposSede(sede) { return _empGruposEquipos(sede).flatMap(g => g.equipos); }
+
+function _empFicha(equipo) { return _emp.recepcion.find(f => f.Equipo === equipo) || null; }
+function _empChipEstado(estado) {
+  const clase = (EMPALME_ESTADOS_EQUIPO.find(e => e.valor === estado) || {}).clase;
+  return clase ? `<span class="emp-chip ${clase}">${esc(estado)}</span>` : '<span class="emp-chip">Sin recibir</span>';
+}
+function _empClaseHallazgo(estado) { return estado === 'Resuelto' ? 'resuelto' : estado === 'En orden' ? 'en-orden' : 'abierto'; }
+function _empFechaLegible(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? (iso || '—') : d.toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function _empQuien() { return currentUser?.name || currentUser?.email || ''; }
+function _empMensaje(id, texto, tipo) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.color = tipo === 'error' ? 'var(--danger)' : tipo === 'ok' ? 'var(--accent2)' : 'var(--text3)';
+  el.textContent = texto;
+}
+
+async function _empCargarDatos() {
+  await Promise.all([
+    asegurarHoja(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS),
+    asegurarHoja(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS),
+    asegurarHoja(SH.empalmeFotos, EMPALME_FOTOS_COLS),
+    asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS),
+  ]);
+  const [recepcion, hallazgos, fotos, repuestos] = await Promise.all([
+    leerHojaGenericaCacheada(SH.empalmeRecepcion), leerHojaGenericaCacheada(SH.empalmeHallazgos),
+    leerHojaGenericaCacheada(SH.empalmeFotos), leerHojaGenericaCacheada(SH.hvdRepuestos),
+  ]);
+  const equipos = new Set(_empEquiposSede(operacionActual));
+  _emp = {
+    recepcion: recepcion.map(f => ({ ...f })), hallazgos: hallazgos.map(h => ({ ...h })),
+    fotos: fotos.map(f => ({ ...f })), repuestos: repuestos.filter(r => equipos.has(r.Equipo)).map(r => ({ ...r })),
+  };
+}
+
+async function inicializarPanelEmpalme() {
+  document.getElementById('empTitulo').textContent = 'Empalme de entrega — ' + (OPERACIONES[operacionActual]?.nombre || '');
+  document.getElementById('empListaEquipos').innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
+  document.getElementById('empFicha').innerHTML = '';
+  try {
+    await _empCargarDatos();
+  } catch (e) {
+    document.getElementById('empListaEquipos').innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+    return;
+  }
+  if (_empEquipoActual && !_empEquiposSede(operacionActual).includes(_empEquipoActual)) _empEquipoActual = null;
+  _empLlenarSelectsEquipos();
+  _empRenderKpis();
+  empMostrarSubTab(document.querySelector('#panel-empalme .inv-subtab.active')?.dataset.emptab || 'recepcion');
+}
+
+function empMostrarSubTab(nombre) {
+  const panel = document.getElementById('panel-empalme');
+  panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.toggle('active', p.id === 'empSub-' + nombre));
+  panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.toggle('active', b.dataset.emptab === nombre));
+  if (nombre === 'recepcion') { empRenderListaEquipos(); empRenderFicha(); }
+  if (nombre === 'hallazgos') empRenderHallazgos();
+  if (nombre === 'repuestos') { empCargarRepuestosEquipo(); empRenderRepuestosConsolidado(); }
+  if (nombre === 'bodega') {
+    if (!document.querySelector('#empb_tbody tr')) empAgregarFilaBodega();
+    empRenderBodegaCargada();
+  }
+}
+
+function _empLlenarSelectsEquipos() {
+  const opciones = _empGruposEquipos(operacionActual).map(g => `<optgroup label="${esc(g.grupo)}">${
+    g.equipos.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}</optgroup>`).join('');
+  const selH = document.getElementById('emph_equipo');
+  const previoH = selH.value;
+  selH.innerHTML = `<option value="${esc(EMPALME_EQUIPO_GENERAL)}">${esc(EMPALME_EQUIPO_GENERAL)}</option>` + opciones;
+  if (previoH) selH.value = previoH;
+  const selR = document.getElementById('empr_equipo');
+  const previoR = selR.value;
+  selR.innerHTML = opciones;
+  if (previoR) selR.value = previoR;
+}
+
+function _empRenderKpis() {
+  const equipos = _empEquiposSede(operacionActual);
+  const recibidos = equipos.filter(e => _empFicha(e)?.Estado).length;
+  const pct = equipos.length ? Math.round(recibidos / equipos.length * 100) : 0;
+  const abiertos = _emp.hallazgos.filter(h => (h.Estado || 'Abierto') === 'Abierto').length;
+  const enOrden = _emp.hallazgos.filter(h => h.Estado === 'En orden').length;
+  const comprar = _emp.repuestos.filter(r => r.Bodega === 'Comprar');
+  const criticos = comprar.filter(r => r.Critico === 'SI').length;
+  document.getElementById('empKpis').innerHTML = `
+    <div class="emp-kpi">
+      <div class="emp-kpi-label">Equipos recibidos</div>
+      <div class="emp-kpi-num">${recibidos} <small>de ${equipos.length}</small></div>
+      <div class="emp-barra" role="progressbar" aria-label="Equipos recibidos" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+    </div>
+    <div class="emp-kpi">
+      <div class="emp-kpi-label">Hallazgos abiertos</div>
+      <div class="emp-kpi-num">${abiertos}</div>
+      <div class="emp-kpi-sub">${enOrden} en orden de trabajo</div>
+    </div>
+    <div class="emp-kpi">
+      <div class="emp-kpi-label">Repuestos por comprar</div>
+      <div class="emp-kpi-num">${comprar.length}</div>
+      <div class="emp-kpi-sub">${criticos} ${criticos === 1 ? 'crítico' : 'críticos'}</div>
+    </div>`;
+}
+
+/* ── 1. Ficha de recepción por equipo ── */
+
+function empRenderListaEquipos() {
+  document.getElementById('empListaEquipos').innerHTML = _empGruposEquipos(operacionActual).map(g => `
+    <div class="emp-grupo">${esc(g.grupo)}</div>
+    ${g.equipos.map(e => `<button type="button" class="emp-equipo${e === _empEquipoActual ? ' activo' : ''}" onclick="empSeleccionarEquipo(${_jsArg(e)})">
+      <span>${esc(e)}</span>${_empChipEstado(_empFicha(e)?.Estado)}</button>`).join('')}`).join('');
+}
+
+function empSeleccionarEquipo(equipo) {
+  _empEquipoActual = equipo;
+  empRenderListaEquipos();
+  empRenderFicha();
+  // En celular la ficha queda debajo de la lista: se lleva la vista hasta ella.
+  if (window.innerWidth <= 720) document.getElementById('empFicha')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function _empHtmlFoto(foto) {
+  const id = foto.DriveFileId;
+  return `<span class="emp-foto"><a id="empFotoA_${esc(id)}" href="#" target="_blank" rel="noopener" onclick="return this.getAttribute('href')!=='#'"><img id="empFotoImg_${esc(id)}" alt="Foto de ${esc(foto.Equipo)}"></a>${
+    esAdmin() ? `<button type="button" title="Quitar foto" aria-label="Quitar foto" onclick="empEliminarFoto(${_jsArg(id)})">✕</button>` : ''}</span>`;
+}
+
+async function _empCargarMiniaturas(fotos) {
+  const ids = fotos.map(f => f.DriveFileId).filter(Boolean);
+  if (!ids.length) return;
+  try { await _precargarFotosEnLotes(ids, null, 5); } catch (_) {}
+  ids.forEach(id => {
+    const img = document.getElementById('empFotoImg_' + id);
+    if (img) _cargarFotoEnImg(id, img, document.getElementById('empFotoA_' + id));
+  });
+}
+
+function empRenderFicha() {
+  const cont = document.getElementById('empFicha');
+  const equipo = _empEquipoActual;
+  if (!equipo) {
+    cont.innerHTML = _estadoVacio({ icono: 'lista', titulo: 'Elige un equipo', detalle: 'Toca un equipo de la lista para llenar su ficha de recepción.', compacto: true });
+    return;
+  }
+  const f = _empFicha(equipo) || {};
+  const docs = String(f.Documentacion || '').split('|').filter(Boolean);
+  const fotos = _emp.fotos.filter(x => x.Equipo === equipo);
+  cont.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="flex:1;font-weight:800;font-size:15px;color:var(--brand)">${esc(equipo)}</div>
+      <span id="empfChip">${_empChipEstado(f.Estado)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+      <div class="field" style="margin:0"><label for="empf_estado">Estado al recibir *</label>
+        <select id="empf_estado"><option value="">Elegir…</option>${EMPALME_ESTADOS_EQUIPO.map(e => `<option${e.valor === f.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></div>
+      <div class="field" style="margin:0"><label for="empf_horometro">Horómetro al recibir (h)</label>
+        <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>
+      <div class="field" style="margin:0"><label for="empf_mantFecha">Último mantenimiento conocido</label>
+        <input id="empf_mantFecha" type="date" value="${esc(f.UltimoMantFecha || '')}"></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_mantDetalle">Qué se le hizo en ese mantenimiento</label>
+        <input id="empf_mantDetalle" value="${esc(f.UltimoMantDetalle || '')}" placeholder="Ej: cambio de aceite y filtros, según el contratista anterior"></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Documentación que entregaron</label>
+        <div class="emp-docs">${EMPALME_DOCUMENTOS.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
+        <textarea id="empf_obs" rows="3" placeholder="Fugas, ruidos, vibraciones, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>
+      <div class="field" style="margin:0;grid-column:1/-1"><label>Fotos (placa y estado general)</label>
+        <div class="emp-fotos" id="empf_fotos">${fotos.map(_empHtmlFoto).join('')}
+          <label class="btn btn-ghost" style="cursor:pointer;font-size:12px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto
+            <input type="file" accept="image/*" style="display:none" onchange="empSubirFoto(this)"></label>
+        </div>
+        <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
+      <button class="btn btn-ghost" onclick="empNuevoHallazgoDe(${_jsArg(equipo)})">Registrar un hallazgo de este equipo</button>
+      <span id="empfMsg" style="font-size:12.5px"></span>
+    </div>
+    ${f.RecibidoPor ? `<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Última actualización: ${esc(f.RecibidoPor)} · ${esc(_empFechaLegible(f.FechaRegistro))}</div>` : ''}`;
+  _empCargarMiniaturas(fotos);
+}
+
+/** Si el equipo lleva horas en el Plan de Mantenimiento (los compresores). */
+function _empLlevaHoras(equipo) {
+  return _pmGruposEquipos(operacionActual).some(g => g.equipos.includes(equipo));
+}
+
+/** El horómetro con que se recibe un compresor queda como su hora base en el
+ *  Plan de Mantenimiento: desde ahí se cuentan sus mantenimientos. Si sus
+ *  horas actuales no tienen otra fuente (están vacías o son las de la ficha
+ *  anterior), también se ponen, para que el Registro no se quede en blanco. */
+async function _empPasarHorometro(equipo, horas, horometroAnterior) {
+  const filas = await cargarHorasEquipos();
+  const fila = filas.find(f => f.Equipo === equipo);
+  const actuales = fila ? String(fila.HorasActuales || '') : '';
+  const cambios = { HoraBaseInformes: String(horas) };
+  if (!actuales || actuales === String(horometroAnterior || '')) {
+    cambios.HorasActuales = String(horas);
+    cambios.UltimaActualizacion = new Date().toLocaleString('es-CO');
+  }
+  await _actualizarFilasPorClaveEnLote(SH.horasEquipos, HORAS_EQUIPOS_COLS, 'Equipo', { [equipo]: cambios });
+}
+
+async function empGuardarFicha() {
+  const equipo = _empEquipoActual;
+  if (!equipo) return;
+  const estado = document.getElementById('empf_estado').value;
+  const horometro = document.getElementById('empf_horometro').value.trim();
+  if (!estado) { _empMensaje('empfMsg', 'Elige el estado en que se recibió el equipo.', 'error'); return; }
+  if (horometro && (!_esNumeroDecimal(horometro) || Number(horometro) < 0)) {
+    _empMensaje('empfMsg', 'El horómetro va en horas, solo con números (sin puntos de miles).', 'error');
+    return;
+  }
+  const anterior = _empFicha(equipo);
+  const datos = {
+    Estado: estado, Horometro: horometro,
+    UltimoMantFecha: document.getElementById('empf_mantFecha').value,
+    UltimoMantDetalle: document.getElementById('empf_mantDetalle').value.trim(),
+    Documentacion: [...document.querySelectorAll('.empf-doc:checked')].map(c => c.value).join('|'),
+    Observaciones: document.getElementById('empf_obs').value.trim(),
+    RecibidoPor: _empQuien(), FechaRegistro: new Date().toISOString(),
+  };
+  const btn = document.getElementById('empfBtnGuardar');
+  btn.disabled = true;
+  _empMensaje('empfMsg', 'Guardando…');
+  try {
+    await _actualizarFilaPorClave(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS, 'Equipo', equipo, datos);
+    let extra = '';
+    if (horometro && _empLlevaHoras(equipo)) {
+      await _empPasarHorometro(equipo, Number(horometro), anterior?.Horometro);
+      extra = ' El horómetro quedó en el Plan de Mantenimiento.';
+    }
+    if (anterior) Object.assign(anterior, datos); else _emp.recepcion.push({ Equipo: equipo, ...datos });
+    _empMensaje('empfMsg', 'Ficha guardada.' + extra, 'ok');
+    const chip = document.getElementById('empfChip');
+    if (chip) chip.innerHTML = _empChipEstado(estado);
+    empRenderListaEquipos();
+    _empRenderKpis();
+  } catch (e) {
+    _empMensaje('empfMsg', 'No se pudo guardar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function empSubirFoto(input) {
+  const file = input.files && input.files[0];
+  const equipo = _empEquipoActual;
+  input.value = '';
+  if (!file || !equipo) return;
+  _empMensaje('empf_fotoMsg', 'Subiendo foto…');
+  try {
+    if (!file.type.startsWith('image/')) throw new Error('El archivo elegido no es una imagen.');
+    const codigo = 'EMPALME_' + equipo.replace(/[^A-Za-z0-9]+/g, '_');
+    const foto = await _prepararFotoParaSubir(file, `${codigo}_${Date.now()}`);
+    const subidoPor = _empQuien();
+    const resp = await _postScriptFotos({
+      accion: 'subirFoto', tipo: 'empalme', codigo, nombreArchivo: foto.nombreArchivo, mimeType: foto.mimeType,
+      base64: foto.base64, tareaDescripcion: 'Empalme de entrega — ' + equipo, subidoPor, correo: currentUser?.email || '',
+    });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.mensaje || 'No se pudo subir la foto.');
+    const fila = { Equipo: equipo, DriveFileId: data.driveFileId, UrlVer: data.urlVer || '', SubidoPor: subidoPor, FechaHora: new Date().toISOString() };
+    const cols = await asegurarHoja(SH.empalmeFotos, EMPALME_FOTOS_COLS);
+    await appendHoja(SH.empalmeFotos, [_filaSegunEncabezados(cols, fila)]);
+    _emp.fotos.push(fila);
+    _empMensaje('empf_fotoMsg', '');
+    // Se agrega la miniatura sin volver a pintar la ficha: lo que ya se
+    // escribió en el formulario y no se ha guardado no se pierde.
+    if (_empEquipoActual === equipo) {
+      document.querySelector('#empf_fotos > label')?.insertAdjacentHTML('beforebegin', _empHtmlFoto(fila));
+      _empCargarMiniaturas([fila]);
+    }
+  } catch (e) {
+    _empMensaje('empf_fotoMsg', 'No se pudo subir la foto: ' + e.message, 'error');
+  }
+}
+
+async function empEliminarFoto(driveFileId) {
+  if (!esAdmin()) { alert('Solo un administrador puede quitar fotos.'); return; }
+  if (!confirm('¿Quitar esta foto de la ficha?')) return;
+  try { await _postScriptFotos({ accion: 'eliminarFoto', driveFileId, correo: currentUser?.email || '' }); }
+  catch (e) { console.warn('No se pudo borrar la foto de Drive:', e.message); }
+  try {
+    await eliminarFilasDondeCumple(SH.empalmeFotos, f => f.DriveFileId === driveFileId);
+    _emp.fotos = _emp.fotos.filter(f => f.DriveFileId !== driveFileId);
+    document.getElementById('empFotoImg_' + driveFileId)?.closest('.emp-foto')?.remove();
+  } catch (e) {
+    alert('No se pudo quitar la foto del registro: ' + e.message);
+  }
+}
+
+/* ── 2. Hallazgos ── */
+
+function empNuevoHallazgoDe(equipo) {
+  empMostrarSubTab('hallazgos');
+  document.getElementById('emph_equipo').value = equipo;
+  document.getElementById('emph_descripcion').focus();
+}
+
+async function empRegistrarHallazgo() {
+  const descripcion = document.getElementById('emph_descripcion').value.trim();
+  if (!descripcion) { _empMensaje('emphMsg', 'Escribe qué se encontró.', 'error'); return; }
+  const azar = new Uint8Array(2);
+  crypto.getRandomValues(azar);
+  const fila = {
+    ID: 'H-' + Date.now().toString(36).toUpperCase() + Array.from(azar).map(b => b.toString(36).toUpperCase()).join(''),
+    Equipo: document.getElementById('emph_equipo').value || EMPALME_EQUIPO_GENERAL,
+    Descripcion: descripcion, Prioridad: document.getElementById('emph_prioridad').value || 'Media',
+    Estado: 'Abierto', OrdenNumero: '', RegistradoPor: _empQuien(), FechaRegistro: new Date().toISOString(),
+  };
+  const btn = document.getElementById('emphBtnRegistrar');
+  btn.disabled = true;
+  _empMensaje('emphMsg', 'Guardando…');
+  try {
+    const cols = await asegurarHoja(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS);
+    await appendHoja(SH.empalmeHallazgos, [_filaSegunEncabezados(cols, fila)]);
+    _emp.hallazgos.push(fila);
+    document.getElementById('emph_descripcion').value = '';
+    _empMensaje('emphMsg', 'Hallazgo registrado.', 'ok');
+    empRenderHallazgos();
+    _empRenderKpis();
+  } catch (e) {
+    _empMensaje('emphMsg', 'No se pudo registrar el hallazgo: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function empRenderHallazgos() {
+  const cont = document.getElementById('empHallazgosLista');
+  const filtro = document.getElementById('emph_filtro').value;
+  const lista = _emp.hallazgos
+    .filter(h => filtro === 'pendientes' ? h.Estado !== 'Resuelto' : (!filtro || (h.Estado || 'Abierto') === filtro))
+    .sort((a, b) => (EMPALME_PRIORIDAD_ORDEN[a.Prioridad] ?? 3) - (EMPALME_PRIORIDAD_ORDEN[b.Prioridad] ?? 3)
+      || String(b.FechaRegistro).localeCompare(String(a.FechaRegistro)));
+  if (!lista.length) {
+    cont.innerHTML = _estadoVacio({
+      icono: 'listo', compacto: true,
+      titulo: _emp.hallazgos.length ? 'No hay hallazgos con ese filtro' : 'Todavía no hay hallazgos',
+      detalle: _emp.hallazgos.length ? '' : 'Lo que se encuentre mal al recibir la planta se registra arriba.',
+    });
+    return;
+  }
+  const admin = esAdmin();
+  cont.innerHTML = `<table class="emp-tabla"><thead><tr><th>Prioridad</th><th>Equipo</th><th>Qué se encontró</th><th>Estado</th><th>Registrado</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>
+    ${lista.map(h => `<tr>
+      <td><span class="emp-chip ${esc(String(h.Prioridad || '').toLowerCase())}">${esc(h.Prioridad || '—')}</span></td>
+      <td style="white-space:nowrap;font-weight:600">${esc(h.Equipo || '—')}</td>
+      <td style="min-width:220px;white-space:pre-line">${esc(h.Descripcion)}</td>
+      <td><span class="emp-chip ${_empClaseHallazgo(h.Estado)}">${esc(h.Estado || 'Abierto')}</span>${h.OrdenNumero
+        ? `<div style="margin-top:4px"><a href="#" onclick="verDetalle(${_jsArg(h.OrdenNumero)});showPanel('detalle');return false" style="font-size:12px;color:var(--accent);font-weight:600">${esc(h.OrdenNumero)}</a></div>` : ''}</td>
+      <td style="font-size:12px;color:var(--text3);white-space:nowrap">${esc(h.RegistradoPor || '—')}<br>${esc(_empFechaLegible(h.FechaRegistro))}</td>
+      ${admin ? `<td><div class="emp-acciones">
+        ${(h.Estado || 'Abierto') === 'Abierto' ? `<button class="btn btn-ghost btn-sm" onclick="empCrearOrdenDeHallazgo(${_jsArg(h.ID)})">Crear orden</button>` : ''}
+        ${h.Estado !== 'Resuelto' ? `<button class="btn btn-ghost btn-sm" onclick="empMarcarHallazgoResuelto(${_jsArg(h.ID)})">Resuelto</button>` : ''}
+      </div></td>` : ''}
+    </tr>`).join('')}</tbody></table>`;
+}
+
+/** Convierte un hallazgo en una orden correctiva pendiente, con el hallazgo
+ *  como tarea, y deja anotado el número de la orden en el hallazgo. */
+async function empCrearOrdenDeHallazgo(id) {
+  if (!esAdmin()) { alert('Solo un administrador puede crear órdenes.'); return; }
+  const h = _emp.hallazgos.find(x => x.ID === id);
+  if (!h || (h.Estado || 'Abierto') !== 'Abierto') return;
+  if (!confirm(`Se va a crear una orden correctiva para ${h.Equipo} con este hallazgo. ¿Continuar?`)) return;
+  const numOrden = generarNumeroOrdenUnico();
+  const orden = {
+    id: numOrden, NumeroOrden: numOrden,
+    Title: h.Descripcion.length > 120 ? h.Descripcion.slice(0, 117) + '…' : h.Descripcion,
+    Equipo: h.Equipo, TipoMantenimiento: 'Correctivo', Prioridad: h.Prioridad || 'Media', Estado: 'Pendiente',
+    SolicitadaPor: _empQuien(), FechaInicio: _isoLocal(new Date()),
+    Observaciones: `Hallazgo ${h.ID} del empalme de entrega, registrado por ${h.RegistradoPor || '—'} el ${_empFechaLegible(h.FechaRegistro)}.`,
+    UserEmail: currentUser?.email || '', CostoTotal: 0, FechaCreacion: new Date().toISOString(),
+    tareas: [{ descripcion: h.Descripcion, tiempoReal: '', ok: false, responsable: '' }],
+    repuestos: [], insumos: [], servicios: [],
+  };
+  allOrdenes.push(orden);
+  guardarLocal();
+  try {
+    try { await guardarOrdenEnSheets(orden); }
+    catch (e) { await guardarOrdenEnSheets(orden, { reintento: true }); } // un segundo intento sin duplicar lo ya guardado
+    orden._enSheets = true;
+    guardarLocal();
+  } catch (e) {
+    allOrdenes = allOrdenes.filter(o => o !== orden);
+    guardarLocal();
+    alert('No se pudo crear la orden: ' + e.message);
+    return;
+  }
+  try {
+    await _actualizarFilaPorClave(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS, 'ID', id, { Estado: 'En orden', OrdenNumero: numOrden });
+    Object.assign(h, { Estado: 'En orden', OrdenNumero: numOrden });
+    aviso(`Orden ${numOrden} creada con el hallazgo.`, 'exito');
+  } catch (e) {
+    alert(`La orden ${numOrden} quedó creada, pero no se pudo anotar en el hallazgo: ${e.message}`);
+  }
+  empRenderHallazgos();
+  _empRenderKpis();
+}
+
+async function empMarcarHallazgoResuelto(id) {
+  if (!esAdmin()) { alert('Solo un administrador puede cerrar hallazgos.'); return; }
+  const h = _emp.hallazgos.find(x => x.ID === id);
+  if (!h || !confirm('¿Marcar este hallazgo como resuelto?')) return;
+  try {
+    await _actualizarFilaPorClave(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS, 'ID', id, { Estado: 'Resuelto' });
+    h.Estado = 'Resuelto';
+    empRenderHallazgos();
+    _empRenderKpis();
+  } catch (e) {
+    alert('No se pudo actualizar el hallazgo: ' + e.message);
+  }
+}
+
+/* ── 3. Repuestos críticos ── */
+
+function empCargarRepuestosEquipo() {
+  const cont = document.getElementById('emprEditor');
+  const equipo = document.getElementById('empr_equipo').value;
+  if (!equipo) { cont.innerHTML = ''; return; }
+  const repuestos = _emp.repuestos.filter(r => r.Equipo === equipo)
+    .sort((a, b) => (Number(a['#']) || 0) - (Number(b['#']) || 0)).map(_repuestoDeFila);
+  cont.innerHTML = _htmlTablaRepuestos('empr_tbody', repuestos) + (esAdmin()
+    ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <button class="btn-add-row" onclick="hvdAgregarFilaRepuesto('empr_tbody')">+ Agregar repuesto</button>
+        <button class="btn btn-primary" id="emprBtnGuardar" onclick="empGuardarRepuestos()">Guardar repuestos</button>
+        <span id="emprMsg" style="font-size:12.5px"></span>
+      </div>`
+    : '<div style="font-size:12.5px;color:var(--text3);margin-top:10px">Solo lectura — un administrador puede editar los repuestos.</div>');
+  if (esAdmin() && !repuestos.length) hvdAgregarFilaRepuesto('empr_tbody');
+}
+
+async function empGuardarRepuestos() {
+  if (!esAdmin()) return;
+  const equipo = document.getElementById('empr_equipo').value;
+  const repuestos = _leerRepuestosEditorHVD('empr_tbody') || [];
+  const btn = document.getElementById('emprBtnGuardar');
+  btn.disabled = true;
+  _empMensaje('emprMsg', 'Guardando…');
+  try {
+    await _guardarRepuestosHVD(equipo, repuestos);
+    _invalidarCacheHoja(SH.hvdRepuestos);
+    _emp.repuestos = _emp.repuestos.filter(r => r.Equipo !== equipo).concat(repuestos.map((r, i) => ({
+      Equipo: equipo, '#': String(i + 1), Codigo: r.codigo, Nombre: r.nombre, Cantidad: r.cantidad, Ubicacion: '',
+      Observacion: r.observacion, NumeroParte: r.numeroParte, Critico: r.critico ? 'SI' : '', Bodega: r.bodega, Proveedor: r.proveedor,
+    })));
+    _empMensaje('emprMsg', 'Repuestos guardados. También se ven en la Hoja de Vida del equipo.', 'ok');
+    empRenderRepuestosConsolidado();
+    _empRenderKpis();
+  } catch (e) {
+    _empMensaje('emprMsg', 'No se pudo guardar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/** Repuestos de todos los equipos que cumplen el filtro, críticos primero. */
+function _empRepuestosFiltrados(filtro) {
+  const orden = _empEquiposSede(operacionActual);
+  return _emp.repuestos
+    .filter(r => (r.Codigo || r.Nombre) && (filtro === 'comprar' ? r.Bodega === 'Comprar' : filtro === 'criticos' ? r.Critico === 'SI' : true))
+    .sort((a, b) => (a.Critico === 'SI' ? 0 : 1) - (b.Critico === 'SI' ? 0 : 1) || orden.indexOf(a.Equipo) - orden.indexOf(b.Equipo));
+}
+
+function empRenderRepuestosConsolidado() {
+  const cont = document.getElementById('emprConsolidado');
+  const filtro = document.getElementById('empr_filtro').value;
+  const lista = _empRepuestosFiltrados(filtro);
+  if (!lista.length) {
+    cont.innerHTML = _estadoVacio({
+      icono: 'caja', compacto: true,
+      titulo: filtro === 'comprar' ? 'No hay repuestos por comprar' : filtro === 'criticos' ? 'No hay repuestos marcados como críticos' : 'Todavía no hay repuestos',
+      detalle: 'Se llena con los repuestos de cada equipo, arriba.',
+    });
+    return;
+  }
+  cont.innerHTML = `<table class="emp-tabla"><thead><tr><th>Equipo</th><th>Código</th><th>Repuesto</th><th>N° de parte</th><th>Cantidad</th><th>Bodega</th><th>Proveedor</th></tr></thead><tbody>
+    ${lista.map(r => `<tr>
+      <td style="white-space:nowrap;font-weight:600">${esc(r.Equipo)}</td>
+      <td class="num">${esc(r.Codigo || '—')}</td>
+      <td>${esc(r.Nombre || '—')}${r.Critico === 'SI' ? ' <span class="emp-chip alta">Crítico</span>' : ''}</td>
+      <td>${esc(r.NumeroParte || '—')}</td>
+      <td class="num">${esc(r.Cantidad || '—')}</td>
+      <td>${r.Bodega ? `<span class="emp-chip ${r.Bodega === 'Comprar' ? 'abierto' : 'resuelto'}">${esc(r.Bodega)}</span>` : '<span class="emp-chip">Por confirmar</span>'}</td>
+      <td>${esc(r.Proveedor || '—')}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+/* ── 4. Conteo inicial de bodega ── */
+
+function _empHtmlFilaBodega(p) {
+  p = p || {};
+  const td = 'style="padding:4px 6px"';
+  return `<tr>
+    <td ${td}><input data-campo="codigo" value="${esc(p.codigo || '')}" placeholder="FA-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></td>
+    <td ${td}><input data-campo="nombre" value="${esc(p.nombre || '')}" placeholder="Nombre del producto"></td>
+    <td ${td}><input data-campo="cantidad" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.cantidad || '')}"></td>
+    <td ${td}><input data-campo="unidad" value="${esc(p.unidad || 'Unidades')}"></td>
+    <td ${td}><input data-campo="precio" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.precio || '')}" placeholder="Opcional"></td>
+    <td ${td}><input data-campo="ubicacion" value="${esc(p.ubicacion || '')}" placeholder="Opcional"></td>
+    <td ${td}><select data-campo="tipo">${EMPALME_TIPOS_PRODUCTO.map(t => `<option${t === (p.tipo || 'Repuestos') ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+    <td style="padding:4px 6px;text-align:center"><button class="btn-del-row" title="Quitar fila" onclick="this.closest('tr').remove()">✕</button></td>
+  </tr>`;
+}
+
+function empAgregarFilaBodega(p) {
+  document.getElementById('empb_tbody').insertAdjacentHTML('beforeend', _empHtmlFilaBodega(p));
+}
+
+/** Un número tal como llega de un Excel en español: "1.200,5", "$ 85.000"
+ *  o "85000". Devuelve el texto listo para Number(), o '' si está vacío. */
+function _empNumeroPegado(v) {
+  let s = String(v || '').replace(/[$\s]/g, '');
+  if (!s) return '';
+  if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (s.includes(',')) s = s.replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  return s;
+}
+
+/** Filas pegadas desde Excel (columnas separadas por tabulador): Código,
+ *  Nombre, Cantidad, Unidad, Precio unitario, Ubicación. Si la primera fila
+ *  es el encabezado, se salta. */
+function _empParsearPegadoBodega(texto) {
+  return String(texto || '').split(/\r?\n/)
+    .map(linea => linea.split('\t').map(c => c.trim()))
+    .filter(c => c.some(Boolean))
+    .filter((c, i) => !(i === 0 && /c[oó]digo/i.test(c[0] || '')))
+    .map(c => ({
+      codigo: (c[0] || '').toUpperCase(), nombre: c[1] || '', cantidad: _empNumeroPegado(c[2]),
+      unidad: c[3] || 'Unidades', precio: _empNumeroPegado(c[4]), ubicacion: c[5] || '',
+    }));
+}
+
+function empPegarBodega() {
+  const ta = document.getElementById('empb_pegar');
+  const filas = _empParsearPegadoBodega(ta.value);
+  if (!filas.length) { alert('No hay filas para pasar. Copia las celdas en Excel y pégalas en el cuadro.'); return; }
+  // Las filas que están vacías se quitan antes de agregar las pegadas.
+  document.querySelectorAll('#empb_tbody tr').forEach(tr => {
+    const conDatos = [...tr.querySelectorAll('input')].some(i => i.dataset.campo !== 'unidad' && i.value.trim());
+    if (!conDatos) tr.remove();
+  });
+  filas.forEach(empAgregarFilaBodega);
+  ta.value = '';
+  const det = ta.closest('details');
+  if (det) det.open = false;
+  aviso(`${filas.length} ${filas.length === 1 ? 'producto pasado' : 'productos pasados'} a la tabla. Revísalos y dale "Cargar al inventario".`, 'info');
+}
+
+function _empLeerBodega() {
+  return [...document.querySelectorAll('#empb_tbody tr')].map((tr, i) => {
+    const v = c => (tr.querySelector(`[data-campo="${c}"]`)?.value || '').trim();
+    return { fila: i + 1, codigo: v('codigo').toUpperCase(), nombre: v('nombre'), cantidad: v('cantidad'),
+             unidad: v('unidad') || 'Unidades', precio: v('precio'), ubicacion: v('ubicacion'), tipo: v('tipo') };
+  }).filter(p => p.codigo || p.nombre || p.cantidad);
+}
+
+/** Problemas de la tabla de bodega antes de cargarla, uno por línea. */
+function _empErroresBodega(items) {
+  const errores = [];
+  const vistos = new Map();
+  items.forEach(p => {
+    if (!p.codigo || !p.nombre) errores.push(`Fila ${p.fila}: falta el código o el nombre.`);
+    if (!_esNumeroDecimal(p.cantidad) || Number(p.cantidad) <= 0) errores.push(`Fila ${p.fila}: la cantidad debe ser un número mayor que cero.`);
+    if (p.precio && (!_esNumeroDecimal(p.precio) || Number(p.precio) < 0)) errores.push(`Fila ${p.fila}: el precio debe ser un número.`);
+    if (p.codigo && vistos.has(p.codigo)) errores.push(`Fila ${p.fila}: el código ${p.codigo} ya está en la fila ${vistos.get(p.codigo)}.`);
+    else if (p.codigo) vistos.set(p.codigo, p.fila);
+  });
+  return errores;
+}
+
+async function empCargarBodega() {
+  if (!esAdmin()) { alert('Solo un administrador puede cargar el inventario inicial.'); return; }
+  const msg = document.getElementById('empbMsg');
+  const items = _empLeerBodega();
+  if (!items.length) { _empMensaje('empbMsg', 'Agrega al menos un producto.', 'error'); return; }
+  const errores = _empErroresBodega(items);
+  if (errores.length) {
+    msg.style.color = 'var(--danger)';
+    msg.innerHTML = errores.slice(0, 5).map(esc).join('<br>') + (errores.length > 5 ? `<br>Y ${errores.length - 5} más.` : '');
+    return;
+  }
+  const nombreSede = OPERACIONES[operacionActual]?.nombre || '';
+  if (!confirm(`Se van a cargar ${items.length} ${items.length === 1 ? 'producto' : 'productos'} al inventario de ${nombreSede} como inventario inicial. ¿Continuar?`)) return;
+  const btn = document.getElementById('empbBtnCargar');
+  btn.disabled = true;
+  _empMensaje('empbMsg', 'Cargando… no cierres la página.');
+  try {
+    const r = await registrarConteoInicialInventarioDirecto(operacionActual, items, _empQuien());
+    document.getElementById('empb_tbody').innerHTML = '';
+    empAgregarFilaBodega();
+    _empMensaje('empbMsg', `Listo: ${r.ingresos} ${r.ingresos === 1 ? 'producto cargado' : 'productos cargados'} al inventario (${r.productosNuevos} nuevos en el catálogo).`, 'ok');
+    empRenderBodegaCargada();
+  } catch (e) {
+    _empMensaje('empbMsg', 'No se pudo cargar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function _empMovimientosBodegaInicial(sede) {
+  return (await obtenerHistorialInventarioDirecto(sede, { tipo: 'INGRESO' })).filter(m => m.observaciones === EMPALME_OBS_BODEGA);
+}
+
+async function empRenderBodegaCargada() {
+  const cont = document.getElementById('empbCargado');
+  cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>';
+  let movs;
+  try { movs = await _empMovimientosBodegaInicial(operacionActual); }
+  catch (e) { cont.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`; return; }
+  if (!movs.length) {
+    cont.innerHTML = _estadoVacio({ icono: 'caja', compacto: true, titulo: 'Todavía no se ha cargado nada', detalle: 'Lo que se cargue arriba aparece aquí y en el Inventario de la sede.' });
+    return;
+  }
+  cont.innerHTML = `<table class="emp-tabla"><thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Precio unitario</th><th>Fecha</th><th>Cargado por</th></tr></thead><tbody>
+    ${movs.map(m => `<tr>
+      <td class="num">${esc(m.codigo)}</td><td>${esc(m.producto)}</td>
+      <td class="num">${esc(m.cantidad.toLocaleString('es-CO'))}</td>
+      <td class="num">${m.precioUnitario ? esc('$' + m.precioUnitario.toLocaleString('es-CO')) : '—'}</td>
+      <td class="num">${esc(fmtFecha(m.fecha))}</td><td>${esc(m.responsable || '—')}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+/* ── 5. Acta de empalme ── */
+
+async function descargarActaEmpalme() {
+  // En computador la pestaña se abre YA, antes de esperar datos, o el
+  // navegador la bloquea como pop-up (ver descargarOrdenPDF).
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
+  let bodega = null;
+  try {
+    await _empCargarDatos();
+    try { bodega = await _empMovimientosBodegaInicial(operacionActual); } catch (_) { bodega = null; }
+  } catch (e) {
+    if (ventana) { try { ventana.close(); } catch (_) {} }
+    alert('No se pudo armar el acta: ' + e.message);
+    return;
+  }
+  _empRenderKpis();
+  _entregarDocumentoImprimible(_htmlActaEmpalme(operacionActual, bodega), ventana);
+}
+
+/** El acta en HTML, con lo que haya en _emp. bodega: los ingresos del
+ *  conteo inicial, o null si no se pudo leer el inventario. */
+function _htmlActaEmpalme(sede, bodega) {
+  const nombreSede = OPERACIONES[sede]?.nombre || sede;
+  const grupos = _empGruposEquipos(sede);
+  const equipos = grupos.flatMap(g => g.equipos);
+  const cuantos = estado => equipos.filter(e => (_empFicha(e)?.Estado || '') === estado).length;
+  const sinRecibir = equipos.filter(e => !_empFicha(e)?.Estado).length;
+  const hallazgos = [..._emp.hallazgos].sort((a, b) => (EMPALME_PRIORIDAD_ORDEN[a.Prioridad] ?? 3) - (EMPALME_PRIORIDAD_ORDEN[b.Prioridad] ?? 3));
+  const comprar = _empRepuestosFiltrados('comprar');
+  const v = x => esc(x || '—');
+
+  const tablaEquipos = grupos.map(g => `
+    <div class="grupo">${esc(g.grupo)}</div>
+    <table><thead><tr><th style="width:15%">Equipo</th><th style="width:13%">Estado</th><th style="width:10%">Horómetro</th><th style="width:18%">Último mantenimiento</th><th style="width:17%">Documentación</th><th>Observaciones</th></tr></thead><tbody>
+    ${g.equipos.map(e => {
+      const f = _empFicha(e) || {};
+      const fotos = _emp.fotos.filter(x => x.Equipo === e).length;
+      return `<tr><td><b>${esc(e)}</b></td><td>${v(f.Estado || 'Sin recibir')}</td>
+        <td class="num">${f.Horometro ? esc(Number(f.Horometro).toLocaleString('es-CO')) + ' h' : '—'}</td>
+        <td>${f.UltimoMantFecha ? esc(fmtFecha(f.UltimoMantFecha)) : '—'}${f.UltimoMantDetalle ? '<br><span class="mut">' + esc(f.UltimoMantDetalle) + '</span>' : ''}</td>
+        <td>${v(String(f.Documentacion || '').split('|').filter(Boolean).join(', '))}</td>
+        <td>${v(f.Observaciones)}${fotos ? `<br><span class="mut">${fotos} ${fotos === 1 ? 'foto' : 'fotos'} en el sistema</span>` : ''}</td></tr>`;
+    }).join('')}</tbody></table>`).join('');
+
+  const tablaHallazgos = hallazgos.length
+    ? `<table><thead><tr><th style="width:10%">Prioridad</th><th style="width:15%">Equipo</th><th>Qué se encontró</th><th style="width:16%">Estado</th></tr></thead><tbody>
+      ${hallazgos.map(h => `<tr><td>${v(h.Prioridad)}</td><td>${v(h.Equipo)}</td><td style="white-space:pre-line">${v(h.Descripcion)}</td>
+        <td>${v(h.Estado || 'Abierto')}${h.OrdenNumero ? '<br><span class="mut">' + esc(h.OrdenNumero) + '</span>' : ''}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="mut">No se registraron hallazgos.</p>';
+
+  const tablaComprar = comprar.length
+    ? `<table><thead><tr><th>Equipo</th><th>Código</th><th>Repuesto</th><th>N° de parte</th><th>Cantidad</th><th>Proveedor</th></tr></thead><tbody>
+      ${comprar.map(r => `<tr><td>${v(r.Equipo)}</td><td>${v(r.Codigo)}</td><td>${v(r.Nombre)}${r.Critico === 'SI' ? ' <b>(crítico)</b>' : ''}</td>
+        <td>${v(r.NumeroParte)}</td><td class="num">${v(r.Cantidad)}</td><td>${v(r.Proveedor)}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="mut">No hay repuestos marcados para comprar.</p>';
+
+  const tablaBodega = bodega === null
+    ? '<p class="mut">No se pudo leer el inventario al generar el acta.</p>'
+    : bodega.length
+      ? `<table><thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Precio unitario</th></tr></thead><tbody>
+        ${bodega.map(m => `<tr><td>${v(m.codigo)}</td><td>${v(m.producto)}</td><td class="num">${esc(m.cantidad.toLocaleString('es-CO'))}</td>
+          <td class="num">${m.precioUnitario ? esc('$' + m.precioUnitario.toLocaleString('es-CO')) : '—'}</td></tr>`).join('')}</tbody></table>`
+      : '<p class="mut">No se cargó inventario inicial de bodega.</p>';
+
+  const fecha = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+  return `<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8">
+<title>Acta de empalme — ${esc(nombreSede)}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:11.5px;color:#222;margin:0;padding:24px}
+  h1{font-size:18px;color:#02457A;margin:0 0 4px}
+  .sub{font-size:11px;color:#666;margin-bottom:18px}
+  .section-title{background:#e8eef7;color:#02457A;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:6px 10px;margin:18px 0 10px;border-left:3px solid #02457A}
+  .grupo{font-size:11px;font-weight:700;color:#02457A;text-transform:uppercase;margin:12px 0 6px}
+  .resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .dato{padding:8px 10px;background:#f5f5f5;border-radius:4px}
+  .dato b{display:block;font-size:18px;color:#02457A}
+  table{width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:auto}
+  tr{page-break-inside:avoid}
+  th{background:#02457A;color:#fff;padding:5px 8px;text-align:left;font-size:10px;text-transform:uppercase}
+  td{padding:5px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}
+  td.num{white-space:nowrap}
+  .mut{color:#777;font-size:10.5px}
+  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:50px;page-break-inside:avoid}
+  .firma .linea{height:50px;border-bottom:1px solid #333;margin-bottom:6px}
+  .footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#aaa;text-align:center}
+  @media print{body{padding:0}}
+</style>
+</head><body>
+<h1>Acta de empalme de entrega — ${esc(nombreSede)}</h1>
+<div class="sub">Generada el ${esc(fecha)} por ${v(_empQuien())}</div>
+
+<div class="section-title">Resumen</div>
+<div class="resumen">
+  <div class="dato"><b>${equipos.length - sinRecibir} de ${equipos.length}</b>equipos recibidos</div>
+  <div class="dato"><b>${cuantos('Operativo')}</b>operativos</div>
+  <div class="dato"><b>${cuantos('Operativo con fallas')}</b>operativos con fallas</div>
+  <div class="dato"><b>${cuantos('Fuera de servicio')}</b>fuera de servicio</div>
+  <div class="dato"><b>${hallazgos.length}</b>hallazgos (${hallazgos.filter(h => h.Estado !== 'Resuelto').length} sin resolver)</div>
+  <div class="dato"><b>${comprar.length}</b>repuestos por comprar</div>
+  <div class="dato"><b>${bodega ? bodega.length : '—'}</b>productos en bodega</div>
+  <div class="dato"><b>${sinRecibir}</b>equipos sin recibir</div>
+</div>
+
+<div class="section-title">Estado de los equipos al recibir</div>
+${tablaEquipos}
+
+<div class="section-title">Hallazgos</div>
+${tablaHallazgos}
+
+<div class="section-title">Repuestos por comprar</div>
+${tablaComprar}
+
+<div class="section-title">Inventario inicial de bodega</div>
+${tablaBodega}
+
+<div class="firmas">
+  <div class="firma"><div class="linea"></div><b>Entrega</b><div class="mut">Nombre, cargo y empresa</div></div>
+  <div class="firma"><div class="linea"></div><b>Recibe</b><div class="mut">Nombre, cargo y empresa</div></div>
+</div>
+
+<div class="footer">Acta de empalme · ${esc(nombreSede)} · Sistema de Órdenes de Trabajo · ${esc(new Date().toLocaleString('es-CO'))}</div>
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
 }
 
 /* ══════════════════════════════════════════════
