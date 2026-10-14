@@ -4858,6 +4858,20 @@ async function _invGet(spreadsheetId, rango) {
   return d.values || [];
 }
 
+/** Lee una pestaña de datos del inventario y, si todavía no existe, la da
+ *  por vacía. Una sede nueva arranca con la hoja en blanco: Productos,
+ *  Movimientos y Servicios se crean con su primer registro
+ *  (_invAsegurarHoja). Antes, abrir el inventario de esa sede fallaba con
+ *  "Unable to parse range: Productos!…" en vez de mostrarlo vacío. */
+async function _invGetPestana(spreadsheetId, rango) {
+  try {
+    return await _invGet(spreadsheetId, rango);
+  } catch (e) {
+    if (e.status === 400 && /Unable to parse range/i.test(e.message)) return [];
+    throw e;
+  }
+}
+
 async function _invAppend(spreadsheetId, hoja, rows) {
   if (!rows || !rows.length) return;
   const colFin = numToCol(rows[0].length - 1);
@@ -5008,8 +5022,8 @@ function _agruparLotesFIFO(movimientos) {
 async function obtenerTodosLosLotesInventario(sede) {
   const spreadsheetId = _invSpreadsheetId(sede);
   const [productos, movimientos] = await Promise.all([
-    _invGet(spreadsheetId, 'Productos!A2:J100000'),
-    _invGet(spreadsheetId, 'Movimientos!A2:M100000'),
+    _invGetPestana(spreadsheetId, 'Productos!A2:J100000'),
+    _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000'),
   ]);
   const lotesPorCodigo = _agruparLotesFIFO(movimientos);
   const items = productos.filter(row => row[0] && row[1]).map(row => {
@@ -5032,8 +5046,8 @@ async function obtenerTodosLosLotesInventario(sede) {
 async function obtenerStockInventarioDirecto(sede) {
   const spreadsheetId = _invSpreadsheetId(sede);
   const [productos, movimientos] = await Promise.all([
-    _invGet(spreadsheetId, 'Productos!A2:J100000'),
-    _invGet(spreadsheetId, 'Movimientos!A2:M100000'),
+    _invGetPestana(spreadsheetId, 'Productos!A2:J100000'),
+    _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000'),
   ]);
 
   const lotesPorCodigo = _agruparLotesFIFO(movimientos);
@@ -5066,7 +5080,7 @@ async function registrarProductoInventarioDirecto(sede, producto) {
   const nombre = (producto.nombre || '').toString().trim().toUpperCase();
   if (!codigo || !nombre) throw new Error('Código y nombre son obligatorios');
 
-  const existentes = await _invGet(spreadsheetId, 'Productos!A2:A100000');
+  const existentes = await _invGetPestana(spreadsheetId, 'Productos!A2:A100000');
   if (existentes.some(r => (r[0] || '').toString().trim().toUpperCase() === codigo)) {
     throw new Error('Ya existe un producto con este código');
   }
@@ -5094,7 +5108,7 @@ async function registrarProductoInventarioDirecto(sede, producto) {
  *  el historial completo (para la sección "Lotes"). */
 async function obtenerServiciosInventarioDirecto(sede) {
   const spreadsheetId = _invSpreadsheetId(sede);
-  const filas = await _invGet(spreadsheetId, 'Servicios!A2:F100000');
+  const filas = await _invGetPestana(spreadsheetId, 'Servicios!A2:F100000');
   const porCodigo = new Map();
   filas.filter(row => row[0] && row[1]).forEach(row => {
     const codigo = row[0].toString().trim();
@@ -5257,14 +5271,14 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
   if (!codigo || cantidad <= 0) throw new Error('Código y cantidad son obligatorios');
   if (!INV_TIPOS_MOVIMIENTO.includes(tipo)) throw new Error('Tipo de movimiento inválido: ' + tipo);
 
-  const productos = await _invGet(spreadsheetId, 'Productos!A2:A100000');
+  const productos = await _invGetPestana(spreadsheetId, 'Productos!A2:A100000');
   if (!productos.some(r => (r[0] || '').toString().trim().toUpperCase() === codigo)) {
     throw new Error('El producto no existe. Regístrelo primero.');
   }
 
   const lockToken = await _invAdquirirLock(spreadsheetId);
   try {
-    const movimientos = await _invGet(spreadsheetId, 'Movimientos!A2:M100000');
+    const movimientos = await _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000');
     const stockActual = _invStockDeMovimientos(movimientos, codigo);
     if (tipo === 'SALIDA' || tipo === 'AJUSTE_NEGATIVO') {
       if (stockActual < cantidad) {
@@ -5310,8 +5324,8 @@ async function obtenerHistorialInventarioDirecto(sede, filtros) {
   filtros = filtros || {};
   const spreadsheetId = _invSpreadsheetId(sede);
   const [productos, movimientos] = await Promise.all([
-    _invGet(spreadsheetId, 'Productos!A2:B100000'),
-    _invGet(spreadsheetId, 'Movimientos!A2:M100000'),
+    _invGetPestana(spreadsheetId, 'Productos!A2:B100000'),
+    _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000'),
   ]);
   const prodMap = {};
   productos.forEach(r => { if (r[0]) prodMap[r[0].toString().trim().toUpperCase()] = r[1] || ''; });
@@ -5909,7 +5923,7 @@ async function _calcularDescuentosPendientes(desdeIso) {
   const spreadsheetId = _invSpreadsheetId(operacionActual);
   const [stock, movimientos] = await Promise.all([
     obtenerStockInventarioDirecto(operacionActual),
-    _invGet(spreadsheetId, 'Movimientos!A2:M100000'),
+    _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000'),
   ]);
   const porCodigo = new Map(), porNombre = new Map();
   stock.forEach(p => {

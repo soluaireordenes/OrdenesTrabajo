@@ -924,6 +924,40 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
   {
+    // Inventario de una sede nueva: la hoja solo tiene "Config". Abrirlo no
+    // falla, y el primer producto crea la pestaña Productos.
+    const pestanas = new Set(['Config']), creadas = [];
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': route => {
+      const u = decodeURIComponent(route.request().url());
+      const json = (status, cuerpo) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+      if (/:batchUpdate/.test(u)) {
+        const nueva = JSON.parse(route.request().postData()).requests[0]?.addSheet?.properties?.title;
+        if (nueva) { pestanas.add(nueva); creadas.push(nueva); }
+        return json(200, { replies: [] });
+      }
+      const rango = (u.match(/\/values\/([^?:]+)/) || [])[1] || '';
+      if (rango && !pestanas.has(rango.split('!')[0])) return json(400, { error: { code: 400, message: 'Unable to parse range: ' + rango, status: 'INVALID_ARGUMENT' } });
+      return json(200, { values: [], replies: [] });
+    } });
+    const r = await p.evaluate(async () => {
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira2'; operacionAutenticada = true;
+      abrirInventario('zipaquira2');
+      for (const sub of ['stock', 'lotes', 'servicios', 'proveedores', 'dashboard']) { invMostrarSubTab(sub); await new Promise(x => setTimeout(x, 300)); }
+      const textoPanel = document.getElementById('panel-inventario').innerText;
+      let stock = null, error = '';
+      try {
+        stock = (await obtenerStockInventarioDirecto('zipaquira2')).length;
+        await registrarProductoInventarioDirecto('zipaquira2', { codigo: 'P-1', nombre: 'Filtro' });
+      } catch (e) { error = e.message; }
+      return { avisos, conError: /Unable to parse range|Error leyendo inventario/.test(textoPanel), stock, error };
+    });
+    check('Inventario de una sede nueva (hoja sin pestañas): abre vacío y el primer producto crea "Productos"',
+      !r.conError && r.stock === 0 && !r.error && !r.avisos.some(a => /Unable to parse range|Error leyendo/.test(a)) && creadas.includes('Productos') && errs.length === 0,
+      { ...r, creadas, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
     // B2: la fecha del reporte técnico sale de su franja y no se guarda antes de que abra
     const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
     await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
