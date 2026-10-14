@@ -664,8 +664,13 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
       paso('2: Avisos de la app en vez de la ventanita del navegador');
       // Avisos de la app en vez de la ventanita del navegador
-      alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.');
+      const setTimeoutOriginal = window.setTimeout, esperas = [];
+      window.setTimeout = (fn, ms, ...resto) => { esperas.push(ms); return setTimeoutOriginal(fn, ms, ...resto); };
+      try { alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.'); }
+      finally { window.setTimeout = setTimeoutOriginal; }
       out.avisos = [...document.querySelectorAll('#avisos .aviso')].map(a => a.className.replace('aviso ', '') + ':' + a.querySelector('.aviso-texto').textContent).join(' | ');
+      out.avisoTamano = getComputedStyle(document.querySelector('#avisos .aviso')).fontSize;
+      out.avisoEsperas = esperas.join(',');
       document.querySelectorAll('#avisos .aviso-cerrar').forEach(b => b.click());
       paso('3: Rol junto al nombre');
       // Rol junto al nombre
@@ -896,6 +901,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
     check('Avisos de la app con su color (bien, error, falta algo) y sin el emoji', r.avisos === 'exito:Orden guardada correctamente. | error:Contraseña incorrecta. | advertencia:Solo un administrador puede hacer esto.', r.avisos);
+    check('Avisos: letra grande y 2 s más en pantalla (6 s un aviso corto, 9 s un error)', r.avisoTamano === '16px' && r.avisoEsperas === '6000,9000,6255', { tamano: r.avisoTamano, esperas: r.avisoEsperas });
     check('Rol junto al nombre en el encabezado', r.rol === 'Admin' && r.rolOperario === 'Operario', r);
     check('Listas vacías: mensaje claro y "Quitar filtros" que sí los quita', r.vacioPend === 'No hay órdenes pendientes' && r.vacioLista === 'No hay órdenes con esos filtros →  → 1', r);
     check('Inicio: saludo con el nombre y las órdenes pendientes', /^Buen[oa]s (días|tardes|noches), Ana\b/.test(r.saludo) && /Hay 2 órdenes pendientes en .+, 1 urgente\./.test(r.saludo)
@@ -915,6 +921,40 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
       return document.getElementById('e_equipo').value;
     });
     check('Órdenes: al editar una orden de un equipo que ya no está en la lista, el equipo se conserva', editar === 'Tie off 2' && errs.length === 0, { editar, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
+    // Inventario de una sede nueva: la hoja solo tiene "Config". Abrirlo no
+    // falla, y el primer producto crea la pestaña Productos.
+    const pestanas = new Set(['Config']), creadas = [];
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': route => {
+      const u = decodeURIComponent(route.request().url());
+      const json = (status, cuerpo) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+      if (/:batchUpdate/.test(u)) {
+        const nueva = JSON.parse(route.request().postData()).requests[0]?.addSheet?.properties?.title;
+        if (nueva) { pestanas.add(nueva); creadas.push(nueva); }
+        return json(200, { replies: [] });
+      }
+      const rango = (u.match(/\/values\/([^?:]+)/) || [])[1] || '';
+      if (rango && !pestanas.has(rango.split('!')[0])) return json(400, { error: { code: 400, message: 'Unable to parse range: ' + rango, status: 'INVALID_ARGUMENT' } });
+      return json(200, { values: [], replies: [] });
+    } });
+    const r = await p.evaluate(async () => {
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira2'; operacionAutenticada = true;
+      abrirInventario('zipaquira2');
+      for (const sub of ['stock', 'lotes', 'servicios', 'proveedores', 'dashboard']) { invMostrarSubTab(sub); await new Promise(x => setTimeout(x, 300)); }
+      const textoPanel = document.getElementById('panel-inventario').innerText;
+      let stock = null, error = '';
+      try {
+        stock = (await obtenerStockInventarioDirecto('zipaquira2')).length;
+        await registrarProductoInventarioDirecto('zipaquira2', { codigo: 'P-1', nombre: 'Filtro' });
+      } catch (e) { error = e.message; }
+      return { avisos, conError: /Unable to parse range|Error leyendo inventario/.test(textoPanel), stock, error };
+    });
+    check('Inventario de una sede nueva (hoja sin pestañas): abre vacío y el primer producto crea "Productos"',
+      !r.conError && r.stock === 0 && !r.error && !r.avisos.some(a => /Unable to parse range|Error leyendo/.test(a)) && creadas.includes('Productos') && errs.length === 0,
+      { ...r, creadas, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
