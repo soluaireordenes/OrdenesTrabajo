@@ -21,7 +21,7 @@
 
    ── CONTRATO QUE ESPERA EL SISTEMA (no cambiar nombres de campos) ──────
    • Subir   (POST, body JSON):
-       { accion:'subirFoto', pase, tipo:'orden'|'cronograma'|'novedad',
+       { accion:'subirFoto', pase, tipo:'orden'|'cronograma'|'novedad'|'empalme',
          codigo, nombreArchivo, mimeType, base64 (SIN prefijo data:),
          tareaDescripcion, subidoPor, correo }
      → responde { ok:true, driveFileId, urlVer }
@@ -61,7 +61,8 @@
 var SUBCARPETAS = {
   orden:      'FOTOS OT',
   cronograma: 'FOTOS REPORTES',
-  novedad:    'FOTOS NOVEDADES'
+  novedad:    'FOTOS NOVEDADES',
+  empalme:    'FOTOS EMPALME'
 };
 
 // Tope de tamaño de lo que se sube (las fotos llegan ya reducidas por la app).
