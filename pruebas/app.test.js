@@ -944,6 +944,37 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
   {
+    // Plan de Mantenimiento: cada sede ve sus propios compresores
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[],"replies":[]}' }) });
+    const r = await p.evaluate(async () => {
+      const espera = () => new Promise(x => setTimeout(x, 400));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true;
+      const leer = async sede => {
+        operacionActual = sede; abrirPlanMantenimiento(sede); await espera();
+        const reg = document.getElementById('pmRegistroHorasContenido');
+        const out = {
+          equipos: [...reg.querySelectorAll('tbody td:first-child')].map(td => td.textContent.trim()),
+          texto: reg.textContent,
+        };
+        pmMostrarSubTab('configinformes'); await espera();
+        out.horaBase = document.querySelectorAll('#pmHoraBaseContenido .pm-hora-base').length;
+        out.actividades = document.getElementById('pmActividadesContenido').innerText;
+        return out;
+      };
+      return { zipa2: await leer('zipaquira2'), zipa1: await leer('zipaquira') };
+    });
+    const z2 = r.zipa2, z1 = r.zipa1;
+    check('Plan de Mantenimiento de Zipaquirá 2: sus 22 compresores (Baja y Alta Presión) en Registro y Configuración',
+      z2.equipos.length === 22 && z2.equipos.includes('JOY 2') && z2.equipos.includes('IR 12') && !z2.equipos.includes('COMPRESOR DE EMERGENCIA NX200')
+      && !z2.equipos.some(e => /Secador/.test(e)) && /Baja Presión/.test(z2.texto) && /Alta Presión/.test(z2.texto)
+      && !/no captura horómetro/.test(z2.texto) && z2.horaBase === 22 && /todavía no están disponibles para esta sede/.test(z2.actividades) && errs.length === 0,
+      { equipos: z2.equipos.length, horaBase: z2.horaBase, actividades: z2.actividades.slice(0, 80), errs: errs.slice(0, 2) });
+    check('Plan de Mantenimiento de Zipaquirá: sigue con sus 11 compresores y el editor de actividades',
+      z1.equipos.length === 11 && z1.equipos.includes('COMPRESOR DE EMERGENCIA NX200') && z1.horaBase === 11 && /Se aplica a/.test(z1.actividades),
+      { equipos: z1.equipos.length, horaBase: z1.horaBase, actividades: z1.actividades.slice(0, 80) });
+    await ctx.close();
+  }
+  {
     // Inventario de una sede nueva: la hoja solo tiene "Config". Abrirlo no
     // falla, y el primer producto crea la pestaña Productos.
     const pestanas = new Set(['Config']), creadas = [];
