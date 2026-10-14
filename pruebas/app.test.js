@@ -924,6 +924,26 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     await ctx.close();
   }
   {
+    // Zipaquirá 2 tiene su propia lista de equipos (ya no la general)
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(() => {
+      const grupos = _gruposEquiposParaOrden('zipaquira2');
+      const nombres = Object.values(grupos).flat();
+      operacionActual = 'zipaquira2';
+      const hvd = _listaEquiposPlanaSede();
+      operacionActual = 'zipaquira';
+      return {
+        grupos: Object.keys(grupos).join(' | '), total: nombres.length, unicos: new Set(nombres).size,
+        sinGeneral: !nombres.includes('ARRANCADOR CA1') && !nombres.includes('SCA1'),
+        hvd: hvd.length, soachaGeneral: _gruposEquiposParaOrden('soacha') === EQUIPOS_LISTADO_GENERAL,
+      };
+    });
+    check('Zipaquirá 2: su propia lista de equipos (4 grupos, 31 equipos sin repetidos) en órdenes y Hoja de Vida; Soacha sigue con la general',
+      r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores' && r.total === 31 && r.unicos === 31
+      && r.sinGeneral && r.hvd === 31 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
     // Inventario de una sede nueva: la hoja solo tiene "Config". Abrirlo no
     // falla, y el primer producto crea la pestaña Productos.
     const pestanas = new Set(['Config']), creadas = [];

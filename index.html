@@ -8239,6 +8239,17 @@ const EQUIPOS_ZIPAQUIRA = {
   'Aire de Sellos':              ['SCAIRESELLOS'],
 };
 
+// Lista de equipos activos exclusiva de CO O-I Zipaquirá 2. Reemplaza a la
+// lista general que tenía mientras no había una propia. Los secadores que
+// se repetían de nombre se numeraron (Kaeser 1 y 2, SPX Flow 1 y 2) para
+// que cada uno tenga su propia hoja de vida e historial.
+const EQUIPOS_ZIPAQUIRA2 = {
+  'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
+  'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
+  'Alta Presión Secadores':      ['Secador #5 - Hankinson','Secador Kaeser 1','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #3 - General Neumatics','Secador Kaeser 2'],
+  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #4 - Hankinson'],
+};
+
 // Lista de equipos activos exclusiva de PAVISA México (no afecta a las demás sedes)
 // Agrupada por área real de la planta; cada opción muestra el código y el tipo de equipo.
 const EQUIPOS_MEXICO = {
@@ -8350,6 +8361,7 @@ function _otroEquipoFijo(nombre) {
 const EQUIPOS_POR_SEDE = {
   mexico: EQUIPOS_MEXICO,
   zipaquira: EQUIPOS_ZIPAQUIRA,
+  zipaquira2: EQUIPOS_ZIPAQUIRA2,
   // soacha:    EQUIPOS_SOACHA,     // ← pendiente: agregar cuando tengamos su lista real
   // peru:      EQUIPOS_PERU,       // ← pendiente: agregar cuando tengamos su lista real
 };
