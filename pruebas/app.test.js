@@ -664,8 +664,13 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
       paso('2: Avisos de la app en vez de la ventanita del navegador');
       // Avisos de la app en vez de la ventanita del navegador
-      alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.');
+      const setTimeoutOriginal = window.setTimeout, esperas = [];
+      window.setTimeout = (fn, ms, ...resto) => { esperas.push(ms); return setTimeoutOriginal(fn, ms, ...resto); };
+      try { alert('✅ Orden guardada correctamente.'); alert('❌ Contraseña incorrecta.'); alert('Solo un administrador puede hacer esto.'); }
+      finally { window.setTimeout = setTimeoutOriginal; }
       out.avisos = [...document.querySelectorAll('#avisos .aviso')].map(a => a.className.replace('aviso ', '') + ':' + a.querySelector('.aviso-texto').textContent).join(' | ');
+      out.avisoTamano = getComputedStyle(document.querySelector('#avisos .aviso')).fontSize;
+      out.avisoEsperas = esperas.join(',');
       document.querySelectorAll('#avisos .aviso-cerrar').forEach(b => b.click());
       paso('3: Rol junto al nombre');
       // Rol junto al nombre
@@ -896,6 +901,7 @@ const JPG_B64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBk
     check('Login: fondo claro con la marca de agua animada', r.loginFondo, r.loginFondo);
     check('Pantalla de carga: se quita sola al arrancar', r.cargaFuera);
     check('Avisos de la app con su color (bien, error, falta algo) y sin el emoji', r.avisos === 'exito:Orden guardada correctamente. | error:Contraseña incorrecta. | advertencia:Solo un administrador puede hacer esto.', r.avisos);
+    check('Avisos: letra grande y 2 s más en pantalla (6 s un aviso corto, 9 s un error)', r.avisoTamano === '16px' && r.avisoEsperas === '6000,9000,6255', { tamano: r.avisoTamano, esperas: r.avisoEsperas });
     check('Rol junto al nombre en el encabezado', r.rol === 'Admin' && r.rolOperario === 'Operario', r);
     check('Listas vacías: mensaje claro y "Quitar filtros" que sí los quita', r.vacioPend === 'No hay órdenes pendientes' && r.vacioLista === 'No hay órdenes con esos filtros →  → 1', r);
     check('Inicio: saludo con el nombre y las órdenes pendientes', /^Buen[oa]s (días|tardes|noches), Ana\b/.test(r.saludo) && /Hay 2 órdenes pendientes en .+, 1 urgente\./.test(r.saludo)

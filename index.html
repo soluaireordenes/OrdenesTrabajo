@@ -194,21 +194,21 @@ body::before {
    abajo está la barra de secciones. */
 #avisos {
   position: fixed; top: 80px; right: 20px; z-index: 10001;
-  display: flex; flex-direction: column; gap: 10px;
-  width: min(380px, calc(100vw - 32px)); pointer-events: none;
+  display: flex; flex-direction: column; gap: 12px;
+  width: min(460px, calc(100vw - 32px)); pointer-events: none;
 }
 .aviso {
-  pointer-events: auto; display: flex; gap: 12px; align-items: flex-start;
+  pointer-events: auto; display: flex; gap: 14px; align-items: flex-start;
   background: var(--surface); color: var(--text); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px 10px 12px 14px; box-shadow: var(--shadow-lg);
-  font-size: 13.5px; line-height: 1.45;
+  border-radius: 14px; padding: 16px 12px 16px 18px; box-shadow: var(--shadow-lg);
+  font-size: 16px; line-height: 1.45;
   animation: avisoEntra .25s var(--ease) both;
 }
 .aviso.saliendo { animation: avisoSale .2s ease both; }
-.aviso-icono { flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.aviso-icono svg { width: 16px; height: 16px; stroke: currentColor; }
-.aviso-texto { flex: 1; min-width: 0; padding-top: 3px; white-space: pre-line; overflow-wrap: anywhere; max-height: 40vh; overflow: auto; }
-.aviso-cerrar { flex: none; background: none; border: none; color: var(--text3); font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.aviso-icono { flex: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.aviso-icono svg { width: 20px; height: 20px; stroke: currentColor; }
+.aviso-texto { flex: 1; min-width: 0; padding-top: 6px; white-space: pre-line; overflow-wrap: anywhere; max-height: 40vh; overflow: auto; }
+.aviso-cerrar { flex: none; background: none; border: none; color: var(--text3); font-size: 26px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
 .aviso-cerrar:hover { background: var(--surface2); color: var(--text); }
 .aviso.exito       .aviso-icono { background: rgba(21,128,61,.13);  color: #15803d; }
 .aviso.error       .aviso-icono { background: rgba(198,40,40,.12);  color: var(--danger); }
@@ -13102,6 +13102,8 @@ const ICONOS_AVISO = {
   info:        '<line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="7" x2="12.01" y2="7"></line>',
 };
 
+const AVISO_EXTRA_MS = 2000;
+
 /** De qué tipo es un mensaje, por cómo está escrito. */
 function _tipoDeAviso(m) {
   if (/^\s*(❌|⛔|🚫)/.test(m) || /\b(error|no se pud(o|ieron)|no se encontr|inválid|incorrect|fall[oó])/i.test(m)) return 'error';
@@ -13141,10 +13143,11 @@ function aviso(mensaje, tipo, { guardar = true } = {}) {
     setTimeout(() => el.remove(), 200);
   };
   // Más tiempo para leer los largos y los errores; se pausa con el mouse encima.
-  const dura = Math.min(12000, Math.max(tipo === 'error' ? 7000 : 4000, 2500 + texto.length * 45));
+  // AVISO_EXTRA_MS: 2 s más que al principio, para alcanzar a leerlos con calma.
+  const dura = AVISO_EXTRA_MS + Math.min(12000, Math.max(tipo === 'error' ? 7000 : 4000, 2500 + texto.length * 45));
   reloj = setTimeout(cerrar, dura);
   el.addEventListener('mouseenter', () => clearTimeout(reloj));
-  el.addEventListener('mouseleave', () => { if (!cerrado) reloj = setTimeout(cerrar, 2500); });
+  el.addEventListener('mouseleave', () => { if (!cerrado) reloj = setTimeout(cerrar, AVISO_EXTRA_MS + 2500); });
   el.querySelector('.aviso-cerrar').addEventListener('click', cerrar);
 }
 window.alert = mensaje => aviso(mensaje);
