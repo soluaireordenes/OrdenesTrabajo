@@ -562,6 +562,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         () => _actualizarFilaPorClave(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS, 'Equipo', 'JOY 2', { Estado: 'Operativo' }),
         () => appendHoja(SH.empalmeHallazgos, [['H-1', 'JOY 2', 'Fuga', 'Alta', 'Abierto', '', 'Op', '2026-10-14']]),
         () => appendHoja(SH.empalmeFotos, [['JOY 2', 'F1', '', 'Op', '2026-10-14']]),
+        () => _actualizarFilasPorClaveEnLote(SH.empalmeEvaluacion, EMPALME_EVALUACION_COLS, 'Clave', { 'JOY 2|aceite': { Equipo: 'JOY 2', Item: 'aceite', Estado: 'Bueno' } }),
       ];
       for (const paso of pasos) { try { await paso(); } catch (e) { fallos.push(String(e.message).slice(0, 120)); } await new Promise(x => setTimeout(x, 250)); }
       const sedeOk = await validarClaveSedeDirecto('zipaquira', 'clave-sede');
@@ -1038,8 +1039,20 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       document.getElementById('empf_estado').value = 'Operativo con fallas';
       document.querySelectorAll('.empf-doc')[0].checked = true;
       document.getElementById('empf_obs').value = 'Fuga leve en el enfriador';
+      document.getElementById('empf_Identificacion').value = 'Joy TA-48 / S/N 1234 / 2004';
+      document.getElementById('empf_TorreEnfriamiento').value = 'Torre 2';
+      const evalFila = id => document.querySelector(`.emp-tabla-evaluacion tr[data-item="${id}"]`);
+      out.itemsEvaluacion = document.querySelectorAll('.emp-tabla-evaluacion tbody tr').length;
+      evalFila('aceite').querySelector('[data-campo="estado"]').value = 'Bueno';
+      evalFila('vibraciones').querySelector('[data-campo="estado"]').value = 'Malo';
+      evalFila('vibraciones').querySelector('[data-campo="observaciones"]').value = '7,1 mm/s en el rodamiento lado acople';
       await empGuardarFicha();
       out.fichaMsg = document.getElementById('empfMsg').textContent;
+      out.kpiEvaluacion = document.querySelector('#empKpis .emp-kpi-sub').textContent;
+      empSeleccionarEquipo('Secador Kaeser 1');
+      out.secadorSinEvaluacion = !document.querySelector('.emp-tabla-evaluacion') && !!document.getElementById('empf_Arrancador');
+      empSeleccionarEquipo('JOY 2');
+      out.evaluacionReabre = document.querySelector('.emp-tabla-evaluacion tr[data-item="vibraciones"] [data-campo="estado"]').value;
       out.kpiDespues = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
       out.chip = document.querySelector('#empListaEquipos .emp-equipo.activo .emp-chip').textContent;
 
@@ -1103,9 +1116,17 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 31 equipos', r.menu && !r.menuZipa1 && r.lista === 31 && r.kpiAntes === '0 de 31', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
     check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
       /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 31' && r.chip === 'Operativo con fallas'
-      && ficha.length === 2 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual del fabricante'
+      && ficha.length === 2 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
+      && ficha[1][col(ficha, 'Identificacion')] === 'Joy TA-48 / S/N 1234 / 2004' && ficha[1][col(ficha, 'TorreEnfriamiento')] === 'Torre 2'
       && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
       { sinEstado: r.sinEstado, msg: r.fichaMsg, kpi: r.kpiDespues, ficha: ficha[1], horas: filaJoy });
+    const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
+    const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
+    check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
+      r.itemsEvaluacion === 11 && evaluacion.length === 3 && filaVib[col(evaluacion, 'Estado')] === 'Malo'
+      && filaVib[col(evaluacion, 'Observaciones')] === '7,1 mm/s en el rodamiento lado acople'
+      && r.secadorSinEvaluacion && r.evaluacionReabre === 'Malo' && /Evaluación técnica completa: 0 de 22 compresores/.test(r.kpiEvaluacion),
+      { items: r.itemsEvaluacion, evaluacion, secador: r.secadorSinEvaluacion, reabre: r.evaluacionReabre, kpi: r.kpiEvaluacion });
     check('Empalme: un hallazgo se vuelve orden correctiva con el hallazgo como tarea',
       r.hallazgo.estado === 'En orden' && /^OT-/.test(r.hallazgo.orden) && r.hallazgo.equipo === 'JOY 2' && r.hallazgo.tipo === 'Correctivo' && r.hallazgo.prioridad === 'Alta'
       && r.hallazgo.tarea === 'Válvula de alivio sin certificar' && ordenes.some(f => f.includes(r.hallazgo.orden))
@@ -1122,7 +1143,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       { msg: r.bodegaMsg, filas: r.filasBodega, cargado: r.cargado, productos, movs });
     check('Empalme: el acta trae equipos, horómetro, hallazgos, compras, bodega y firmas',
       /Acta de empalme de entrega — CO O-I ZIPAQUIRA 2/.test(r.acta) && /JOY 2/.test(r.acta) && /45\.210 h/.test(r.acta)
-      && /Válvula de alivio sin certificar/.test(r.acta) && /Kit de sellos/.test(r.acta) && /GRASA/.test(r.acta) && /<b>Entrega<\/b>/.test(r.acta) && /<b>Recibe<\/b>/.test(r.acta),
+      && /Válvula de alivio sin certificar/.test(r.acta) && /Kit de sellos/.test(r.acta) && /GRASA/.test(r.acta) && /<b>Entrega<\/b>/.test(r.acta) && /<b>Recibe<\/b>/.test(r.acta)
+      && /Detalle por equipo/.test(r.acta) && /Torre de enfriamiento a la que está conectado/.test(r.acta) && /Medición de vibraciones/.test(r.acta) && /7,1 mm\/s/.test(r.acta),
       r.acta.length);
     check('Empalme: el operario no crea órdenes ni edita repuestos', !r.operarioCreaOrden && r.operarioRepuestosRO, r);
     check('Empalme: sin errores de JS ni avisos de error', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
