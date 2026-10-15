@@ -1358,6 +1358,95 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Revisión: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Reporte Emergencia: el Compresor IR tiene su propio formato (otro
+    // controlador que el NXD 220). Se guarda a las 10:20 a.m., dentro de la
+    // franja de las 10.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-15T10:20:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirm = () => true;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'a@x' };
+      showPanel('cronograma'); await espera(200);
+      cronMostrarSubTab('emergencia'); await espera(500);
+      const elegir = async c => { const s = document.getElementById('re_compresor'); s.value = c; s.dispatchEvent(new Event('change')); await espera(50); };
+      const etiquetas = () => [...document.querySelectorAll('#re_camposMediciones .field label')].map(l => l.textContent);
+      const out = { sinElegir: document.getElementById('re_camposMediciones').textContent.trim() };
+      await elegir('Compresor NXD 220');
+      out.nxd = { campos: etiquetas().length, disP: etiquetas().some(t => /^Dis\. P/.test(t)), nivelVisible: document.getElementById('re_nivelAceiteWrap').style.display !== 'none',
+        estados: [...document.querySelectorAll('#re_estadoEquipo option')].map(o => o.value).filter(Boolean).join(',') };
+      await elegir('Compresor IR');
+      out.ir = { campos: etiquetas(), nivelVisible: document.getElementById('re_nivelAceiteWrap').style.display !== 'none',
+        etiquetaEstado: document.getElementById('re_estadoEquipoLabel').textContent,
+        estados: [...document.querySelectorAll('#re_estadoEquipo option')].map(o => o.value).filter(Boolean).join(','),
+        listas: document.querySelectorAll('#re_camposMediciones select').length };
+      // Se llena el reporte del IR
+      document.getElementById('re_tecnico').value = TECNICOS_REPORTE_EMERGENCIA[0];
+      document.getElementById('re_hora').value = '10:00 a.m.';
+      document.getElementById('re_estadoEquipo').value = 'Si';
+      REPORTE_EMERGENCIA_CAMPOS_IR.forEach((c, i) => {
+        const el = document.getElementById('re_' + c.id);
+        el.value = c.tipo === 'opciones' ? 'OK' : c.tipo === 'texto' ? 'Automático' : String(100 + i);
+      });
+      document.getElementById('re_irHorasFuncionamiento').value = '15234.5';
+      document.getElementById('re_irArranques').value = '';
+      await guardarReporteEmergencia();
+      out.faltaArranques = document.getElementById('re_msg').textContent;
+      await elegir('Compresor IR');
+      document.getElementById('re_tecnico').value = TECNICOS_REPORTE_EMERGENCIA[0];
+      document.getElementById('re_hora').value = '10:00 a.m.';
+      document.getElementById('re_estadoEquipo').value = 'Si';
+      REPORTE_EMERGENCIA_CAMPOS_IR.forEach((c, i) => {
+        document.getElementById('re_' + c.id).value = c.tipo === 'opciones' ? (c.col === 'IrEstadoFiltroEntrada' ? 'Alerta' : 'OK') : c.tipo === 'texto' ? 'Automático' : String(100 + i);
+      });
+      document.getElementById('re_irHorasFuncionamiento').value = '15234.5';
+      await guardarReporteEmergencia();
+      await espera(300);
+      out.msg = document.getElementById('re_msg').textContent;
+      const guardado = allReportesEmergencia[0] || {};
+      out.vista = _construirHtmlReporteEmergencia(guardado);
+      // Un reporte del IR de antes de su formato (con los campos del NXD) se sigue viendo completo.
+      out.vistaVieja = _construirHtmlReporteEmergencia({ Codigo: 'RE-0000', Compresor: 'Compresor IR', Fecha: '2026-10-01', Hora: '6:00 a.m.',
+        Tecnico: 'X', EstadoEquipo: 'Si', NivelAceite: 'Normal', DisP: '95', RunTime: '15000' });
+      out.variables = VARIABLES_APARTADOS.find(a => a.key === 'emergencia').fuentes[0].campos('Compresor IR');
+      out.variablesNxd = VARIABLES_APARTADOS.find(a => a.key === 'emergencia').fuentes[0].campos('Compresor NXD 220').length;
+      out.avisos = avisos;
+      return out;
+    });
+    const filas = fake.hoja(await p.evaluate(() => GOOGLE_CONFIG.spreadsheetId), 'ReporteEmergencia');
+    const enc = filas[0] || [], fila = filas[1] || [];
+    const val = col => fila[enc.indexOf(col)];
+    const horas = fake.hoja(await p.evaluate(() => GOOGLE_CONFIG.spreadsheetId), 'HorasEquipos');
+    const horasIr = (horas.find(f => f[0] === 'COMPRESOR EMERGENCIA IR160') || [])[1];
+    check('Reporte Emergencia: el NXD 220 sigue con sus campos y nivel de aceite; los campos salen al elegir el compresor',
+      /Elige el compresor/.test(r.sinElegir) && r.nxd.campos === 26 && r.nxd.disP && r.nxd.nivelVisible && r.nxd.estados === 'Si,No,En espera', { sinElegir: r.sinElegir, nxd: r.nxd });
+    check('Compresor IR: su formato (configuración, horas, mediciones y mantenimiento), "¿en línea?" Sí/No y sin nivel de aceite',
+      r.ir.campos.length === 24 && r.ir.campos[0] === 'Presión de carga [PSI]' && r.ir.campos.includes('Offset de esclavo [PSI]')
+      && r.ir.campos.includes('Presión del cárter (tanque separador aire/aceite) [PSI]') && r.ir.campos.includes('Intervalo de servicios [h]')
+      && !r.ir.campos.some(t => /^Dis\. P/.test(t)) && !r.ir.nivelVisible && /en línea/.test(r.ir.etiquetaEstado) && r.ir.estados === 'Si,No' && r.ir.listas === 3,
+      { ir: r.ir });
+    check('Compresor IR: no guarda con un campo vacío; guardado, sus horas de funcionamiento pasan al horómetro del IR160',
+      /Arranques/.test(r.faltaArranques) && /guardado correctamente/.test(r.msg) && val('Compresor') === 'Compresor IR' && val('EstadoEquipo') === 'Si'
+      && val('NivelAceite') === '' && val('RunTime') === '15234.5' && val('IrModoOperacion') === 'Automático' && val('IrEstadoFiltroEntrada') === 'Alerta'
+      && val('IrPresionCarter') === '111' && val('DisP') === '' && horasIr === '15234.5',
+      { falta: r.faltaArranques, msg: r.msg, RunTime: val('RunTime'), carter: val('IrPresionCarter'), filtro: val('IrEstadoFiltroEntrada'), horasIr });
+    check('Compresor IR: la vista y el PDF muestran su formato (los reportes de antes, con el del NXD); Variables grafica sus campos (sin los de texto)',
+      /¿Compresor en línea\?/.test(r.vista) && /Presión del cárter/.test(r.vista) && /Estado filtro de entrada/.test(r.vista) && !/Nivel de aceite/.test(r.vista)
+      && r.variables.length === 32 && !r.variables.some(c => c.col === 'IrModoOperacion') && JSON.stringify(r.variables.find(c => c.col === 'IrEstadoSeparador').escala) === '["Requiere cambio","Alerta","OK"]'
+      && r.variablesNxd === 37 && /Dis\. P/.test(r.vistaVieja) && /Nivel de aceite/.test(r.vistaVieja) && !/Presión del cárter/.test(r.vistaVieja),
+      { variables: r.variables.length, nxd: r.variablesNxd, vistaVieja: /Dis\. P/.test(r.vistaVieja) });
+    check('Compresor IR: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
