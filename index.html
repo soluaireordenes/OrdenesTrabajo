@@ -714,9 +714,14 @@ body.rol-operario .solo-admin { display: none !important; }
 .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
 /* Lista de equipos + panel de detalle (Histórico por Equipo, Hoja de Vida):
    columna angosta fija para la lista en escritorio, apilada en celular. */
-.grid-lista-detalle { display: grid; grid-template-columns: var(--lista-w, 240px) 1fr; gap: 14px; align-items: start; }
+/* minmax(0, 1fr) y no 1fr: con 1fr la columna del detalle no se encoge por
+   debajo de lo que pide su contenido, y la tabla de repuestos de la Hoja de
+   Vida (ancha a propósito, con su propio scroll) sacaba la ficha de la
+   pantalla por la derecha en computador y tablet. */
+.grid-lista-detalle { display: grid; grid-template-columns: var(--lista-w, 240px) minmax(0, 1fr); gap: 14px; align-items: start; }
 @media(max-width:720px) {
-  .grid-2,.grid-4,.grid-lista-detalle { grid-template-columns: 1fr; }
+  .grid-2,.grid-4 { grid-template-columns: 1fr; }
+  .grid-lista-detalle { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── Form fields ── */
@@ -747,6 +752,27 @@ body.rol-operario .solo-admin { display: none !important; }
   box-shadow: 0 0 0 3px rgba(1,138,190,.12);
 }
 .field textarea { resize: vertical; min-height: 76px; }
+
+/* Estilo base de los campos que no van dentro de un .field ni de una
+   .filter-bar (filtros de Novedades, Histórico, Variables, Inventario, Plan
+   de Mantenimiento, Empalme…): sin esto se veían con el aspecto "crudo" del
+   navegador, y en modo oscuro quedaban blancos. Va dentro de :where() —que
+   no suma especificidad— para que cualquier regla o estilo propio del campo
+   siga mandando sobre este. */
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]), select, textarea) {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]), select, textarea):where(:focus) {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(1,138,190,.12);
+}
 
 /* ── Signature field ── */
 .sig-pad {
@@ -2530,7 +2556,7 @@ body.rol-operario .solo-admin { display: none !important; }
          Compresores / Observaciones (las dos últimas solo se muestran para
          Zipaquirá, ver cronMostrarSubTab). -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
-      <button class="inv-subtab" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
+      <button class="inv-subtab" id="cronTabActividades" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
       <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
@@ -5548,9 +5574,6 @@ async function obtenerHistorialInventarioDirecto(sede, filtros) {
   const prodMap = {};
   productos.forEach(r => { if (r[0]) prodMap[r[0].toString().trim().toUpperCase()] = r[1] || ''; });
 
-  const fechaDesde = filtros.fechaDesde ? new Date(filtros.fechaDesde + 'T00:00:00') : null;
-  const fechaHasta = filtros.fechaHasta ? new Date(filtros.fechaHasta + 'T23:59:59') : null;
-
   return movimientos.filter(row => row[0] && row[1]).map(row => ({
     codigo: row[0], fecha: row[1], tipo: (row[2] || '').toUpperCase(), cantidad: parseFloat(row[3]) || 0,
     usuario: row[4] || '', responsable: row[6] || '', equipo: row[7] || '', observaciones: row[8] || '',
@@ -5559,10 +5582,17 @@ async function obtenerHistorialInventarioDirecto(sede, filtros) {
   })).filter(m => {
     if (filtros.tipo && m.tipo !== filtros.tipo.toUpperCase()) return false;
     if (filtros.codigo && m.codigo.toString().trim().toUpperCase() !== filtros.codigo.toString().trim().toUpperCase()) return false;
-    if (fechaDesde || fechaHasta) {
-      const f = new Date(m.fecha);
-      if (fechaDesde && f < fechaDesde) return false;
-      if (fechaHasta && f > fechaHasta) return false;
+    // Se compara el DÍA local ('YYYY-MM-DD'). new Date('2026-10-15') es la
+    // medianoche UTC = 7 p.m. del día anterior en Colombia: el filtro dejaba
+    // por fuera los movimientos del día "Desde" y metía los del día
+    // siguiente al "Hasta".
+    if (filtros.fechaDesde || filtros.fechaHasta) {
+      const f = _fechaLocalDesdeString(m.fecha);
+      if (!isNaN(f)) {
+        const dia = _isoLocal(f);
+        if (filtros.fechaDesde && dia < filtros.fechaDesde) return false;
+        if (filtros.fechaHasta && dia > filtros.fechaHasta) return false;
+      }
     }
     return true;
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
@@ -6959,6 +6989,7 @@ function _irAPanelInicialRecordado() {
     const t = document.querySelectorAll('.nav-tab')[1];
     if (t) t.classList.add('active');
     actualizarIndicadorNavTab();
+    _actualizarBottomNav('pendientes');
     return;
   }
   showPanel(ultimo);
@@ -13552,13 +13583,14 @@ function abrirInventario(opKey) {
 
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  _actualizarBottomNav(null); // ninguno de los botones de la barra inferior (celular) lleva aquí
   document.getElementById('panel-inventario').classList.add('active');
   document.getElementById('invTituloVista').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> INV ' + esc(OPERACIONES[opKey].nombre);
 
   document.body.classList.add('inv-activo');
 
-  document.getElementById('invm_fecha').valueAsDate = new Date();
-  document.getElementById('invs_fecha').valueAsDate = new Date();
+  document.getElementById('invm_fecha').value = _isoLocal(new Date());
+  document.getElementById('invs_fecha').value = _isoLocal(new Date());
   invHandleTipoChange();
   invPoblarEquipos();
   invMostrarSubTab('dashboard');
@@ -14481,6 +14513,7 @@ function abrirVariables(apartado) {
 
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  _actualizarBottomNav(null);
   document.getElementById('panel-variables').classList.add('active');
 
   variablesMostrarSubTab(apartado || VARIABLES_APARTADOS[0].key);
@@ -14517,6 +14550,7 @@ function abrirPlanMantenimiento(opKey) {
 
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  _actualizarBottomNav(null);
   document.getElementById('panel-planmantenimiento').classList.add('active');
   document.getElementById('planMantTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Plan de Mantenimiento — ' + esc(OPERACIONES[opKey].nombre);
 
@@ -15731,7 +15765,7 @@ async function invRegistrarServicio() {
     msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Servicio registrado correctamente.';
     ['invs_codigo','invs_nombre','invs_descripcion','invs_precio'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invs_proveedor').value = '';
-    document.getElementById('invs_fecha').valueAsDate = new Date();
+    document.getElementById('invs_fecha').value = _isoLocal(new Date());
     _serviciosInventarioCache = null; // invalida el caché del autocompletado, para que vea el servicio nuevo
     invCargarServicios();
   } catch (e) {
@@ -15866,7 +15900,7 @@ async function invRegistrarMovimiento() {
     ['invm_codigo','invm_cantidad','invm_precio','invm_responsable','invm_equipo','invm_obs','invm_numeroDocumento'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invm_tipoDocumento').value = '';
     document.getElementById('invm_grupoDocNumero').style.display = 'none';
-    document.getElementById('invm_fecha').valueAsDate = new Date();
+    document.getElementById('invm_fecha').value = _isoLocal(new Date());
     _invalidarStockPantalla();
     // Refresca el Dashboard en segundo plano — si ya estaba abierto en otra
     // pestaña del navegador o si el usuario vuelve a él sin recargar toda
@@ -18684,6 +18718,7 @@ function cronMostrarSubTab(nombre) {
   // Los llamados de atención a operarios son solo para admin (la pestaña ya
   // está oculta para el operario; esto cubre cualquier otro camino).
   if (nombre === 'observaciones' && !esAdmin()) nombre = 'temporal';
+  if (nombre === 'actividades' && operacionActual !== 'zipaquira') nombre = 'temporal';
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
@@ -18862,7 +18897,11 @@ async function inicializarPanelCronograma() {
   const tabDecorado = document.getElementById('cronTabDecorado');
   const tabEmergencia = document.getElementById('cronTabEmergencia');
   const tabPresionDrycooler = document.getElementById('cronTabPresionDrycooler');
+  // "Actividades 🔒" solo trae el aviso del trabajo en alturas de Zipaquirá:
+  // en las demás sedes no aplica.
+  const tabActividades = document.getElementById('cronTabActividades');
   const mostrarEntrega = operacionActual === 'zipaquira';
+  if (tabActividades) tabActividades.style.display = mostrarEntrega ? '' : 'none';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
@@ -25343,6 +25382,7 @@ async function abrirProyectos() {
   }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  _actualizarBottomNav(null);
   document.getElementById('panel-proyectos').classList.add('active');
   if (typeof renderSidebarOperaciones === 'function') renderSidebarOperaciones();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -26372,7 +26412,7 @@ function proyBorrarAvance(row) {
   <div class="buscar-caja">
     <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)">
       <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input id="buscarInput" type="search" placeholder="Buscar órdenes, equipos o novedades…" oninput="_ejecutarBusquedaGlobal(this.value)" style="flex:1;border:none;outline:none;font-size:15px;background:none;color:var(--text)">
+      <input id="buscarInput" type="search" placeholder="Buscar órdenes, equipos o novedades…" oninput="_ejecutarBusquedaGlobal(this.value)" style="flex:1;border:none;outline:none;box-shadow:none;font-size:15px;background:none;color:var(--text)">
       <button class="btn btn-ghost btn-sm" onclick="cerrarBuscadorGlobal()">✕</button>
     </div>
     <div id="buscarResultados"><div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div></div>
