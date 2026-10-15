@@ -255,6 +255,29 @@ body::before {
 .field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
 .field .emp-fotos label.btn { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--brand); }
 .emp-fotos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ── Capacidad de las hojas (ventana de admin) ── */
+.cap-archivo { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; background: var(--surface); }
+.cap-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.cap-titulo { font-size: 14px; font-weight: 800; color: var(--brand); }
+.cap-sub { font-size: 12px; color: var(--text3); line-height: 1.5; overflow-wrap: anywhere; }
+.cap-numero { font-size: 13px; color: var(--text2); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+.cap-numero b { color: var(--text); }
+.cap-barra { height: 10px; border-radius: 6px; background: var(--surface2); overflow: hidden; margin-bottom: 10px; }
+.cap-barra > span { display: block; height: 100%; border-radius: 6px; background: #15803d; }
+.cap-barra.vigilar > span { background: #d97706; }
+.cap-barra.alto > span { background: var(--danger); }
+.cap-chip { flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .2px; padding: 3px 9px; border-radius: 10px; white-space: nowrap; background: rgba(21,128,61,.13); color: #15803d; }
+.cap-chip.vigilar { background: rgba(180,83,9,.13); color: #b45309; }
+.cap-chip.alto { background: rgba(198,40,40,.12); color: var(--danger); }
+:root[data-theme="dark"] .cap-chip.ok { color: #4ade80; }
+:root[data-theme="dark"] .cap-chip.vigilar { color: #f0a35e; }
+.cap-datos { margin: 0 0 10px; padding-left: 18px; font-size: 12.5px; color: var(--text2); line-height: 1.55; }
+.cap-tabla { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.cap-tabla th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--text3); padding: 6px 8px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+.cap-tabla td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+.cap-tabla th:not(:first-child), .cap-tabla td:not(:first-child) { text-align: right; white-space: nowrap; }
+@media (max-width: 640px) { .cap-tabla .cap-columnas, .cap-tabla .cap-filas { display: none; } }
 .emp-foto { position: relative; display: inline-block; width: 64px; height: 64px; }
 .emp-foto img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); }
 .emp-foto button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--danger); color: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
@@ -6424,6 +6447,13 @@ function renderSidebarOperaciones() {
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
       <span style="flex:1;line-height:1.25">Reparar hoja</span>
     </div>
+    <div onclick="abrirCapacidadHojas()" class="solo-admin"
+      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
+      onmouseover="this.style.background='var(--brand-light)'"
+      onmouseout="this.style.background='transparent'">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+      <span style="flex:1;line-height:1.25">Capacidad de las hojas</span>
+    </div>
     <div onclick="limpiarCacheLocal()"
       style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
       onmouseover="this.style.background='var(--brand-light)'"
@@ -10901,6 +10931,169 @@ async function repararHoja() {
     ? 'Listo. Se agregaron estos encabezados:\n\n' + agregadas.join('\n')
     : 'Listo. Todas las hojas ya tenían sus encabezados completos; no hubo que cambiar nada.');
   await cargarOrdenes();
+}
+
+/* ══════════════════════════════════════════════
+   CAPACIDAD DE LAS HOJAS (menú lateral, solo admin)
+   Google admite hasta 10 millones de celdas por archivo y cuenta TODA la
+   cuadrícula de cada pestaña (filas × columnas), también las vacías. Esta
+   ventana mide los archivos de la sede —operaciones, inventario y
+   proyectos— para saber con tiempo cuándo toca archivar los años cerrados.
+══════════════════════════════════════════════ */
+const LIMITE_CELDAS_SHEETS = 10000000;
+// Encabezados en los que se busca la fecha del primer registro de cada
+// pestaña, para medir a qué ritmo crece.
+const COLUMNAS_FECHA_CAPACIDAD = ['Fecha', 'FechaRegistro', 'FechaHora', 'FechaCreacion', 'Timestamp'];
+
+function _rangoA1(pestana, celdas) { return "'" + String(pestana).replace(/'/g, "''") + "'!" + celdas; }
+
+function _fmtCeldas(n) {
+  return n >= 1000000
+    ? (n / 1000000).toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' millones'
+    : Math.round(n).toLocaleString('es-CO');
+}
+
+/** Mide un archivo: cuadrícula de cada pestaña (lo que cuenta Google), hasta
+ *  dónde llegan los datos y la fecha del primer registro. Dos lecturas
+ *  livianas por cada 15 pestañas: el encabezado con la primera fila, y la
+ *  columna A de las últimas filas para ver dónde terminan los datos. */
+async function _medirArchivoSheets(spreadsheetId) {
+  const base = SHEETS_API + '/v4/spreadsheets/' + spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
+  const campos = 'properties.title,sheets(properties(title,gridProperties(rowCount,columnCount)))';
+  const r = await fetch(base + '?fields=' + encodeURIComponent(campos), { headers: hdrs });
+  if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  if (!r.ok) throw new Error('Google respondió ' + r.status);
+  const meta = await r.json();
+  const pestanas = (meta.sheets || []).map(h => {
+    const p = h.properties || {}, g = p.gridProperties || {};
+    return { nombre: p.title || '', filas: g.rowCount || 0, columnas: g.columnCount || 0, conDatos: null, primeraFecha: '' };
+  });
+  // "Config" guarda la clave de la sede: no se lee, solo se cuenta.
+  const aLeer = pestanas.filter(t => t.nombre.toLowerCase() !== 'config' && t.filas > 0);
+  for (let i = 0; i < aLeer.length; i += 15) {
+    const grupo = aLeer.slice(i, i + 15);
+    const rangos = [];
+    grupo.forEach(t => {
+      t._desde = Math.max(1, t.filas - FILAS_VACIAS_AL_FINAL);
+      rangos.push(_rangoA1(t.nombre, '1:2'), _rangoA1(t.nombre, 'A' + t._desde + ':A' + t.filas));
+    });
+    try {
+      const resp = await fetch(base + '/values:batchGet?' + rangos.map(x => 'ranges=' + encodeURIComponent(x)).join('&'), { headers: hdrs });
+      if (!resp.ok) continue; // la medida igual sirve; solo faltan las filas con datos y el ritmo
+      const vr = (await resp.json()).valueRanges || [];
+      grupo.forEach((t, j) => {
+        const [encabezados = [], primera = []] = vr[2 * j]?.values || [];
+        const col = COLUMNAS_FECHA_CAPACIDAD.map(c => encabezados.indexOf(c)).find(k => k >= 0);
+        t.primeraFecha = col !== undefined ? _aIsoFecha(primera[col]) : '';
+        const colA = vr[2 * j + 1]?.values || [];
+        // Última fila con algo en la columna A (null: los datos terminan antes de la ventana leída).
+        t.conDatos = colA.length ? t._desde + colA.length - 1 : (t._desde === 1 ? 0 : null);
+      });
+    } catch (e) {
+      console.warn('Capacidad: no se pudo leer el detalle de', spreadsheetId, e.message);
+    }
+  }
+
+  const hoy = _isoLocal(new Date());
+  let usadas = 0, vacias = 0, porDia = 0;
+  pestanas.forEach(t => {
+    t.celdas = t.filas * t.columnas;
+    usadas += t.celdas;
+    if (t.conDatos !== null) vacias += Math.max(0, t.filas - Math.max(t.conDatos, 1)) * t.columnas;
+    // Ritmo: filas con datos repartidas en los días desde el primer registro
+    // (con menos de dos semanas de historia el promedio no dice nada).
+    const dias = t.primeraFecha ? _diasEntre(t.primeraFecha, hoy) + 1 : 0;
+    if (dias >= 14 && t.conDatos > 1) porDia += (t.conDatos - 1) * t.columnas / dias;
+  });
+  pestanas.sort((a, b) => b.celdas - a.celdas);
+  return { titulo: meta.properties?.title || '', pestanas, usadas, vacias, porDia };
+}
+
+/** La tarjeta de un archivo ya medido. */
+function _htmlCapacidadArchivo(nombre, m) {
+  const pct = m.usadas / LIMITE_CELDAS_SHEETS * 100;
+  const nivel = pct >= 70 ? { clase: 'alto', texto: 'Archivar pronto' } : pct >= 50 ? { clase: 'vigilar', texto: 'Vigilar' } : { clase: 'ok', texto: 'Holgado' };
+  const pctTxt = pct.toLocaleString('es-CO', { maximumFractionDigits: pct < 10 ? 1 : 0 });
+  let ritmo;
+  const meta80 = LIMITE_CELDAS_SHEETS * 0.8;
+  if (m.usadas >= meta80) {
+    ritmo = 'Ya pasó del 80%: conviene pasar los años cerrados a un archivo de histórico.';
+  } else if (m.porDia >= 1) {
+    const dias = (meta80 - m.usadas) / m.porDia;
+    const llega = new Date(); llega.setDate(llega.getDate() + Math.round(dias));
+    const meses = Math.round(dias / 30.4);
+    const cuando = meses >= 24 ? `unos ${Math.round(meses / 12)} años` : meses >= 2 ? `unos ${meses} meses` : 'menos de dos meses';
+    ritmo = `Crece unas ${_fmtCeldas(m.porDia)} celdas por día. ` + (meses > 120
+      ? 'A este ritmo no llegaría al 80% en los próximos 10 años.'
+      : `A este ritmo llegaría al 80% en ${llega.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })} (en ${cuando}).`);
+  } else {
+    ritmo = 'Todavía no hay historia suficiente para calcular a qué ritmo crece.';
+  }
+  const vaciasTxt = m.vacias >= 1000
+    ? `<li>${_fmtCeldas(m.vacias)} de esas celdas (${Math.round(m.vacias / Math.max(m.usadas, 1) * 100)}%) son filas vacías que quedaron al final de las pestañas.</li>` : '';
+  const top = m.pestanas.slice(0, 6);
+  const resto = m.pestanas.length - top.length;
+  return `<div class="cap-archivo">
+    <div class="cap-cab">
+      <div style="min-width:0">
+        <div class="cap-titulo">${esc(nombre)}</div>
+        ${m.titulo ? `<div class="cap-sub">${esc(m.titulo)}</div>` : ''}
+      </div>
+      <span class="cap-chip ${nivel.clase}">${nivel.texto}</span>
+    </div>
+    <div class="cap-numero"><b>${_fmtCeldas(m.usadas)}</b> de 10 millones de celdas · <b>${pctTxt}%</b></div>
+    <div class="cap-barra ${nivel.clase}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><span style="width:${Math.min(100, Math.max(pct, 0.5))}%"></span></div>
+    <ul class="cap-datos"><li>${ritmo}</li>${vaciasTxt}</ul>
+    <div style="overflow-x:auto">
+      <table class="cap-tabla">
+        <thead><tr><th>Pestaña</th><th class="cap-filas">Filas con datos</th><th class="cap-columnas">Columnas</th><th>Celdas</th><th title="Parte del archivo que ocupa la pestaña">%</th></tr></thead>
+        <tbody>${top.map(t => `<tr>
+          <td>${esc(t.nombre)}</td>
+          <td class="cap-filas">${t.conDatos !== null ? Math.max(0, t.conDatos - 1).toLocaleString('es-CO') : '—'}</td>
+          <td class="cap-columnas">${t.columnas.toLocaleString('es-CO')}</td>
+          <td>${_fmtCeldas(t.celdas)}</td>
+          <td>${Math.round(t.celdas / Math.max(m.usadas, 1) * 100)}%</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${resto > 0 ? `<div class="cap-sub" style="margin-top:6px">Y ${resto} ${resto === 1 ? 'pestaña más' : 'pestañas más'}, más livianas.</div>` : ''}
+  </div>`;
+}
+
+async function abrirCapacidadHojas() {
+  if (!esAdmin()) { alert('Solo un administrador puede ver la capacidad de las hojas.'); return; }
+  if (!googleAccessToken) { alert('Debes iniciar sesión primero.'); return; }
+  const sede = OPERACIONES[operacionActual]?.nombre || operacionActual;
+  const archivos = [{ nombre: 'Operaciones — ' + sede, id: GOOGLE_CONFIG.spreadsheetId }];
+  try { archivos.push({ nombre: 'Inventario — ' + sede, id: _invSpreadsheetId(operacionActual) }); } catch (_) { /* sede sin inventario */ }
+  archivos.push({ nombre: 'Proyectos (todas las sedes)', id: PROY_SPREADSHEET_ID });
+
+  document.getElementById('capacidadOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'capacidadOverlay';
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div role="dialog" aria-modal="true" aria-labelledby="capacidadTitulo" style="background:var(--surface);border-radius:12px;max-width:760px;width:100%;margin:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span id="capacidadTitulo">Capacidad de las hojas</span>
+        <button type="button" onclick="document.getElementById('capacidadOverlay').remove()" aria-label="Cerrar" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="padding:18px 20px">
+        <p class="cap-sub" style="margin:0 0 14px">Google admite hasta 10 millones de celdas por archivo y cuenta todas las celdas de cada pestaña, también las vacías. Cuando un archivo pase del 70%, conviene pasar los años cerrados a un archivo de histórico.</p>
+        ${archivos.map((a, i) => `<div id="capArchivo${i}" class="cap-archivo"><div class="cap-titulo">${esc(a.nombre)}</div><div class="cap-sub" style="margin-top:6px">Midiendo…</div></div>`).join('')}
+      </div>
+    </div>`;
+  overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+
+  await Promise.all(archivos.map(async (a, i) => {
+    let html;
+    try { html = _htmlCapacidadArchivo(a.nombre, await _medirArchivoSheets(a.id)); }
+    catch (e) { html = `<div class="cap-archivo"><div class="cap-titulo">${esc(a.nombre)}</div><div class="cap-sub" style="margin-top:6px;color:var(--danger)">No se pudo medir: ${esc(e.message)}</div></div>`; }
+    const cont = document.getElementById('capArchivo' + i);
+    if (cont) cont.outerHTML = html;
+  }));
 }
 
 // Cachés en memoria (viven mientras dure la sesión del navegador, se
@@ -16344,6 +16537,74 @@ function _estadoVacioFiltroFecha(prefix) {
     : _estadoVacio({ icono: 'calendario', titulo: 'No hay reportes en esas fechas', detalle: 'Cambia el rango de fechas para ver otros.' });
 }
 
+/* ── Reportes técnicos: se baja solo lo reciente ──
+   Las pestañas de reportes técnicos crecen todos los días (la de
+   compresores, unas 15.000 filas al año). Antes cada una bajaba su historia
+   completa al abrirse y otra vez después de cada guardado, aunque su tabla
+   no muestra nada hasta que se eligen fechas. Ahora se bajan los últimos
+   días —ahí también viene el último código, para numerar el siguiente— y lo
+   más viejo solo cuando el filtro Desde/Hasta lo pide. */
+const REPORTES_DIAS_RECIENTES = 7;
+const _reportesCubiertosDesde = {}; // hoja → 'YYYY-MM-DD' desde la que se tiene todo ('' = la hoja entera)
+const _reportesEnCamino = {};       // hoja → desde qué fecha se está bajando ahora mismo
+
+/** Desde qué fecha hacen falta los reportes de una pestaña: los últimos
+ *  días, o lo que pida su filtro si va más atrás ('' = toda la historia,
+ *  como cuando solo se pone "Hasta"). */
+function _desdeNecesarioReportes(prefix) {
+  const d = new Date(); d.setDate(d.getDate() - REPORTES_DIAS_RECIENTES);
+  const reciente = _isoLocal(d);
+  const desde = document.getElementById(prefix + '_filtroDesde')?.value || '';
+  const hasta = document.getElementById(prefix + '_filtroHasta')?.value || '';
+  if (!desde && hasta) return '';
+  return desde && desde < reciente ? desde : reciente;
+}
+
+/** Los reportes (sin los eliminados, del más nuevo al más viejo) desde una
+ *  fecha, o todos si `desde` viene vacío. */
+async function _leerReportesTecnicos(nombre, desde) {
+  const filas = desde ? await _leerReportesDelRango(nombre, desde, _isoLocal(new Date())) : await _leerHojaGenerica(nombre);
+  return filas
+    .filter(f => f.Estado !== 'Eliminada')
+    .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+}
+
+/** Para el inicializar de cada pestaña: lo reciente más lo que ya pida el filtro. */
+async function _cargarReportesTecnicos(prefix, nombre) {
+  const desde = _desdeNecesarioReportes(prefix);
+  const filas = await _leerReportesTecnicos(nombre, desde);
+  _reportesCubiertosDesde[nombre] = desde;
+  return filas;
+}
+
+/** Al pintar la tabla: si el filtro pide fechas que todavía no se han
+ *  bajado, las trae, las guarda con `guardar` y vuelve a pintar con
+ *  `pintar`. Devuelve true mientras va a buscarlas. */
+function _traerReportesSiFaltan(prefix, nombre, guardar, pintar) {
+  const necesario = _desdeNecesarioReportes(prefix);
+  const cubierto = _reportesCubiertosDesde[nombre];
+  const alcanza = (tiene, pide) => tiene === '' || (pide !== '' && pide >= tiene);
+  if (cubierto === undefined || alcanza(cubierto, necesario)) return false;
+  const wrap = document.getElementById(prefix + '_tablaWrap');
+  if (wrap) wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando los reportes de esas fechas…</div>';
+  const enCamino = _reportesEnCamino[nombre];
+  if (enCamino !== undefined && alcanza(enCamino, necesario)) return true; // ya vienen; al llegar se pinta
+  _reportesEnCamino[nombre] = necesario;
+  _leerReportesTecnicos(nombre, necesario)
+    .then(filas => {
+      // Si mientras tanto llegó algo que cubre más, se deja eso.
+      const actual = _reportesCubiertosDesde[nombre];
+      if (actual === undefined || !alcanza(actual, necesario)) {
+        guardar(filas);
+        _reportesCubiertosDesde[nombre] = necesario;
+      }
+      pintar();
+    })
+    .catch(e => { if (wrap) wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`; })
+    .finally(() => { if (_reportesEnCamino[nombre] === necesario) delete _reportesEnCamino[nombre]; });
+  return true;
+}
+
 /** Lee de Sheets el historial de fechas registradas en "RachaNovedades"
  *  (cada una reinició el contador de días sin novedades), ordenadas de
  *  más antigua a más reciente. Crea la hoja si todavía no existe. */
@@ -20220,10 +20481,7 @@ async function inicializarReporteCompresores() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteCompresores);
-    allReportesCompresores = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesCompresores = await _cargarReportesTecnicos('rc', SH.reporteCompresores);
     renderTablaReportesCompresores();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -20232,6 +20490,7 @@ async function inicializarReporteCompresores() {
 
 function renderTablaReportesCompresores() {
   const wrap = document.getElementById('rc_tablaWrap');
+  if (_traerReportesSiFaltan('rc', SH.reporteCompresores, f => { allReportesCompresores = f; }, renderTablaReportesCompresores)) return;
   if (!allReportesCompresores.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de compresores registrados.</div>';
     return;
@@ -20532,10 +20791,7 @@ async function inicializarReporteSecadores() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteSecadores);
-    allReportesSecadores = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesSecadores = await _cargarReportesTecnicos('rs', SH.reporteSecadores);
     renderTablaReportesSecadores();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -20544,6 +20800,7 @@ async function inicializarReporteSecadores() {
 
 function renderTablaReportesSecadores() {
   const wrap = document.getElementById('rs_tablaWrap');
+  if (_traerReportesSiFaltan('rs', SH.reporteSecadores, f => { allReportesSecadores = f; }, renderTablaReportesSecadores)) return;
   if (!allReportesSecadores.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de secadores registrados.</div>';
     return;
@@ -20842,10 +21099,7 @@ async function inicializarReporteDrycoolers() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteDrycoolers);
-    allReportesDrycoolers = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesDrycoolers = await _cargarReportesTecnicos('rd', SH.reporteDrycoolers);
     renderTablaReportesDrycoolers();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -20854,6 +21108,7 @@ async function inicializarReporteDrycoolers() {
 
 function renderTablaReportesDrycoolers() {
   const wrap = document.getElementById('rd_tablaWrap');
+  if (_traerReportesSiFaltan('rd', SH.reporteDrycoolers, f => { allReportesDrycoolers = f; }, renderTablaReportesDrycoolers)) return;
   if (!allReportesDrycoolers.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de drycoolers registrados.</div>';
     return;
@@ -21128,10 +21383,7 @@ async function inicializarReporteDecorado() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteDecorado);
-    allReportesDecorado = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesDecorado = await _cargarReportesTecnicos('rdec', SH.reporteDecorado);
     renderTablaReportesDecorado();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -21140,6 +21392,7 @@ async function inicializarReporteDecorado() {
 
 function renderTablaReportesDecorado() {
   const wrap = document.getElementById('rdec_tablaWrap');
+  if (_traerReportesSiFaltan('rdec', SH.reporteDecorado, f => { allReportesDecorado = f; }, renderTablaReportesDecorado)) return;
   if (!allReportesDecorado.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de equipos de decorado registrados.</div>';
     return;
@@ -21436,10 +21689,7 @@ async function inicializarReporteEmergencia() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
-    const filas = await _leerHojaGenerica(SH.reporteEmergencia);
-    allReportesEmergencia = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesEmergencia = await _cargarReportesTecnicos('re', SH.reporteEmergencia);
     renderTablaReportesEmergencia();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -21448,6 +21698,7 @@ async function inicializarReporteEmergencia() {
 
 function renderTablaReportesEmergencia() {
   const wrap = document.getElementById('re_tablaWrap');
+  if (_traerReportesSiFaltan('re', SH.reporteEmergencia, f => { allReportesEmergencia = f; }, renderTablaReportesEmergencia)) return;
   if (!allReportesEmergencia.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de equipos de emergencia registrados.</div>';
     return;
@@ -21725,10 +21976,7 @@ async function inicializarReportePresionDrycooler() {
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
     await asegurarHoja(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS);
-    const filas = await _leerHojaGenerica(SH.reportePresionDrycooler);
-    allReportesPresionDrycooler = filas
-      .filter(f => f.Estado !== 'Eliminada')
-      .sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || '') || (b.FechaRegistro || '').localeCompare(a.FechaRegistro || ''));
+    allReportesPresionDrycooler = await _cargarReportesTecnicos('rpd', SH.reportePresionDrycooler);
     renderTablaReportesPresionDrycooler();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -21737,6 +21985,7 @@ async function inicializarReportePresionDrycooler() {
 
 function renderTablaReportesPresionDrycooler() {
   const wrap = document.getElementById('rpd_tablaWrap');
+  if (_traerReportesSiFaltan('rpd', SH.reportePresionDrycooler, f => { allReportesPresionDrycooler = f; }, renderTablaReportesPresionDrycooler)) return;
   if (!allReportesPresionDrycooler.length) {
     wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes registrados.</div>';
     return;
@@ -22223,13 +22472,21 @@ async function _filasPorHoja() {
   return data;
 }
 
+/** Filas vacías que pueden quedar al FINAL de una pestaña. La app agrega
+ *  filas insertándolas (INSERT_ROWS), así que las 1.000 filas con que Google
+ *  crea cada pestaña nueva se quedan para siempre debajo de los datos. Leer
+ *  "las últimas N filas" sin contar con ellas caía en puro vacío, y quien
+ *  llamaba terminaba bajando la hoja entera. Pedirlas de más no cuesta:
+ *  Google no devuelve las filas vacías del final de un rango. */
+const FILAS_VACIAS_AL_FINAL = 1000;
+
 /** Las últimas `cuantas` filas de una hoja, más su encabezado, en UNA sola
  *  petición (batchGet con dos rangos). Devuelve objetos igual que
  *  _leerHojaGenerica, con su _row real. */
 async function _leerColaDeHoja(nombre, cuantas) {
   const totales = (await _filasPorHoja())[nombre] || 0;
   // Fila 1 = encabezado, así que los datos empiezan en la 2.
-  const inicio = Math.max(2, totales - cuantas + 1);
+  const inicio = Math.max(2, totales - cuantas - FILAS_VACIAS_AL_FINAL + 1);
   if (inicio <= 2) return { filas: await _leerHojaGenerica(nombre), completa: true };
 
   const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
