@@ -60,14 +60,18 @@ async function nuevaPagina(b, rutas = {}) {
 
 /** Google Sheets en memoria, para las pruebas que escriben y vuelven a leer.
  *  Atiende lo que usa la app: leer rangos, escribir, anexar, crear pestañas y
- *  borrar filas. Un libro por spreadsheetId. */
+ *  borrar filas. Un libro por spreadsheetId. Como en Google, cada pestaña
+ *  tiene su cuadrícula (rowCount): nace con 1.000 filas y anexar INSERTA
+ *  filas, así que las vacías del principio quedan siempre al final. */
 function sheetsEnMemoria() {
   const libros = {};
+  const peticiones = [];
   let sigId = 1;
   const libro = id => (libros[id] = libros[id] || { pestanas: {} });
   const colANum = l => l.toUpperCase().split('').reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
   const rango = txt => {
-    const [hoja, r = ''] = txt.split('!');
+    const [conComillas, r = ''] = txt.split('!');
+    const hoja = conComillas.replace(/^'(.*)'$/, '$1').replace(/''/g, "'"); // 'Mi hoja'!A1, como en Google
     const m = r.match(/^([A-Z]*)(\d*)(?::([A-Z]*)(\d*))?$/i) || [];
     const fila = m[2] ? Number(m[2]) - 1 : 0;
     return { hoja, fila, col: m[1] ? colANum(m[1]) : 0,
@@ -81,7 +85,9 @@ function sheetsEnMemoria() {
       fila.forEach((v, j) => { destino[r.col + j] = String(v); });
     });
     for (let k = 0; k < p.filas.length; k++) p.filas[k] = p.filas[k] || [];
+    p.grid = Math.max(p.grid, p.filas.length);
   };
+  const columnas = p => Math.max(26, ...p.filas.map(f => f.length));
   const route = async route => {
     const req = route.request();
     const url = decodeURIComponent(req.url());
@@ -89,17 +95,21 @@ function sheetsEnMemoria() {
     const L = libro(id);
     const cuerpo = req.postData() ? JSON.parse(req.postData()) : null;
     const json = (status, b) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
-    if (!resto || resto.startsWith('?')) return json(200, { sheets: Object.entries(L.pestanas).map(([title, p]) => ({ properties: { sheetId: p.id, title } })) });
+    peticiones.push({ libro: id, metodo: req.method(), ruta: resto });
+    if (!resto || resto.startsWith('?')) return json(200, { properties: { title: 'Libro ' + id },
+      sheets: Object.entries(L.pestanas).map(([title, p]) => ({ properties: { sheetId: p.id, title, gridProperties: { rowCount: p.grid, columnCount: columnas(p) } } })) });
     if (resto.startsWith(':batchUpdate')) {
       for (const rq of cuerpo.requests || []) {
         if (rq.addSheet) {
           const t = rq.addSheet.properties.title;
           if (L.pestanas[t]) return json(400, { error: { message: `A sheet with the name "${t}" already exists.` } });
-          L.pestanas[t] = { id: sigId++, filas: [] };
+          L.pestanas[t] = { id: sigId++, filas: [], grid: 1000 };
         }
         if (rq.deleteDimension) {
           const r = rq.deleteDimension.range;
-          Object.values(L.pestanas).find(x => x.id === r.sheetId).filas.splice(r.startIndex, r.endIndex - r.startIndex);
+          const pe = Object.values(L.pestanas).find(x => x.id === r.sheetId);
+          pe.filas.splice(r.startIndex, r.endIndex - r.startIndex);
+          pe.grid -= r.endIndex - r.startIndex;
         }
       }
       return json(200, { replies: [] });
@@ -116,13 +126,15 @@ function sheetsEnMemoria() {
     const r = rango(mv[1]); const p = L.pestanas[r.hoja];
     if (!p) return json(400, { error: { code: 400, message: 'Unable to parse range: ' + mv[1], status: 'INVALID_ARGUMENT' } });
     if (mv[2] === ':clear') { p.filas = p.filas.slice(0, r.fila); return json(200, {}); }
-    if (mv[2]) { p.filas.push(...cuerpo.values.map(f => f.map(String))); return json(200, { updates: {} }); }
+    if (mv[2]) { p.filas.push(...cuerpo.values.map(f => f.map(String))); p.grid += cuerpo.values.length; return json(200, { updates: {} }); }
     if (req.method() === 'PUT') { escribir(L, mv[1], cuerpo.values); return json(200, {}); }
     return json(200, { values: leer(p, r) });
   };
   return {
     route,
-    crear: (id, nombre, filas) => { libro(id).pestanas[nombre] = { id: sigId++, filas: filas.map(f => f.map(String)) }; },
+    // Por defecto, como una pestaña que creó la app: 1.000 filas de cuadrícula y los datos insertados arriba.
+    crear: (id, nombre, filas, grid) => { libro(id).pestanas[nombre] = { id: sigId++, filas: filas.map(f => f.map(String)), grid: grid ?? 1000 + Math.max(0, filas.length - 1) }; },
+    peticiones,
     hoja: (id, nombre) => (libros[id] && libros[id].pestanas[nombre] ? libros[id].pestanas[nombre].filas : []),
   };
 }
@@ -1445,6 +1457,93 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.variablesNxd === 37 && /Dis\. P/.test(r.vistaVieja) && /Nivel de aceite/.test(r.vistaVieja) && !/Presión del cárter/.test(r.vistaVieja),
       { variables: r.variables.length, nxd: r.variablesNxd, vistaVieja: /Dis\. P/.test(r.vistaVieja) });
     check('Compresor IR: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
+    // Reportes técnicos y capacidad: 60 días de reportes de compresores (42
+    // por día) en una pestaña que, como las que crea la app, tiene sus 999
+    // filas vacías al final.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-15T10:20:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const { id, invId, cols } = await p.evaluate(() => ({ id: GOOGLE_CONFIG.spreadsheetId, invId: _invSpreadsheetId('zipaquira'), cols: REPORTE_COMPRESORES_COLS }));
+    const filas = [cols];
+    let n = 0;
+    for (let d = 59; d >= 0; d--) {
+      const fecha = new Date(Date.UTC(2026, 9, 15 - d)).toISOString().slice(0, 10);
+      for (let k = 0; k < 42; k++) {
+        n++;
+        filas.push(cols.map(c => ({ Codigo: `RC-${String(n).padStart(4, '0')}-P${n}`, Fecha: fecha, Hora: '6:00 a.m.', Tecnico: 'Técnico Uno',
+          Compresor: 'Compresor de Alta Presión #1', Estado: 'Activo', FechaRegistro: fecha + 'T11:00:00Z' })[c] ?? '1'));
+      }
+    }
+    fake.crear(id, 'ReporteCompresores', filas);
+    fake.crear(invId, 'Config', [['clave-secreta']]);
+    fake.crear(invId, 'Movimientos', [['Código', 'Fecha', 'Tipo'], ['P-1', '2026-07-01', 'INGRESO'], ['P-1', '2026-10-01', 'SALIDA']]);
+    const lecturasCompletas = () => fake.peticiones.filter(x => /ReporteCompresores!A:ZZ/.test(x.ruta)).length;
+
+    const abierto = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'a@x' };
+      showPanel('cronograma'); await espera(200);
+      cronMostrarSubTab('compresores'); await espera(800);
+      return { cargados: allReportesCompresores.length, siguiente: _siguienteCodigoReporteCompresor().slice(0, 7),
+        masViejo: allReportesCompresores[allReportesCompresores.length - 1]?.Fecha };
+    });
+    const completasAlAbrir = lecturasCompletas();
+    const viejos = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window.confirm = () => true;
+      document.getElementById('rc_filtroDesde').value = '2026-08-17';
+      document.getElementById('rc_filtroHasta').value = '2026-08-18';
+      renderTablaReportesCompresores();
+      const cargando = document.getElementById('rc_tablaWrap').textContent;
+      await espera(800);
+      const out = { cargando, filasTabla: document.querySelectorAll('#rc_tablaWrap tbody tr').length };
+      const viejo = allReportesCompresores.find(f => f.Fecha === '2026-08-17');
+      out.viejo = { codigo: viejo.Codigo, fila: viejo._row };
+      await eliminarReporteCompresor(viejo.Codigo); await espera(500);
+      out.trasEliminar = document.querySelectorAll('#rc_tablaWrap tbody tr').length;
+      return out;
+    });
+    const hoja = fake.hoja(id, 'ReporteCompresores');
+    const filaEliminada = hoja[viejos.viejo.fila - 1] || [];
+    check('Reportes técnicos: al abrir se bajan los últimos días (no la historia entera) y el siguiente código sigue la numeración',
+      completasAlAbrir === 0 && abierto.cargados > 300 && abierto.cargados < 700 && abierto.masViejo <= '2026-10-08' && abierto.siguiente === 'RC-2521',
+      { completasAlAbrir, ...abierto });
+    check('Reportes técnicos: fechas viejas en el filtro se traen al pedirlas; borrar uno viejo marca su fila correcta',
+      /Cargando/.test(viejos.cargando) && viejos.filasTabla === 84 && filaEliminada[0] === viejos.viejo.codigo
+      && filaEliminada[cols.indexOf('Estado')] === 'Eliminada' && viejos.trasEliminar === 83,
+      { ...viejos, filaEliminada: filaEliminada[0] });
+
+    // Capacidad de las hojas (admin): los tres archivos de la sede.
+    const antesCapacidad = fake.peticiones.length;
+    const cap = await p.evaluate(async () => {
+      await abrirCapacidadHojas();
+      const tarjetas = [...document.querySelectorAll('#capacidadOverlay .cap-archivo')];
+      return {
+        tarjetas: tarjetas.map(t => t.querySelector('.cap-titulo')?.textContent),
+        operaciones: tarjetas[0]?.innerText || '',
+        inventario: tarjetas[1]?.innerText || '',
+        pct: Number(tarjetas[0]?.querySelector('.cap-barra')?.getAttribute('aria-valuenow')),
+        primeraPestana: tarjetas[0]?.querySelector('.cap-tabla tbody td')?.textContent,
+      };
+    });
+    const leidasCapacidad = fake.peticiones.slice(antesCapacidad).map(x => x.ruta).join(' ');
+    check('Capacidad: mide operaciones, inventario y proyectos; la pestaña más pesada, sus filas con datos y el ritmo',
+      cap.tarjetas.length === 3 && /^Operaciones — /.test(cap.tarjetas[0]) && /^Inventario — /.test(cap.tarjetas[1]) && /^Proyectos/.test(cap.tarjetas[2])
+      && cap.primeraPestana === 'ReporteCompresores' && /2\.520/.test(cap.operaciones) && /Crece unas 3\.486 celdas por día/.test(cap.operaciones)
+      && /filas vacías/.test(cap.operaciones) && cap.pct >= 2 && cap.pct < 10 && /Movimientos/.test(cap.inventario),
+      { ...cap, operaciones: cap.operaciones.slice(0, 300) });
+    check('Capacidad: no lee la celda de la clave de la sede (Config)', !/Config/.test(leidasCapacidad), leidasCapacidad.slice(0, 200));
+    check('Reportes técnicos y capacidad: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
 
