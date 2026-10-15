@@ -105,14 +105,20 @@ function sheetsEnMemoria() {
       return json(200, { replies: [] });
     }
     if (resto.startsWith('/values:batchUpdate')) { cuerpo.data.forEach(d => escribir(L, d.range, d.values)); return json(200, {}); }
-    const mv = resto.match(/^\/values\/([^?]+?)(:append)?(\?.*)?$/);
+    const leer = (p, r) => p.filas.slice(r.fila, r.filaFin === Infinity ? undefined : r.filaFin + 1)
+      .map(f => f.slice(r.col, r.colFin === Infinity ? undefined : r.colFin + 1));
+    if (resto.startsWith('/values:batchGet')) {
+      const rangos = new URL('http://x' + resto).searchParams.getAll('ranges');
+      return json(200, { valueRanges: rangos.map(rg => { const r = rango(rg); const p = L.pestanas[r.hoja]; return { range: rg, values: p ? leer(p, r) : [] }; }) });
+    }
+    const mv = resto.match(/^\/values\/([^?]+?)(:append|:clear)?(\?.*)?$/);
+    if (!mv) return json(200, {});
     const r = rango(mv[1]); const p = L.pestanas[r.hoja];
     if (!p) return json(400, { error: { code: 400, message: 'Unable to parse range: ' + mv[1], status: 'INVALID_ARGUMENT' } });
+    if (mv[2] === ':clear') { p.filas = p.filas.slice(0, r.fila); return json(200, {}); }
     if (mv[2]) { p.filas.push(...cuerpo.values.map(f => f.map(String))); return json(200, { updates: {} }); }
     if (req.method() === 'PUT') { escribir(L, mv[1], cuerpo.values); return json(200, {}); }
-    const filas = p.filas.slice(r.fila, r.filaFin === Infinity ? undefined : r.filaFin + 1)
-      .map(f => f.slice(r.col, r.colFin === Infinity ? undefined : r.colFin + 1));
-    return json(200, { values: filas });
+    return json(200, { values: leer(p, r) });
   };
   return {
     route,
@@ -1268,6 +1274,88 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await p.setViewportSize({ width: 390, height: 800 });
     const altoMapa = await p.evaluate(() => getComputedStyle(document.getElementById('mapaOperacion')).height);
     check('B13: el mapa de Inicio es más bajo en celular', altoMapa === '300px', altoMapa);
+    await ctx.close();
+  }
+  {
+    // Revisión general: fechas en hora de Colombia a las 8:30 p.m. (en UTC ya
+    // es el día siguiente), la Hoja de Vida dentro de la pantalla, la barra
+    // de abajo del celular, la pestaña "Actividades" solo en Zipaquirá y los
+    // filtros con el estilo de la app.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota', viewport: { width: 1366, height: 900 } });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-15T20:30:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const invId = await p.evaluate(() => _invSpreadsheetId('zipaquira'));
+    fake.crear(invId, 'Productos', [['Codigo', 'Nombre'], ['P-1', 'FILTRO']]);
+    fake.crear(invId, 'Movimientos', [['Codigo', 'Fecha', 'Tipo', 'Cantidad'],
+      ...['2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17'].map((f, i) => ['P-1', f, 'INGRESO', String(i + 1)])]);
+    const anchoHvd = () => p.evaluate(() => ({ pagina: document.documentElement.scrollWidth, ventana: innerWidth }));
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      const historial = await obtenerHistorialInventarioDirecto('zipaquira', { fechaDesde: '2026-10-15', fechaHasta: '2026-10-16' });
+      abrirInventario('zipaquira'); await espera(300);
+      const out = {
+        historial: historial.map(m => m.fecha).sort().join(','),
+        fechaMov: document.getElementById('invm_fecha').value,
+        fechaServ: document.getElementById('invs_fecha').value,
+      };
+      // Borde, esquinas y fondo de la app (la letra puede ser propia: algunos filtros la llevan más pequeña).
+      const muestra = document.body.appendChild(Object.assign(document.createElement('div'), { style: 'border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)' }));
+      const estilo = el => { const cs = getComputedStyle(el); return [cs.borderTopColor, cs.borderTopLeftRadius, cs.backgroundColor].join(' '); };
+      const esperado = estilo(muestra); muestra.remove();
+      const filtros = ['novBuscar', 'novFiltroMes', 'histSelectorVista', 'histBuscarEquipo', 'ieFiltroTipo', 'lotesBuscarProducto',
+        'invsBuscar', 'provFiltroTipo', 'emph_filtro', 'empr_filtro', 'empb_pegar'];
+      out.sinEstilo = filtros.filter(id => !document.getElementById(id) || estilo(document.getElementById(id)) !== esperado);
+      // Las reglas propias siguen mandando: una celda de tabla de órdenes conserva su letra de 12px.
+      document.querySelector('.dyn-table tbody')?.insertAdjacentHTML('beforeend', '<tr><td><input id="pruebaCelda"></td></tr>');
+      out.celda = document.getElementById('pruebaCelda') ? getComputedStyle(document.getElementById('pruebaCelda')).fontSize : 'sin tabla';
+      showPanel('historico'); document.getElementById('histSelectorVista').value = 'hvd'; histCambiarVista(); await espera(300);
+      await hvdSeleccionarEquipo('CA1'); await espera(300);
+      out.tablaRepuestos = !!document.querySelector('#hvdContenido .tabla-repuestos');
+      return out;
+    });
+    const hvdPc = await anchoHvd();
+    await p.setViewportSize({ width: 1024, height: 768 });
+    const hvdTablet = await anchoHvd();
+    await p.setViewportSize({ width: 390, height: 844 });
+    const nav = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const activo = () => [...document.querySelectorAll('#bottomNav button.activo')].map(x => x.dataset.panel).join(',') || 'ninguno';
+      const tabActividades = () => document.querySelector('#panel-cronograma [data-crontab="actividades"]').style.display !== 'none';
+      const out = {};
+      showPanel('cronograma'); await espera(200); out.reportes = activo();
+      out.tabActividadesZipa = tabActividades();
+      abrirInventario('zipaquira'); await espera(200); out.inventario = activo();
+      showPanel('pendientes'); await espera(100); out.pendientes = activo();
+      abrirPlanMantenimiento('zipaquira'); await espera(200); out.plan = activo();
+      showPanel('novedades'); await espera(100);
+      abrirVariables(VARIABLES_APARTADOS[0].key); await espera(200); out.variables = activo();
+      operacionActual = 'zipaquira2';
+      showPanel('cronograma'); await espera(200);
+      out.tabActividadesZipa2 = tabActividades();
+      cronMostrarSubTab('actividades');
+      out.subtabZipa2 = document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab;
+      return out;
+    });
+    check('Inventario: el historial filtrado por fechas trae los movimientos del día "Desde" y no los del día siguiente al "Hasta"',
+      r.historial === '2026-10-15,2026-10-16', r.historial);
+    check('Inventario: a las 8:30 p.m. la fecha de un movimiento o servicio nuevo es la de hoy, no la de mañana',
+      r.fechaMov === '2026-10-15' && r.fechaServ === '2026-10-15', { mov: r.fechaMov, serv: r.fechaServ });
+    check('Hoja de Vida: la ficha con su tabla de repuestos no se sale de la pantalla en computador ni en tablet',
+      r.tablaRepuestos && hvdPc.pagina <= hvdPc.ventana && hvdTablet.pagina <= hvdTablet.ventana, { hvdPc, hvdTablet, tabla: r.tablaRepuestos });
+    check('Filtros de Novedades, Histórico, Inventario y Empalme con el estilo de la app; las reglas propias siguen mandando',
+      r.sinEstilo.length === 0 && r.celda === '12px', { sinEstilo: r.sinEstilo, celda: r.celda });
+    check('Celular: la barra de abajo solo marca la sección en la que se está',
+      nav.reportes === 'cronograma' && nav.pendientes === 'pendientes' && nav.inventario === 'ninguno' && nav.plan === 'ninguno' && nav.variables === 'ninguno', nav);
+    check('Reportes: la pestaña "Actividades" (aviso de alturas) solo aparece en Zipaquirá',
+      nav.tabActividadesZipa && !nav.tabActividadesZipa2 && nav.subtabZipa2 === 'temporal', nav);
+    check('Revisión: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
 
