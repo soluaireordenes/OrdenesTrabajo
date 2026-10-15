@@ -3059,13 +3059,13 @@ body.rol-operario .solo-admin { display: none !important; }
             </div>
             <div class="field">
               <label>Seleccionar compresor *</label>
-              <select id="re_compresor"><option value="">Seleccionar...</option></select>
+              <select id="re_compresor" onchange="_actualizarCamposMedicionesEmergencia()"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field">
-              <label>¿El equipo se encuentra encendido? *</label>
+              <label id="re_estadoEquipoLabel">¿El equipo se encuentra encendido? *</label>
               <select id="re_estadoEquipo"><option value="">Seleccionar...</option></select>
             </div>
-            <div class="field">
+            <div class="field" id="re_nivelAceiteWrap">
               <label>Nivel de aceite *</label>
               <select id="re_nivelAceite"><option value="">Seleccionar...</option></select>
             </div>
@@ -4872,7 +4872,8 @@ const VARIABLES_APARTADOS = [
       hoja:   () => SH.reporteEmergencia,
       colEquipo: 'Compresor',
       horas:  () => HORAS_REPORTE_EMERGENCIA,
-      campos: () => REPORTE_EMERGENCIA_CAMPOS_GRAFICA,
+      // El IR tiene su propio formato (otro controlador que el NXD 220).
+      campos: (equipo) => esCompresorIR(equipo) ? REPORTE_EMERGENCIA_CAMPOS_IR_GRAFICA : REPORTE_EMERGENCIA_CAMPOS_GRAFICA,
     }] },
   { key: 'decorado',    label: 'Compresores Decorado',   lista: () => COMPRESORES_DECORADO_LISTA,
     fuentes: [{
@@ -10526,6 +10527,14 @@ const REPORTE_EMERGENCIA_COLS = [
   'NivelAceite', 'PresionTanque',
   'AirFilter', 'OilFilter', 'OilSepa', 'LubOil', 'MGrease', 'Airend',
   'LoadP', 'UnloadP',
+  // Compresor IR: los campos que solo tiene su controlador (los que
+  // significan lo mismo que en el NXD 220 —horas y presiones de carga y
+  // descarga— van en las columnas de arriba). Ver REPORTE_EMERGENCIA_CAMPOS_IR.
+  'IrOffsetEsclavo', 'IrModoOperacion', 'IrEliminacionCondensado', 'IrIntervaloCondensados',
+  'IrHorasEncendido', 'IrArranques',
+  'IrPresionDescargaConjunto', 'IrPresionCarter', 'IrTempDescargaAirend', 'IrTempInyeccionAceite',
+  'IrCaidaSeparador', 'IrCaidaFiltroRefrigerante', 'IrVacioEntrada', 'IrPresionInyeccionAceite', 'IrPresionSalidaAceite',
+  'IrEstadoSeparador', 'IrEstadoFiltroAceite', 'IrEstadoFiltroEntrada', 'IrHorasRestantesMant', 'IrIntervaloServicio',
   // Cada reporte cubre el compresor Y su secador, y además registra las
   // labores hechas en cada uno, los insumos usados y observaciones. Las
   // mediciones del secador son opcionales: cuando el equipo está apagado
@@ -10570,6 +10579,54 @@ const REPORTE_EMERGENCIA_CAMPOS = [
   { grupo: 'Parámetros de presión', id: 'loadP', label: 'Load P - Presión de carga [psi]', col: 'LoadP' },
   { grupo: 'Parámetros de presión', id: 'unloadP', label: 'Unload P - Presión de descarga [psi]', col: 'UnloadP' },
 ];
+
+// Compresor IR (Ingersoll Rand): su controlador muestra otras variables que
+// el NXD 220, así que tiene su propio juego de campos —calcado del formato
+// "Compresor IR"—, igual que los de Baja Presión frente a los de Alta. Las
+// horas de funcionamiento van en RunTime, como el "Run time" del NXD: son
+// las que alimentan el horómetro y el Plan de Mantenimiento.
+// tipo 'texto' acepta cualquier valor; 'opciones' es una lista; el resto,
+// números (punto decimal, no coma).
+const COMPRESOR_EMERGENCIA_IR = 'Compresor IR';
+function esCompresorIR(compresor) { return compresor === COMPRESOR_EMERGENCIA_IR; }
+const ESTADOS_EQUIPO_IR = ['Si', 'No'];
+const ESTADOS_ELEMENTO_IR = ['OK', 'Alerta', 'Requiere cambio'];
+const REPORTE_EMERGENCIA_CAMPOS_IR = [
+  { grupo: 'Configuración', id: 'irLoadP', label: 'Presión de carga [PSI]', col: 'LoadP' },
+  { grupo: 'Configuración', id: 'irUnloadP', label: 'Presión de descarga [PSI]', col: 'UnloadP' },
+  { grupo: 'Configuración', id: 'irOffsetEsclavo', label: 'Offset de esclavo [PSI]', col: 'IrOffsetEsclavo' },
+  { grupo: 'Configuración', id: 'irModoOperacion', label: 'Modo de operación', col: 'IrModoOperacion', tipo: 'texto' },
+  { grupo: 'Configuración', id: 'irEliminacionCondensado', label: 'Eliminación de condensado', col: 'IrEliminacionCondensado', tipo: 'texto' },
+  { grupo: 'Configuración', id: 'irIntervaloCondensados', label: 'Intervalo de condensados', col: 'IrIntervaloCondensados' },
+  { grupo: 'Horas', id: 'irHorasEncendido', label: 'Horas de encendido [h]', col: 'IrHorasEncendido' },
+  { grupo: 'Horas', id: 'irHorasFuncionamiento', label: 'Horas de funcionamiento [h]', col: 'RunTime' },
+  { grupo: 'Horas', id: 'irHorasCargado', label: 'Horas cargado [h]', col: 'LoadTime' },
+  { grupo: 'Horas', id: 'irArranques', label: 'Arranques', col: 'IrArranques' },
+  { grupo: 'Mediciones', id: 'irPresionDescargaConjunto', label: 'Presión de descarga del conjunto [PSI]', col: 'IrPresionDescargaConjunto' },
+  { grupo: 'Mediciones', id: 'irPresionCarter', label: 'Presión del cárter (tanque separador aire/aceite) [PSI]', col: 'IrPresionCarter' },
+  { grupo: 'Mediciones', id: 'irTempDescargaAirend', label: 'Temperatura de descarga del airend (elemento de tornillo) [°C]', col: 'IrTempDescargaAirend' },
+  { grupo: 'Mediciones', id: 'irTempInyeccionAceite', label: 'Temperatura de inyección de aceite [°C]', col: 'IrTempInyeccionAceite' },
+  { grupo: 'Mediciones', id: 'irCaidaSeparador', label: 'Caída de presión en el separador aire/aceite [PSI]', col: 'IrCaidaSeparador' },
+  { grupo: 'Mediciones', id: 'irCaidaFiltroRefrigerante', label: 'Caída de presión en el filtro de refrigerante [PSI]', col: 'IrCaidaFiltroRefrigerante' },
+  { grupo: 'Mediciones', id: 'irVacioEntrada', label: 'Vacío en la entrada de aire (restricción del filtro de aire)', col: 'IrVacioEntrada' },
+  { grupo: 'Mediciones', id: 'irPresionInyeccionAceite', label: 'Presión de inyección de aceite al airend [PSI]', col: 'IrPresionInyeccionAceite' },
+  { grupo: 'Mediciones', id: 'irPresionSalidaAceite', label: 'Presión de salida de aceite (después del filtro o enfriador) [PSI]', col: 'IrPresionSalidaAceite' },
+  { grupo: 'Mantenimiento', id: 'irEstadoSeparador', label: 'Estado elemento separador', col: 'IrEstadoSeparador', tipo: 'opciones', opciones: ESTADOS_ELEMENTO_IR },
+  { grupo: 'Mantenimiento', id: 'irEstadoFiltroAceite', label: 'Estado filtro de aceite', col: 'IrEstadoFiltroAceite', tipo: 'opciones', opciones: ESTADOS_ELEMENTO_IR },
+  { grupo: 'Mantenimiento', id: 'irEstadoFiltroEntrada', label: 'Estado filtro de entrada', col: 'IrEstadoFiltroEntrada', tipo: 'opciones', opciones: ESTADOS_ELEMENTO_IR },
+  { grupo: 'Mantenimiento', id: 'irHorasRestantesMant', label: 'Horas restantes de mantenimiento [h]', col: 'IrHorasRestantesMant' },
+  { grupo: 'Mantenimiento', id: 'irIntervaloServicio', label: 'Intervalo de servicios [h]', col: 'IrIntervaloServicio' },
+];
+function _camposReporteEmergencia(compresor) {
+  return esCompresorIR(compresor) ? REPORTE_EMERGENCIA_CAMPOS_IR : REPORTE_EMERGENCIA_CAMPOS;
+}
+/** Los reportes del IR guardados antes de que tuviera su formato se llenaron
+ *  con los campos del NXD 220: se siguen mostrando con esos, para no
+ *  esconder lo que se anotó. */
+function _reporteEmergenciaEnFormatoIR(r) {
+  return esCompresorIR(r.Compresor)
+    && REPORTE_EMERGENCIA_CAMPOS_IR.some(c => c.col.startsWith('Ir') && String(r[c.col] ?? '').trim());
+}
 // Mediciones del secador — OPCIONALES: si el compresor está apagado no
 // siempre se toman, así que el guardado solo las valida si tienen algo.
 const REPORTE_EMERGENCIA_CAMPOS_SECADOR = [
@@ -10603,6 +10660,13 @@ const REPORTE_EMERGENCIA_CAMPOS_GRAFICA = [
   ...REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => ({ ...c, grupo: 'Secador' })),
   { grupo: 'Sistema', id: 'nivelAceiteEmg', label: 'Nivel de aceite', col: 'NivelAceite',
     escala: NIVELES_ACEITE_EMERGENCIA.slice().reverse() },
+];
+/** Lo mismo para el IR: sin los campos de texto libre (no son magnitudes) y
+ *  con el estado de los elementos como escala ordenada, "OK" arriba. */
+const REPORTE_EMERGENCIA_CAMPOS_IR_GRAFICA = [
+  ...REPORTE_EMERGENCIA_CAMPOS_IR.filter(c => c.tipo !== 'texto')
+    .map(c => c.tipo === 'opciones' ? { ...c, escala: c.opciones.slice().reverse() } : c),
+  ...REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => ({ ...c, grupo: 'Secador' })),
 ];
 
 const LABORES_EMERGENCIA_COMPRESOR = [
@@ -21294,9 +21358,9 @@ ${_construirHtmlReporteDecorado(r)}
 ══════════════════════════════════════════════ */
 let allReportesEmergencia = [];
 
-function _htmlCamposReporteEmergencia(existente) {
+function _htmlCamposReporteEmergencia(existente, campos) {
   const grupos = [];
-  REPORTE_EMERGENCIA_CAMPOS.forEach(c => {
+  campos.forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
@@ -21307,11 +21371,32 @@ function _htmlCamposReporteEmergencia(existente) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
           <label>${esc(c.label)}</label>
-          <input id="re_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
+          ${c.tipo === 'opciones'
+            ? `<select id="re_${c.id}"><option value="">Seleccionar...</option>${c.opciones.map(o =>
+                `<option value="${esc(o)}"${existente?.[c.col] === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+            : `<input id="re_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">`}
           ${c.hint ? `<div style="font-size:10.5px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
         </div>`).join('')}
       </div>
     </div>`).join('');
+}
+
+/** El NXD 220 y el IR tienen controladores distintos: al elegir el compresor
+ *  se pintan sus campos. El IR pregunta si está en línea (Sí/No) y no lleva
+ *  nivel de aceite. */
+function _actualizarCamposMedicionesEmergencia() {
+  const compresor = document.getElementById('re_compresor').value;
+  const ir = esCompresorIR(compresor);
+  document.getElementById('re_camposMediciones').innerHTML = compresor
+    ? _htmlCamposReporteEmergencia(null, _camposReporteEmergencia(compresor))
+    : '<div style="font-size:12.5px;color:var(--text3);margin-bottom:12px">Elige el compresor para ver sus campos.</div>';
+  document.getElementById('re_estadoEquipoLabel').textContent = ir ? '¿Compresor en línea? *' : '¿El equipo se encuentra encendido? *';
+  const estado = document.getElementById('re_estadoEquipo');
+  const previo = estado.value;
+  const opciones = ir ? ESTADOS_EQUIPO_IR : ESTADOS_EQUIPO_EMERGENCIA;
+  estado.innerHTML = '<option value="">Seleccionar...</option>' + opciones.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
+  estado.value = opciones.includes(previo) ? previo : '';
+  document.getElementById('re_nivelAceiteWrap').style.display = ir ? 'none' : '';
 }
 
 function _siguienteCodigoReporteEmergencia() {
@@ -21326,8 +21411,7 @@ async function inicializarReporteEmergencia() {
     HORAS_REPORTE_EMERGENCIA.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
   document.getElementById('re_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
     COMPRESORES_EMERGENCIA_LISTA.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  document.getElementById('re_estadoEquipo').innerHTML = '<option value="">Seleccionar...</option>' +
-    ESTADOS_EQUIPO_EMERGENCIA.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
+  document.getElementById('re_estadoEquipo').value = '';
   document.getElementById('re_nivelAceite').innerHTML = '<option value="">Seleccionar...</option>' +
     NIVELES_ACEITE_EMERGENCIA.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
 
@@ -21335,7 +21419,7 @@ async function inicializarReporteEmergencia() {
   document.getElementById('re_tecnicoOtroWrap').style.display = 'none';
   document.getElementById('re_tecnicoOtro').value = '';
   document.getElementById('re_msg').textContent = '';
-  document.getElementById('re_camposMediciones').innerHTML = _htmlCamposReporteEmergencia(null);
+  _actualizarCamposMedicionesEmergencia();
   document.getElementById('re_camposSecador').innerHTML = REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => `<div class="field">
       <label>${esc(c.label)}</label>
       <input id="re_${c.id}" placeholder="${esc(c.label)}">
@@ -21406,7 +21490,9 @@ function renderTablaReportesEmergencia() {
 }
 
 /** Guarda un reporte — misma validación numérica que los demás reportes
- *  técnicos (punto decimal, no coma) para los 26 campos de medición. */
+ *  técnicos (punto decimal, no coma) para los campos de medición del
+ *  compresor elegido; los de texto y los de lista solo tienen que estar
+ *  llenos. */
 async function guardarReporteEmergencia() {
   const msg = document.getElementById('re_msg');
   msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
@@ -21416,10 +21502,13 @@ async function guardarReporteEmergencia() {
   const hora = document.getElementById('re_hora').value;
   const compresor = document.getElementById('re_compresor').value;
   const estadoEquipo = document.getElementById('re_estadoEquipo').value;
-  const nivelAceite = document.getElementById('re_nivelAceite').value;
+  const ir = esCompresorIR(compresor);
+  const nivelAceite = ir ? '' : document.getElementById('re_nivelAceite').value;
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo || !nivelAceite) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor, estado del equipo y nivel de aceite.';
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo || (!ir && !nivelAceite)) {
+    msg.textContent = ir
+      ? 'Completa todos los campos: técnico, fecha, hora, compresor y si el compresor está en línea.'
+      : 'Completa todos los campos: técnico, fecha, hora, compresor, estado del equipo y nivel de aceite.';
     return;
   }
 
@@ -21433,9 +21522,11 @@ async function guardarReporteEmergencia() {
   document.getElementById('re_fecha').value = fecha;
 
   const porColumna = {};
-  for (const c of REPORTE_EMERGENCIA_CAMPOS) {
+  for (const c of _camposReporteEmergencia(compresor)) {
     const valor = document.getElementById('re_' + c.id).value.trim();
-    if (!valor || !_esNumeroDecimal(valor)) {
+    if (c.tipo === 'texto' || c.tipo === 'opciones') {
+      if (!valor) { msg.textContent = `Completa el campo "${c.label}".`; return; }
+    } else if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
@@ -21507,15 +21598,21 @@ async function eliminarReporteEmergencia(codigo) {
 function _construirHtmlReporteEmergencia(r, conTitulo) {
   if (conTitulo === undefined) conTitulo = true;
   const grupos = [];
-  REPORTE_EMERGENCIA_CAMPOS.forEach(c => {
+  const formatoIR = _reporteEmergenciaEnFormatoIR(r);
+  (formatoIR ? REPORTE_EMERGENCIA_CAMPOS_IR : REPORTE_EMERGENCIA_CAMPOS).forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
     if (!g) { g = { nombre: c.grupo, campos: [] }; grupos.push(g); }
     g.campos.push(c);
   });
-  // Estado del equipo y Nivel de aceite se muestran dentro de "Sistema".
-  const grupoSistema = grupos.find(g => g.nombre === 'Sistema');
-  grupoSistema.campos.unshift({ label: '¿El equipo se encuentra encendido?', col: 'EstadoEquipo' });
-  grupoSistema.campos.splice(18, 0, { label: 'Nivel de aceite', col: 'NivelAceite' });
+  if (formatoIR) {
+    // Como en su formato, lo primero es si el compresor está en línea.
+    grupos[0].campos.unshift({ label: '¿Compresor en línea?', col: 'EstadoEquipo' });
+  } else {
+    // Estado del equipo y Nivel de aceite se muestran dentro de "Sistema".
+    const grupoSistema = grupos.find(g => g.nombre === 'Sistema');
+    grupoSistema.campos.unshift({ label: '¿El equipo se encuentra encendido?', col: 'EstadoEquipo' });
+    grupoSistema.campos.splice(18, 0, { label: 'Nivel de aceite', col: 'NivelAceite' });
+  }
   grupos.push({ nombre: 'Secador', campos: REPORTE_EMERGENCIA_CAMPOS_SECADOR });
   const gruposHtml = grupos.map(g => {
     const filas = g.campos.filter(c => (r[c.col] || '').toString().trim());
