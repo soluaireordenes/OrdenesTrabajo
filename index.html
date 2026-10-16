@@ -10918,13 +10918,12 @@ const REPORTE_MAQUINAS_FORMACION_COLS = [
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 const MAQUINAS_FORMACION = ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3'];
-// Secciones de cada tipo de máquina (la letra del nombre). Las F tienen 12;
-// las de las E están pendientes: mientras tanto la sección se escribe a mano.
-const SECCIONES_MAQUINAS_FORMACION = { F: 12, E: null };
+// Secciones de cada máquina: la lista del formulario va del 1 a este número.
+const SECCIONES_MAQUINAS_FORMACION = { E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 };
 const CAVIDADES_MAQUINAS_FORMACION = ['1', '2', '3'];
 const TECNICOS_REPORTE_MAQUINAS_FORMACION = TECNICOS_REPORTE_COMPRESORES;
 function _seccionesMaquinaFormacion(maquina) {
-  return SECCIONES_MAQUINAS_FORMACION[String(maquina || '').charAt(0)] || null;
+  return SECCIONES_MAQUINAS_FORMACION[maquina] || null;
 }
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
@@ -22348,8 +22347,9 @@ function _siguienteCodigoReporteMaquinasFormacion() {
   return _codigoConsecutivoUnico('RMF', allReportesMaquinasFormacion, 4);
 }
 
-/** La sección depende de la máquina: las F traen la lista del 1 al 12; las
- *  E, mientras no estén definidas sus secciones, se escriben a mano. */
+/** La sección depende de la máquina: la lista va del 1 al número de
+ *  secciones de esa máquina. Una máquina nueva sin ese número todavía pide
+ *  la sección escrita a mano. */
 function _actualizarSeccionesMaquinaFormacion() {
   const maquina = document.getElementById('rmf_maquina').value;
   const total = _seccionesMaquinaFormacion(maquina);
@@ -22361,7 +22361,7 @@ function _actualizarSeccionesMaquinaFormacion() {
       + Array.from({ length: total }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('') + '</select>';
   } else {
     wrap.innerHTML = '<input id="rmf_seccion" placeholder="Sección">'
-      + '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">Las secciones de las máquinas E todavía no están definidas: escríbela.</div>';
+      + '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">Las secciones de esta máquina todavía no están definidas: escríbela.</div>';
   }
 }
 

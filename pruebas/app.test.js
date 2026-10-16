@@ -1548,8 +1548,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
   }
   {
     // Reportes → Máquinas de Formación (Zipaquirá): máquina, referencia de
-    // botella, sección (las F del 1 al 12; las E, a mano mientras se
-    // definen), cavidades y velocidad.
+    // botella, sección (de la lista de esa máquina: E1 12, E2 8, E3 y E4 10,
+    // las F 12), cavidades y velocidad.
     const fake = sheetsEnMemoria();
     const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
     await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
@@ -1576,10 +1576,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.cavidades = [...document.querySelectorAll('#rmf_cavidades option')].map(o => o.value).filter(Boolean).join(',');
       out.seccionSinMaquina = document.getElementById('rmf_seccion').disabled;
       out.hora = document.getElementById('rmf_hora').value;
-      await elegir('rmf_maquina', 'F2');
+      const secciones = async m => { await elegir('rmf_maquina', m); const el = document.getElementById('rmf_seccion'); return el.tagName === 'SELECT' ? [...el.options].filter(o => o.value).length : el.tagName; };
+      out.secciones = {};
+      for (const m of ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3']) out.secciones[m] = await secciones(m);
       out.seccionesF = [...document.querySelectorAll('#rmf_seccion option')].map(o => o.value).filter(Boolean).join(',');
-      await elegir('rmf_maquina', 'E3');
-      out.seccionE = document.getElementById('rmf_seccion').tagName + ' ' + document.getElementById('rmf_seccionWrap').textContent.trim();
       // Faltan datos
       await elegir('rmf_tecnico', TECNICOS_REPORTE_MAQUINAS_FORMACION[0]);
       await guardarReporteMaquinasFormacion();
@@ -1593,10 +1593,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await guardarReporteMaquinasFormacion(); await espera(200);
       out.msg = document.getElementById('rmf_msg').textContent;
       out.tecnicoQueda = document.getElementById('rmf_tecnico').value;
-      // E3 con la sección escrita a mano
+      // E3, sección 5 de su lista
       await elegir('rmf_maquina', 'E3');
       document.getElementById('rmf_referencia').value = 'BOT-200';
-      document.getElementById('rmf_seccion').value = '5';
+      await elegir('rmf_seccion', '5');
       await elegir('rmf_cavidades', '3');
       document.getElementById('rmf_velocidad').value = '70 bpm';
       await guardarReporteMaquinasFormacion(); await espera(200);
@@ -1612,10 +1612,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const val = (m, c) => fila(m)[enc.indexOf(c)];
     check('Máquinas de Formación: pestaña solo en Zipaquirá, justo al lado de Reporte Compresores',
       r.visibleZipa && !r.visibleZipa2 && r.alLado, { zipa: r.visibleZipa, zipa2: r.visibleZipa2, alLado: r.alLado });
-    check('Máquinas de Formación: E1–E4 y F1–F3, cavidades 1–3; las F traen secciones del 1 al 12 y las E se escriben a mano',
+    check('Máquinas de Formación: E1–E4 y F1–F3, cavidades 1–3; secciones E1 12, E2 8, E3 10, E4 10 y las F 12',
       r.maquinas === 'E1,E2,E3,E4,F1,F2,F3' && r.cavidades === '1,2,3' && r.seccionSinMaquina && r.hora === '09:15'
-      && r.seccionesF === '1,2,3,4,5,6,7,8,9,10,11,12' && /^INPUT .*máquinas E todavía no están definidas/.test(r.seccionE),
-      { maquinas: r.maquinas, cavidades: r.cavidades, seccionesF: r.seccionesF, seccionE: r.seccionE, hora: r.hora });
+      && JSON.stringify(r.secciones) === JSON.stringify({ E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 })
+      && r.seccionesF === '1,2,3,4,5,6,7,8,9,10,11,12',
+      { maquinas: r.maquinas, cavidades: r.cavidades, secciones: r.secciones, seccionesF: r.seccionesF, hora: r.hora });
     check('Máquinas de Formación: pide lo que falta y guarda máquina, referencia, sección, cavidades y velocidad',
       /^Falta la referencia de botella, la sección, las cavidades y la velocidad\.$/.test(r.falta) && /F1 guardado/.test(r.msg) && r.tecnicoQueda !== ''
       && val('F1', 'ReferenciaBotella') === 'BOT-355 ÁMBAR' && val('F1', 'Seccion') === '7' && val('F1', 'Cavidades') === '2' && val('F1', 'Velocidad') === '65'
