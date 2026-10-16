@@ -329,6 +329,13 @@ body::before {
   white-space: pre-line; overflow-wrap: anywhere; max-height: 45vh; overflow: auto;
 }
 .confirmar-texto:empty { display: none; }
+/* Campos de pedirDatos (en lugar de prompt()). */
+.confirmar-campos { display: grid; gap: 12px; margin-top: 14px; }
+.confirmar-campos:empty { display: none; }
+.confirmar-campos select, .confirmar-campos input { width: 100%; min-width: 0; }
+.confirmar-ayuda { font-size: 12px; color: var(--text3); }
+.confirmar-error { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--estado-peligro-tx); }
+.confirmar-error:empty { display: none; }
 .confirmar-botones { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .btn-peligro { background: var(--danger); color: #fff; box-shadow: 0 2px 8px rgba(198,40,40,.28); }
 .btn-peligro:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(198,40,40,.36); }
@@ -13939,20 +13946,20 @@ async function limpiarCacheLocal() {
     return;
   }
 
-  const lista = datos.map((o, i) =>
-    `${i + 1}. ${o.NumeroOrden || '—'} · ${o.Equipo || '—'} · ${o.Estado || '—'}\n   ${(o.Title || '').slice(0, 60)}`
-  ).join('\n\n');
-
-  const msg =
-    `Órdenes guardadas en este equipo (${datos.length} total):\n\n` +
-    lista +
-    `\n\n——————————————————————\n` +
-    `Escribe el NÚMERO DE ORDEN a borrar (cópialo de la lista de arriba)\n` +
-    `o escribe TODAS para limpiar todo el caché local.\n` +
-    `(Las órdenes que están en Google Sheets NO se borran de allá)`;
-
-  const respuesta = prompt(msg);
-  if (!respuesta) return;
+  const elegido = await pedirDatos({
+    titulo: 'Limpiar el caché local',
+    texto: `Hay ${datos.length} ${datos.length === 1 ? 'orden guardada' : 'órdenes guardadas'} en este equipo. `
+         + 'Las que están en Google Sheets no se borran de allá.',
+    campos: [{
+      nombre: 'orden', etiqueta: 'Qué borrar', tipo: 'select', requerido: true,
+      opciones: [{ valor: '', texto: 'Elige una orden…' }]
+        .concat(datos.map(o => ({ valor: o.NumeroOrden || '', texto: `${o.NumeroOrden || '—'} · ${o.Equipo || '—'} · ${o.Estado || '—'} — ${(o.Title || '').slice(0, 60)}` })))
+        .concat([{ valor: 'TODAS', texto: `Todas las órdenes (${datos.length})` }]),
+    }],
+    aceptar: 'Continuar',
+  });
+  if (!elegido) return;
+  const respuesta = elegido.orden;
 
   if (respuesta.trim().toUpperCase() === 'TODAS') {
     const confirmar = await confirmarAccion({
@@ -14096,6 +14103,7 @@ window.alert = mensaje => aviso(mensaje);
 const ICONOS_CONFIRMAR = {
   peligro: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
   pregunta: '<circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+  escribir: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>',
 };
 
 function confirmarAccion({ titulo, texto = '', aceptar = 'Aceptar', cancelar = 'Cancelar', peligro = false } = {}) {
@@ -14136,6 +14144,106 @@ function confirmarAccion({ titulo, texto = '', aceptar = 'Aceptar', cancelar = '
     document.addEventListener('keydown', teclas, true);
     document.body.appendChild(fondo);
     (peligro ? btnNo : btnSi).focus();
+  });
+}
+
+/** La misma ventana, con campos para escribir o elegir (en lugar de
+ *  prompt()). Cada campo: { nombre, etiqueta, valor, placeholder, tipo
+ *  ('text' | 'number' | 'select'), opciones: [{ valor, texto }], requerido,
+ *  ayuda }. Devuelve { nombre: valor } o null si se cancela. `validar(datos)`
+ *  puede devolver un mensaje: se muestra en la ventana y no se cierra. */
+let _pedirDatosN = 0;
+function pedirDatos({ titulo, texto = '', campos = [], aceptar = 'Aceptar', cancelar = 'Cancelar', peligro = false, validar = null } = {}) {
+  return new Promise(resolve => {
+    const n = ++_pedirDatosN;
+    const fondo = document.createElement('div');
+    fondo.className = 'confirmar-fondo';
+    fondo.innerHTML = `
+      <form class="confirmar-ventana${peligro ? ' peligro' : ''}" role="dialog" aria-modal="true" aria-labelledby="pedirTitulo${n}" novalidate>
+        <div class="confirmar-icono"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${peligro ? ICONOS_CONFIRMAR.peligro : ICONOS_CONFIRMAR.escribir}</svg></div>
+        <div class="confirmar-cuerpo">
+          <h3 class="confirmar-titulo" id="pedirTitulo${n}"></h3>
+          <p class="confirmar-texto"></p>
+          <div class="confirmar-campos"></div>
+          <div class="confirmar-error" role="alert"></div>
+        </div>
+        <div class="confirmar-botones">
+          <button type="button" class="btn btn-ghost" data-respuesta="no"></button>
+          <button type="submit" class="btn ${peligro ? 'btn-peligro' : 'btn-primary'}" data-respuesta="si"></button>
+        </div>
+      </form>`;
+    const form = fondo.querySelector('form');
+    form.querySelector('.confirmar-titulo').textContent = titulo || '';
+    form.querySelector('.confirmar-texto').textContent = texto;
+    form.querySelector('[data-respuesta="no"]').textContent = cancelar;
+    form.querySelector('[data-respuesta="si"]').textContent = aceptar;
+    const cont = form.querySelector('.confirmar-campos');
+    const controles = campos.map((c, i) => {
+      const id = `pedirCampo${n}_${i}`;
+      const caja = document.createElement('div');
+      caja.className = 'field';
+      const etiqueta = document.createElement('label');
+      etiqueta.htmlFor = id; etiqueta.textContent = c.etiqueta || '';
+      let control;
+      if (c.tipo === 'select') {
+        control = document.createElement('select');
+        (c.opciones || []).forEach(o => {
+          const op = document.createElement('option');
+          op.value = o.valor; op.textContent = o.texto;
+          control.appendChild(op);
+        });
+      } else {
+        control = document.createElement('input');
+        control.type = 'text';
+        if (c.tipo === 'number') control.inputMode = 'decimal';
+        if (c.placeholder) control.placeholder = c.placeholder;
+        control.autocomplete = 'off';
+      }
+      control.id = id;
+      control.value = c.valor ?? '';
+      caja.append(etiqueta, control);
+      if (c.ayuda) { const a = document.createElement('div'); a.className = 'confirmar-ayuda'; a.textContent = c.ayuda; caja.appendChild(a); }
+      cont.appendChild(caja);
+      return control;
+    });
+    const error = form.querySelector('.confirmar-error');
+    const antes = document.activeElement;
+    const enfocables = () => [...form.querySelectorAll('input, select, button')];
+    const teclas = e => {
+      if (e.key === 'Escape') { e.preventDefault(); cerrar(null); }
+      // El foco no sale de la ventana mientras esté abierta.
+      else if (e.key === 'Tab') {
+        const l = enfocables(), i = l.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); l[l.length - 1].focus(); }
+        else if (!e.shiftKey && i === l.length - 1) { e.preventDefault(); l[0].focus(); }
+      }
+    };
+    const cerrar = respuesta => {
+      document.removeEventListener('keydown', teclas, true);
+      fondo.remove();
+      try { if (antes && antes.isConnected) antes.focus(); } catch (_) {}
+      resolve(respuesta);
+    };
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const datos = {};
+      campos.forEach((c, i) => { datos[c.nombre] = controles[i].value; });
+      const vacio = campos.findIndex((c, i) => c.requerido && !String(controles[i].value).trim());
+      if (vacio >= 0) {
+        error.textContent = campos[vacio].tipo === 'select' ? 'Elige una opción.' : 'Escribe ' + (campos[vacio].etiqueta || 'este dato').toLowerCase() + '.';
+        controles[vacio].focus();
+        return;
+      }
+      const msg = validar ? validar(datos) : '';
+      if (msg) { error.textContent = msg; return; }
+      cerrar(datos);
+    });
+    form.querySelector('[data-respuesta="no"]').addEventListener('click', () => cerrar(null));
+    fondo.addEventListener('click', e => { if (e.target === fondo) cerrar(null); });
+    controles.forEach(c => c.addEventListener('input', () => { error.textContent = ''; }));
+    document.addEventListener('keydown', teclas, true);
+    document.body.appendChild(fondo);
+    (controles[0] || form.querySelector('[data-respuesta="si"]')).focus();
   });
 }
 
@@ -15326,21 +15434,15 @@ async function eliminarOrdenCompleta() {
   if (!o) { alert('No se encontró la orden que estás viendo.'); return; }
 
   const num = o.NumeroOrden || o.id;
-  const escrito = prompt(
-    `Vas a ELIMINAR esta orden y todo lo que tiene dentro:\n\n` +
-    `  Número: ${num}\n` +
-    `  Equipo: ${o.Equipo || '—'}\n` +
-    `  Título: ${o.Title || '—'}\n` +
-    `  Estado: ${o.Estado || '—'}\n\n` +
-    `Se borran también sus tareas, repuestos, insumos, servicios y fotos.\n` +
-    `Esto NO se puede deshacer.\n\n` +
-    `Para confirmar, escribe el número de la orden:`
-  );
-  if (escrito === null) return;
-  if (escrito.trim() !== String(num)) {
-    alert('El número no coincide. No se eliminó nada.');
-    return;
-  }
+  const confirmado = await pedirDatos({
+    titulo: `¿Eliminar la orden ${num}?`,
+    texto: `Equipo: ${o.Equipo || '—'}\nTítulo: ${o.Title || '—'}\nEstado: ${o.Estado || '—'}\n\n`
+         + 'Se borran también sus tareas, repuestos, insumos, servicios y fotos. Esto no se puede deshacer.',
+    campos: [{ nombre: 'numero', etiqueta: 'Para confirmar, escribe el número de la orden', placeholder: String(num), requerido: true }],
+    aceptar: 'Eliminar orden', peligro: true,
+    validar: d => d.numero.trim() === String(num) ? '' : 'El número no coincide con el de la orden.',
+  });
+  if (!confirmado) return;
 
   try {
     // Las fotos de la orden se juntan mientras se borran sus filas (de lo
@@ -26110,8 +26212,8 @@ async function _proyBorrarFila(tab, row, codigo) {
 
 /** Dinero que escribe una persona en una ventana de texto: "1.500" o
  *  "25.000" son miles (así se escribe en Colombia), no 1,5 ni 25. Solo para
- *  lo que llega de un prompt(); los campos numéricos del formulario ya
- *  entregan el número sin separadores. */
+ *  lo que llega de una ventana de pedirDatos(); los campos numéricos del
+ *  formulario ya entregan el número sin separadores. */
 function proyDineroEscrito(v) {
   const t = String(v ?? '').replace(/[^\d.,-]/g, '');
   return /^-?\d{1,3}(\.\d{3})+$/.test(t) ? proyNum(t.replace(/\./g, '')) : proyNum(v);
@@ -27079,8 +27181,14 @@ const PROY_CONTRATO_INICIAL = [
  *  riesgo de duplicar un proyecto que ya exista. */
 async function proySembrarPanelGerencial() {
   if (proyDatos.proyectos.length) { alert('La hoja ya tiene proyectos; esta carga inicial es solo para una hoja vacía.'); return; }
-  const nombre = prompt('Nombre del proyecto:', 'Ampliación de planta');
-  if (!nombre || !nombre.trim()) return;
+  const datos = await pedirDatos({
+    titulo: 'Cargar el contrato inicial',
+    texto: 'Se crea el proyecto con sus alcances y su calendario de pagos.',
+    campos: [{ nombre: 'nombre', etiqueta: 'Nombre del proyecto', valor: 'Ampliación de planta', requerido: true }],
+    aceptar: 'Cargar contrato',
+  });
+  if (!datos) return;
+  const nombre = datos.nombre;
   const boton = document.getElementById('proyBtnSembrar');
   if (boton) boton.disabled = true;
   try {
@@ -27251,9 +27359,16 @@ async function _proyEliminarFila(tab, row, pregunta, aceptar = 'Eliminar') {
 /* ── Proyectos ─────────────────────────────────────────────────── */
 
 async function proyNuevoProyecto() {
-  const nombre = prompt('Nombre del proyecto:');
-  if (!nombre || !nombre.trim()) return;
-  const cliente = prompt('Cliente (opcional):') || '';
+  const datos = await pedirDatos({
+    titulo: 'Nuevo proyecto',
+    campos: [
+      { nombre: 'nombre', etiqueta: 'Nombre del proyecto', requerido: true },
+      { nombre: 'cliente', etiqueta: 'Cliente (opcional)' },
+    ],
+    aceptar: 'Crear proyecto',
+  });
+  if (!datos) return;
+  const nombre = datos.nombre, cliente = datos.cliente || '';
   const codigo = _codigoConsecutivoUnico('PRY', proyDatos.proyectos, 3);
   await _proyAgregarFila(PROY_SH.proyectos, {
     Codigo: codigo, Nombre: nombre.trim(), Cliente: cliente.trim(), Ubicacion: '',
@@ -27269,12 +27384,17 @@ function proyEditarProyecto(row, campo, valor) { return _proyEditarCampo(PROY_SH
 
 async function proyNuevoAlcance() {
   if (!proyActual) { alert('Primero crea un proyecto.'); return; }
-  const nombre = prompt('Nombre del alcance (frente de obra):');
-  if (!nombre || !nombre.trim()) return;
-  const valor = prompt('Valor de contrato del alcance (solo números):', '0');
-  if (valor === null) return;
-  const horas = prompt('Horas programadas del alcance (para ponderar el avance físico):', '0');
-  if (horas === null) return;
+  const datos = await pedirDatos({
+    titulo: 'Nuevo alcance',
+    campos: [
+      { nombre: 'nombre', etiqueta: 'Nombre del alcance (frente de obra)', requerido: true },
+      { nombre: 'valor', etiqueta: 'Valor de contrato', tipo: 'number', valor: '0', ayuda: 'Solo números; los puntos de miles se entienden.' },
+      { nombre: 'horas', etiqueta: 'Horas programadas', tipo: 'number', valor: '0', ayuda: 'Sirven para ponderar el avance físico.' },
+    ],
+    aceptar: 'Crear alcance',
+  });
+  if (!datos) return;
+  const { nombre, valor, horas } = datos;
   const mios = proyDatos.alcances.filter(a => a.Proyecto === proyActual);
   await _proyAgregarFila(PROY_SH.alcances, {
     Codigo: _codigoConsecutivoUnico('ALC', proyDatos.alcances, 3),

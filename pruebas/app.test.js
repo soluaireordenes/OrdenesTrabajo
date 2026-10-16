@@ -843,9 +843,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       paso('16: B15: la limpieza de caché muestra la descripción de la orden');
       // B15: la limpieza de caché muestra la descripción de la orden
       let textoPrompt = '';
-      window.prompt = m => { textoPrompt = m; return null; };
+      window.pedirDatos = async o => { textoPrompt = JSON.stringify(o.campos); return null; };
       localStorage.setItem(LS_KEY, JSON.stringify([{ NumeroOrden: 'OT-9', Equipo: 'CA', Estado: 'Pendiente', Title: 'Cambiar filtro de aceite' }]));
-      limpiarCacheLocal();
+      await limpiarCacheLocal();
       out.cacheConDescripcion = /Cambiar filtro de aceite/.test(textoPrompt);
       localStorage.removeItem(LS_KEY);
       paso('17: B12/B18: la lista de operarios sale de la hoja; la primera v');
@@ -1895,8 +1895,41 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         && document.activeElement.classList.contains('btn-primary') && document.activeElement.textContent === 'Marcar como resuelto';
       document.activeElement.click();
       out.respuestaSi = await pregunta;
-      out.nativas = nativas;
       window.asegurarHoja = asegurarOriginal;
+
+      // Ventana con campos (en vez de prompt()): eliminar una orden pide su número.
+      let nativasPrompt = 0; window.prompt = () => { nativasPrompt++; return null; };
+      let hojasBorradas = 0; window.eliminarFilasDondeCumple = async () => { hojasBorradas++; return 0; };
+      allOrdenes = [{ id: 'OT-77', NumeroOrden: 'OT-77', Equipo: 'CA1', Title: 'Fuga', Estado: 'Pendiente' }];
+      ordenDetalleId = 'OT-77';
+      const escribir = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+      let borrar = eliminarOrdenCompleta(); await espera(50);
+      let form = document.querySelector('.confirmar-fondo form.confirmar-ventana');
+      out.eliminarOrden = form ? [form.querySelector('.confirmar-titulo').textContent, form.querySelector('label').textContent,
+        form.querySelector('[data-respuesta="si"]').textContent, form.classList.contains('peligro') ? 'rojo' : 'otro',
+        document.activeElement === form.querySelector('input') ? 'foco en el campo' : 'sin foco'].join(' | ') : '';
+      escribir(form.querySelector('input'), 'OT-7');
+      form.querySelector('[data-respuesta="si"]').click(); await espera(50);
+      out.numeroMal = (document.querySelector('.confirmar-error')?.textContent || '') + ' | sigue abierta: ' + !!document.querySelector('.confirmar-fondo') + ' | borradas: ' + hojasBorradas;
+      escribir(form.querySelector('input'), 'OT-77');
+      out.errorSeLimpia = document.querySelector('.confirmar-error').textContent === '';
+      form.querySelector('[data-respuesta="si"]').click(); await borrar;
+      out.numeroBien = !document.querySelector('.confirmar-fondo') && hojasBorradas > 0 && !allOrdenes.some(o => o.NumeroOrden === 'OT-77');
+      // Nuevo alcance: los tres datos en una sola ventana; Escape no crea nada.
+      proyActual = 'PRY-001';
+      let agregado = null; window._proyAgregarFila = async (tab, obj) => { agregado = obj; };
+      let alcance = proyNuevoAlcance(); await espera(50);
+      out.camposAlcance = [...document.querySelectorAll('.confirmar-campos label')].map(l => l.textContent).join(' | ');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await alcance;
+      out.escapeNoCrea = !document.querySelector('.confirmar-fondo') && agregado === null;
+      alcance = proyNuevoAlcance(); await espera(50);
+      const [cNombre, cValor, cHoras] = document.querySelectorAll('.confirmar-campos input');
+      document.querySelector('.confirmar-fondo [data-respuesta="si"]').click(); await espera(50);
+      out.faltaNombre = document.querySelector('.confirmar-error')?.textContent || '';
+      escribir(cNombre, 'Montaje de tubería'); escribir(cValor, '1.500.000'); escribir(cHoras, '120');
+      document.querySelector('.confirmar-fondo [data-respuesta="si"]').click(); await alcance;
+      out.alcance = agregado ? [agregado.Alcance, agregado.ValorContrato, agregado.HorasProgramadas].join(' | ') : '';
+      out.nativas = nativas + nativasPrompt;
 
       // Sin emojis en pantalla: Reportes, el menú (banderas dibujadas) y las listas.
       const emoji = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]/u;
@@ -1929,6 +1962,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       { ventana: r.ventana, textos: r.textos, foco: r.focoCancelar });
     check('Consistencia: Cancelar y Escape no borran; una pregunta normal va en azul y "sí" sigue; nunca sale la ventanita del navegador',
       r.cancelarNoBorra && r.escapeCancela && r.normal && r.respuestaSi === true && r.nativas === 0, r);
+    check('Consistencia: eliminar una orden pide su número en la ventana; si no coincide lo dice ahí y no borra',
+      r.eliminarOrden === '¿Eliminar la orden OT-77? | Para confirmar, escribe el número de la orden | Eliminar orden | rojo | foco en el campo'
+      && r.numeroMal === 'El número no coincide con el de la orden. | sigue abierta: true | borradas: 0' && r.errorSeLimpia && r.numeroBien,
+      { eliminarOrden: r.eliminarOrden, numeroMal: r.numeroMal, errorSeLimpia: r.errorSeLimpia, numeroBien: r.numeroBien });
+    check('Consistencia: nuevo alcance pide nombre, valor y horas en una sola ventana (Escape no crea nada; el nombre es obligatorio)',
+      r.camposAlcance === 'Nombre del alcance (frente de obra) | Valor de contrato | Horas programadas' && r.escapeNoCrea
+      && /^Escribe nombre del alcance/.test(r.faltaNombre) && r.alcance === 'Montaje de tubería | 1500000 | 120',
+      { campos: r.camposAlcance, escape: r.escapeNoCrea, falta: r.faltaNombre, alcance: r.alcance });
     check('Consistencia: Reportes, menú, Novedades y listas sin emojis (banderas dibujadas, cronómetro con ícono)',
       r.conEmoji.length === 0 && r.banderas > 0 && r.cronometro, { conEmoji: r.conEmoji, banderas: r.banderas, cronometro: r.cronometro });
     check('Consistencia: tamaños de letra y radios solo de la escala', r.letraFuera.length === 0 && r.radioFuera.length === 0,
