@@ -1649,12 +1649,17 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       const claro = dataDe('--logo-claro'), oscuro = dataDe('--logo-oscuro');
       out.logos = claro.startsWith('data:image/png;base64,') && oscuro.startsWith('data:image/png;base64,') && claro !== oscuro;
       out.sinJpeg = !document.documentElement.outerHTML.includes('data:image/jpeg');
-      // Login: el logo arriba en la tarjeta y el título en una línea.
+      // Login: el logo arriba en la tarjeta, la tarjeta más ancha y el título
+      // con corte parejo. Que quepa en una línea depende de la letra del
+      // equipo (Segoe UI, Roboto…); en el servidor de pruebas hay otra más
+      // ancha, así que se revisa el ancho y el corte, no el número de líneas.
       const tarjeta = document.querySelector('#loginOverlay .login-tarjeta');
       const logoLogin = tarjeta.querySelector('.login-logo');
       out.loginLogo = !!logoLogin && getComputedStyle(logoLogin).backgroundImage.includes(claro.slice(-40)) && logoLogin.getBoundingClientRect().width >= 200;
       const h2 = tarjeta.querySelector('h2');
-      out.tituloUnaLinea = h2.getBoundingClientRect().height < parseFloat(getComputedStyle(h2).fontSize) * 1.8;
+      const csH2 = getComputedStyle(h2);
+      out.tarjetaAncha = Math.round(tarjeta.getBoundingClientRect().width) === 440;
+      out.tituloParejo = /balance/.test(csH2.textWrap || '') || csH2.textWrapStyle === 'balance';
       document.getElementById('loginOverlay').remove();
       const encabezado = () => getComputedStyle(document.querySelector('.header-logo-img')).backgroundImage;
       out.encabezadoClaro = encabezado().includes(claro.slice(-40));
@@ -1691,7 +1696,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return out;
     });
     check('Aspecto: el logo va sin fondo (PNG claro y oscuro) y ya no queda el JPEG con fondo blanco', r.logos && r.sinJpeg, { logos: r.logos, sinJpeg: r.sinJpeg });
-    check('Aspecto: el login muestra el logo arriba y el título en una sola línea', r.loginLogo && r.tituloUnaLinea, { loginLogo: r.loginLogo, tituloUnaLinea: r.tituloUnaLinea });
+    check('Aspecto: el login muestra el logo arriba, la tarjeta más ancha y el título con corte parejo', r.loginLogo && r.tarjetaAncha && r.tituloParejo,
+      { loginLogo: r.loginLogo, tarjetaAncha: r.tarjetaAncha, tituloParejo: r.tituloParejo });
     check('Aspecto: el encabezado cambia al logo oscuro en modo oscuro; los documentos y el PDF siguen con el claro',
       r.encabezadoClaro && r.encabezadoOscuro && r.pdfSiempreClaro && r.docOscuroEnApp && r.docClaroEnVisor,
       { encabezadoClaro: r.encabezadoClaro, encabezadoOscuro: r.encabezadoOscuro, pdf: r.pdfSiempreClaro, docApp: r.docOscuroEnApp, visor: r.docClaroEnVisor });
