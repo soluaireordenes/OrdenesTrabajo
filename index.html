@@ -434,6 +434,35 @@ body::before {
 .saludo-inicio { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; margin: 2px 2px 16px; }
 .saludo-inicio h2 { font-size: 20px; font-weight: 800; color: var(--brand); letter-spacing: -.2px; line-height: 1.2; text-wrap: balance; }
 .saludo-inicio p { font-size: 13px; color: var(--text2); margin-top: 4px; line-height: 1.45; }
+/* Inicio: banner bajo en una fila y accesos directos a lo del día. */
+.inicio-banner {
+  position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 24px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%); color: #fff;
+  border-radius: 12px; padding: 16px 22px; margin-bottom: 16px;
+}
+.inicio-banner::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--accent), #ffb066, var(--accent)); }
+.inicio-banner-marca { display: flex; flex-direction: column; }
+.inicio-banner-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,.75); }
+.inicio-banner-titulo { font-size: 20px; font-weight: 800; letter-spacing: .3px; }
+.inicio-banner-texto { margin: 0; max-width: 46ch; font-size: 12px; line-height: 1.45; color: rgba(255,255,255,.8); }
+.accesos-inicio { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.acceso-inicio {
+  display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow-sm);
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s var(--ease);
+}
+.acceso-inicio:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-mid); }
+.acceso-icono { flex: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--brand-light); color: var(--brand); }
+.acceso-icono .nav-icon { width: 20px; height: 20px; }
+.acceso-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acceso-titulo { font-size: 14px; font-weight: 700; color: var(--brand); }
+.acceso-detalle { font-size: 12px; color: var(--text2); }
+@media (max-width: 640px) {
+  .inicio-banner-texto { display: none; }
+  .accesos-inicio { gap: 8px; }
+  .acceso-inicio { padding: 12px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .acceso-inicio { transition: none; } }
 .saludo-inicio .saludo-fecha { font-size: 12px; color: var(--text3); white-space: nowrap; }
 .saludo-inicio .saludo-fecha::first-letter { text-transform: uppercase; }
 
@@ -884,10 +913,13 @@ body.rol-operario .solo-admin { display: none !important; }
 .ie-table tr:nth-child(even) td { background: var(--surface2); }
 .ie-table tr:hover td { background:var(--surface2); }
 .card:hover { box-shadow: var(--shadow-md); }
+/* Encabezado de tarjeta claro: texto azul y una línea fina de color. El azul
+   oscuro queda para el banner, los botones y el encabezado de las tablas. */
 .card-head {
-  background: var(--brand);
-  color: #fff;
-  padding: 9px 18px;
+  background: var(--surface2);
+  color: var(--brand);
+  border-bottom: 2px solid var(--accent);
+  padding: 10px 18px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1202,12 +1234,10 @@ body.rol-operario .btn-principal-operario {
 .detail-num { font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700; }
 .detail-section { border-bottom: 1px solid var(--border); margin-bottom: 6px; }
 .detail-section-title {
-  background: linear-gradient(90deg, var(--brand) 0%, #1a4a8a 100%);
-  color: #fff;
+  color: var(--brand);
   font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1.3px; padding: 10px 18px;
-  border-left: 5px solid var(--accent);
-  margin-top: 4px;
+  letter-spacing: 1.3px; padding: 16px 18px 8px;
+  border-bottom: 2px solid var(--accent);
 }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; }
 .detail-field { padding: 12px 18px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -1725,39 +1755,28 @@ body.rol-operario .btn-principal-operario {
   <!-- ════════════ PANEL: PORTADA / SISTEMA OPTIMIZADO ════════════ -->
   <div id="panel-inicio" class="panel active">
 
-    <!-- Hero -->
-    <div style="background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);border-radius:12px;padding:22px 36px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden">
-      <div style="position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--accent),#ffb066,var(--accent))"></div>
-      <h1 style="color:white;font-size:16px;font-weight:700;letter-spacing:.5px;margin-bottom:3px">SISTEMA OPTIMIZADO</h1>
-      <div style="color:white;font-size:24px;font-weight:800;letter-spacing:.3px;margin-bottom:6px">SolucionAIRE</div>
-      <div style="width:48px;height:2px;background:var(--accent);margin:0 auto 8px;border-radius:2px"></div>
-      <p style="color:rgba(255,255,255,.8);font-size:12px;max-width:640px;margin:0 auto;line-height:1.4">
-        Plataforma integral de gestión de mantenimiento, inventario y novedades operativas — diseñada para centralizar y agilizar toda la operación de SolucionAIRE en una sola herramienta.
-      </p>
+    <!-- Banner: bajo y en una fila, para que lo del día quede a la vista. -->
+    <div class="inicio-banner">
+      <div class="inicio-banner-marca"><span class="inicio-banner-eyebrow">Sistema optimizado</span><span class="inicio-banner-titulo">SolucionAIRE</span></div>
+      <p class="inicio-banner-texto">Mantenimiento, inventario y novedades de la operación en una sola herramienta.</p>
     </div>
 
     <!-- Saludo: buenos días/tardes/noches con el nombre de quien entró y
          una línea sobre las órdenes pendientes (ver renderSaludoInicio). -->
     <div id="saludoInicio" class="saludo-inicio" style="display:none"></div>
 
+    <!-- Accesos directos: lo que se hace todos los días, primero. Solo con
+         una operación autenticada (los llena renderAccesosInicio). -->
+    <div id="accesosInicio" class="accesos-inicio" style="display:none">
+      <button type="button" class="acceso-inicio" onclick="showPanel('cronograma')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg></span><span class="acceso-texto"><span class="acceso-titulo">Reporte de esta hora</span><span class="acceso-detalle" id="accesoReporte">Actividades del turno y reportes de equipos</span></span></button>
+      <button type="button" class="acceso-inicio" onclick="showPanel('pendientes')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="acceso-texto"><span class="acceso-titulo">Mis pendientes</span><span class="acceso-detalle" id="accesoPendientes">Órdenes por ejecutar</span></span></button>
+      <button type="button" class="acceso-inicio solo-admin" onclick="showPanel('nueva')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></span><span class="acceso-texto"><span class="acceso-titulo">Nueva orden</span><span class="acceso-detalle">Crear una orden de trabajo</span></span></button>
+    </div>
+
     <!-- KPIs: resumen operativo de un vistazo. Solo se ven cuando hay una
          operación autenticada (los llena renderKpisInicio con allOrdenes/
          allNovedades). Cada tarjeta lleva a su sección. -->
     <div id="kpisInicio" style="display:none"></div>
-
-    <!-- Mapa de operación: dónde tenemos presencia -->
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dónde Operamos</div>
-      <div class="card-body" style="padding:22px">
-        <div id="mapaOperacion"></div>
-
-        <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#3D6FB4;display:inline-block;flex-shrink:0"></span> México</div>
-          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#1E8C82;display:inline-block;flex-shrink:0"></span> Colombia — Zipaquirá, Soacha y Antioquia</div>
-          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#7C4FC2;display:inline-block;flex-shrink:0"></span> Perú</div>
-        </div>
-      </div>
-    </div>
 
     <!-- Política de privacidad: la misma página pública que se registró en
          Meta para el bot de WhatsApp, aquí al lado de "Dónde Operamos" para
@@ -1777,11 +1796,23 @@ body.rol-operario .btn-principal-operario {
       </div>
     </div>
 
-    <!-- Llamado a la acción -->
-    <div style="text-align:center;padding:24px 0 12px">
-      <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="showPanel('pendientes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Ir a Órdenes Pendientes</button>
-      <button class="btn btn-ghost solo-admin" style="padding:12px 28px;font-size:14px;margin-left:10px" onclick="showPanel('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Ver Dashboard</button>
-      <button id="btnInstalarApp" class="btn btn-ghost" style="padding:12px 28px;font-size:14px;margin-left:10px;display:none" onclick="instalarAppPWA()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Instalar app en este dispositivo</button>
+    <!-- Mapa de operación: dónde tenemos presencia (al final: es informativo) -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dónde Operamos</div>
+      <div class="card-body" style="padding:22px">
+        <div id="mapaOperacion"></div>
+
+        <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#3D6FB4;display:inline-block;flex-shrink:0"></span> México</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#1E8C82;display:inline-block;flex-shrink:0"></span> Colombia — Zipaquirá, Soacha y Antioquia</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:50%;background:#7C4FC2;display:inline-block;flex-shrink:0"></span> Perú</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instalar la app (los accesos a pendientes y dashboard ya están arriba) -->
+    <div style="text-align:center;padding:0 0 12px">
+      <button id="btnInstalarApp" class="btn btn-ghost" style="padding:12px 28px;font-size:14px;display:none" onclick="instalarAppPWA()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Instalar app en este dispositivo</button>
     </div>
   </div>
 
@@ -2238,7 +2269,7 @@ body.rol-operario .btn-principal-operario {
 
       <!-- ══ 8. CIERRE DE EJECUCIÓN ══ -->
       <div class="card" style="border-top:3px solid var(--accent2)">
-        <div class="card-head" style="background:var(--accent2)">8 · Registro de Ejecución y Cierre</div>
+        <div class="card-head" style="color:var(--estado-ok-tx);border-bottom-color:var(--accent2)">8 · Registro de Ejecución y Cierre</div>
         <div class="card-body">
           <div class="grid-2" style="margin-bottom:14px">
             <div class="field">
@@ -2486,7 +2517,7 @@ body.rol-operario .btn-principal-operario {
         </div>
       </div>
 
-      <div class="card-head" style="margin-bottom:10px;background:var(--brand);color:#fff;border-radius:8px;padding:10px 16px;font-weight:700;display:flex;align-items:center;gap:8px">
+      <div class="card-head" style="margin-bottom:10px;border-radius:8px 8px 0 0;padding:10px 16px;font-weight:700;display:flex;align-items:center;gap:8px">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Gasto por Equipo — Detalle de cada Empresa
       </div>
       <div id="gridEmpresasAntioquia" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"></div>
@@ -7471,6 +7502,45 @@ function renderKpisInicio() {
     tarjeta(realizadasMes.length, 'Realizadas este mes', iCheck, "showPanel('realizadas')") +
     tarjeta(novedadesMes.length, 'Novedades del mes', iNota, "showPanel('novedades')");
   cont.style.display = 'grid';
+  renderAccesosInicio(pendientes.length);
+}
+
+/** Accesos directos de Inicio: "Reporte de esta hora" dice qué ventana de
+ *  reporte del turno está corriendo (o la próxima) y "Mis pendientes",
+ *  cuántas órdenes hay. El texto de la ventana se refresca cada minuto
+ *  mientras se está en Inicio. */
+let _accesosInicioReloj = null;
+function renderAccesosInicio(pendientes) {
+  const cont = document.getElementById('accesosInicio');
+  if (!cont) return;
+  if (!operacionAutenticada) { cont.style.display = 'none'; return; }
+  const elP = document.getElementById('accesoPendientes');
+  if (elP) elP.textContent = !pendientes ? 'Todo al día' : pendientes === 1 ? '1 orden por ejecutar' : pendientes + ' órdenes por ejecutar';
+  const pintarVentana = () => {
+    const elR = document.getElementById('accesoReporte');
+    if (elR) elR.textContent = _textoVentanaReporteAhora();
+  };
+  pintarVentana();
+  cont.style.display = '';
+  if (!_accesosInicioReloj) {
+    _accesosInicioReloj = setInterval(() => {
+      if (document.getElementById('panel-inicio')?.classList.contains('active')) pintarVentana();
+    }, 60000);
+  }
+}
+
+/** "Turno 2 · ventana 14:00 – 15:00" si hay una ventana de reporte abierta,
+ *  o la próxima del turno; sin cronograma, un texto general. */
+function _textoVentanaReporteAhora() {
+  let ctx = null;
+  try { ctx = _contextoCronogramaAhora(operacionActual, CRONOGRAMA_POR_SEDE[operacionActual]); } catch (_) {}
+  if (!ctx) return 'Actividades del turno y reportes de equipos';
+  const horas = (ctx.turno.checkpoints || []).map(c => c.hora).filter(Boolean);
+  const abierta = horas.find(h => _estadoVentanaReporte(h) === 'abierta');
+  if (abierta) return `${ctx.turno.nombre} · ventana ${abierta} – ${_horaMasUna(abierta)}`;
+  const proxima = horas.find(h => _estadoVentanaReporte(h) === 'antes');
+  if (proxima) return `${ctx.turno.nombre} · próxima ventana ${proxima}`;
+  return `${ctx.turno.nombre} · actividades del turno`;
 }
 
 /* ══════════════════════════════════════════════
@@ -19838,7 +19908,7 @@ async function _renderChecklistCronograma(contId, cfg, editable) {
       obtenerAdicionalesCronogramaFecha(ctx.fecha),
     ]);
     const avisoConsulta = !editable
-      ? `<div style="margin-bottom:12px;padding:10px 14px;border:1px solid #f2b8a3;background:#fff6f2;border-radius:12px;font-size:13px;color:var(--estado-alerta-tx)"><strong>Solo consulta.</strong> Este es el cronograma normal (incluye actividades en alturas). El trabajo se marca en la pestaña <strong>“Actividades Temporales”</strong>.</div>`
+      ? `<div style="margin-bottom:12px;padding:10px 14px;border:1px solid var(--estado-alerta-borde);background:var(--estado-alerta-bg);border-radius:12px;font-size:13px;color:var(--estado-alerta-tx)"><strong>Solo consulta.</strong> Este es el cronograma normal (incluye actividades en alturas). El trabajo se marca en la pestaña <strong>“Actividades Temporales”</strong>.</div>`
       : '';
     cont.innerHTML = `
       ${avisoConsulta}

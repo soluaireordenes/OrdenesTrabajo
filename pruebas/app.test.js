@@ -1977,6 +1977,61 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Consistencia: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Inicio compacto (banner bajo, accesos directos arriba, mapa al final) y
+    // encabezados de tarjeta claros.
+    const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', sheetsEnMemoria().route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-16T14:20:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      document.getElementById('loginOverlay')?.remove();
+      const accesos = document.getElementById('accesosInicio');
+      operacionAutenticada = false; renderKpisInicio();
+      out.sinOperacion = getComputedStyle(accesos).display;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; operacionActual = 'zipaquira';
+      currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' }; _aplicarRolUI();
+      allOrdenes = [{ id: 'P1', NumeroOrden: 'OT-P1', Estado: 'Pendiente', Title: 'x' }, { id: 'C1', NumeroOrden: 'OT-C1', Estado: 'Cerrada', Title: 'y' }];
+      showPanel('inicio'); renderKpisInicio(); await espera(50);
+      const vis = el => !!el && getComputedStyle(el).display !== 'none';
+      out.accesos = [...accesos.querySelectorAll('.acceso-inicio')].filter(vis).map(b => b.innerText.replace(/\s+/g, ' ').trim());
+      const panel = document.getElementById('panel-inicio');
+      const pos = el => [...panel.querySelectorAll('*')].indexOf(el);
+      const tarjetas = [...panel.querySelectorAll(':scope > .card')];
+      const titulo = c => c.querySelector('.card-head').textContent.trim();
+      out.orden = ['saludoInicio', 'accesosInicio', 'kpisInicio'].map(id => pos(document.getElementById(id))).every((v, i, a) => i === 0 || v > a[i - 1])
+        && tarjetas.map(titulo).join(' > ') === 'Tratamiento de Datos > Dónde Operamos';
+      out.botonesViejos = /Ir a Órdenes Pendientes|Ver Dashboard/.test(panel.innerText);
+      out.altoBanner = Math.round(panel.querySelector('.inicio-banner').getBoundingClientRect().height);
+      usuarioRol = 'operario'; _aplicarRolUI();
+      out.nuevaOperario = vis(accesos.querySelector('[onclick="showPanel(\'nueva\')"]'));
+      usuarioRol = 'admin'; _aplicarRolUI();
+      // Encabezados claros: fondo suave, texto azul y línea de color.
+      const cabeza = getComputedStyle(panel.querySelector('.card-head'));
+      out.encabezado = [cabeza.backgroundColor, cabeza.color, cabeza.borderBottomStyle + ' ' + cabeza.borderBottomColor].join(' | ');
+      allOrdenes = [{ id: 'D1', NumeroOrden: 'OT-D1', Estado: 'Pendiente', Title: 'Fuga', Equipo: 'CA1' }];
+      await verDetalle('D1'); await espera(200);
+      const seccion = getComputedStyle(document.querySelector('#panel-detalle .detail-section-title'));
+      out.seccionDetalle = [seccion.backgroundColor, seccion.color].join(' | ');
+      return out;
+    });
+    check('Inicio: accesos directos (reporte de la hora con su ventana, pendientes y nueva orden) solo con una operación abierta',
+      r.sinOperacion === 'none' && JSON.stringify(r.accesos) === JSON.stringify(['Reporte de esta hora Turno 2 · ventana 14:00 – 15:00', 'Mis pendientes 1 orden por ejecutar', 'Nueva orden Crear una orden de trabajo'])
+      && r.nuevaOperario === false, { sinOperacion: r.sinOperacion, accesos: r.accesos, nuevaOperario: r.nuevaOperario });
+    check('Inicio: banner bajo, accesos antes de los indicadores y el mapa al final', r.orden && !r.botonesViejos && r.altoBanner <= 90,
+      { orden: r.orden, botonesViejos: r.botonesViejos, altoBanner: r.altoBanner });
+    check('Encabezados de tarjeta claros (fondo suave, texto azul, línea de color), también las secciones del detalle',
+      r.encabezado === 'rgb(242, 245, 249) | rgb(2, 69, 122) | solid rgb(1, 138, 190)' && r.seccionDetalle === 'rgba(0, 0, 0, 0) | rgb(2, 69, 122)',
+      { encabezado: r.encabezado, seccion: r.seccionDetalle });
+    check('Inicio y encabezados: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
