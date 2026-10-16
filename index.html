@@ -739,6 +739,42 @@ body.autenticado #btnBuscarGlobal {
   font-weight: 700; box-shadow: var(--shadow-md);
 }
 .inv-subpanel { display: none; }
+/* Encabezado de cada sección: título con su ícono (el mismo del menú) y, a la
+   derecha, la acción principal. En celular la acción pasa debajo del título,
+   así el título no se parte en tres líneas. */
+.seccion-encabezado { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 14px; }
+.seccion-titulo {
+  flex: 1 1 260px; min-width: 0; margin: 0;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 17px; font-weight: 800; line-height: 1.25; color: var(--brand); text-wrap: balance;
+}
+.seccion-titulo > .nav-icon { width: 20px; height: 20px; flex: none; }
+.seccion-acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 640px) {
+  .seccion-encabezado { flex-direction: column; align-items: stretch; gap: 10px; }
+  .seccion-titulo { flex-basis: auto; font-size: 16px; }
+  .seccion-acciones select { flex: 1 1 auto; min-width: 0 !important; }
+}
+/* Reportes: las pestañas en dos grupos (Turno / Reportes técnicos), cada uno
+   con su nombre arriba. En celular cada fila se desliza de lado
+   (_mostrarPestanaEnFila la corre hasta la pestaña elegida). */
+.cron-grupos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.cron-grupo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cron-grupo-titulo { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text3); }
+.cron-grupo-tabs { position: relative; display: flex; flex-wrap: wrap; gap: 6px; }
+.cron-grupo-tabs .inv-subtab { padding: 7px 13px; }
+@media (max-width: 640px) {
+  .cron-grupos { gap: 8px; }
+  .cron-grupo { gap: 2px; }
+  .cron-grupo-tabs {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -16px; padding: 3px 40px 6px 16px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  }
+  .cron-grupo-tabs::-webkit-scrollbar { display: none; }
+  .cron-grupo-tabs .inv-subtab { flex: none; }
+}
 /* Rejilla de las graficas de Variables. Exactamente 2 por fila en pantalla
    de escritorio y 1 en angosta: con auto-fit + minmax no se puede fijar en
    2, porque el mismo minimo que da 2 columnas en un portatil da 3 en un
@@ -959,6 +995,17 @@ body.rol-operario .solo-admin { display: none !important; }
 .btn-success:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(16,124,16,.36); }
 .btn-ghost   { background: var(--brand-light); color: var(--brand); border: 1px solid var(--brand-mid); }
 .btn-ghost:hover:not(:disabled) { background: var(--brand-mid); }
+/* Una sola acción principal por tarjeta o pantalla: la otra va con borde.
+   "Realizada" en las pendientes es secundaria al lado de "Completar". */
+.btn-borde-ok { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); }
+.btn-borde-ok:hover:not(:disabled) { background: var(--estado-ok-bg); }
+/* "Guardar cambios" del editor: secundaria para el admin (la principal es
+   "Marcar como Realizada"); el operario no ve esa, así que para él es la
+   principal. */
+body.rol-operario .btn-principal-operario {
+  background: linear-gradient(135deg, #018ABE 0%, #02457A 100%); color: #fff; border-color: transparent;
+  box-shadow: 0 2px 8px rgba(1,138,190,.3);
+}
 .btn-block   { width: 100%; margin-top: 8px; }
 
 /* ── Status badges ── */
@@ -1684,6 +1731,9 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: NUEVA ORDEN ════════════ -->
   <div id="panel-nueva" class="panel">
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Nueva orden de trabajo</h2>
+    </div>
 
     <!-- Identificación -->
     <div class="card">
@@ -1882,11 +1932,10 @@ body.rol-operario .solo-admin { display: none !important; }
 
     <!-- ── Vista: lista de pendientes ── -->
     <div id="subpanel-pend-lista">
+      <div class="seccion-encabezado">
+        <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Órdenes pendientes</h2>
+      </div>
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;justify-content:space-between">
-          <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Órdenes Pendientes de Ejecución</span>
-          <span style="font-size:11px;font-weight:400;opacity:.8">Selecciona una orden para editar o completar</span>
-        </div>
         <div class="card-body" style="padding:0">
           <div class="filter-bar" style="margin:14px 14px 0;border-bottom:none">
             <input type="text" id="filtroPendTxt" placeholder="Buscar por número, equipo..." oninput="renderPendientes()">
@@ -1917,7 +1966,7 @@ body.rol-operario .solo-admin { display: none !important; }
           <span id="editOrdenNum" style="font-family:'Courier New',monospace;font-size:15px;font-weight:700;color:var(--brand);margin-left:8px"></span>
           <span id="editOrdenBadge" style="margin-left:8px"></span>
         </div>
-        <button class="btn btn-ghost" style="color:var(--accent2);border-color:var(--accent2)" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
+        <button class="btn btn-ghost btn-principal-operario" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
         <button class="btn btn-success solo-admin" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Marcar como Realizada</button>
       </div>
 
@@ -2173,7 +2222,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <div class="alert" id="alertEditor"></div>
       <div style="display:flex;gap:10px;margin-top:4px;margin-bottom:24px;flex-wrap:wrap">
         <button class="btn btn-ghost" onclick="volverListaPendientes()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver sin guardar</button>
-        <button class="btn btn-ghost" style="color:var(--accent2);border-color:var(--accent2)" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
+        <button class="btn btn-ghost btn-principal-operario" onclick="guardarEdicion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar cambios</button>
         <button class="btn btn-success solo-admin" style="flex:1;max-width:320px" onclick="guardarCierre()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Guardar y Marcar como Realizada</button>
       </div>
 
@@ -2182,11 +2231,11 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: REALIZADAS ════════════ -->
   <div id="panel-realizadas" class="panel">
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Órdenes realizadas</h2>
+      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarRealizadasCSV()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar CSV</button></div>
+    </div>
     <div class="card">
-      <div class="card-head" style="display:flex;align-items:center;justify-content:space-between">
-        <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Órdenes Realizadas</span>
-        <button class="btn btn-ghost btn-sm" onclick="exportarRealizadasCSV()" style="font-size:11px;padding:4px 12px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3);display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar CSV</button>
-      </div>
       <div class="card-body" style="padding:0">
         <div class="filter-bar" style="margin:14px 14px 0;border-bottom:none">
           <input type="text" id="filtroRealTxt" placeholder="Buscar por número, equipo..." oninput="renderRealizadas()">
@@ -2208,6 +2257,10 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: LISTA ════════════ -->
   <div id="panel-lista" class="panel">
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Todas las órdenes</h2>
+      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarExcel()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar</button></div>
+    </div>
     <!-- Filtros -->
     <div class="filter-bar">
       <input type="text" id="filtroTexto" placeholder="Buscar por número, equipo, descripción..." oninput="filtrarOrdenes()">
@@ -2224,7 +2277,6 @@ body.rol-operario .solo-admin { display: none !important; }
         <option value="Predictivo">Predictivo</option>
         <option value="Mejora">Mejora</option>
       </select>
-      <button class="btn btn-ghost" onclick="exportarExcel()" style="padding:6px 14px;font-size:12px;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar</button>
     </div>
     <div class="spinner" id="spinnerLista"></div>
     <div id="listaContainer"></div>
@@ -2233,6 +2285,9 @@ body.rol-operario .solo-admin { display: none !important; }
   <!-- ════════════ PANEL: APROBACIONES ════════════ -->
   <!-- ════════════ PANEL: DASHBOARD ════════════ -->
   <div id="panel-dashboard" class="panel">
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard de órdenes</h2>
+    </div>
 
     <!-- Filtros del dashboard -->
     <div class="card" style="margin-bottom:16px">
@@ -2385,10 +2440,10 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: NOVEDADES OPERATIVAS DE PLANTA ════════════ -->
   <div id="panel-novedades" class="panel">
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Informes de Novedades Operativas de Planta</div>
-      <button class="btn btn-primary solo-admin" onclick="abrirModalNovedad()">+ Nuevo Informe</button>
-      <button class="btn btn-success" onclick="generarInformeConsolidado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Consolidado (PDF)</button>
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Informes de Novedades Operativas de Planta</h2>
+      <div class="seccion-acciones"><button class="btn btn-primary solo-admin" onclick="abrirModalNovedad()">+ Nuevo Informe</button>
+        <button class="btn btn-ghost" onclick="generarInformeConsolidado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Consolidado (PDF)</button></div>
     </div>
 
     <!-- Días sin novedades — contador grande, cuenta desde el último reinicio registrado -->
@@ -2502,13 +2557,15 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: HISTÓRICO POR EQUIPO ════════════ -->
   <div id="panel-historico" class="panel">
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Histórico de Órdenes por Equipo</div>
-      <select id="histSelectorVista" onchange="histCambiarVista()" style="min-width:220px;font-weight:600">
-        <option value="equipos">Equipos</option>
-        <option value="inventario">Inventario de Equipos</option>
-        <option value="hvd">HVD — Hoja de Vida</option>
-      </select>
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Histórico de Órdenes por Equipo</h2>
+      <div class="seccion-acciones">
+        <select id="histSelectorVista" onchange="histCambiarVista()" style="min-width:220px;font-weight:600">
+          <option value="equipos">Equipos</option>
+          <option value="inventario">Inventario de Equipos</option>
+          <option value="hvd">HVD — Hoja de Vida</option>
+        </select>
+      </div>
     </div>
 
     <!-- ══════ VISTA: EQUIPOS (la de siempre) ══════ -->
@@ -2647,27 +2704,38 @@ body.rol-operario .solo-admin { display: none !important; }
 
   <!-- ════════════ PANEL: CRONOGRAMA DE ACTIVIDADES DIARIAS ════════════ -->
   <div id="panel-cronograma" class="panel">
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Reportes</div>
+    <div class="seccion-encabezado">
+      <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg> Reportes</h2>
     </div>
 
-    <!-- Sub-navegación del Cronograma: Actividades / Dashboard / Reporte
-         Compresores / Observaciones (las dos últimas solo se muestran para
-         Zipaquirá, ver cronMostrarSubTab). -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
-      <button class="inv-subtab" id="cronTabActividades" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
-      <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
-      <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
-      <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
-      <button class="inv-subtab" id="cronTabFormacion" data-crontab="formacion" onclick="cronMostrarSubTab('formacion')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Máquinas de Formación</button>
-      <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte Secadores</button>
-      <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte Drycoolers</button>
-      <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Decorado</button>
-      <button class="inv-subtab" id="cronTabEmergencia" data-crontab="emergencia" onclick="cronMostrarSubTab('emergencia')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reporte Emergencia</button>
-      <button class="inv-subtab" id="cronTabPresionDrycooler" data-crontab="presiondrycooler" onclick="cronMostrarSubTab('presiondrycooler')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presión Drycooler</button>
-      <button class="inv-subtab solo-admin" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
-      <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
-      <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
+    <!-- Sub-navegación de Reportes en dos grupos: lo del turno y los reportes
+         técnicos de los equipos (estos solo en Zipaquirá, ver
+         inicializarPanelCronograma). En celular cada grupo es una fila que se
+         desliza de lado. -->
+    <div class="cron-grupos">
+      <div class="cron-grupo" id="cronGrupoTurno">
+        <div class="cron-grupo-titulo">Turno</div>
+        <div class="cron-grupo-tabs">
+          <button class="inv-subtab" id="cronTabActividades" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <span style="font-size:10px">🔒</span></button>
+          <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
+          <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
+          <button class="inv-subtab solo-admin" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
+          <button class="inv-subtab" id="cronTabCondiciones" data-crontab="condiciones" onclick="cronMostrarSubTab('condiciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones Inseguras</button>
+          <button class="inv-subtab" id="cronTabHerramienta" data-crontab="herramienta" onclick="cronMostrarSubTab('herramienta')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Inventario Herramienta</button>
+        </div>
+      </div>
+      <div class="cron-grupo" id="cronGrupoTecnicos" style="display:none">
+        <div class="cron-grupo-titulo">Reportes técnicos</div>
+        <div class="cron-grupo-tabs">
+          <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Compresores</button>
+          <button class="inv-subtab" id="cronTabFormacion" data-crontab="formacion" onclick="cronMostrarSubTab('formacion')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Máquinas de Formación</button>
+          <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Secadores</button>
+          <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Drycoolers</button>
+          <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Decorado</button>
+          <button class="inv-subtab" id="cronTabEmergencia" data-crontab="emergencia" onclick="cronMostrarSubTab('emergencia')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Emergencia</button>
+          <button class="inv-subtab" id="cronTabPresionDrycooler" data-crontab="presiondrycooler" onclick="cronMostrarSubTab('presiondrycooler')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presión Drycooler</button>
+        </div>
+      </div>
     </div>
 
     <!-- Pestaña "Actividades Temporales": el checklist de trabajo real vive
@@ -3534,9 +3602,9 @@ body.rol-operario .solo-admin { display: none !important; }
   ════════════════════════════════════════════════ -->
   <div id="panel-variables" class="panel">
     <div style="max-width:1300px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <div id="varTituloVista" style="font-weight:700;color:var(--brand);font-size:15px;flex:1;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg> Variables</div>
-        <button class="btn btn-ghost" onclick="volverDeVariables()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
+      <div class="seccion-encabezado">
+        <h2 class="seccion-titulo" id="varTituloVista"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg> Variables</h2>
+        <div class="seccion-acciones"><button class="btn btn-ghost" onclick="volverDeVariables()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button></div>
       </div>
 
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
@@ -3614,9 +3682,9 @@ body.rol-operario .solo-admin { display: none !important; }
   <!-- ════════════ PANEL DE INVENTARIO ════════════ -->
   <div id="panel-inventario" class="panel">
     <div style="max-width:1300px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <div id="invTituloVista" style="font-weight:700;color:var(--brand);font-size:15px;flex:1;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Inventario</div>
-        <button class="btn btn-ghost" onclick="volverDeInventario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
+      <div class="seccion-encabezado">
+        <h2 class="seccion-titulo" id="invTituloVista"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Inventario</h2>
+        <div class="seccion-acciones"><button class="btn btn-ghost" onclick="volverDeInventario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button></div>
       </div>
       <div id="invMsg" style="font-size:13px;margin-bottom:8px"></div>
 
@@ -3955,9 +4023,9 @@ body.rol-operario .solo-admin { display: none !important; }
   <!-- ════════════ PANEL: EMPALME DE ENTREGA ════════════ -->
   <div id="panel-empalme" class="panel">
     <div style="max-width:1100px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
-        <div style="flex:1;min-width:240px;font-weight:800;color:var(--brand);font-size:16px;display:flex;align-items:center;gap:8px;text-wrap:balance"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> <span id="empTitulo">Empalme de entrega</span></div>
-        <button class="btn btn-success" onclick="descargarActaEmpalme()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Acta de empalme (PDF)</button>
+      <div class="seccion-encabezado" style="margin-bottom:6px">
+        <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> <span id="empTitulo">Empalme de entrega</span></h2>
+        <div class="seccion-acciones"><button class="btn btn-success" onclick="descargarActaEmpalme()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Acta de empalme (PDF)</button></div>
       </div>
       <div style="font-size:12.5px;color:var(--text2);margin-bottom:14px;max-width:70ch">Lo que se recibe de la operación anterior: en qué estado llegó cada equipo, lo que se encontró mal, los repuestos que tiene y lo que había en bodega.</div>
 
@@ -4066,9 +4134,9 @@ body.rol-operario .solo-admin { display: none !important; }
   <!-- ════════════ PANEL: PLAN DE MANTENIMIENTO ════════════ -->
   <div id="panel-planmantenimiento" class="panel">
     <div style="max-width:1100px;margin:0 auto;width:100%">
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <div id="planMantTitulo" style="font-weight:700;color:var(--brand);font-size:15px;flex:1;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Plan de Mantenimiento</div>
-        <button class="btn btn-ghost" onclick="volverDePlanMantenimiento()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
+      <div class="seccion-encabezado">
+        <h2 class="seccion-titulo" id="planMantTitulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Plan de Mantenimiento</h2>
+        <div class="seccion-acciones"><button class="btn btn-ghost" onclick="volverDePlanMantenimiento()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button></div>
       </div>
 
       <!-- Sub-navegación del Plan de Mantenimiento -->
@@ -5126,6 +5194,9 @@ let variablesApartadoActual = null;
 
 let sidebarGrupoExpandido = {
   proyectos: false,
+  // Reparar hoja, capacidad de las hojas y limpiar caché: se usan poco, van
+  // plegadas al final del menú.
+  herramientas: false,
   operaciones: !operacionAutenticada,
   variables: !operacionAutenticada,
   inventario: !operacionAutenticada,
@@ -6464,7 +6535,10 @@ function toggleSidebarMovil(forzar) {
 // se cierra sola — mejor experiencia que tener que cerrarla a mano.
 // (el contenido se re-genera con innerHTML, pero el contenedor de afuera
 // nunca cambia, así que este listener puesto una sola vez sigue funcionando).
-document.getElementById('sidebarOperaciones')?.addEventListener('click', () => {
+document.getElementById('sidebarOperaciones')?.addEventListener('click', (e) => {
+  // Desplegar o recoger un grupo no es elegir una opción: el menú sigue
+  // abierto (el renglón ya se redibujó, pero sigue sabiendo de qué grupo era).
+  if (e.target.closest && e.target.closest('[data-grupo]')) return;
   if (window.innerWidth <= 640) toggleSidebarMovil(false);
 });
 
@@ -6479,7 +6553,7 @@ function _sidebarChevron(expandido) {
  *  desplegar ese grupo. */
 function _sidebarEncabezadoGrupo(grupo, titulo, iconoSvg) {
   const expandido = sidebarGrupoExpandido[grupo];
-  return `<div onclick="sidebarToggleGrupo('${grupo}')"
+  return `<div onclick="sidebarToggleGrupo('${grupo}')" data-grupo="${grupo}" aria-expanded="${expandido}"
       style="padding:10px 16px 6px;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text3);
              text-transform:uppercase;display:flex;align-items:center;gap:6px;cursor:pointer;justify-content:space-between">
       <span style="display:flex;align-items:center;gap:6px">${iconoSvg} ${titulo}</span>
@@ -6587,7 +6661,7 @@ function renderSidebarOperaciones() {
   // Este renglón despliega la lista.
   const otrasSedes = Object.keys(OPERACIONES).length - 1;
   const cambiarSede = (operacionAutenticada && !sidebarGrupoExpandido.operaciones && otrasSedes > 0) ? `
-      <div onclick="sidebarToggleGrupo('operaciones')" title="Ver las demás sedes para entrar a otra"
+      <div onclick="sidebarToggleGrupo('operaciones')" data-grupo="operaciones" title="Ver las demás sedes para entrar a otra"
         style="display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--brand)"
         onmouseover="this.style.background='var(--brand-light)'"
         onmouseout="this.style.background='transparent'">
@@ -6613,27 +6687,6 @@ function renderSidebarOperaciones() {
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
       <span style="flex:1;line-height:1.25">Notificaciones</span>
       <span id="notifBadge" style="display:${_notifBadgeEstado.visible ? 'flex' : 'none'};background:#dc2626;color:white;border-radius:50%;min-width:16px;height:16px;font-size:9px;font-weight:800;align-items:center;justify-content:center;padding:0 3px;line-height:1;flex-shrink:0">${esc(_notifBadgeEstado.texto)}</span>
-    </div>
-    <div onclick="repararHoja()" class="solo-admin"
-      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
-      onmouseover="this.style.background='var(--brand-light)'"
-      onmouseout="this.style.background='transparent'">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-      <span style="flex:1;line-height:1.25">Reparar hoja</span>
-    </div>
-    <div onclick="abrirCapacidadHojas()" class="solo-admin"
-      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
-      onmouseover="this.style.background='var(--brand-light)'"
-      onmouseout="this.style.background='transparent'">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-      <span style="flex:1;line-height:1.25">Capacidad de las hojas</span>
-    </div>
-    <div onclick="limpiarCacheLocal()"
-      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2)"
-      onmouseover="this.style.background='var(--brand-light)'"
-      onmouseout="this.style.background='transparent'">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-      <span style="flex:1;line-height:1.25">Limpiar caché</span>
     </div>
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
     <div class="solo-admin">
@@ -6712,7 +6765,32 @@ function renderSidebarOperaciones() {
           <span style="flex:1;line-height:1.25">PLAN ${esc(op.nombre)}</span>
           ${habilitado ? '' : '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'}
         </div>`;
-    }).join('')}`;
+    }).join('')}
+    <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+    ${_sidebarEncabezadoGrupo('herramientas', 'Herramientas', '<svg class="nav-icon" style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>')}
+    ${sidebarGrupoExpandido.herramientas ? `
+      <div onclick="repararHoja()" class="solo-admin"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 24px;cursor:pointer;font-size:13px;color:var(--text2)"
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='transparent'">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+        <span style="flex:1;line-height:1.25">Reparar hoja</span>
+      </div>
+      <div onclick="abrirCapacidadHojas()" class="solo-admin"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 24px;cursor:pointer;font-size:13px;color:var(--text2)"
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='transparent'">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+        <span style="flex:1;line-height:1.25">Capacidad de las hojas</span>
+      </div>
+      <div onclick="limpiarCacheLocal()"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 24px;cursor:pointer;font-size:13px;color:var(--text2)"
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='transparent'">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <span style="flex:1;line-height:1.25">Limpiar caché</span>
+      </div>
+    ` : ''}`;
 }
 
 /** Abre la política de privacidad del sistema —la misma página pública que
@@ -7644,7 +7722,7 @@ function renderPendientes() {
       </div>
       <div class="item-actions">
         <button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button>
-        <button class="btn btn-success btn-sm solo-admin" onclick="marcarRealizada(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
+        <button class="btn btn-borde-ok btn-sm solo-admin" onclick="marcarRealizada(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Realizada</button>
         <button class="btn btn-primary btn-sm" onclick="showPanel('pendientes');abrirModalCompletar(${_jsArg(o.id||o.NumeroOrden)})"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Completar</button>
       </div>
     </div>`;
@@ -12646,7 +12724,7 @@ function _avisarMemoriaLlena(llena) {
     + 'gap:10px;font-size:13px;line-height:1.4';
   barra.innerHTML = '<span style="flex:1">La memoria de este dispositivo está llena. '
     + '<strong>Lo que hagas sin señal puede perderse.</strong> Trabaja con internet hasta liberarla, '
-    + 'o usa «Limpiar caché» en el menú.</span>'
+    + 'o usa «Limpiar caché» en Herramientas, al final del menú.</span>'
     + '<span id="cerrarAvisoMemoria" style="cursor:pointer;font-size:16px;padding:0 4px">✕</span>';
   document.body.appendChild(barra);
   barra.querySelector('#cerrarAvisoMemoria').onclick = () => barra.remove();
@@ -19237,6 +19315,15 @@ function verInventarioInvh(fechaHora) {
   document.body.appendChild(ov);
 }
 
+/** En celular cada grupo de pestañas es una fila que se desliza: corre la
+ *  fila para que la pestaña elegida quede a la vista. */
+function _mostrarPestanaEnFila(tab) {
+  const fila = tab && tab.parentElement;
+  if (!fila || fila.scrollWidth <= fila.clientWidth) return;
+  const izq = tab.offsetLeft, der = izq + tab.offsetWidth;
+  if (izq < fila.scrollLeft || der > fila.scrollLeft + fila.clientWidth) fila.scrollLeft = Math.max(0, izq - 16);
+}
+
 function cronMostrarSubTab(nombre) {
   // Los llamados de atención a operarios son solo para admin (la pestaña ya
   // está oculta para el operario; esto cubre cualquier otro camino).
@@ -19246,7 +19333,9 @@ function cronMostrarSubTab(nombre) {
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
   document.getElementById('cronSub-' + nombre).classList.add('active');
-  panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`).classList.add('active');
+  const tab = panel.querySelector(`.inv-subtab[data-crontab="${nombre}"]`);
+  tab.classList.add('active');
+  _mostrarPestanaEnFila(tab);
   if (nombre === 'observaciones') inicializarObservacionesOperarios();
   if (nombre === 'condiciones') inicializarCondicionesInseguras();
   if (nombre === 'herramienta') inicializarInventarioHerramienta();
@@ -19392,7 +19481,7 @@ function _onCambioHoraReporte(prefijo) {
     // validación normal ya exige elegir la hora antes de guardar).
     chip.setAttribute('data-hora', '');
     chip.textContent = '⏳ Selecciona la hora del reporte';
-    chip.style.background = '#eef3f9';
+    chip.style.background = 'var(--brand-light)';
     chip.style.color = 'var(--brand)';
     const btn = document.getElementById(prefijo + '_btnGuardar');
     if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
@@ -19439,6 +19528,8 @@ async function inicializarPanelCronograma() {
   if (tabEmergencia) tabEmergencia.style.display = mostrarEntrega ? '' : 'none';
   if (tabPresionDrycooler) tabPresionDrycooler.style.display = mostrarEntrega ? '' : 'none';
   if (tabFormacion) tabFormacion.style.display = mostrarEntrega ? '' : 'none';
+  const grupoTecnicos = document.getElementById('cronGrupoTecnicos');
+  if (grupoTecnicos) grupoTecnicos.style.display = mostrarEntrega ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
