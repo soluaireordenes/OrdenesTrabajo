@@ -748,7 +748,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       // Login: fondo claro de la app con la marca de agua subiendo
       const marca = document.querySelector('#loginOverlay .login-marca');
       out.loginFondo = !!marca && getComputedStyle(marca).animationName === 'loginMarcaSube'
-        && /url\("data:image\/jpeg/.test(getComputedStyle(marca).backgroundImage)
+        && /url\("data:image\/png/.test(getComputedStyle(marca).backgroundImage)
         && getComputedStyle(document.getElementById('loginOverlay')).backgroundColor === 'rgb(246, 248, 251)';
       paso('2: Avisos de la app en vez de la ventanita del navegador');
       // Avisos de la app en vez de la ventanita del navegador
@@ -1624,6 +1624,122 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       { falta: r.falta, msg: r.msg, tabla: r.tabla, F1: fila('F1') });
     check('Máquinas de Formación: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
     await ctx.close();
+  }
+  {
+    // Aspecto: logo sin fondo (claro y oscuro) en el encabezado, el login y
+    // los documentos; colores de estado y del Plan que siguen el tema; en
+    // celular, encabezado de una fila con la cuenta en el menú lateral.
+    const nuevo = async vp => {
+      const ctx = await b.newContext({ viewport: vp, timezoneId: 'America/Bogota' });
+      await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+      await ctx.route('**/sheets/v4/**', sheetsEnMemoria().route);
+      const p = await ctx.newPage();
+      const errs = []; p.on('pageerror', e => errs.push(String(e)));
+      await p.clock.install({ time: new Date('2026-10-16T09:15:00-05:00') });
+      await p.goto(BASE, { waitUntil: 'load' });
+      await p.waitForTimeout(500);
+      return { ctx, p, errs };
+    };
+    const pc = await nuevo({ width: 1366, height: 900 });
+    const r = await pc.p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      const raiz = () => getComputedStyle(document.documentElement);
+      const dataDe = v => (/url\(\s*['"]?([^'")\s]+)/.exec(raiz().getPropertyValue(v)) || [])[1] || '';
+      const claro = dataDe('--logo-claro'), oscuro = dataDe('--logo-oscuro');
+      out.logos = claro.startsWith('data:image/png;base64,') && oscuro.startsWith('data:image/png;base64,') && claro !== oscuro;
+      out.sinJpeg = !document.documentElement.outerHTML.includes('data:image/jpeg');
+      // Login: el logo arriba en la tarjeta, la tarjeta más ancha y el título
+      // con corte parejo. Que quepa en una línea depende de la letra del
+      // equipo (Segoe UI, Roboto…); en el servidor de pruebas hay otra más
+      // ancha, así que se revisa el ancho y el corte, no el número de líneas.
+      const tarjeta = document.querySelector('#loginOverlay .login-tarjeta');
+      const logoLogin = tarjeta.querySelector('.login-logo');
+      out.loginLogo = !!logoLogin && getComputedStyle(logoLogin).backgroundImage.includes(claro.slice(-40)) && logoLogin.getBoundingClientRect().width >= 200;
+      const h2 = tarjeta.querySelector('h2');
+      const csH2 = getComputedStyle(h2);
+      out.tarjetaAncha = Math.round(tarjeta.getBoundingClientRect().width) === 440;
+      out.tituloParejo = /balance/.test(csH2.textWrap || '') || csH2.textWrapStyle === 'balance';
+      document.getElementById('loginOverlay').remove();
+      const encabezado = () => getComputedStyle(document.querySelector('.header-logo-img')).backgroundImage;
+      out.encabezadoClaro = encabezado().includes(claro.slice(-40));
+      // Documento de la orden dentro de la app y en el visor (hoja blanca).
+      const enApp = document.createElement('div'); enApp.innerHTML = _encabezadoPdfHtml('Orden de Trabajo', 'Prueba');
+      const visor = document.createElement('div'); visor.className = 'visor-doc-hoja'; visor.innerHTML = _encabezadoPdfHtml('Orden de Trabajo', 'Prueba');
+      document.body.append(enApp, visor);
+      const muestra = css => { const s = document.createElement('span'); s.style.cssText = css; document.body.appendChild(s); const c = getComputedStyle(s); const v = [c.backgroundColor, c.color]; s.remove(); return v.join(' / '); };
+      const timer = document.createElement('span'); timer.className = 'cron-timer'; timer.setAttribute('data-hora', '06:00'); document.body.appendChild(timer);
+      const tarjetaAviso = document.querySelector('#cronSub-actividades .tarjeta-advertencia');
+      out.claro = {
+        peligro: muestra('background:var(--estado-peligro-bg);color:var(--estado-peligro-tx)'),
+        pmVerde: muestra('background:var(--pm-verde)').split(' / ')[0],
+      };
+      // Modo oscuro
+      alternarTema(); await espera(50);
+      out.encabezadoOscuro = encabezado().includes(oscuro.slice(-40));
+      out.pdfSiempreClaro = getLogoDataUrl() === claro && enApp.querySelector('img.logo-doc').getAttribute('src') === claro;
+      out.docOscuroEnApp = getComputedStyle(enApp.querySelector('img.logo-doc')).content.includes(oscuro.slice(-40));
+      out.docClaroEnVisor = getComputedStyle(visor.querySelector('img.logo-doc')).content === 'normal';
+      _actualizarCronometrosCheckpoints();
+      out.timer = timer.textContent + ' | ' + timer.style.background + ' | ' + getComputedStyle(timer).backgroundColor;
+      out.oscuro = {
+        peligro: muestra('background:var(--estado-peligro-bg);color:var(--estado-peligro-tx)'),
+        pmVerde: muestra('background:var(--pm-verde)').split(' / ')[0],
+        tarjetaAviso: getComputedStyle(tarjetaAviso).backgroundColor,
+      };
+      alternarTema(); await espera(50);
+      // En computador la cuenta sigue en el encabezado, no en el menú.
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' };
+      _aplicarRolUI();
+      out.cuentaEnMenuPc = getComputedStyle(document.querySelector('#sidebarOperaciones .sidebar-cuenta')).display;
+      out.botonesPc = ['btnTema', 'btnSalir'].map(id => getComputedStyle(document.getElementById(id)).display).join(',');
+      return out;
+    });
+    check('Aspecto: el logo va sin fondo (PNG claro y oscuro) y ya no queda el JPEG con fondo blanco', r.logos && r.sinJpeg, { logos: r.logos, sinJpeg: r.sinJpeg });
+    check('Aspecto: el login muestra el logo arriba, la tarjeta más ancha y el título con corte parejo', r.loginLogo && r.tarjetaAncha && r.tituloParejo,
+      { loginLogo: r.loginLogo, tarjetaAncha: r.tarjetaAncha, tituloParejo: r.tituloParejo });
+    check('Aspecto: el encabezado cambia al logo oscuro en modo oscuro; los documentos y el PDF siguen con el claro',
+      r.encabezadoClaro && r.encabezadoOscuro && r.pdfSiempreClaro && r.docOscuroEnApp && r.docClaroEnVisor,
+      { encabezadoClaro: r.encabezadoClaro, encabezadoOscuro: r.encabezadoOscuro, pdf: r.pdfSiempreClaro, docApp: r.docOscuroEnApp, visor: r.docClaroEnVisor });
+    check('Aspecto: en oscuro los colores de estado, el Plan y la tarjeta de Actividades no quedan como parches claros',
+      r.claro.peligro === 'rgb(253, 232, 232) / rgb(185, 28, 28)' && r.claro.pmVerde === 'rgb(198, 224, 180)'
+      && r.oscuro.peligro === 'rgba(239, 107, 97, 0.15) / rgb(242, 139, 130)' && /^rgba\(112, 173, 71/.test(r.oscuro.pmVerde)
+      && r.oscuro.tarjetaAviso === 'rgb(27, 33, 42)' && /Tiempo agotado \| var\(--estado-peligro-bg\) \| rgba\(239, 107, 97/.test(r.timer),
+      { claro: r.claro, oscuro: r.oscuro, timer: r.timer });
+    check('Aspecto: en computador "Oscuro" y "Salir" siguen en el encabezado', r.cuentaEnMenuPc === 'none' && !r.botonesPc.includes('none'), { menu: r.cuentaEnMenuPc, botones: r.botonesPc });
+    await pc.ctx.close();
+
+    const cel = await nuevo({ width: 390, height: 844 });
+    const m = await cel.p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      document.getElementById('loginOverlay')?.remove();
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' };
+      document.getElementById('userName').textContent = currentUser.name;
+      document.getElementById('userInitials').textContent = currentUser.initials;
+      _aplicarRolUI(); mostrarIndicadorStorage(true);
+      const out = {};
+      out.altoEncabezado = Math.round(document.querySelector('.app-header').getBoundingClientRect().height);
+      out.ocultos = ['btnTema', 'btnSalir', 'userName', 'userRol'].map(id => getComputedStyle(document.getElementById(id)).display).join(',');
+      const ind = document.getElementById('storageIndicator');
+      out.conexion = ind.title + ' | ' + Math.round(ind.getBoundingClientRect().width);
+      toggleSidebarMovil(true); await espera(350);
+      const cuenta = document.querySelector('#sidebarOperaciones .sidebar-cuenta');
+      out.cuenta = cuenta.innerText.replace(/\s+/g, ' ').trim();
+      cuenta.querySelector('button[onclick="alternarTema()"]').click(); await espera(50);
+      out.temaTrasMenu = document.documentElement.getAttribute('data-theme');
+      toggleSidebarMovil(true); await espera(350);
+      out.cuentaOscuro = cuenta.isConnected ? document.querySelector('#sidebarOperaciones .sidebar-cuenta').innerText.replace(/\s+/g, ' ').trim() : '';
+      out.anchoPagina = document.documentElement.scrollWidth;
+      return out;
+    });
+    check('Aspecto (celular): el encabezado va en una fila; "Oscuro", "Salir" y el nombre salen de él y la conexión queda como punto',
+      m.altoEncabezado <= 60 && m.ocultos === 'none,none,none,none' && /^Google Sheets conectado \| \d+$/.test(m.conexion) && Number(m.conexion.split('| ')[1]) <= 12
+      && m.anchoPagina <= 390, m);
+    check('Aspecto (celular): el menú lateral trae el usuario, el cambio de tema y "Salir"',
+      /^AP Ana Prueba admin Modo oscuro Salir$/i.test(m.cuenta) && m.temaTrasMenu === 'dark' && /Modo claro Salir$/.test(m.cuentaOscuro), m);
+    check('Aspecto: sin errores de JS', pc.errs.length === 0 && cel.errs.length === 0, { pc: pc.errs.slice(0, 2), cel: cel.errs.slice(0, 2) });
+    await cel.ctx.close();
   }
 
   await b.close();
