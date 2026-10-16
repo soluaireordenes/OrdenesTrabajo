@@ -2583,6 +2583,7 @@ body.rol-operario .solo-admin { display: none !important; }
       <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
       <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
       <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Compresores</button>
+      <button class="inv-subtab" id="cronTabFormacion" data-crontab="formacion" onclick="cronMostrarSubTab('formacion')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Máquinas de Formación</button>
       <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte Secadores</button>
       <button class="inv-subtab" id="cronTabDrycoolers" data-crontab="drycoolers" onclick="cronMostrarSubTab('drycoolers')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte Drycoolers</button>
       <button class="inv-subtab" id="cronTabDecorado" data-crontab="decorado" onclick="cronMostrarSubTab('decorado')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte Decorado</button>
@@ -3148,6 +3149,74 @@ body.rol-operario .solo-admin { display: none !important; }
         </div>
       </div>
     </div><!-- /cronSub-emergencia -->
+
+    <!-- Máquinas de Formación: qué referencia de botella corre cada máquina
+         (E1–E4, F1–F3), en qué sección, con cuántas cavidades y a qué
+         velocidad — solo Zipaquirá. -->
+    <div id="cronSub-formacion" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Reporte de Máquinas de Formación</div>
+        <div class="card-body" style="padding:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+            <div class="field">
+              <label>Quien realiza el reporte *</label>
+              <select id="rmf_tecnico" onchange="document.getElementById('rmf_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field" id="rmf_tecnicoOtroWrap" style="display:none">
+              <label>Nombre del técnico</label>
+              <input id="rmf_tecnicoOtro" placeholder="Nombre completo">
+            </div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rmf_fecha"></div>
+            <div class="field"><label>Hora *</label><input type="time" id="rmf_hora"></div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+            <div class="field">
+              <label>Máquina *</label>
+              <select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Referencia de botella *</label>
+              <input id="rmf_referencia" placeholder="Referencia de botella">
+            </div>
+            <div class="field">
+              <label>Sección *</label>
+              <div id="rmf_seccionWrap"></div>
+            </div>
+            <div class="field">
+              <label>Cavidades *</label>
+              <select id="rmf_cavidades"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field">
+              <label>Velocidad *</label>
+              <input id="rmf_velocidad" placeholder="Velocidad">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Observaciones</label>
+            <input id="rmf_observaciones" placeholder="Opcional">
+          </div>
+          <div id="rmf_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteMaquinasFormacion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Desde</label>
+            <input type="date" id="rmf_filtroDesde" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:11.5px">Hasta</label>
+            <input type="date" id="rmf_filtroHasta" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="rmf_tablaWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-formacion -->
 
     <!-- Reporte de Presión Drycooler: formulario corto calcado del
          formulario "Presiones y temperatura de Drycooler" — solo Zipaquirá. -->
@@ -6749,7 +6818,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'guardarEntregaTurno', 'guardarNovedad', 'guardarObservacionOperario',
   'agregarObservacionEquipo', 'invRegistrarProveedor', 'pmGuardarActividades',
   'guardarReporteCompresor', 'guardarReporteSecador', 'guardarReporteDrycooler',
-  'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler',
+  'guardarReporteDecorado', 'guardarReporteEmergencia', 'guardarReportePresionDrycooler', 'guardarReporteMaquinasFormacion',
   'eliminarFotoOrden', 'eliminarFotoCronograma',
   'eliminarFechaRacha', 'registrarNovedadRacha',
   'invRegistrarProducto', 'invRegistrarServicio', 'registrarInventarioEquipo',
@@ -9980,6 +10049,7 @@ const SH = {
   reporteDecorado: 'ReporteDecorado',
   reporteEmergencia: 'ReporteEmergencia',
   reportePresionDrycooler: 'ReportePresionDrycooler',
+  reporteMaquinasFormacion: 'ReporteMaquinasFormacion',
   inventarioHerramienta: 'InventarioHerramienta',
 };
 // Cada fila = una fecha en la que ocurrió (o se registró manualmente) una
@@ -10733,6 +10803,24 @@ const REPORTE_PRESION_DRYCOOLER_CAMPOS = [
   { grupo: 'Mediciones', id: 'presionDrycooler4', label: 'Presión Drycooler 4', col: 'PresionDrycooler4' },
   { grupo: 'Mediciones', id: 'temperaturaCA1', label: 'Temperatura manómetro entrada CA1', col: 'TemperaturaCA1' },
 ];
+
+// Reporte de máquinas de formación (Zipaquirá): qué referencia de botella
+// corre cada máquina, en qué sección, con cuántas cavidades y a qué
+// velocidad. Una fila por reporte; el borrado es lógico (Estado='Eliminada').
+const REPORTE_MAQUINAS_FORMACION_COLS = [
+  'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro',
+  'Maquina', 'ReferenciaBotella', 'Seccion', 'Cavidades', 'Velocidad', 'Observaciones',
+  'RegistradoPor', 'FechaRegistro', 'Estado',
+];
+const MAQUINAS_FORMACION = ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3'];
+// Secciones de cada tipo de máquina (la letra del nombre). Las F tienen 12;
+// las de las E están pendientes: mientras tanto la sección se escribe a mano.
+const SECCIONES_MAQUINAS_FORMACION = { F: 12, E: null };
+const CAVIDADES_MAQUINAS_FORMACION = ['1', '2', '3'];
+const TECNICOS_REPORTE_MAQUINAS_FORMACION = TECNICOS_REPORTE_COMPRESORES;
+function _seccionesMaquinaFormacion(maquina) {
+  return SECCIONES_MAQUINAS_FORMACION[String(maquina || '').charAt(0)] || null;
+}
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
 // columnas de arriba — maneja tanto el formulario (id = 'et_' + campo.id)
@@ -19054,6 +19142,7 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'herramienta') inicializarInventarioHerramienta();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
   if (nombre === 'compresores') inicializarReporteCompresores();
+  if (nombre === 'formacion') inicializarReporteMaquinasFormacion();
   if (nombre === 'secadores') inicializarReporteSecadores();
   if (nombre === 'drycoolers') inicializarReporteDrycoolers();
   if (nombre === 'decorado') inicializarReporteDecorado();
@@ -19207,10 +19296,10 @@ async function inicializarPanelCronograma() {
   // La Entrega de Turno va arriba de las actividades, dentro de la misma
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
   // —CA, CB, NX220, IR160, etc.— son específicos de esa operación). Las
-  // pestañas "Reporte Compresores", "Reporte Secadores", "Reporte
-  // Drycoolers", "Reporte Decorado", "Reporte Emergencia", "Presión
-  // Drycooler" y "Observaciones" son aparte y también solo aplican a
-  // Zipaquirá.
+  // pestañas "Reporte Compresores", "Máquinas de Formación", "Reporte
+  // Secadores", "Reporte Drycoolers", "Reporte Decorado", "Reporte
+  // Emergencia", "Presión Drycooler" y "Observaciones" son aparte y también
+  // solo aplican a Zipaquirá.
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
@@ -19222,6 +19311,7 @@ async function inicializarPanelCronograma() {
   const tabDecorado = document.getElementById('cronTabDecorado');
   const tabEmergencia = document.getElementById('cronTabEmergencia');
   const tabPresionDrycooler = document.getElementById('cronTabPresionDrycooler');
+  const tabFormacion = document.getElementById('cronTabFormacion');
   // "Actividades 🔒" solo trae el aviso del trabajo en alturas de Zipaquirá:
   // en las demás sedes no aplica.
   const tabActividades = document.getElementById('cronTabActividades');
@@ -19238,6 +19328,7 @@ async function inicializarPanelCronograma() {
   if (tabDecorado) tabDecorado.style.display = mostrarEntrega ? '' : 'none';
   if (tabEmergencia) tabEmergencia.style.display = mostrarEntrega ? '' : 'none';
   if (tabPresionDrycooler) tabPresionDrycooler.style.display = mostrarEntrega ? '' : 'none';
+  if (tabFormacion) tabFormacion.style.display = mostrarEntrega ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
   if (mostrarEntrega) inicializarEntregaTurno();
@@ -22130,6 +22221,221 @@ async function exportarReportePresionDrycoolerPDF(codigo) {
   @media print{body{padding:0}}
 </style></head><body>
 ${_construirHtmlReportePresionDrycooler(r)}
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+  _entregarDocumentoImprimible(html, ventana);
+}
+
+/* ══════════════════════════════════════════════
+   REPORTE DE MÁQUINAS DE FORMACIÓN — solo Zipaquirá.
+   Qué referencia de botella corre cada máquina (E1–E4, F1–F3), en qué
+   sección, con cuántas cavidades y a qué velocidad.
+══════════════════════════════════════════════ */
+let allReportesMaquinasFormacion = [];
+
+function _siguienteCodigoReporteMaquinasFormacion() {
+  return _codigoConsecutivoUnico('RMF', allReportesMaquinasFormacion, 4);
+}
+
+/** La sección depende de la máquina: las F traen la lista del 1 al 12; las
+ *  E, mientras no estén definidas sus secciones, se escriben a mano. */
+function _actualizarSeccionesMaquinaFormacion() {
+  const maquina = document.getElementById('rmf_maquina').value;
+  const total = _seccionesMaquinaFormacion(maquina);
+  const wrap = document.getElementById('rmf_seccionWrap');
+  if (!maquina) {
+    wrap.innerHTML = '<select id="rmf_seccion" disabled><option value="">Elige primero la máquina</option></select>';
+  } else if (total) {
+    wrap.innerHTML = '<select id="rmf_seccion"><option value="">Seleccionar...</option>'
+      + Array.from({ length: total }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('') + '</select>';
+  } else {
+    wrap.innerHTML = '<input id="rmf_seccion" placeholder="Sección">'
+      + '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">Las secciones de las máquinas E todavía no están definidas: escríbela.</div>';
+  }
+}
+
+async function inicializarReporteMaquinasFormacion() {
+  const opciones = lista => '<option value="">Seleccionar...</option>' + lista.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  document.getElementById('rmf_tecnico').innerHTML = opciones(TECNICOS_REPORTE_MAQUINAS_FORMACION) + '<option value="Otras">Otras</option>';
+  document.getElementById('rmf_maquina').innerHTML = opciones(MAQUINAS_FORMACION);
+  document.getElementById('rmf_cavidades').innerHTML = opciones(CAVIDADES_MAQUINAS_FORMACION);
+  const ahora = new Date();
+  document.getElementById('rmf_fecha').value = _isoLocal(ahora);
+  document.getElementById('rmf_hora').value = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+  document.getElementById('rmf_tecnicoOtroWrap').style.display = 'none';
+  ['rmf_tecnicoOtro', 'rmf_referencia', 'rmf_velocidad', 'rmf_observaciones'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('rmf_msg').textContent = '';
+  _actualizarSeccionesMaquinaFormacion();
+
+  _inicializarFiltroFechaReporte('rmf');
+  const wrap = document.getElementById('rmf_tablaWrap');
+  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
+  try {
+    await asegurarHoja(SH.reporteMaquinasFormacion, REPORTE_MAQUINAS_FORMACION_COLS);
+    allReportesMaquinasFormacion = await _cargarReportesTecnicos('rmf', SH.reporteMaquinasFormacion);
+    renderTablaReportesMaquinasFormacion();
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTablaReportesMaquinasFormacion() {
+  const wrap = document.getElementById('rmf_tablaWrap');
+  if (_traerReportesSiFaltan('rmf', SH.reporteMaquinasFormacion, f => { allReportesMaquinasFormacion = f; }, renderTablaReportesMaquinasFormacion)) return;
+  if (!allReportesMaquinasFormacion.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Todavía no hay reportes de máquinas de formación registrados.</div>';
+    return;
+  }
+  const filas = _filtrarReportesPorFecha(allReportesMaquinasFormacion, 'rmf');
+  if (!filas.length) {
+    wrap.innerHTML = _estadoVacioFiltroFecha('rmf');
+    return;
+  }
+  const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+  const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+  const th = (t, centro) => `<th style="padding:8px 10px;text-align:${centro ? 'center' : 'left'};border-bottom:2px solid var(--border)">${t}</th>`;
+  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">${th('Código')}${th('Fecha')}${th('Hora')}${th('Máquina')}${th('Sección')}${th('Referencia')}${th('Técnico')}${th('', true)}</tr></thead><tbody>`;
+  filas.forEach(r => {
+    const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
+      <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
+      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px;font-weight:700">${esc(r.Maquina)}</td>
+      <td style="padding:7px 10px">${esc(r.Seccion)}</td>
+      <td style="padding:7px 10px">${esc(r.ReferenciaBotella)}</td>
+      <td style="padding:7px 10px">${esc(tecnico)}</td>
+      <td style="padding:7px 10px;text-align:center;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="verReporteMaquinasFormacion(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarReporteMaquinasFormacionPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteMaquinasFormacion(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+async function guardarReporteMaquinasFormacion() {
+  const msg = document.getElementById('rmf_msg');
+  msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const tecnico = val('rmf_tecnico'), tecnicoOtro = val('rmf_tecnicoOtro');
+  const fecha = val('rmf_fecha'), hora = val('rmf_hora');
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora) {
+    msg.textContent = 'Completa quién realiza el reporte, la fecha y la hora.';
+    return;
+  }
+  if (fecha > _isoLocal(new Date())) { msg.textContent = 'La fecha no puede ser futura.'; return; }
+  const datos = {
+    Maquina: val('rmf_maquina'), ReferenciaBotella: val('rmf_referencia'), Seccion: val('rmf_seccion'),
+    Cavidades: val('rmf_cavidades'), Velocidad: val('rmf_velocidad'),
+  };
+  const faltan = [['Maquina', 'la máquina'], ['ReferenciaBotella', 'la referencia de botella'], ['Seccion', 'la sección'],
+    ['Cavidades', 'las cavidades'], ['Velocidad', 'la velocidad']].filter(([c]) => !datos[c]).map(([, t]) => t);
+  if (faltan.length) {
+    msg.textContent = 'Falta ' + (faltan.length > 1 ? faltan.slice(0, -1).join(', ') + ' y ' + faltan[faltan.length - 1] : faltan[0]) + '.';
+    return;
+  }
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+  try {
+    const colsHoja = await asegurarHoja(SH.reporteMaquinasFormacion, REPORTE_MAQUINAS_FORMACION_COLS);
+    const fila = {
+      Codigo: _siguienteCodigoReporteMaquinasFormacion(), Fecha: fecha, Hora: hora,
+      Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '', ...datos,
+      Observaciones: val('rmf_observaciones'),
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaRegistro: new Date().toISOString(), Estado: 'Activo',
+    };
+    await appendHoja(SH.reporteMaquinasFormacion, [colsHoja.map(c => fila[c] ?? '')]);
+    _invalidarCacheHoja(SH.reporteMaquinasFormacion);
+    await inicializarReporteMaquinasFormacion();
+    // Quien reporta suele registrar varias máquinas seguidas: se le deja elegido.
+    document.getElementById('rmf_tecnico').value = tecnico;
+    if (tecnico === 'Otras') {
+      document.getElementById('rmf_tecnicoOtroWrap').style.display = '';
+      document.getElementById('rmf_tecnicoOtro').value = tecnicoOtro;
+    }
+    msg.style.color = '#15803d'; msg.textContent = `Reporte de ${datos.Maquina} guardado correctamente.`;
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
+  }
+}
+
+async function eliminarReporteMaquinasFormacion(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar reportes.'); return; }
+  if (!confirm('¿Eliminar este reporte de máquina de formación? Esta acción no se puede deshacer.')) return;
+  const fila = allReportesMaquinasFormacion.find(r => r.Codigo === codigo);
+  if (!fila) return;
+  try {
+    const colsHoja = await asegurarHoja(SH.reporteMaquinasFormacion, REPORTE_MAQUINAS_FORMACION_COLS);
+    const colEstado = numToCol(colsHoja.indexOf('Estado'));
+    await sheetsRequest('UPDATE', SH.reporteMaquinasFormacion + '!' + colEstado + fila._row, [['Eliminada']]);
+    _invalidarCacheHoja(SH.reporteMaquinasFormacion);
+    await inicializarReporteMaquinasFormacion();
+  } catch (e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+}
+
+function _construirHtmlReporteMaquinasFormacion(r, conTitulo) {
+  if (conTitulo === undefined) conTitulo = true;
+  const tecnico = r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico;
+  const campos = [['Máquina', r.Maquina], ['Referencia de botella', r.ReferenciaBotella], ['Sección', r.Seccion],
+    ['Cavidades', r.Cavidades], ['Velocidad', r.Velocidad]].filter(([, v]) => String(v || '').trim());
+  const titulo = `Reporte de Máquina de Formación — ${esc(r.Codigo)}`;
+  return `
+    ${conTitulo ? `<h1 style="color:var(--brand);font-size:18px;text-align:center;margin-bottom:6px">${titulo}</h1>` : `<div style="font-weight:700;color:var(--brand);font-size:12.5px;margin-bottom:6px">${titulo}</div>`}
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12.5px;color:var(--text2);margin-bottom:16px">
+      ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Maquina)}</b> &nbsp;·&nbsp; <b>Técnico:</b> ${esc(tecnico)}
+    </div>
+    <div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+      <div style="background:var(--surface2);color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">Máquina</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        ${campos.map(([etiqueta, valor]) => `<div style="padding:8px 10px;border-left:1px solid #eee;font-size:12px">
+          <div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px">${esc(etiqueta)}</div>
+          <div style="font-weight:700;color:var(--text)">${esc(valor)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    ${String(r.Observaciones || '').trim() ? `<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+      <div style="background:var(--surface2);color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">Observaciones</div>
+      <div style="padding:8px 10px;font-size:12px">${esc(r.Observaciones)}</div>
+    </div>` : ''}
+  `;
+}
+
+function verReporteMaquinasFormacion(codigo) {
+  const r = allReportesMaquinasFormacion.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:12px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center">
+        <span>Reporte de Máquina de Formación — ${esc(r.Codigo)}</span>
+        <span onclick="this.closest('div[style*=fixed]').remove()" style="cursor:pointer;font-size:18px">✕</span>
+      </div>
+      <div style="padding:20px">${_construirHtmlReporteMaquinasFormacion(r)}</div>
+    </div>`;
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function exportarReporteMaquinasFormacionPDF(codigo) {
+  const r = allReportesMaquinasFormacion.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Reporte de Máquina de Formación — ${esc(r.Codigo)}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
+  @media print{body{padding:0}}
+</style></head><body>
+${_construirHtmlReporteMaquinasFormacion(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   _entregarDocumentoImprimible(html, ventana);

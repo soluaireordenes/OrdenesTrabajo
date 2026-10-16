@@ -1546,6 +1546,85 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Reportes técnicos y capacidad: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Reportes → Máquinas de Formación (Zipaquirá): máquina, referencia de
+    // botella, sección (las F del 1 al 12; las E, a mano mientras se
+    // definen), cavidades y velocidad.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-16T09:15:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; operacionAutenticada = true;
+      currentUser = { name: 'Técnico Uno', email: 't@x' };
+      const tab = () => document.getElementById('cronTabFormacion');
+      operacionActual = 'zipaquira2'; showPanel('cronograma'); await espera(200);
+      const out = { visibleZipa2: tab().style.display !== 'none' };
+      operacionActual = 'zipaquira'; showPanel('cronograma'); await espera(200);
+      out.visibleZipa = tab().style.display !== 'none';
+      out.alLado = document.getElementById('cronTabCompresores').nextElementSibling === tab();
+      cronMostrarSubTab('formacion'); await espera(500);
+      const elegir = async (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); await espera(20); };
+      out.maquinas = [...document.querySelectorAll('#rmf_maquina option')].map(o => o.value).filter(Boolean).join(',');
+      out.cavidades = [...document.querySelectorAll('#rmf_cavidades option')].map(o => o.value).filter(Boolean).join(',');
+      out.seccionSinMaquina = document.getElementById('rmf_seccion').disabled;
+      out.hora = document.getElementById('rmf_hora').value;
+      await elegir('rmf_maquina', 'F2');
+      out.seccionesF = [...document.querySelectorAll('#rmf_seccion option')].map(o => o.value).filter(Boolean).join(',');
+      await elegir('rmf_maquina', 'E3');
+      out.seccionE = document.getElementById('rmf_seccion').tagName + ' ' + document.getElementById('rmf_seccionWrap').textContent.trim();
+      // Faltan datos
+      await elegir('rmf_tecnico', TECNICOS_REPORTE_MAQUINAS_FORMACION[0]);
+      await guardarReporteMaquinasFormacion();
+      out.falta = document.getElementById('rmf_msg').textContent;
+      // F1, sección 7
+      await elegir('rmf_maquina', 'F1');
+      document.getElementById('rmf_referencia').value = 'BOT-355 ÁMBAR';
+      await elegir('rmf_seccion', '7');
+      await elegir('rmf_cavidades', '2');
+      document.getElementById('rmf_velocidad').value = '65';
+      await guardarReporteMaquinasFormacion(); await espera(200);
+      out.msg = document.getElementById('rmf_msg').textContent;
+      out.tecnicoQueda = document.getElementById('rmf_tecnico').value;
+      // E3 con la sección escrita a mano
+      await elegir('rmf_maquina', 'E3');
+      document.getElementById('rmf_referencia').value = 'BOT-200';
+      document.getElementById('rmf_seccion').value = '5';
+      await elegir('rmf_cavidades', '3');
+      document.getElementById('rmf_velocidad').value = '70 bpm';
+      await guardarReporteMaquinasFormacion(); await espera(200);
+      document.getElementById('rmf_filtroDesde').value = '2026-10-16'; renderTablaReportesMaquinasFormacion();
+      out.tabla = [...document.querySelectorAll('#rmf_tablaWrap tbody tr')].map(tr => [...tr.children].slice(3, 6).map(td => td.textContent.trim()).join('/'));
+      out.vista = _construirHtmlReporteMaquinasFormacion(allReportesMaquinasFormacion.find(x => x.Maquina === 'F1'));
+      out.avisos = avisos;
+      return out;
+    });
+    const filas = fake.hoja(await p.evaluate(() => GOOGLE_CONFIG.spreadsheetId), 'ReporteMaquinasFormacion');
+    const enc = filas[0] || [];
+    const fila = m => (filas.find(f => f[enc.indexOf('Maquina')] === m) || []);
+    const val = (m, c) => fila(m)[enc.indexOf(c)];
+    check('Máquinas de Formación: pestaña solo en Zipaquirá, justo al lado de Reporte Compresores',
+      r.visibleZipa && !r.visibleZipa2 && r.alLado, { zipa: r.visibleZipa, zipa2: r.visibleZipa2, alLado: r.alLado });
+    check('Máquinas de Formación: E1–E4 y F1–F3, cavidades 1–3; las F traen secciones del 1 al 12 y las E se escriben a mano',
+      r.maquinas === 'E1,E2,E3,E4,F1,F2,F3' && r.cavidades === '1,2,3' && r.seccionSinMaquina && r.hora === '09:15'
+      && r.seccionesF === '1,2,3,4,5,6,7,8,9,10,11,12' && /^INPUT .*máquinas E todavía no están definidas/.test(r.seccionE),
+      { maquinas: r.maquinas, cavidades: r.cavidades, seccionesF: r.seccionesF, seccionE: r.seccionE, hora: r.hora });
+    check('Máquinas de Formación: pide lo que falta y guarda máquina, referencia, sección, cavidades y velocidad',
+      /^Falta la referencia de botella, la sección, las cavidades y la velocidad\.$/.test(r.falta) && /F1 guardado/.test(r.msg) && r.tecnicoQueda !== ''
+      && val('F1', 'ReferenciaBotella') === 'BOT-355 ÁMBAR' && val('F1', 'Seccion') === '7' && val('F1', 'Cavidades') === '2' && val('F1', 'Velocidad') === '65'
+      && val('F1', 'Fecha') === '2026-10-16' && val('E3', 'Seccion') === '5' && val('E3', 'Velocidad') === '70 bpm'
+      && r.tabla.length === 2 && r.tabla.includes('F1/7/BOT-355 ÁMBAR') && /Referencia de botella/.test(r.vista) && /BOT-355 ÁMBAR/.test(r.vista),
+      { falta: r.falta, msg: r.msg, tabla: r.tabla, F1: fila('F1') });
+    check('Máquinas de Formación: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
