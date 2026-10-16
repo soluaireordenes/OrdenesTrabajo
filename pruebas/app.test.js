@@ -350,7 +350,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const { ctx, p } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[]}' }) });
     const r = await p.evaluate(async (rol) => {
       const out = { alerts: [] };
-      window.alert = m => out.alerts.push(String(m)); window.confirm = () => false; window.prompt = () => null;
+      window.alert = m => out.alerts.push(String(m)); window.confirmarAccion = async () => false; window.prompt = () => null;
       usuarioRol = rol; _aplicarRolUI(); googleAccessToken = 'SESS'; operacionAutenticada = true;
       sidebarGrupoExpandido.herramientas = true; renderSidebarOperaciones(); // "Reparar hoja" va en Herramientas
       const vis = el => !!el && getComputedStyle(el).display !== 'none';
@@ -600,7 +600,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const r = await p.evaluate(async () => {
       const out = {};
       window.alert = m => { (out.alerts = out.alerts || []).push(String(m)); };
-      window.confirm = () => true;
+      window.confirmarAccion = async () => true;
       // A2: firma y comilla simple no se ejecutan
       window.__xss = 0;
       allOrdenes = [{ id: 'X1', NumeroOrden: 'OT-X1', Estado: 'Pendiente', FirmaCreador: 'x" onerror="window.__xss=1' }];
@@ -1041,7 +1041,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const r = await p.evaluate(async () => {
       const espera = ms => new Promise(x => setTimeout(x, ms));
       const hasta = async cond => { for (let i = 0; i < 80 && !cond(); i++) await espera(100); };
-      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirm = () => true;
+      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirmarAccion = async () => true;
       googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
       operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
       renderSidebarOperaciones();
@@ -1386,7 +1386,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await p.waitForTimeout(500);
     const r = await p.evaluate(async () => {
       const espera = ms => new Promise(x => setTimeout(x, ms));
-      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirm = () => true;
+      const avisos = []; window.alert = m => avisos.push(String(m)); window.confirmarAccion = async () => true;
       googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
       currentUser = { name: 'Ana Prueba', email: 'a@x' };
       showPanel('cronograma'); await espera(200);
@@ -1501,7 +1501,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const completasAlAbrir = lecturasCompletas();
     const viejos = await p.evaluate(async () => {
       const espera = ms => new Promise(x => setTimeout(x, ms));
-      window.confirm = () => true;
+      window.confirmarAccion = async () => true;
       document.getElementById('rc_filtroDesde').value = '2026-08-17';
       document.getElementById('rc_filtroHasta').value = '2026-08-18';
       renderTablaReportesCompresores();
@@ -1852,6 +1852,89 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Orden (celular): desplegar un grupo del menú no lo cierra; elegir una opción sí', m.menuSigueAbierto && m.opcionCierra, m);
     check('Orden: sin errores de JS', pc.errs.length === 0 && cel.errs.length === 0, { pc: pc.errs.slice(0, 2), cel: cel.errs.slice(0, 2) });
     await cel.ctx.close();
+  }
+  {
+    // Consistencia: la ventana de confirmación de la app (no la del
+    // navegador), íconos de línea en vez de emojis y la escala corta de
+    // tamaños de letra y radios.
+    const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', sheetsEnMemoria().route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-10-16T09:15:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      document.getElementById('loginOverlay')?.remove();
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; operacionActual = 'zipaquira';
+      currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' };
+      _aplicarRolUI();
+      let nativas = 0; window.confirm = () => { nativas++; return true; };
+      let escrituras = 0; const asegurarOriginal = window.asegurarHoja;
+      window.asegurarHoja = async (...a) => { escrituras++; return asegurarOriginal(...a); };
+      allReportesSecadores = [{ Codigo: 'RS-1', Fecha: '2026-10-16', Hora: '6:00 a.m.', Secador: 'S', Tecnico: 'T', _row: 2 }];
+      // Borrar un reporte: la ventana de la app, en rojo, con el foco en "Cancelar".
+      let pendiente = eliminarReporteSecador('RS-1'); await espera(50);
+      const ventana = document.querySelector('.confirmar-fondo .confirmar-ventana');
+      out.ventana = !!ventana && ventana.classList.contains('peligro');
+      out.textos = ventana ? [ventana.querySelector('.confirmar-titulo').textContent, ventana.querySelector('.confirmar-texto').textContent,
+        ...[...ventana.querySelectorAll('.confirmar-botones .btn')].map(b => b.textContent + ':' + (b.classList.contains('btn-peligro') ? 'rojo' : 'otro'))].join(' | ') : '';
+      out.focoCancelar = document.activeElement && document.activeElement.textContent === 'Cancelar';
+      document.activeElement.click(); await pendiente;
+      out.cancelarNoBorra = !document.querySelector('.confirmar-fondo') && escrituras === 0;
+      // Escape también cancela.
+      pendiente = eliminarReporteSecador('RS-1'); await espera(50);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await pendiente;
+      out.escapeCancela = !document.querySelector('.confirmar-fondo') && escrituras === 0;
+      // Una pregunta normal: azul, con el foco en la acción, y "sí" devuelve true.
+      const pregunta = confirmarAccion({ titulo: '¿Marcar este hallazgo como resuelto?', aceptar: 'Marcar como resuelto' }); await espera(50);
+      out.normal = !document.querySelector('.confirmar-ventana').classList.contains('peligro')
+        && document.activeElement.classList.contains('btn-primary') && document.activeElement.textContent === 'Marcar como resuelto';
+      document.activeElement.click();
+      out.respuestaSi = await pregunta;
+      out.nativas = nativas;
+      window.asegurarHoja = asegurarOriginal;
+
+      // Sin emojis en pantalla: Reportes, el menú (banderas dibujadas) y las listas.
+      const emoji = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]/u;
+      const conEmoji = [];
+      const revisar = nombre => { const t = document.body.innerText.match(new RegExp(emoji.source, 'gu')); if (t) conEmoji.push(nombre + ':' + t.join('')); };
+      showPanel('cronograma'); await espera(300);
+      cronMostrarSubTab('actividades'); await espera(100); revisar('actividades');
+      cronMostrarSubTab('temporal'); await espera(500); revisar('temporal');
+      renderSidebarOperaciones(); revisar('menu');
+      out.banderas = document.querySelectorAll('#sidebarOperaciones svg.bandera').length;
+      showPanel('novedades'); await espera(300); revisar('novedades');
+      const opciones = [...document.querySelectorAll('option')].filter(o => emoji.test(o.textContent)).map(o => o.textContent);
+      if (opciones.length) conEmoji.push('opciones:' + opciones.join(','));
+      out.conEmoji = conEmoji;
+      // El cronómetro lleva un ícono de línea, no un emoji.
+      const chip = document.createElement('span'); chip.className = 'cron-timer'; chip.setAttribute('data-hora', '06:00'); document.body.appendChild(chip);
+      _actualizarCronometrosCheckpoints();
+      out.cronometro = !!chip.querySelector('svg.icono-txt') && /Tiempo agotado/.test(chip.textContent) && !emoji.test(chip.textContent);
+
+      // Escala: los tamaños de letra y los radios escritos en la app son de la lista.
+      const fuente = document.documentElement.outerHTML + [...document.querySelectorAll('script:not([src])')].map(s => s.textContent).join('\n');
+      const LETRA = new Set(['10', '11', '12', '13', '14', '16', '18', '20', '22', '24', '26', '30', '64']);
+      const RADIO = new Set(['2', '6', '8', '12', '20', '24', '999']);
+      out.letraFuera = [...new Set([...fuente.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)].map(m => m[1]).filter(v => !LETRA.has(v)))];
+      out.radioFuera = [...new Set([...fuente.matchAll(/border-radius\s*:\s*(\d+(?:\.\d+)?)px/g)].map(m => m[1]).filter(v => !RADIO.has(v)))];
+      return out;
+    });
+    check('Consistencia: borrar pregunta con la ventana de la app (título, explicación y "Eliminar reporte" en rojo; foco en Cancelar)',
+      r.ventana && r.textos === '¿Eliminar este reporte de secador? | Esta acción no se puede deshacer. | Cancelar:otro | Eliminar reporte:rojo' && r.focoCancelar,
+      { ventana: r.ventana, textos: r.textos, foco: r.focoCancelar });
+    check('Consistencia: Cancelar y Escape no borran; una pregunta normal va en azul y "sí" sigue; nunca sale la ventanita del navegador',
+      r.cancelarNoBorra && r.escapeCancela && r.normal && r.respuestaSi === true && r.nativas === 0, r);
+    check('Consistencia: Reportes, menú, Novedades y listas sin emojis (banderas dibujadas, cronómetro con ícono)',
+      r.conEmoji.length === 0 && r.banderas > 0 && r.cronometro, { conEmoji: r.conEmoji, banderas: r.banderas, cronometro: r.cronometro });
+    check('Consistencia: tamaños de letra y radios solo de la escala', r.letraFuera.length === 0 && r.radioFuera.length === 0,
+      { letra: r.letraFuera, radio: r.radioFuera });
+    check('Consistencia: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
   }
 
   await b.close();
