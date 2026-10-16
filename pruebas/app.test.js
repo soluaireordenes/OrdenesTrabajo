@@ -351,7 +351,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const r = await p.evaluate(async (rol) => {
       const out = { alerts: [] };
       window.alert = m => out.alerts.push(String(m)); window.confirm = () => false; window.prompt = () => null;
-      usuarioRol = rol; _aplicarRolUI(); googleAccessToken = 'SESS'; operacionAutenticada = true; renderSidebarOperaciones();
+      usuarioRol = rol; _aplicarRolUI(); googleAccessToken = 'SESS'; operacionAutenticada = true;
+      sidebarGrupoExpandido.herramientas = true; renderSidebarOperaciones(); // "Reparar hoja" va en Herramientas
       const vis = el => !!el && getComputedStyle(el).display !== 'none';
       const menu = document.getElementById('sidebarOperaciones').innerText;
       out.menuNueva = /Nueva Orden/.test(menu); out.menuDash = /Dashboard/.test(menu);
@@ -1740,6 +1741,116 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Aspecto (celular): el menú lateral trae el usuario, el cambio de tema y "Salir"',
       /^AP Ana Prueba admin Modo oscuro Salir$/i.test(m.cuenta) && m.temaTrasMenu === 'dark' && /Modo claro Salir$/.test(m.cuentaOscuro), m);
     check('Aspecto: sin errores de JS', pc.errs.length === 0 && cel.errs.length === 0, { pc: pc.errs.slice(0, 2), cel: cel.errs.slice(0, 2) });
+    await cel.ctx.close();
+  }
+  {
+    // Orden y navegación: Reportes en dos grupos, el mismo encabezado en
+    // cada sección, una sola acción principal y las herramientas plegadas al
+    // final del menú.
+    const nuevo = async vp => {
+      const ctx = await b.newContext({ viewport: vp, timezoneId: 'America/Bogota' });
+      await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+      await ctx.route('**/sheets/v4/**', sheetsEnMemoria().route);
+      const p = await ctx.newPage();
+      const errs = []; p.on('pageerror', e => errs.push(String(e)));
+      await p.goto(BASE, { waitUntil: 'load' });
+      await p.waitForTimeout(500);
+      await p.evaluate(() => {
+        document.getElementById('loginOverlay')?.remove();
+        googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; operacionActual = 'zipaquira';
+        currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' };
+        _aplicarRolUI();
+      });
+      return { ctx, p, errs };
+    };
+    const pc = await nuevo({ width: 1366, height: 900 });
+    const r = await pc.p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      const pestanas = id => [...document.querySelectorAll(`#${id} .inv-subtab`)].map(b => b.dataset.crontab).join(',');
+      showPanel('cronograma'); await espera(200);
+      out.turno = pestanas('cronGrupoTurno');
+      out.tecnicos = pestanas('cronGrupoTecnicos');
+      out.nombresTecnicos = [...document.querySelectorAll('#cronGrupoTecnicos .inv-subtab')].map(b => b.textContent.trim()).join(' | ');
+      out.tecnicosZipa = getComputedStyle(document.getElementById('cronGrupoTecnicos')).display;
+      operacionActual = 'soacha'; showPanel('cronograma'); await espera(200);
+      out.tecnicosSoacha = getComputedStyle(document.getElementById('cronGrupoTecnicos')).display;
+      operacionActual = 'zipaquira';
+      // Encabezado común en cada sección
+      const secciones = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma', 'variables', 'inventario', 'empalme', 'planmantenimiento'];
+      out.sinEncabezado = secciones.filter(k => {
+        const h = document.querySelector(`#panel-${k} .seccion-encabezado .seccion-titulo`);
+        return !h || !h.querySelector('svg') || !h.textContent.trim();
+      }).join(',');
+      // Pendientes: "Completar" es la principal y "Realizada" va con borde.
+      try { await showPanel('pendientes'); } catch (e) {}
+      await espera(300);
+      allOrdenes = [{ id: 'P1', NumeroOrden: 'OT-P1', Title: 'Fuga', Estado: 'Pendiente', Equipo: 'CA1' }];
+      renderPendientes(); await espera(150);
+      const acciones = [...document.querySelectorAll('#pendientesContainer .item-actions .btn')];
+      out.accionesPendiente = acciones.map(b => b.textContent.trim() + ':' + ['btn-primary', 'btn-success', 'btn-borde-ok', 'btn-ghost'].filter(c => b.classList.contains(c)).join('')).join(' | ');
+      // Editor: "Guardar cambios" no es verde; la principal es "Marcar como Realizada".
+      const guardar = document.querySelector('#subpanel-pend-editor [onclick="guardarEdicion()"]');
+      out.guardarAdmin = getComputedStyle(guardar).backgroundImage === 'none' && getComputedStyle(guardar).color !== getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim()
+        && guardar.classList.contains('btn-ghost') && document.querySelector('#subpanel-pend-editor [onclick="guardarCierre()"]').classList.contains('btn-success');
+      // Menú: las herramientas van plegadas al final.
+      renderSidebarOperaciones();
+      const menu = document.getElementById('sidebarOperaciones');
+      out.herramientasPlegadas = !menu.querySelector('[onclick="repararHoja()"]') && !menu.querySelector('[onclick="limpiarCacheLocal()"]');
+      const grupo = menu.querySelector('[data-grupo="herramientas"]');
+      out.grupoAlFinal = !!grupo && [...menu.querySelectorAll('[data-grupo]')].pop() === grupo;
+      grupo.click(); await espera(50);
+      out.herramientasAbiertas = ['repararHoja()', 'abrirCapacidadHojas()', 'limpiarCacheLocal()'].every(f => menu.querySelector(`[onclick="${f}"]`));
+      out.notificacionesArriba = menu.innerText.indexOf('Notificaciones') >= 0 && menu.innerText.indexOf('Notificaciones') < menu.innerText.indexOf('Nueva Orden');
+      // El operario: sin "Marcar como Realizada", "Guardar cambios" es la principal.
+      usuarioRol = 'operario'; _aplicarRolUI();
+      out.guardarOperario = /linear-gradient/.test(getComputedStyle(guardar).backgroundImage);
+      usuarioRol = 'admin'; _aplicarRolUI();
+      return out;
+    });
+    check('Orden: Reportes en dos grupos (Turno y Reportes técnicos); los técnicos solo en Zipaquirá y sin repetir "Reporte"',
+      r.turno === 'actividades,temporal,dashboard,observaciones,condiciones,herramienta'
+      && r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler'
+      && !/Reporte /.test(r.nombresTecnicos) && r.tecnicosZipa !== 'none' && r.tecnicosSoacha === 'none', r);
+    check('Orden: todas las secciones arrancan con el mismo encabezado (título con ícono)', r.sinEncabezado === '', r.sinEncabezado);
+    check('Orden: una sola acción principal en las pendientes y en el editor',
+      r.accionesPendiente === 'Ver:btn-ghost | Realizada:btn-borde-ok | Completar:btn-primary' && r.guardarAdmin && r.guardarOperario,
+      { acciones: r.accionesPendiente, guardarAdmin: r.guardarAdmin, guardarOperario: r.guardarOperario });
+    check('Orden: Reparar hoja, Capacidad y Limpiar caché van plegadas en "Herramientas", al final del menú',
+      r.herramientasPlegadas && r.grupoAlFinal && r.herramientasAbiertas && r.notificacionesArriba, r);
+    await pc.ctx.close();
+
+    const cel = await nuevo({ width: 390, height: 844 });
+    const m = await cel.p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      showPanel('cronograma'); await espera(200);
+      const fila = document.querySelector('#cronGrupoTecnicos .cron-grupo-tabs');
+      out.unaFila = new Set([...fila.querySelectorAll('.inv-subtab')].map(b => b.offsetTop)).size === 1 && fila.scrollWidth > fila.clientWidth;
+      cronMostrarSubTab('presiondrycooler'); await espera(50);
+      const tab = fila.querySelector('[data-crontab="presiondrycooler"]');
+      const ft = fila.getBoundingClientRect(), tt = tab.getBoundingClientRect();
+      out.pestanaAVista = tt.left >= ft.left - 1 && tt.right <= ft.right + 1;
+      out.anchoPagina = document.documentElement.scrollWidth;
+      // Novedades: la acción va debajo del título, que no se parte en tres líneas.
+      showPanel('novedades'); await espera(100);
+      const h2 = document.querySelector('#panel-novedades .seccion-titulo'), acc = document.querySelector('#panel-novedades .seccion-acciones');
+      out.accionDebajo = acc.getBoundingClientRect().top >= h2.getBoundingClientRect().bottom - 1;
+      out.tituloAncho = Math.round(h2.getBoundingClientRect().width) >= Math.round(h2.parentElement.getBoundingClientRect().width) - 1;
+      // Tocar un grupo del menú lo despliega sin cerrar el menú.
+      toggleSidebarMovil(true); await espera(300);
+      const sb = document.getElementById('sidebarOperaciones');
+      sb.querySelector('[data-grupo="herramientas"]').click(); await espera(50);
+      out.menuSigueAbierto = sb.classList.contains('abierto') && !!sb.querySelector('[onclick="limpiarCacheLocal()"]');
+      sb.querySelector('[onclick="showPanel(\'pendientes\')"]')?.click(); await espera(50);
+      out.opcionCierra = !sb.classList.contains('abierto');
+      return out;
+    });
+    check('Orden (celular): cada grupo de Reportes es una fila que se desliza y muestra la pestaña elegida',
+      m.unaFila && m.pestanaAVista && m.anchoPagina <= 390, m);
+    check('Orden (celular): en Novedades la acción va debajo del título, que usa todo el ancho', m.accionDebajo && m.tituloAncho, m);
+    check('Orden (celular): desplegar un grupo del menú no lo cierra; elegir una opción sí', m.menuSigueAbierto && m.opcionCierra, m);
+    check('Orden: sin errores de JS', pc.errs.length === 0 && cel.errs.length === 0, { pc: pc.errs.slice(0, 2), cel: cel.errs.slice(0, 2) });
     await cel.ctx.close();
   }
 
