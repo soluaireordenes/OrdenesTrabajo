@@ -393,6 +393,28 @@ body::before {
 .field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
 .field .emp-fotos label.btn { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--brand); }
 .emp-fotos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Mantenimientos anteriores (Historial y documentos de la ficha) y la
+   revisión del Excel antes de registrarlo. */
+.emp-mant-cuenta { color: var(--text3); }
+.emp-mant-lista { max-height: 340px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.emp-mant-lista .emp-tabla th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.emp-mant-obs { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.emp-mant-vacio, .emp-mant-ayuda { font-size: 12px; color: var(--text3); line-height: 1.5; }
+.emp-mant-ayuda { margin-top: 6px; max-width: 760px; }
+.emp-mant-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.emp-mant-acciones .btn { font-size: 12px; font-weight: 600; }
+.field .emp-mant-acciones label.btn { margin: 0; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--brand); }
+.emp-mant-quitar { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px; }
+.emp-mant-quitar:hover { color: var(--danger); background: var(--estado-peligro-bg); }
+.emp-import { display: grid; gap: 8px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); font-size: 13px; color: var(--text2); }
+.emp-import.error { border-color: var(--estado-peligro-borde); background: var(--estado-peligro-bg); color: var(--estado-peligro-tx); }
+.emp-import.ok { border-color: var(--estado-ok-borde); background: var(--estado-ok-bg); color: var(--estado-ok-tx); }
+.emp-import-titulo { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.emp-import .mut { font-size: 12px; color: var(--text3); }
+.emp-import-resumen { margin: 0; padding-left: 18px; line-height: 1.6; }
+.emp-import-resumen ul { margin: 2px 0 0; padding-left: 18px; }
+.emp-import-problemas { color: var(--estado-alerta-tx); }
+.emp-import-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* ── Capacidad de las hojas (ventana de admin) ── */
 .cap-archivo { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: var(--surface); }
@@ -7174,6 +7196,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'proyGuardarAvances', 'proyNuevoProyecto', 'proyNuevoAlcance', 'proyNuevoPago',
   'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
   'agregarRecargaExtintor', 'eliminarRecargaExtintor',
+  'empRegistrarMantenimientosImportados', 'empDeshacerCargaMantenimientos', 'empEliminarMantenimiento',
 ];
 
 function _protegerContraDobleToque(nombres) {
@@ -10436,6 +10459,7 @@ const SH = {
   empalmeHallazgos: 'EmpalmeHallazgos',
   empalmeFotos: 'EmpalmeFotos',
   empalmeEvaluacion: 'EmpalmeEvaluacion',
+  empalmeMantenimientos: 'EmpalmeMantenimientos',
   alertas: 'Alertas',
   rachaNovedades: 'RachaNovedades',
   cronogramaRegistros: 'CronogramaRegistros',
@@ -24106,6 +24130,196 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
 }
 
 /* ══════════════════════════════════════════════
+   LECTOR DE EXCEL (.xlsx) Y CSV
+   Para cargar listas desde un archivo sin depender de una librería de
+   internet: la app se usa en planta, muchas veces sin señal. Un .xlsx es un
+   .zip con XML adentro: se abre el zip, cada parte se descomprime con
+   DecompressionStream y se leen las celdas. Las celdas con formato de fecha
+   salen como 'YYYY-MM-DD'. El .xls de Excel 97-2003 no se puede leer así:
+   se pide guardarlo como .xlsx o CSV.
+══════════════════════════════════════════════ */
+const ARCHIVO_TABLA_MAX_MB = 15;
+
+/** Las hojas de un archivo .xlsx o .csv: [{ nombre, filas, numeros }], con
+ *  cada fila como lista de textos y su número de fila en el archivo. Las
+ *  filas vacías no vienen. */
+async function _leerHojasDeArchivo(file) {
+  if (file.size > ARCHIVO_TABLA_MAX_MB * 1024 * 1024) throw new Error(`El archivo pesa más de ${ARCHIVO_TABLA_MAX_MB} MB.`);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes[0] === 0x50 && bytes[1] === 0x4B) return _leerXlsx(bytes);
+  if (bytes[0] === 0xD0 && bytes[1] === 0xCF) {
+    throw new Error('Ese archivo es de Excel 97-2003 (.xls). Ábrelo en Excel y guárdalo como "Libro de Excel (.xlsx)" o como CSV.');
+  }
+  // CSV: Excel lo guarda en UTF-8 ("CSV UTF-8") o en la codificación de Windows.
+  let texto;
+  try { texto = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch (_) { texto = new TextDecoder('windows-1252').decode(bytes); }
+  return [_soloFilasConDatos(file.name || '', _leerCsv(texto))];
+}
+
+function _soloFilasConDatos(nombre, filas) {
+  const out = { nombre, filas: [], numeros: [] };
+  filas.forEach((f, i) => {
+    if (!f || !f.some(c => String(c ?? '').trim())) return;
+    out.filas.push(Array.from(f, c => String(c ?? '').trim()));
+    out.numeros.push(i + 1);
+  });
+  return out;
+}
+
+/** Texto CSV → filas. El separador (punto y coma, coma o tabulador) se toma
+ *  de la primera línea; respeta las comillas. */
+function _leerCsv(texto) {
+  texto = String(texto || '').replace(/^﻿/, '');
+  const primera = texto.split(/\r?\n/, 1)[0] || '';
+  const sep = [';', ',', '\t'].map(s => [s, primera.split(s).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const filas = [];
+  let fila = [], campo = '', comillas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (comillas) {
+      if (c !== '"') campo += c;
+      else if (texto[i + 1] === '"') { campo += '"'; i++; }
+      else comillas = false;
+    } else if (c === '"') comillas = true;
+    else if (c === sep) { fila.push(campo); campo = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && texto[i + 1] === '\n') i++;
+      fila.push(campo); filas.push(fila); fila = []; campo = '';
+    } else campo += c;
+  }
+  if (campo !== '' || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas;
+}
+
+/** Abre un .zip: devuelve leer(ruta) → texto de esa parte (o null). */
+function _abrirZip(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // El fin del directorio central se busca desde el final (puede llevar un comentario).
+  let fin = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+  }
+  if (fin < 0) throw new Error('No se pudo abrir el archivo: no parece un Excel (.xlsx).');
+  const dec = new TextDecoder();
+  const entradas = {};
+  let p = dv.getUint32(fin + 16, true);
+  for (let n = dv.getUint16(fin + 10, true); n > 0 && p + 46 <= bytes.length && dv.getUint32(p, true) === 0x02014b50; n--) {
+    const largoNombre = dv.getUint16(p + 28, true);
+    const nombre = dec.decode(bytes.subarray(p + 46, p + 46 + largoNombre));
+    entradas[nombre.toLowerCase()] = { metodo: dv.getUint16(p + 10, true), tam: dv.getUint32(p + 20, true), local: dv.getUint32(p + 42, true) };
+    p += 46 + largoNombre + dv.getUint16(p + 30, true) + dv.getUint16(p + 32, true);
+  }
+  return async ruta => {
+    const e = entradas[String(ruta).replace(/^\//, '').toLowerCase()];
+    if (!e) return null;
+    const inicio = e.local + 30 + dv.getUint16(e.local + 26, true) + dv.getUint16(e.local + 28, true);
+    const datos = bytes.subarray(inicio, inicio + e.tam);
+    if (e.metodo === 0) return dec.decode(datos);
+    if (e.metodo !== 8) throw new Error('El archivo usa una compresión que la app no lee. Guárdalo de nuevo desde Excel.');
+    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador no puede abrir archivos de Excel. Actualízalo o guarda el archivo como CSV.');
+    return new Response(new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+}
+
+/** Un número de fecha de Excel (días desde 1900, o 1904 en libros de Mac
+ *  antiguos) → 'YYYY-MM-DD'. */
+function _fechaDeSerialExcel(n, es1904) {
+  if (!isFinite(n)) return '';
+  const d = new Date((es1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30)) + Math.round(n * 86400000));
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+}
+
+async function _leerXlsx(bytes) {
+  const leer = _abrirZip(bytes);
+  const xml = async ruta => { const t = await leer(ruta); return t == null ? null : new DOMParser().parseFromString(t, 'application/xml'); };
+  const todos = (nodo, nombre) => nodo ? [...nodo.getElementsByTagNameNS('*', nombre)] : [];
+  const hijos = (nodo, nombre) => [...nodo.children].filter(x => x.localName === nombre);
+  const libro = await xml('xl/workbook.xml');
+  if (!libro) throw new Error('No se pudo abrir el archivo: no parece un Excel (.xlsx).');
+  const es1904 = todos(libro, 'workbookPr').some(w => ['1', 'true'].includes(w.getAttribute('date1904')));
+  const rels = {};
+  todos(await xml('xl/_rels/workbook.xml.rels'), 'Relationship').forEach(r => { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+  // Textos compartidos (sin la guía fonética <rPh> que agrega Excel en japonés).
+  const textos = todos(await xml('xl/sharedStrings.xml'), 'si').map(si =>
+    todos(si, 't').filter(t => t.parentElement?.localName !== 'rPh').map(t => t.textContent).join(''));
+  // Qué estilos de celda son fechas: los formatos de fecha que trae Excel y
+  // los propios del libro que llevan día o año.
+  const estilos = await xml('xl/styles.xml');
+  const formatos = {};
+  todos(estilos, 'numFmt').forEach(f => { formatos[f.getAttribute('numFmtId')] = f.getAttribute('formatCode') || ''; });
+  const xfs = todos(estilos, 'cellXfs').slice(0, 1).flatMap(c => hijos(c, 'xf')).map(x => x.getAttribute('numFmtId') || '0');
+  const esFecha = id => {
+    const n = Number(id);
+    if ((n >= 14 && n <= 22) || (n >= 27 && n <= 36) || (n >= 45 && n <= 47) || (n >= 50 && n <= 58)) return true;
+    return /[dy]/i.test(String(formatos[id] || '').replace(/"[^"]*"|\[[^\]]*\]|\\./g, ''));
+  };
+  const hojas = [];
+  for (const s of todos(libro, 'sheet')) {
+    const rid = s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || s.getAttribute('r:id');
+    const destino = rels[rid];
+    if (!destino) continue;
+    const doc = await xml(destino.startsWith('/') ? destino : 'xl/' + destino.replace(/^\.\//, ''));
+    if (!doc) continue;
+    const filas = [];
+    todos(doc, 'row').forEach((row, i) => {
+      const fila = [];
+      let col = 0;
+      hijos(row, 'c').forEach(c => {
+        const ref = c.getAttribute('r');
+        if (ref) col = _columnaDeReferencia(ref);
+        const tipo = c.getAttribute('t');
+        const v = hijos(c, 'v')[0]?.textContent ?? '';
+        let valor = v;
+        if (tipo === 's') valor = textos[Number(v)] ?? '';
+        else if (tipo === 'inlineStr') valor = todos(c, 't').map(t => t.textContent).join('');
+        else if (tipo === 'b') valor = v === '1' ? 'VERDADERO' : 'FALSO';
+        else if (tipo === 'd') valor = v.slice(0, 10);
+        else if (!tipo && v !== '' && esFecha(xfs[Number(c.getAttribute('s') || 0)])) valor = _fechaDeSerialExcel(Number(v), es1904);
+        fila[col++] = valor;
+      });
+      filas.push([Number(row.getAttribute('r')) || i + 1, fila]);
+    });
+    const hoja = { nombre: s.getAttribute('name') || '', filas: [], numeros: [] };
+    filas.forEach(([n, f]) => {
+      const limpia = Array.from(f, c => String(c ?? '').trim());
+      if (!limpia.some(Boolean)) return;
+      hoja.filas.push(limpia); hoja.numeros.push(n);
+    });
+    hojas.push(hoja);
+  }
+  return hojas;
+}
+
+/** "AB12" → 27 (columna base cero). */
+function _columnaDeReferencia(ref) {
+  return (String(ref).match(/^[A-Za-z]+/)?.[0] || 'A').toUpperCase().split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+}
+
+/** Una fecha escrita en un archivo → 'YYYY-MM-DD' ('' si no se reconoce).
+ *  Entiende 2024-03-15, 15/03/2024 (día primero, como en Colombia; si el
+ *  segundo número pasa de 12 es mes primero), 15-mar-2024, "15 de marzo de
+ *  2024" y el número de fecha de Excel. */
+const _MESES_TEXTO = { ene: 1, jan: 1, feb: 2, mar: 3, abr: 4, apr: 4, may: 5, jun: 6, jul: 7, ago: 8, aug: 8, sep: 9, set: 9, oct: 10, nov: 11, dic: 12, dec: 12 };
+function _fechaDeTexto(valor) {
+  const s = _normBuscar(String(valor || '').trim());
+  if (!s) return '';
+  let a, m, d, r;
+  if ((r = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) [a, m, d] = [+r[1], +r[2], +r[3]];
+  else if ((r = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/))) {
+    [d, m, a] = [+r[1], +r[2], +r[3]];
+    if (m > 12 && d <= 12) [d, m] = [m, d];
+  } else if ((r = s.match(/^(\d{1,2})[\s\-/.]*(?:de\s+)?([a-z]{3,})\.?[\s\-/.]*(?:de\s+|del\s+)?(\d{2,4})\b/))) {
+    [d, m, a] = [+r[1], _MESES_TEXTO[r[2].slice(0, 3)], +r[3]];
+  } else if (/^\d{5}(\.\d+)?$/.test(s) && +s > 20000 && +s < 80000) return _fechaDeSerialExcel(+s, false);
+  else return '';
+  if (a < 100) a += a < 70 ? 2000 : 1900;
+  const f = new Date(Date.UTC(a, (m || 0) - 1, d));
+  if (!m || f.getUTCFullYear() !== a || f.getUTCMonth() !== m - 1 || f.getUTCDate() !== d) return '';
+  return a + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+/* ══════════════════════════════════════════════
    EMPALME DE ENTREGA
    Al recibir una operación que ya venía funcionando (Zipaquirá 2: planta
    montada, con compresores antiguos) queda registrado cómo se recibió: el
@@ -24169,6 +24383,9 @@ const EMPALME_ESTADOS_EVALUACION = [
 const EMPALME_EVALUACION_COLS = ['Clave','Equipo','Item','Descripcion','Estado','Observaciones','EvaluadoPor','FechaRegistro'];
 const EMPALME_HALLAZGOS_COLS = ['ID','Equipo','Descripcion','Prioridad','Estado','OrdenNumero','RegistradoPor','FechaRegistro'];
 const EMPALME_FOTOS_COLS = ['Equipo','DriveFileId','UrlVer','SubidoPor','FechaHora'];
+// Mantenimientos anteriores de cada equipo, cargados desde un Excel (Carga:
+// el lote de un mismo archivo, para poder deshacerlo).
+const EMPALME_MANTENIMIENTOS_COLS = ['ID','Equipo','Fecha','Tipo','Descripcion','Horometro','Responsable','Observaciones','Archivo','Carga','RegistradoPor','FechaRegistro'];
 const EMPALME_ESTADOS_EQUIPO = [
   { valor: 'Operativo', clase: 'operativo' },
   { valor: 'Operativo con fallas', clase: 'fallas' },
@@ -24180,7 +24397,7 @@ const EMPALME_EQUIPO_GENERAL = 'Planta (general)';
 const EMPALME_OBS_BODEGA = 'Inventario inicial — empalme de entrega';
 const EMPALME_TIPOS_PRODUCTO = ['Repuestos', 'Insumos', 'Herramienta', 'Seguridad'];
 
-let _emp = { recepcion: [], hallazgos: [], fotos: [], repuestos: [], evaluacion: [] };
+let _emp = { recepcion: [], hallazgos: [], fotos: [], repuestos: [], evaluacion: [], mantenimientos: [] };
 let _empEquipoActual = null;
 
 function _empalmeDisponible(sede) { return EMPALME_SEDES.includes(sede); }
@@ -24218,17 +24435,19 @@ async function _empCargarDatos() {
     asegurarHoja(SH.empalmeFotos, EMPALME_FOTOS_COLS),
     asegurarHoja(SH.hvdRepuestos, HVD_REPUESTOS_COLS),
     asegurarHoja(SH.empalmeEvaluacion, EMPALME_EVALUACION_COLS),
+    asegurarHoja(SH.empalmeMantenimientos, EMPALME_MANTENIMIENTOS_COLS),
   ]);
-  const [recepcion, hallazgos, fotos, repuestos, evaluacion] = await Promise.all([
+  const [recepcion, hallazgos, fotos, repuestos, evaluacion, mantenimientos] = await Promise.all([
     leerHojaGenericaCacheada(SH.empalmeRecepcion), leerHojaGenericaCacheada(SH.empalmeHallazgos),
     leerHojaGenericaCacheada(SH.empalmeFotos), leerHojaGenericaCacheada(SH.hvdRepuestos),
-    leerHojaGenericaCacheada(SH.empalmeEvaluacion),
+    leerHojaGenericaCacheada(SH.empalmeEvaluacion), leerHojaGenericaCacheada(SH.empalmeMantenimientos),
   ]);
   const equipos = new Set(_empEquiposSede(operacionActual));
   _emp = {
     recepcion: recepcion.map(f => ({ ...f })), hallazgos: hallazgos.map(h => ({ ...h })),
     fotos: fotos.map(f => ({ ...f })), repuestos: repuestos.filter(r => equipos.has(r.Equipo)).map(r => ({ ...r })),
     evaluacion: evaluacion.map(f => ({ ...f })),
+    mantenimientos: mantenimientos.filter(m => m.Equipo).map(m => ({ ...m })),
   };
 }
 
@@ -24386,7 +24605,8 @@ function empRenderFicha() {
         <input id="empf_mantDetalle" value="${esc(f.UltimoMantDetalle || '')}" placeholder="Ej: preventivo anual, contratista anterior"></div>
       <div class="field" style="margin:0;grid-column:1/-1"><label>Manuales entregados</label>
         <div class="emp-docs">${opcionesDocs.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
-      ${EMPALME_CAMPOS_FICHA.documentos.map(campo).join('')}`)}
+      ${EMPALME_CAMPOS_FICHA.documentos.map(campo).join('')}
+      ${_empHtmlBloqueMantenimientos(equipo)}`)}
     ${seccion('Repuestos', EMPALME_CAMPOS_FICHA.repuestos.map(campo).join(''))}
     ${seccion('Operación', `
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
@@ -24521,6 +24741,328 @@ async function empGuardarFicha() {
   } finally {
     btn.disabled = false;
   }
+}
+
+/* ── Mantenimientos anteriores desde un Excel ──
+   En "Historial y documentos" de la ficha, un administrador sube el Excel
+   con los mantenimientos que se le hicieron a los equipos antes del empalme
+   y quedan todos registrados de una vez (pestaña EmpalmeMantenimientos).
+   Las columnas se reconocen por su título; si el archivo trae varios
+   equipos, cada fila va al suyo. Antes de guardar se muestra qué se va a
+   registrar, qué ya estaba y qué filas tienen problemas. */
+const EMPALME_MANT_ETIQUETAS = { Equipo: 'Equipo', Fecha: 'Fecha', Tipo: 'Tipo', Descripcion: 'Descripción', Horometro: 'Horómetro', Responsable: 'Responsable', Observaciones: 'Observaciones' };
+// Palabras con que se reconoce cada columna en el título (sin tildes ni
+// mayúsculas). Si un título trae palabras de dos columnas, gana la que va
+// primero en el título: "Descripción del equipo" es la descripción.
+const EMPALME_MANT_COLUMNAS = [
+  { campo: 'Fecha', palabras: ['fecha'] },
+  { campo: 'Horometro', palabras: ['horometro', 'horas'] },
+  { campo: 'Tipo', palabras: ['tipo'], salvo: ['equipo'] },
+  { campo: 'Observaciones', palabras: ['observacion', 'nota', 'comentario'] },
+  { campo: 'Responsable', palabras: ['responsable', 'tecnico', 'realizado por', 'realizo', 'ejecutado por', 'ejecuto', 'empresa', 'contratista', 'proveedor'] },
+  { campo: 'Equipo', palabras: ['equipo', 'activo', 'maquina', 'compresor'] },
+  { campo: 'Descripcion', palabras: ['descripcion', 'actividad', 'trabajo', 'detalle', 'labor', 'tarea', 'servicio', 'mantenimiento'] },
+];
+let _empImportacion = null; // lo leído del archivo, mientras se revisa antes de registrar
+
+function _empNormTexto(s) { return _normBuscar(s).replace(/[^a-z0-9]+/g, ' ').trim(); }
+function _empNormEquipo(s) { return _normBuscar(s).replace(/[^a-z0-9]/g, ''); }
+/** Lo que hace a un mantenimiento "el mismo": equipo, fecha y qué se hizo. */
+function _empClaveMant(m) { return [m.Equipo, m.Fecha, _empNormTexto(m.Tipo), _empNormTexto(m.Descripcion)].join('|'); }
+function _empMantenimientosDe(equipo) {
+  return _emp.mantenimientos.filter(m => m.Equipo === equipo).sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || ''));
+}
+
+/** La fila de títulos (entre las 15 primeras, por si arriba hay un título
+ *  del documento) y la columna de cada dato. Hace falta Fecha y Descripción
+ *  o Tipo. */
+function _empEncabezadoMantenimientos(filas) {
+  for (let i = 0; i < Math.min(filas.length, 15); i++) {
+    const columnas = {};
+    const fechas = [];
+    filas[i].forEach((celda, j) => {
+      const h = _empNormTexto(celda);
+      if (!h || h.length > 60) return;
+      let mejor = null, pos = Infinity;
+      EMPALME_MANT_COLUMNAS.forEach(d => {
+        if ((d.salvo || []).some(w => h.includes(w))) return;
+        const p = Math.min(...d.palabras.map(w => h.indexOf(w)).filter(x => x >= 0));
+        if (p < pos) { pos = p; mejor = d; }
+      });
+      if (!mejor) return;
+      if (mejor.campo === 'Fecha') fechas.push([j, h]);
+      else if (!(mejor.campo in columnas)) columnas[mejor.campo] = j;
+    });
+    // Entre varias fechas, la del mantenimiento, no la del próximo ni la del registro.
+    if (fechas.length) columnas.Fecha = (fechas.find(([, h]) => !/proxim|siguiente|registro|creacion|program/.test(h)) || fechas[0])[0];
+    if ('Fecha' in columnas && ('Descripcion' in columnas || 'Tipo' in columnas)) return { indice: i, columnas };
+  }
+  return null;
+}
+
+/** Las filas del archivo como mantenimientos: los listos para registrar,
+ *  cuántos ya estaban y las filas con problemas. null si no se encontraron
+ *  las columnas en ninguna hoja. */
+function _empInterpretarMantenimientos(hojas, equipoActual, existentes) {
+  let hoja = null, enc = null;
+  for (const h of hojas) { enc = _empEncabezadoMantenimientos(h.filas); if (enc) { hoja = h; break; } }
+  if (!enc) return null;
+  const c = enc.columnas;
+  const conEquipo = 'Equipo' in c;
+  const porNombre = new Map(_empEquiposSede(operacionActual).map(e => [_empNormEquipo(e), e]));
+  // "CA-1" es CA1; "Compresor JOY 2" es JOY 2 si adentro hay un solo
+  // equipo, contando por palabras enteras: "JOY 20" no es JOY 2.
+  const reconocer = texto => {
+    const n = _empNormEquipo(texto);
+    if (!n) return null;
+    if (porNombre.has(n)) return porNombre.get(n);
+    const palabras = _empNormTexto(texto).split(' ');
+    const dentro = new Set();
+    palabras.forEach((_, i) => {
+      let junto = '';
+      for (let j = i; j < palabras.length; j++) { junto += palabras[j]; if (porNombre.has(junto)) dentro.add(junto); }
+    });
+    const finales = [...dentro].filter(k => ![...dentro].some(o => o !== k && o.includes(k)));
+    return finales.length === 1 ? porNombre.get(finales[0]) : null;
+  };
+  const val = (fila, campo) => (campo in c ? String(fila[c[campo]] ?? '').trim() : '');
+  const yaRegistrados = new Set((existentes || []).map(_empClaveMant));
+  const vistos = new Set();
+  const listos = [], problemas = [];
+  let repetidos = 0, duplicados = 0, equipoAnterior = '';
+  for (let i = enc.indice + 1; i < hoja.filas.length; i++) {
+    const fila = hoja.filas[i], n = hoja.numeros[i];
+    let textoEquipo = conEquipo ? val(fila, 'Equipo') : '';
+    // Celdas combinadas: el equipo queda escrito solo en la primera fila del grupo.
+    if (conEquipo) { if (textoEquipo) equipoAnterior = textoEquipo; else textoEquipo = equipoAnterior; }
+    const fechaTexto = val(fila, 'Fecha');
+    const m = {
+      Equipo: conEquipo ? reconocer(textoEquipo) : equipoActual, Fecha: _fechaDeTexto(fechaTexto),
+      Tipo: val(fila, 'Tipo'), Descripcion: val(fila, 'Descripcion'),
+      Horometro: _empNumeroPegado(val(fila, 'Horometro').replace(/[^\d.,]/g, '')),
+      Responsable: val(fila, 'Responsable'), Observaciones: val(fila, 'Observaciones'),
+    };
+    if (!fechaTexto && !m.Tipo && !m.Descripcion) continue; // totales, notas sueltas
+    if (!m.Equipo) { problemas.push({ fila: n, motivo: textoEquipo ? `el equipo "${textoEquipo}" no está en la lista de la sede` : 'no dice el equipo' }); continue; }
+    if (!m.Fecha) { problemas.push({ fila: n, motivo: fechaTexto ? `la fecha "${fechaTexto}" no se reconoce` : 'no tiene fecha' }); continue; }
+    if (!m.Tipo && !m.Descripcion) { problemas.push({ fila: n, motivo: 'no dice qué se hizo' }); continue; }
+    const clave = _empClaveMant(m);
+    if (yaRegistrados.has(clave)) { repetidos++; continue; }
+    if (vistos.has(clave)) { duplicados++; continue; }
+    vistos.add(clave);
+    listos.push(m);
+  }
+  return { hoja: hojas.length > 1 ? hoja.nombre : '', columnas: c, listos, repetidos, duplicados, problemas, sinColumnaEquipo: !conEquipo };
+}
+
+function _empFmtHorometro(h) {
+  return _esNumeroDecimal(String(h)) ? Number(h).toLocaleString('es-CO') + ' h' : String(h);
+}
+
+function _empHtmlBloqueMantenimientos(equipo) {
+  const n = _empMantenimientosDe(equipo).length;
+  return `<div class="field emp-mant" style="margin:0;grid-column:1/-1">
+    <label>Mantenimientos anteriores <span id="empf_mantCuenta" class="emp-mant-cuenta">${n ? '(' + n + ')' : ''}</span></label>
+    <div id="empf_mantLista">${_empHtmlListaMantenimientos(equipo)}</div>
+    <div class="emp-mant-acciones solo-admin">
+      <label class="btn btn-ghost"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Subir Excel de mantenimientos
+        <input type="file" accept=".xlsx,.csv,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="empLeerExcelMantenimientos(this)"></label>
+      <button type="button" class="btn btn-ghost" onclick="empFormatoMantenimientos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Formato de ejemplo</button>
+    </div>
+    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos: Fecha y Descripción o Tipo; si los tiene, Horómetro, Responsable y Observaciones. Si el archivo trae varios equipos, una columna Equipo; si no, todo queda en ${esc(equipo)}. Antes de guardar se ve qué se va a registrar.</div>
+    <div id="empf_mantImport"></div>
+  </div>`;
+}
+
+function _empHtmlListaMantenimientos(equipo) {
+  const lista = _empMantenimientosDe(equipo);
+  if (!lista.length) return '<div class="emp-mant-vacio">Todavía no hay mantenimientos registrados de este equipo.</div>';
+  const admin = esAdmin();
+  return `<div class="emp-mant-lista"><table class="emp-tabla">
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Horómetro</th><th>Responsable</th>${admin ? '<th aria-label="Quitar"></th>' : ''}</tr></thead>
+    <tbody>${lista.map(m => `<tr>
+      <td class="num">${esc(fmtFecha(m.Fecha))}</td><td>${esc(m.Tipo || '—')}</td>
+      <td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>
+      <td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td><td>${esc(m.Responsable || '—')}</td>
+      ${admin ? `<td><button type="button" class="emp-mant-quitar" title="Quitar" aria-label="Quitar el mantenimiento del ${esc(fmtFecha(m.Fecha))}" onclick="empEliminarMantenimiento(${_jsArg(m.ID)})">✕</button></td>` : ''}
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+function _empRefrescarMantenimientos() {
+  const equipo = _empEquipoActual;
+  const lista = document.getElementById('empf_mantLista');
+  if (!equipo || !lista) return;
+  lista.innerHTML = _empHtmlListaMantenimientos(equipo);
+  const n = _empMantenimientosDe(equipo).length;
+  document.getElementById('empf_mantCuenta').textContent = n ? '(' + n + ')' : '';
+}
+
+async function empLeerExcelMantenimientos(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  const equipo = _empEquipoActual;
+  const cont = document.getElementById('empf_mantImport');
+  if (!file || !equipo || !cont) return;
+  if (!esAdmin()) { alert('Solo un administrador puede cargar mantenimientos desde un archivo.'); return; }
+  _empImportacion = null;
+  cont.innerHTML = '<div class="emp-import"><div class="mut">Leyendo el archivo…</div></div>';
+  let imp;
+  try {
+    imp = _empInterpretarMantenimientos(await _leerHojasDeArchivo(file), equipo, _emp.mantenimientos);
+  } catch (e) {
+    cont.innerHTML = `<div class="emp-import error">No se pudo leer "${esc(file.name)}": ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!imp) {
+    cont.innerHTML = `<div class="emp-import error">No se encontraron las columnas en "${esc(file.name)}". El archivo necesita una fila de títulos con al menos <b>Fecha</b> y <b>Descripción</b> (o <b>Tipo</b>); si trae varios equipos, también <b>Equipo</b>. Mira el formato de ejemplo.</div>`;
+    return;
+  }
+  _empImportacion = { ...imp, archivo: file.name, equipo };
+  cont.innerHTML = _empHtmlVistaPreviaMantenimientos(_empImportacion);
+}
+
+function _empHtmlVistaPreviaMantenimientos(imp) {
+  const n = imp.listos.length;
+  const porEquipo = {};
+  imp.listos.forEach(m => { porEquipo[m.Equipo] = (porEquipo[m.Equipo] || 0) + 1; });
+  const columnas = Object.entries(imp.columnas).sort((a, b) => a[1] - b[1]).map(([campo, col]) => `${EMPALME_MANT_ETIQUETAS[campo]} (${numToCol(col)})`).join(', ');
+  const muestra = imp.listos.slice(0, 8);
+  const p = imp.problemas;
+  return `<div class="emp-import">
+    <div class="emp-import-titulo">${esc(imp.archivo)}${imp.hoja ? ` · hoja "${esc(imp.hoja)}"` : ''}</div>
+    <div class="mut">Columnas: ${esc(columnas)}${imp.sinColumnaEquipo ? ` · sin columna de equipo: todo va a <b>${esc(imp.equipo)}</b>` : ''}</div>
+    <ul class="emp-import-resumen">
+      <li><b>${n}</b> ${n === 1 ? 'mantenimiento listo' : 'mantenimientos listos'} para registrar${n ? ': ' + Object.entries(porEquipo).map(([e, k]) => `${esc(e)} (${k})`).join(', ') : ''}.</li>
+      ${imp.repetidos ? `<li>${imp.repetidos} ya ${imp.repetidos === 1 ? 'estaba registrado' : 'estaban registrados'}: no se repite${imp.repetidos === 1 ? '' : 'n'}.</li>` : ''}
+      ${imp.duplicados ? `<li>${imp.duplicados} ${imp.duplicados === 1 ? 'fila está repetida' : 'filas están repetidas'} en el archivo: se registra una sola vez.</li>` : ''}
+      ${p.length ? `<li class="emp-import-problemas">${p.length} ${p.length === 1 ? 'fila no se puede registrar' : 'filas no se pueden registrar'}:<ul>${
+        p.slice(0, 12).map(x => `<li>Fila ${x.fila}: ${esc(x.motivo)}.</li>`).join('')}${p.length > 12 ? `<li>… y ${p.length - 12} más.</li>` : ''}</ul></li>` : ''}
+    </ul>
+    ${n ? `<div style="overflow-x:auto"><table class="emp-tabla"><thead><tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Horómetro</th><th>Responsable</th></tr></thead><tbody>
+      ${muestra.map(m => `<tr><td>${esc(m.Equipo)}</td><td class="num">${esc(fmtFecha(m.Fecha))}</td><td>${esc(m.Tipo || '—')}</td><td>${esc(m.Descripcion || '—')}</td>
+        <td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td><td>${esc(m.Responsable || '—')}</td></tr>`).join('')}
+    </tbody></table></div>${n > muestra.length ? `<div class="mut">… y ${n - muestra.length} más.</div>` : ''}` : ''}
+    <div class="emp-import-acciones">
+      ${n ? `<button type="button" class="btn btn-primary" id="empMantBtnRegistrar" onclick="empRegistrarMantenimientosImportados()">Registrar ${n} ${n === 1 ? 'mantenimiento' : 'mantenimientos'}</button>` : ''}
+      <button type="button" class="btn btn-ghost" onclick="empCancelarImportacionMantenimientos()">${n ? 'Cancelar' : 'Cerrar'}</button>
+      <span id="empMantMsg" style="font-size:13px"></span>
+    </div>
+  </div>`;
+}
+
+function empCancelarImportacionMantenimientos() {
+  _empImportacion = null;
+  const cont = document.getElementById('empf_mantImport');
+  if (cont) cont.innerHTML = '';
+}
+
+async function empRegistrarMantenimientosImportados() {
+  const imp = _empImportacion;
+  if (!imp || !imp.listos.length || !esAdmin()) return;
+  const btn = document.getElementById('empMantBtnRegistrar');
+  if (btn) btn.disabled = true;
+  _empMensaje('empMantMsg', 'Registrando…');
+  try {
+    const cols = await asegurarHoja(SH.empalmeMantenimientos, EMPALME_MANTENIMIENTOS_COLS);
+    // Lo que haya registrado otro equipo mientras tanto tampoco se repite.
+    const enHoja = (await leerHojaGenerica(SH.empalmeMantenimientos)).filter(m => m.Equipo);
+    const claves = new Set(enHoja.map(_empClaveMant));
+    const carga = 'C' + Date.now().toString(36).toUpperCase();
+    const ahora = new Date().toISOString();
+    const nuevos = imp.listos.filter(m => !claves.has(_empClaveMant(m))).map((m, i) => ({
+      ID: carga + '-' + String(i + 1).padStart(4, '0'), ...m,
+      Archivo: imp.archivo, Carga: carga, RegistradoPor: _empQuien(), FechaRegistro: ahora,
+    }));
+    // Todos en una sola petición, sin importar cuántos sean.
+    if (nuevos.length) await appendHoja(SH.empalmeMantenimientos, nuevos.map(m => _filaSegunEncabezados(cols, m)));
+    _emp.mantenimientos = enHoja.concat(nuevos);
+    const fichas = await _empActualizarUltimoMantenimiento(nuevos);
+    _empImportacion = null;
+    const porEquipo = new Set(nuevos.map(m => m.Equipo)).size;
+    document.getElementById('empf_mantImport').innerHTML = `<div class="emp-import ok">
+      <div><b>${nuevos.length}</b> ${nuevos.length === 1 ? 'mantenimiento registrado' : 'mantenimientos registrados'}${porEquipo > 1 ? ` en ${porEquipo} equipos` : ''}${
+        fichas ? `; el último mantenimiento quedó en la ficha de ${fichas === 1 ? '1 equipo' : fichas + ' equipos'}` : ''}.</div>
+      ${nuevos.length ? `<div class="emp-import-acciones"><button type="button" class="btn btn-ghost" onclick="empDeshacerCargaMantenimientos(${_jsArg(carga)})">Deshacer esta carga</button></div>` : ''}
+    </div>`;
+    _empRefrescarMantenimientos();
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    _empMensaje('empMantMsg', 'No se pudo registrar: ' + e.message, 'error');
+  }
+}
+
+/** La fecha y el detalle de "Último mantenimiento" de cada ficha pasan al
+ *  más reciente de lo cargado, si es más nuevo que lo que tenía. Devuelve a
+ *  cuántos equipos se les cambió. */
+async function _empActualizarUltimoMantenimiento(nuevos) {
+  const ultimo = {};
+  nuevos.forEach(m => { if (!ultimo[m.Equipo] || m.Fecha > ultimo[m.Equipo].Fecha) ultimo[m.Equipo] = m; });
+  const cambios = {};
+  Object.entries(ultimo).forEach(([equipo, m]) => {
+    const f = _empFicha(equipo);
+    if (f?.UltimoMantFecha && f.UltimoMantFecha >= m.Fecha) return;
+    cambios[equipo] = { UltimoMantFecha: m.Fecha, UltimoMantDetalle: [m.Tipo || m.Descripcion, m.Responsable].filter(Boolean).join(' — ').slice(0, 140) };
+  });
+  if (!Object.keys(cambios).length) return 0;
+  await _actualizarFilasPorClaveEnLote(SH.empalmeRecepcion, EMPALME_RECEPCION_COLS, 'Equipo', cambios);
+  Object.entries(cambios).forEach(([equipo, datos]) => {
+    const f = _empFicha(equipo);
+    if (f) Object.assign(f, datos); else _emp.recepcion.push({ Equipo: equipo, ...datos });
+    if (equipo === _empEquipoActual) {
+      const fecha = document.getElementById('empf_mantFecha'), detalle = document.getElementById('empf_mantDetalle');
+      if (fecha) fecha.value = datos.UltimoMantFecha;
+      if (detalle) detalle.value = datos.UltimoMantDetalle;
+    }
+  });
+  return Object.keys(cambios).length;
+}
+
+async function empDeshacerCargaMantenimientos(carga) {
+  if (!esAdmin()) return;
+  const cuantos = _emp.mantenimientos.filter(m => m.Carga === carga).length;
+  if (!(await confirmarAccion({
+    titulo: `¿Quitar ${cuantos === 1 ? 'el mantenimiento' : 'los ' + cuantos + ' mantenimientos'} de esta carga?`,
+    texto: 'Se borran del registro. La fecha de último mantenimiento de las fichas se queda como está.',
+    aceptar: 'Quitar la carga', peligro: true }))) return;
+  try {
+    await eliminarFilasDondeCumple(SH.empalmeMantenimientos, f => f.Carga === carga);
+    _emp.mantenimientos = _emp.mantenimientos.filter(m => m.Carga !== carga);
+    document.getElementById('empf_mantImport').innerHTML = `<div class="emp-import">Se quitó la carga (${cuantos} ${cuantos === 1 ? 'mantenimiento' : 'mantenimientos'}).</div>`;
+    _empRefrescarMantenimientos();
+  } catch (e) {
+    alert('No se pudo quitar la carga: ' + e.message);
+  }
+}
+
+async function empEliminarMantenimiento(id) {
+  if (!esAdmin()) return;
+  const m = _emp.mantenimientos.find(x => x.ID === id);
+  if (!m) return;
+  if (!(await confirmarAccion({ titulo: '¿Quitar este mantenimiento?', texto: fmtFecha(m.Fecha) + ' · ' + (m.Tipo || m.Descripcion), aceptar: 'Quitar', peligro: true }))) return;
+  try {
+    await eliminarFilasDondeCumple(SH.empalmeMantenimientos, f => f.ID === id);
+    _emp.mantenimientos = _emp.mantenimientos.filter(x => x.ID !== id);
+    _empRefrescarMantenimientos();
+  } catch (e) {
+    alert('No se pudo quitar: ' + e.message);
+  }
+}
+
+/** Un CSV de ejemplo con las columnas que se reconocen (Excel lo abre). */
+function empFormatoMantenimientos() {
+  const equipo = _empEquipoActual || _empEquiposSede(operacionActual)[0] || 'Equipo';
+  const filas = [
+    ['Equipo', 'Fecha', 'Tipo', 'Descripción', 'Horómetro', 'Responsable', 'Observaciones'],
+    [equipo, '15/03/2024', 'Preventivo', 'Cambio de filtros de aire y aceite', '42500', 'Contratista anterior', ''],
+    [equipo, '02/09/2024', 'Correctivo', 'Cambio de sello del enfriador', '44010', 'Contratista anterior', 'Fuga en el enfriador'],
+  ];
+  const celda = v => (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
+  const blob = new Blob(['﻿' + filas.map(f => f.map(celda).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'formato-mantenimientos.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function empSubirFoto(input) {
@@ -24960,15 +25502,20 @@ function _htmlActaEmpalme(sede, bodega) {
     const llenos = camposDetalle.filter(c => String(f[c.col] || '').trim());
     const ev = _empEvaluacion(e);
     const items = compresores.has(e) ? EMPALME_EVALUACION_COMPRESORES.filter(i => ev[i.id]?.Estado || ev[i.id]?.Observaciones) : [];
-    if (!llenos.length && !items.length) return '';
+    // Los mantenimientos anteriores cargados del Excel: cuántos y de qué fechas.
+    const mants = _empMantenimientosDe(e);
+    const filaMants = mants.length ? `<tr><th>Mantenimientos anteriores registrados</th><td>${mants.length}${mants.length > 1
+      ? `, del ${esc(fmtFecha(mants[mants.length - 1].Fecha))} al ${esc(fmtFecha(mants[0].Fecha))}` : `, del ${esc(fmtFecha(mants[0].Fecha))}`}</td></tr>` : '';
+    if (!llenos.length && !items.length && !filaMants) return '';
     return `<div class="equipo-detalle">
       <div class="grupo">${esc(e)}${f.Estado ? ' · ' + esc(f.Estado) : ''}</div>
-      ${llenos.length ? `<table class="kv"><tbody>${llenos.map(c => `<tr><th>${esc(c.label)}</th><td style="white-space:pre-line">${esc(f[c.col])}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${llenos.length || filaMants ? `<table class="kv"><tbody>${llenos.map(c => `<tr><th>${esc(c.label)}</th><td style="white-space:pre-line">${esc(f[c.col])}</td></tr>`).join('')}${filaMants}</tbody></table>` : ''}
       ${items.length ? `<table><thead><tr><th>Evaluación técnica</th><th style="width:12%">Estado</th><th style="width:38%">Observaciones</th></tr></thead><tbody>
         ${items.map(i => `<tr><td>${esc(i.texto)}</td><td>${v(ev[i.id].Estado)}</td><td>${v(ev[i.id].Observaciones)}</td></tr>`).join('')}</tbody></table>` : ''}
     </div>`;
   }).join('');
   const evaluados = equipos.filter(e => compresores.has(e) && EMPALME_EVALUACION_COMPRESORES.every(i => _empEvaluacion(e)[i.id]?.Estado)).length;
+  const mantenimientos = _emp.mantenimientos.filter(m => equipos.includes(m.Equipo)).length;
 
   const tablaHallazgos = hallazgos.length
     ? `<table><thead><tr><th style="width:10%">Prioridad</th><th style="width:15%">Equipo</th><th>Qué se encontró</th><th style="width:16%">Estado</th></tr></thead><tbody>
@@ -25031,6 +25578,7 @@ function _htmlActaEmpalme(sede, bodega) {
   <div class="dato"><b>${bodega ? bodega.length : '—'}</b>productos en bodega</div>
   <div class="dato"><b>${sinRecibir}</b>equipos sin recibir</div>
   ${compresores.size ? `<div class="dato"><b>${evaluados} de ${compresores.size}</b>compresores con evaluación técnica completa</div>` : ''}
+  ${mantenimientos ? `<div class="dato"><b>${mantenimientos}</b>mantenimientos anteriores registrados</div>` : ''}
 </div>
 
 <div class="section-title">Estado de los equipos al recibir</div>
