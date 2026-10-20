@@ -384,6 +384,10 @@ body::before {
 .emp-equipo span:first-child { flex: 1; min-width: 0; }
 .emp-seccion { margin: 18px 0 10px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--brand); }
 .emp-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+/* Los textos de la ficha crecen con lo que tienen (_empAjustarAltos): se lee
+   todo sin barra de desplazamiento dentro del cuadro. */
+.field textarea.emp-texto, .emp-tabla-evaluacion textarea.emp-texto { display: block; min-height: 0; resize: none; overflow: hidden; line-height: 1.45; }
+.emp-tabla-evaluacion textarea.emp-texto { width: 100%; padding: 5px 7px; border-radius: 6px; font-size: 12px; }
 .emp-tabla-evaluacion { min-width: 640px; }
 .emp-tabla-evaluacion td:first-child { min-width: 240px; }
 .emp-docs { display: flex; flex-wrap: wrap; gap: 8px 18px; }
@@ -396,8 +400,8 @@ body::before {
 /* Mantenimientos anteriores (Historial y documentos de la ficha) y la
    revisión del Excel antes de registrarlo. */
 .emp-mant-cuenta { color: var(--text3); }
-.emp-mant-lista { max-height: 340px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
-.emp-mant-lista .emp-tabla th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+/* Todos los mantenimientos a la vista, sin barra propia: la página baja. */
+.emp-mant-lista { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
 .emp-mant-vacio, .emp-mant-ayuda { font-size: 12px; color: var(--text3); line-height: 1.5; }
 .emp-mant-ayuda { margin-top: 6px; max-width: 760px; }
 .emp-mant-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
@@ -24343,7 +24347,8 @@ const EMPALME_CAMPOS_FICHA = {
     { col: 'TorreEnfriamiento', label: 'Torre de enfriamiento a la que está conectado' },
   ],
   historial: [
-    { col: 'HojaVida', label: 'Hoja de vida', ayuda: 'Mantenimientos previos, fallas registradas', largo: true },
+    // La que más texto lleva: arranca más alta (y como todas, crece con lo que tenga).
+    { col: 'HojaVida', label: 'Hoja de vida', ayuda: 'Mantenimientos previos, fallas registradas', largo: true, filas: 6 },
     { col: 'MantMayores', label: 'Registros de mantenimientos mayores', ayuda: 'Motores, cooler, limpiezas aerodinámicas', largo: true },
   ],
   documentos: [
@@ -24581,9 +24586,9 @@ function empRenderFicha() {
   // Lo marcado con opciones de antes se sigue viendo, para no perderlo al guardar.
   const opcionesDocs = [...EMPALME_DOCUMENTOS, ...docs.filter(d => !EMPALME_DOCUMENTOS.includes(d))];
   const fotos = _emp.fotos.filter(x => x.Equipo === equipo);
-  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label>${c.largo
-    ? `<textarea id="empf_${c.col}" class="empf-campo" data-col="${c.col}" rows="2" placeholder="${esc(c.ayuda || '')}">${esc(f[c.col] || '')}</textarea>`
-    : `<input id="empf_${c.col}" class="empf-campo" data-col="${c.col}" value="${esc(f[c.col] || '')}" placeholder="${esc(c.ayuda || '')}">`}</div>`;
+  // Todos son cuadros de texto que crecen con lo que tienen: los cortos
+  // arrancan de una línea y, si el texto no cabe, bajan en vez de cortarse.
+  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label><textarea id="empf_${c.col}" class="empf-campo emp-texto" data-col="${c.col}" rows="${c.filas || (c.largo ? 3 : 1)}" placeholder="${esc(c.ayuda || '')}">${esc(f[c.col] || '')}</textarea></div>`;
   const seccion = (titulo, contenido) => `<div class="emp-seccion">${esc(titulo)}</div><div class="emp-campos">${contenido}</div>`;
   cont.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
@@ -24601,7 +24606,7 @@ function empRenderFicha() {
       <div class="field" style="margin:0"><label for="empf_mantFecha">Último mantenimiento: fecha</label>
         <input id="empf_mantFecha" type="date" value="${esc(f.UltimoMantFecha || '')}"></div>
       <div class="field" style="margin:0"><label for="empf_mantDetalle">Último mantenimiento: tipo y responsable</label>
-        <input id="empf_mantDetalle" value="${esc(f.UltimoMantDetalle || '')}" placeholder="Ej: preventivo anual, contratista anterior"></div>
+        <textarea id="empf_mantDetalle" class="emp-texto" rows="1" placeholder="Ej: preventivo anual, contratista anterior">${esc(f.UltimoMantDetalle || '')}</textarea></div>
       <div class="field" style="margin:0;grid-column:1/-1"><label>Manuales entregados</label>
         <div class="emp-docs">${opcionesDocs.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
       ${EMPALME_CAMPOS_FICHA.documentos.map(campo).join('')}
@@ -24610,7 +24615,7 @@ function empRenderFicha() {
     ${seccion('Operación', `
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
-        <textarea id="empf_obs" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
+        <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
     ${seccion('Fotos (placa y estado general)', `
       <div style="grid-column:1/-1">
         <div class="emp-fotos" id="empf_fotos">${fotos.map(_empHtmlFoto).join('')}
@@ -24626,7 +24631,39 @@ function empRenderFicha() {
       <span id="empfMsg" style="font-size:13px"></span>
     </div>
     ${f.RecibidoPor ? `<div style="font-size:12px;color:var(--text3);margin-top:10px">Última actualización: ${esc(f.RecibidoPor)} · ${esc(_empFechaLegible(f.FechaRegistro))}</div>` : ''}`;
+  _empAjustarAltos(cont.querySelectorAll('textarea.emp-texto'));
+  _empVigilarAltos(cont);
   _empCargarMiniaturas(fotos);
+}
+
+/** Pone cada cuadro de texto de la ficha (.emp-texto) del alto de lo que
+ *  tiene, sin mover la página. Los que no se ven (ficha oculta) no se pueden
+ *  medir: se miden cuando aparecen (_empVigilarAltos). */
+function _empAjustarAltos(textos) {
+  textos = [...textos].filter(t => t.offsetWidth);
+  if (!textos.length) return;
+  const pagina = document.scrollingElement, y = pagina.scrollTop;
+  textos.forEach(t => { t.style.height = 'auto'; });
+  const altos = textos.map(t => t.scrollHeight + t.offsetHeight - t.clientHeight);
+  textos.forEach((t, i) => { t.style.height = altos[i] + 'px'; });
+  pagina.scrollTop = y;
+}
+
+/** Una sola vez por contenedor: al escribir crece el cuadro, y cuando la
+ *  ficha cambia de ancho (girar el celular, otra pestaña que la ocultaba) se
+ *  vuelven a medir todos, porque el texto parte las líneas en otro lugar. */
+let _empFichaVigilada = null;
+function _empVigilarAltos(cont) {
+  if (_empFichaVigilada === cont) return;
+  _empFichaVigilada = cont;
+  cont.addEventListener('input', e => { if (e.target.matches('textarea.emp-texto')) _empAjustarAltos([e.target]); });
+  let ancho = 0;
+  new ResizeObserver(([r]) => {
+    const w = Math.round(r.contentRect.width);
+    if (w === ancho) return;
+    ancho = w;
+    _empAjustarAltos(cont.querySelectorAll('textarea.emp-texto'));
+  }).observe(cont);
 }
 
 /** Tabla de la evaluación técnica de un compresor: cada ítem con su estado
@@ -24643,7 +24680,7 @@ function _empHtmlEvaluacion(equipo) {
             <td style="padding:6px 8px;font-size:13px">${esc(item.texto)}</td>
             <td><select data-campo="estado" aria-label="Estado: ${esc(item.texto)}"><option value="">Sin evaluar</option>${
               EMPALME_ESTADOS_EVALUACION.map(e => `<option${e.valor === fila.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></td>
-            <td><input data-campo="observaciones" aria-label="Observaciones: ${esc(item.texto)}" value="${esc(fila.Observaciones || '')}" placeholder="Valores medidos, qué se vio"></td>
+            <td><textarea data-campo="observaciones" class="emp-texto" rows="1" aria-label="Observaciones: ${esc(item.texto)}" placeholder="Valores medidos, qué se vio">${esc(fila.Observaciones || '')}</textarea></td>
           </tr>`;
         }).join('')}</tbody>
       </table>
@@ -25041,7 +25078,7 @@ async function _empActualizarUltimoMantenimiento(nuevos) {
     if (equipo === _empEquipoActual) {
       const fecha = document.getElementById('empf_mantFecha'), detalle = document.getElementById('empf_mantDetalle');
       if (fecha) fecha.value = datos.UltimoMantFecha;
-      if (detalle) detalle.value = datos.UltimoMantDetalle;
+      if (detalle) { detalle.value = datos.UltimoMantDetalle; _empAjustarAltos([detalle]); }
     }
   });
   return Object.keys(cambios).length;
