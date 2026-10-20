@@ -2289,8 +2289,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       };
     });
     out.anexos = fake.peticiones.slice(antes).filter(x => /EmpalmeMantenimientos/.test(x.ruta) && /:append/.test(x.ruta)).length;
-    const hoja = fake.hoja(id, 'EmpalmeMantenimientos');
-    const ficha = fake.hoja(id, 'EmpalmeRecepcion');
+    // Copias: la hoja en memoria sigue cambiando con las cargas siguientes.
+    const hoja = fake.hoja(id, 'EmpalmeMantenimientos').map(f => [...f]);
+    const ficha = fake.hoja(id, 'EmpalmeRecepcion').map(f => [...f]);
     const col = (filas, nombre) => filas[0].indexOf(nombre);
     out.otraVez = await subir('historial.xlsx', excel);
     // CSV guardado por Excel en Windows (sin UTF-8), sin columna de equipo: va al equipo abierto.
@@ -2317,6 +2318,21 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       usuarioRol = 'admin'; _aplicarRolUI();
       return { acta: /Mantenimientos anteriores registrados<\/th><td>2, del 15\/03\/2024 al 02\/09\/2024/.test(acta) && /<b>3<\/b>mantenimientos anteriores registrados/.test(acta), operario };
     });
+    // Como los archivos del empalme: solo equipo, fecha y descripción, con
+    // los títulos en mayúscula. Las tablas no muestran columnas vacías.
+    out.sencillo = await subir('mantenimientos.xlsx', xlsxDePrueba([
+      ['EQUIPOS', 'FECHA', 'DESCRIPCIÓN'],
+      ['CB1', { n: 45200 }, 'Cambio de rodamientos del motor'],
+      ['CB1', '10/08/2024', 'Limpieza de radiador'],
+      ['JOY 3', '05/05/2024', 'Cambio de aceite'],
+    ]));
+    out.sencilloTablas = await p.evaluate(async () => {
+      const vista = [...document.querySelectorAll('#empf_mantImport thead th')].map(th => th.textContent).join(',');
+      await empRegistrarMantenimientosImportados();
+      empSeleccionarEquipo('CB1');
+      return { vista, lista: [...document.querySelectorAll('#empf_mantLista thead th')].map(th => th.textContent).join(','),
+        filas: document.querySelectorAll('#empf_mantLista tbody tr').length, ultimo: document.getElementById('empf_mantDetalle').value };
+    });
     check('Empalme: el Excel de mantenimientos se lee (título arriba, fechas de Excel y escritas, equipo en celdas combinadas) y dice qué se registra y qué no',
       /3 mantenimientos listos para registrar: JOY 2 \(2\), JOY 21 \(1\)/.test(out.vista) && /1 fila está repetida en el archivo/.test(out.vista)
       && /Fila 7: el equipo "JOY 20" no está en la lista de la sede/.test(out.vista) && /Fila 8: no tiene fecha/.test(out.vista)
@@ -2339,6 +2355,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /Excel 97-2003 \(\.xls\).*\.xlsx/.test(out.xls) && out.final.acta
       && out.final.operario.subir === 'none' && out.final.operario.quitar === 0 && out.final.operario.lista === 2,
       { xls: out.xls, final: out.final });
+    check('Empalme: un archivo con solo EQUIPOS, FECHA y DESCRIPCIÓN se registra, sin columnas vacías en las tablas',
+      /Columnas: Equipo \(A\), Fecha \(B\), Descripción \(C\)/.test(out.sencillo) && /3 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(1\)/.test(out.sencillo)
+      && out.sencilloTablas.vista === 'Equipo,Fecha,Descripción' && out.sencilloTablas.lista === 'Fecha,Descripción,'
+      && out.sencilloTablas.filas === 2 && out.sencilloTablas.ultimo === 'Limpieza de radiador',
+      { vista: out.sencillo, tablas: out.sencilloTablas });
     check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }

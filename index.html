@@ -24869,23 +24869,33 @@ function _empHtmlBloqueMantenimientos(equipo) {
         <input type="file" accept=".xlsx,.csv,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="empLeerExcelMantenimientos(this)"></label>
       <button type="button" class="btn btn-ghost" onclick="empFormatoMantenimientos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Formato de ejemplo</button>
     </div>
-    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos: Fecha y Descripción o Tipo; si los tiene, Horómetro, Responsable y Observaciones. Si el archivo trae varios equipos, una columna Equipo; si no, todo queda en ${esc(equipo)}. Antes de guardar se ve qué se va a registrar.</div>
+    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos. Basta con <b>Equipo</b>, <b>Fecha</b> y <b>Descripción</b> (sin la columna Equipo, todo queda en ${esc(equipo)}); si el archivo trae Tipo, Horómetro, Responsable u Observaciones, también se guardan. Antes de registrar se ve qué entra.</div>
     <div id="empf_mantImport"></div>
   </div>`;
+}
+
+/** Tabla de mantenimientos. Tipo, Horómetro y Responsable salen solo si
+ *  alguno los trae: muchos archivos tienen apenas equipo, fecha y
+ *  descripción, y no tiene caso una columna llena de rayas. */
+function _empTablaMantenimientos(lista, { conEquipo = false, quitar = false } = {}) {
+  const hay = campo => lista.some(m => String(m[campo] || '').trim());
+  const cols = [
+    conEquipo && { titulo: 'Equipo', celda: m => `<td>${esc(m.Equipo)}</td>` },
+    { titulo: 'Fecha', celda: m => `<td class="num">${esc(fmtFecha(m.Fecha))}</td>` },
+    hay('Tipo') && { titulo: 'Tipo', celda: m => `<td>${esc(m.Tipo || '—')}</td>` },
+    { titulo: 'Descripción', celda: m => `<td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>` },
+    hay('Horometro') && { titulo: 'Horómetro', celda: m => `<td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td>` },
+    hay('Responsable') && { titulo: 'Responsable', celda: m => `<td>${esc(m.Responsable || '—')}</td>` },
+    quitar && { titulo: '', celda: m => `<td><button type="button" class="emp-mant-quitar" title="Quitar" aria-label="Quitar el mantenimiento del ${esc(fmtFecha(m.Fecha))}" onclick="empEliminarMantenimiento(${_jsArg(m.ID)})">✕</button></td>` },
+  ].filter(Boolean);
+  return `<table class="emp-tabla"><thead><tr>${cols.map(c => c.titulo ? `<th>${c.titulo}</th>` : '<th aria-label="Quitar"></th>').join('')}</tr></thead>
+    <tbody>${lista.map(m => `<tr>${cols.map(c => c.celda(m)).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
 function _empHtmlListaMantenimientos(equipo) {
   const lista = _empMantenimientosDe(equipo);
   if (!lista.length) return '<div class="emp-mant-vacio">Todavía no hay mantenimientos registrados de este equipo.</div>';
-  const admin = esAdmin();
-  return `<div class="emp-mant-lista"><table class="emp-tabla">
-    <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Horómetro</th><th>Responsable</th>${admin ? '<th aria-label="Quitar"></th>' : ''}</tr></thead>
-    <tbody>${lista.map(m => `<tr>
-      <td class="num">${esc(fmtFecha(m.Fecha))}</td><td>${esc(m.Tipo || '—')}</td>
-      <td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>
-      <td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td><td>${esc(m.Responsable || '—')}</td>
-      ${admin ? `<td><button type="button" class="emp-mant-quitar" title="Quitar" aria-label="Quitar el mantenimiento del ${esc(fmtFecha(m.Fecha))}" onclick="empEliminarMantenimiento(${_jsArg(m.ID)})">✕</button></td>` : ''}
-    </tr>`).join('')}</tbody></table></div>`;
+  return `<div class="emp-mant-lista">${_empTablaMantenimientos(lista, { quitar: esAdmin() })}</div>`;
 }
 
 function _empRefrescarMantenimientos() {
@@ -24938,10 +24948,7 @@ function _empHtmlVistaPreviaMantenimientos(imp) {
       ${p.length ? `<li class="emp-import-problemas">${p.length} ${p.length === 1 ? 'fila no se puede registrar' : 'filas no se pueden registrar'}:<ul>${
         p.slice(0, 12).map(x => `<li>Fila ${x.fila}: ${esc(x.motivo)}.</li>`).join('')}${p.length > 12 ? `<li>… y ${p.length - 12} más.</li>` : ''}</ul></li>` : ''}
     </ul>
-    ${n ? `<div style="overflow-x:auto"><table class="emp-tabla"><thead><tr><th>Equipo</th><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Horómetro</th><th>Responsable</th></tr></thead><tbody>
-      ${muestra.map(m => `<tr><td>${esc(m.Equipo)}</td><td class="num">${esc(fmtFecha(m.Fecha))}</td><td>${esc(m.Tipo || '—')}</td><td>${esc(m.Descripcion || '—')}</td>
-        <td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td><td>${esc(m.Responsable || '—')}</td></tr>`).join('')}
-    </tbody></table></div>${n > muestra.length ? `<div class="mut">… y ${n - muestra.length} más.</div>` : ''}` : ''}
+    ${n ? `<div style="overflow-x:auto">${_empTablaMantenimientos(muestra, { conEquipo: true })}</div>${n > muestra.length ? `<div class="mut">… y ${n - muestra.length} más.</div>` : ''}` : ''}
     <div class="emp-import-acciones">
       ${n ? `<button type="button" class="btn btn-primary" id="empMantBtnRegistrar" onclick="empRegistrarMantenimientosImportados()">Registrar ${n} ${n === 1 ? 'mantenimiento' : 'mantenimientos'}</button>` : ''}
       <button type="button" class="btn btn-ghost" onclick="empCancelarImportacionMantenimientos()">${n ? 'Cancelar' : 'Cerrar'}</button>
@@ -25048,13 +25055,13 @@ async function empEliminarMantenimiento(id) {
   }
 }
 
-/** Un CSV de ejemplo con las columnas que se reconocen (Excel lo abre). */
+/** Un CSV de ejemplo con las tres columnas que bastan (Excel lo abre). */
 function empFormatoMantenimientos() {
   const equipo = _empEquipoActual || _empEquiposSede(operacionActual)[0] || 'Equipo';
   const filas = [
-    ['Equipo', 'Fecha', 'Tipo', 'Descripción', 'Horómetro', 'Responsable', 'Observaciones'],
-    [equipo, '15/03/2024', 'Preventivo', 'Cambio de filtros de aire y aceite', '42500', 'Contratista anterior', ''],
-    [equipo, '02/09/2024', 'Correctivo', 'Cambio de sello del enfriador', '44010', 'Contratista anterior', 'Fuga en el enfriador'],
+    ['Equipo', 'Fecha', 'Descripción'],
+    [equipo, '15/03/2024', 'Cambio de filtros de aire y aceite'],
+    [equipo, '02/09/2024', 'Cambio de sello del enfriador'],
   ];
   const celda = v => (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
   const blob = new Blob(['﻿' + filas.map(f => f.map(celda).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
