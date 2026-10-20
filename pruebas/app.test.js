@@ -139,6 +139,57 @@ function sheetsEnMemoria() {
   };
 }
 
+/** Un .xlsx mínimo (un zip con su XML), para probar el lector de Excel de la
+ *  app sin Excel. filas: listas de celdas; una celda es texto, número o
+ *  { n, estilo } (número con formato de fecha: 1 = dd/mm/yyyy propio del
+ *  libro, 2 = el de fecha corta de Excel). Las partes grandes van
+ *  comprimidas, como en un archivo de verdad. */
+function xlsxDePrueba(filas) {
+  const zlib = require('zlib');
+  const crc32 = buf => {
+    let crc = 0xFFFFFFFF;
+    for (const byte of buf) { crc ^= byte; for (let k = 0; k < 8; k++) crc = crc & 1 ? (crc >>> 1) ^ 0xEDB88320 : crc >>> 1; }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  };
+  const textos = [];
+  const indice = t => { if (!textos.includes(t)) textos.push(t); return textos.indexOf(t); };
+  const escXml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const hoja = filas.map((f, i) => (f ? `<row r="${i + 1}">${f.map((c, j) => {
+    const ref = String.fromCharCode(65 + j) + (i + 1);
+    if (c === '' || c == null) return '';
+    if (typeof c === 'number') return `<c r="${ref}"><v>${c}</v></c>`;
+    if (typeof c === 'object') return `<c r="${ref}" s="${c.estilo || 1}"><v>${c.n}</v></c>`;
+    return `<c r="${ref}" t="s"><v>${indice(c)}</v></c>`;
+  }).join('')}</row>` : '')).join('');
+  const ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+  const partes = [
+    ['xl/workbook.xml', `<workbook ${ns} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Historial" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/styles.xml', `<styleSheet ${ns}><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy;@"/></numFmts><cellXfs count="3"><xf numFmtId="0"/><xf numFmtId="164"/><xf numFmtId="14"/></cellXfs></styleSheet>`, true],
+    ['xl/worksheets/sheet1.xml', `<worksheet ${ns}><sheetData>${hoja}</sheetData></worksheet>`, true],
+  ];
+  partes.splice(2, 0, ['xl/sharedStrings.xml', `<sst ${ns}>${textos.map(t => `<si><t>${escXml(t)}</t></si>`).join('')}</sst>`, true]);
+  const locales = [], central = [];
+  let offset = 0;
+  for (const [nombre, texto, comprimir] of partes) {
+    const datos = Buffer.from('<?xml version="1.0"?>' + texto, 'utf8');
+    const comp = comprimir ? zlib.deflateRawSync(datos) : datos;
+    const n = Buffer.from(nombre);
+    const loc = Buffer.alloc(30);
+    loc.writeUInt32LE(0x04034b50, 0); loc.writeUInt16LE(20, 4); loc.writeUInt16LE(comprimir ? 8 : 0, 8);
+    loc.writeUInt32LE(crc32(datos), 14); loc.writeUInt32LE(comp.length, 18); loc.writeUInt32LE(datos.length, 22); loc.writeUInt16LE(n.length, 26);
+    const cen = Buffer.alloc(46);
+    cen.writeUInt32LE(0x02014b50, 0); cen.writeUInt16LE(20, 4); cen.writeUInt16LE(20, 6); cen.writeUInt16LE(comprimir ? 8 : 0, 10);
+    cen.writeUInt32LE(crc32(datos), 16); cen.writeUInt32LE(comp.length, 20); cen.writeUInt32LE(datos.length, 24); cen.writeUInt16LE(n.length, 28); cen.writeUInt32LE(offset, 42);
+    locales.push(loc, n, comp); central.push(cen, n);
+    offset += 30 + n.length + comp.length;
+  }
+  const cd = Buffer.concat(central);
+  const fin = Buffer.alloc(22);
+  fin.writeUInt32LE(0x06054b50, 0); fin.writeUInt16LE(partes.length, 8); fin.writeUInt16LE(partes.length, 10); fin.writeUInt32LE(cd.length, 12); fin.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locales, cd, fin]);
+}
+
 const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 
 (async () => {
@@ -582,6 +633,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         () => appendHoja(SH.empalmeHallazgos, [['H-1', 'JOY 2', 'Fuga', 'Alta', 'Abierto', '', 'Op', '2026-10-14']]),
         () => appendHoja(SH.empalmeFotos, [['JOY 2', 'F1', '', 'Op', '2026-10-14']]),
         () => _actualizarFilasPorClaveEnLote(SH.empalmeEvaluacion, EMPALME_EVALUACION_COLS, 'Clave', { 'JOY 2|aceite': { Equipo: 'JOY 2', Item: 'aceite', Estado: 'Bueno' } }),
+        // El operario abre la ficha: la pestaña de mantenimientos anteriores se crea y se lee.
+        () => asegurarHoja(SH.empalmeMantenimientos, EMPALME_MANTENIMIENTOS_COLS), () => leerHojaGenerica(SH.empalmeMantenimientos),
       ];
       for (const paso of pasos) { try { await paso(); } catch (e) { fallos.push(String(e.message).slice(0, 120)); } await new Promise(x => setTimeout(x, 250)); }
       const sedeOk = await validarClaveSedeDirecto('zipaquira', 'clave-sede');
@@ -2188,6 +2241,126 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Modo oscuro: sin fondos claros ni letra poco legible (órdenes, detalle, Histórico, inventario, herramienta y Proyectos)',
       r.hallazgos.length === 0 && r.alcances > 0, { alcances: r.alcances, hallazgos: r.hallazgos.slice(0, 12), total: r.hallazgos.length });
     check('Modo oscuro: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Empalme: los mantenimientos anteriores se suben en un Excel (o CSV)
+    // desde "Historial y documentos" de la ficha y quedan todos de una vez.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    await p.evaluate(async () => {
+      document.getElementById('loginOverlay')?.remove();
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      _aplicarRolUI();
+      await showPanel('empalme');
+      for (let i = 0; i < 80 && !document.querySelector('#empListaEquipos .emp-equipo'); i++) await new Promise(x => setTimeout(x, 100));
+      empSeleccionarEquipo('JOY 2');
+    });
+    const excel = xlsxDePrueba([
+      ['Historial de mantenimientos — compresores'], null,
+      ['Equipo', 'Fecha de mantenimiento', 'Tipo de mantenimiento', 'Descripción del trabajo', 'Horómetro (h)', 'Realizado por', 'Fecha próximo mantenimiento'],
+      ['JOY 2', { n: 45366 }, 'Preventivo', 'Cambio de filtros de aire y aceite', 42500, 'Contratista anterior', { n: 45550 }],
+      ['', '02/09/2024', 'Correctivo', 'Cambio de sello del enfriador', '44.010', 'Contratista anterior'], // equipo en celda combinada
+      ['Compresor JOY 21', { n: 45000, estilo: 2 }, 'Preventivo', 'Análisis de aceite', 61000, 'Laboratorio'],
+      ['JOY 20', { n: 45400 }, 'Preventivo', 'Revisión general', 1000, 'X'], // no existe (y no es JOY 2)
+      ['JOY 3', '', 'Preventivo', 'Sin fecha'],
+      ['JOY 3', '31/02/2024', 'Preventivo', 'Fecha imposible'],
+      ['JOY 2', { n: 45366, estilo: 2 }, 'Preventivo', 'Cambio de filtros de aire y aceite', 42500, 'Contratista anterior'], // repetida
+      ['Total'],
+    ]);
+    const entrada = '#empFicha input[type="file"][onchange^="empLeerExcelMantenimientos"]';
+    const subir = async (name, buffer) => {
+      await p.setInputFiles(entrada, { name, mimeType: 'application/octet-stream', buffer });
+      await p.waitForFunction(() => !/Leyendo/.test(document.getElementById('empf_mantImport').innerText), null, { timeout: 10000 });
+      return p.evaluate(() => document.getElementById('empf_mantImport').innerText.replace(/\s+/g, ' ').trim());
+    };
+    const out = {};
+    out.vista = await subir('historial.xlsx', excel);
+    const antes = fake.peticiones.length;
+    out.registro = await p.evaluate(async () => {
+      await empRegistrarMantenimientosImportados();
+      return {
+        msg: document.getElementById('empf_mantImport').innerText.replace(/\s+/g, ' ').trim(),
+        lista: [...document.querySelectorAll('#empf_mantLista tbody tr')].map(tr => tr.cells[0].textContent + ' ' + tr.cells[1].textContent).join(', '),
+        cuenta: document.getElementById('empf_mantCuenta').textContent,
+        ultimo: document.getElementById('empf_mantFecha').value + ' | ' + document.getElementById('empf_mantDetalle').value,
+      };
+    });
+    out.anexos = fake.peticiones.slice(antes).filter(x => /EmpalmeMantenimientos/.test(x.ruta) && /:append/.test(x.ruta)).length;
+    // Copias: la hoja en memoria sigue cambiando con las cargas siguientes.
+    const hoja = fake.hoja(id, 'EmpalmeMantenimientos').map(f => [...f]);
+    const ficha = fake.hoja(id, 'EmpalmeRecepcion').map(f => [...f]);
+    const col = (filas, nombre) => filas[0].indexOf(nombre);
+    out.otraVez = await subir('historial.xlsx', excel);
+    // CSV guardado por Excel en Windows (sin UTF-8), sin columna de equipo: va al equipo abierto.
+    out.csv = await subir('joy2.csv', Buffer.from('Fecha;Actividad;Observaciones\r\n15/01/2023;Limpieza del radiador;tensión revisada\r\n20-feb-2023;Cambio de correa;\r\n', 'latin1'));
+    out.deshacer = await p.evaluate(async () => {
+      await empRegistrarMantenimientosImportados();
+      const obs = _emp.mantenimientos.find(m => m.Descripcion === 'Limpieza del radiador')?.Observaciones;
+      const carga = _emp.mantenimientos.find(m => m.Descripcion === 'Cambio de correa')?.Carga;
+      const conCsv = _empMantenimientosDe('JOY 2').length;
+      window.confirmarAccion = async () => true;
+      await empDeshacerCargaMantenimientos(carga);
+      return { obs, conCsv, sinCsv: _empMantenimientosDe('JOY 2').length };
+    });
+    out.filasTrasDeshacer = fake.hoja(id, 'EmpalmeMantenimientos').length;
+    out.xls = await subir('viejo.xls', Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0, 0, 0, 0]));
+    out.final = await p.evaluate(() => {
+      const acta = _htmlActaEmpalme('zipaquira2', []);
+      usuarioRol = 'operario'; _aplicarRolUI(); empRenderFicha();
+      const operario = {
+        subir: getComputedStyle(document.querySelector('#empFicha .emp-mant-acciones')).display,
+        quitar: document.querySelectorAll('#empf_mantLista .emp-mant-quitar').length,
+        lista: document.querySelectorAll('#empf_mantLista tbody tr').length,
+      };
+      usuarioRol = 'admin'; _aplicarRolUI();
+      return { acta: /Mantenimientos anteriores registrados<\/th><td>2, del 15\/03\/2024 al 02\/09\/2024/.test(acta) && /<b>3<\/b>mantenimientos anteriores registrados/.test(acta), operario };
+    });
+    // Como los archivos del empalme: solo equipo, fecha y descripción, con
+    // los títulos en mayúscula. Las tablas no muestran columnas vacías.
+    out.sencillo = await subir('mantenimientos.xlsx', xlsxDePrueba([
+      ['EQUIPOS', 'FECHA', 'DESCRIPCIÓN'],
+      ['CB1', { n: 45200 }, 'Cambio de rodamientos del motor'],
+      ['CB1', '10/08/2024', 'Limpieza de radiador'],
+      ['JOY 3', '05/05/2024', 'Cambio de aceite'],
+    ]));
+    out.sencilloTablas = await p.evaluate(async () => {
+      const vista = [...document.querySelectorAll('#empf_mantImport thead th')].map(th => th.textContent).join(',');
+      await empRegistrarMantenimientosImportados();
+      empSeleccionarEquipo('CB1');
+      return { vista, lista: [...document.querySelectorAll('#empf_mantLista thead th')].map(th => th.textContent).join(','),
+        filas: document.querySelectorAll('#empf_mantLista tbody tr').length, ultimo: document.getElementById('empf_mantDetalle').value };
+    });
+    check('Empalme: el Excel de mantenimientos se lee (título arriba, fechas de Excel y escritas, equipo en celdas combinadas) y dice qué se registra y qué no',
+      /3 mantenimientos listos para registrar: JOY 2 \(2\), JOY 21 \(1\)/.test(out.vista) && /1 fila está repetida en el archivo/.test(out.vista)
+      && /Fila 7: el equipo "JOY 20" no está en la lista de la sede/.test(out.vista) && /Fila 8: no tiene fecha/.test(out.vista)
+      && /Fila 9: la fecha "31\/02\/2024" no se reconoce/.test(out.vista) && /Columnas: Equipo \(A\), Fecha \(B\), Tipo \(C\), Descripción \(D\), Horómetro \(E\), Responsable \(F\)/.test(out.vista),
+      out.vista);
+    check('Empalme: se registran todos de una vez (una sola escritura) y el último mantenimiento queda en la ficha',
+      out.anexos === 1 && hoja.length === 4 && /3 mantenimientos registrados en 2 equipos/.test(out.registro.msg)
+      && hoja.slice(1).map(f => [f[col(hoja, 'Equipo')], f[col(hoja, 'Fecha')], f[col(hoja, 'Horometro')]].join(' ')).join(', ') === 'JOY 2 2024-03-15 42500, JOY 2 2024-09-02 44010, JOY 21 2023-03-15 61000'
+      && out.registro.lista === '02/09/2024 Correctivo, 15/03/2024 Preventivo' && out.registro.cuenta === '(2)'
+      && out.registro.ultimo === '2024-09-02 | Correctivo — Contratista anterior'
+      && (ficha.find(f => f[0] === 'JOY 21') || [])[col(ficha, 'UltimoMantFecha')] === '2023-03-15',
+      { anexos: out.anexos, hoja, registro: out.registro });
+    check('Empalme: el mismo archivo otra vez no repite nada',
+      /0 mantenimientos listos para registrar/.test(out.otraVez) && /4 ya estaban registrados/.test(out.otraVez) && !/Registrar \d/.test(out.otraVez), out.otraVez);
+    check('Empalme: un CSV sin columna de equipo (codificación de Windows) va al equipo abierto, y "Deshacer esta carga" lo quita',
+      /sin columna de equipo: todo va a JOY 2/.test(out.csv) && /2 mantenimientos listos para registrar: JOY 2 \(2\)/.test(out.csv)
+      && out.deshacer.obs === 'tensión revisada' && out.deshacer.conCsv === 4 && out.deshacer.sinCsv === 2 && out.filasTrasDeshacer === 4,
+      { csv: out.csv, deshacer: out.deshacer, filas: out.filasTrasDeshacer });
+    check('Empalme: un .xls viejo pide guardarlo como .xlsx; el acta cuenta los mantenimientos; el operario los ve pero no sube ni borra',
+      /Excel 97-2003 \(\.xls\).*\.xlsx/.test(out.xls) && out.final.acta
+      && out.final.operario.subir === 'none' && out.final.operario.quitar === 0 && out.final.operario.lista === 2,
+      { xls: out.xls, final: out.final });
+    check('Empalme: un archivo con solo EQUIPOS, FECHA y DESCRIPCIÓN se registra, sin columnas vacías en las tablas',
+      /Columnas: Equipo \(A\), Fecha \(B\), Descripción \(C\)/.test(out.sencillo) && /3 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(1\)/.test(out.sencillo)
+      && out.sencilloTablas.vista === 'Equipo,Fecha,Descripción' && out.sencilloTablas.lista === 'Fecha,Descripción,'
+      && out.sencilloTablas.filas === 2 && out.sencilloTablas.ultimo === 'Limpieza de radiador',
+      { vista: out.sencillo, tablas: out.sencilloTablas });
+    check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
 
