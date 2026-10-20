@@ -1877,7 +1877,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       window.asegurarHoja = async (...a) => { escrituras++; return asegurarOriginal(...a); };
       allReportesSecadores = [{ Codigo: 'RS-1', Fecha: '2026-10-16', Hora: '6:00 a.m.', Secador: 'S', Tecnico: 'T', _row: 2 }];
       // Borrar un reporte: la ventana de la app, en rojo, con el foco en "Cancelar".
-      let pendiente = eliminarReporteSecador('RS-1'); await espera(50);
+      let pendiente = eliminarReporteSecador('RS-1'); await espera(VENTANA_PAUSA_MS + 50);
       const ventana = document.querySelector('.confirmar-fondo .confirmar-ventana');
       out.ventana = !!ventana && ventana.classList.contains('peligro');
       out.textos = ventana ? [ventana.querySelector('.confirmar-titulo').textContent, ventana.querySelector('.confirmar-texto').textContent,
@@ -1890,7 +1890,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await pendiente;
       out.escapeCancela = !document.querySelector('.confirmar-fondo') && escrituras === 0;
       // Una pregunta normal: azul, con el foco en la acción, y "sí" devuelve true.
-      const pregunta = confirmarAccion({ titulo: '¿Marcar este hallazgo como resuelto?', aceptar: 'Marcar como resuelto' }); await espera(50);
+      const pregunta = confirmarAccion({ titulo: '¿Marcar este hallazgo como resuelto?', aceptar: 'Marcar como resuelto' }); await espera(VENTANA_PAUSA_MS + 50);
       out.normal = !document.querySelector('.confirmar-ventana').classList.contains('peligro')
         && document.activeElement.classList.contains('btn-primary') && document.activeElement.textContent === 'Marcar como resuelto';
       document.activeElement.click();
@@ -1903,7 +1903,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       allOrdenes = [{ id: 'OT-77', NumeroOrden: 'OT-77', Equipo: 'CA1', Title: 'Fuga', Estado: 'Pendiente' }];
       ordenDetalleId = 'OT-77';
       const escribir = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
-      let borrar = eliminarOrdenCompleta(); await espera(50);
+      // Los botones de la ventana no responden en su primer medio segundo (doble clic).
+      let borrar = eliminarOrdenCompleta(); await espera(VENTANA_PAUSA_MS + 50);
       let form = document.querySelector('.confirmar-fondo form.confirmar-ventana');
       out.eliminarOrden = form ? [form.querySelector('.confirmar-titulo').textContent, form.querySelector('label').textContent,
         form.querySelector('[data-respuesta="si"]').textContent, form.classList.contains('peligro') ? 'rojo' : 'otro',
@@ -1922,7 +1923,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.camposAlcance = [...document.querySelectorAll('.confirmar-campos label')].map(l => l.textContent).join(' | ');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await alcance;
       out.escapeNoCrea = !document.querySelector('.confirmar-fondo') && agregado === null;
-      alcance = proyNuevoAlcance(); await espera(50);
+      alcance = proyNuevoAlcance(); await espera(VENTANA_PAUSA_MS + 50);
       const [cNombre, cValor, cHoras] = document.querySelectorAll('.confirmar-campos input');
       document.querySelector('.confirmar-fondo [data-respuesta="si"]').click(); await espera(50);
       out.faltaNombre = document.querySelector('.confirmar-error')?.textContent || '';
@@ -2030,6 +2031,163 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.encabezado === 'rgb(242, 245, 249) | rgb(2, 69, 122) | solid rgb(1, 138, 190)' && r.seccionDetalle === 'rgba(0, 0, 0, 0) | rgb(2, 69, 122)',
       { encabezado: r.encabezado, seccion: r.seccionDetalle });
     check('Inicio y encabezados: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Las ventanas de la app con el mouse de verdad: el segundo clic de un
+    // doble clic no las cierra ni las confirma, y seleccionar el texto de un
+    // campo arrastrando hasta el fondo no las cierra.
+    const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    await p.evaluate(() => {
+      document.getElementById('loginOverlay')?.remove();
+      window._respuesta = 'sin abrir';
+      const boton = document.createElement('button');
+      boton.id = 'abreVentana'; boton.textContent = 'Eliminar';
+      boton.style.cssText = 'position:fixed;left:30px;bottom:30px;z-index:8000;padding:10px';
+      boton.onclick = async () => {
+        window._respuesta = 'abierta';
+        window._respuesta = String(await confirmarAccion({ titulo: '¿Eliminar este reporte?', aceptar: 'Eliminar reporte', peligro: true }));
+      };
+      document.body.appendChild(boton);
+    });
+    const abiertas = () => p.locator('.confirmar-fondo').count();
+    const respuesta = () => p.evaluate(() => window._respuesta);
+    const out = {};
+    // Doble clic lejos de la ventana: sigue abierta; después de la pausa, Cancelar responde.
+    await p.dblclick('#abreVentana'); await p.waitForTimeout(150);
+    out.lejos = (await abiertas()) + ' ' + (await respuesta());
+    await p.waitForTimeout(600);
+    await p.click('.confirmar-fondo [data-respuesta="no"]'); await p.waitForTimeout(50);
+    out.cancelarDespues = await respuesta();
+    // El botón justo donde aparece "Eliminar reporte": el segundo clic no confirma.
+    await p.click('#abreVentana'); await p.waitForTimeout(100);
+    const caja = await p.locator('.confirmar-fondo [data-respuesta="si"]').boundingBox();
+    await p.keyboard.press('Escape'); await p.waitForTimeout(50);
+    await p.evaluate(c => Object.assign(document.getElementById('abreVentana').style,
+      { left: c.x + 'px', top: c.y + 'px', bottom: '', width: c.width + 'px', height: c.height + 'px' }), caja);
+    await p.dblclick('#abreVentana'); await p.waitForTimeout(150);
+    out.encima = (await abiertas()) + ' ' + (await respuesta());
+    await p.keyboard.press('Escape'); await p.waitForTimeout(50);
+    // Arrastrar desde el campo hasta el fondo; luego tocar afuera sí cancela.
+    await p.evaluate(() => {
+      window._datos = 'pendiente';
+      pedirDatos({ titulo: 'Nombre del proyecto', campos: [{ nombre: 'n', etiqueta: 'Nombre', valor: 'Ampliación de planta' }] })
+        .then(d => { window._datos = JSON.stringify(d); });
+    });
+    await p.waitForTimeout(600);
+    const campo = await p.locator('.confirmar-campos input').boundingBox();
+    await p.mouse.move(campo.x + campo.width - 4, campo.y + campo.height / 2); await p.mouse.down();
+    await p.mouse.move(10, campo.y + campo.height / 2, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(100);
+    out.arrastre = [await abiertas(), await p.evaluate(() => window._datos), await p.inputValue('.confirmar-campos input')].join(' | ');
+    await p.mouse.click(10, 10); await p.waitForTimeout(100);
+    out.afuera = (await abiertas()) + ' ' + (await p.evaluate(() => window._datos));
+    // La clave de sede: el doble clic sobre la sede no cierra su ventana.
+    await p.evaluate(() => {
+      window._clave = 'pendiente';
+      const b = document.getElementById('abreVentana');
+      b.onclick = async () => { window._clave = String(await _pedirClaveSede('Zipaquirá')); };
+      Object.assign(b.style, { left: '30px', top: '', bottom: '30px', width: '', height: '' });
+    });
+    await p.dblclick('#abreVentana'); await p.waitForTimeout(150);
+    out.clave = (await p.locator('#claveSedeInput').count()) + ' ' + (await p.evaluate(() => window._clave));
+    await p.keyboard.press('Escape'); await p.waitForTimeout(50);
+    out.claveEscape = await p.evaluate(() => window._clave);
+    check('Ventanas: un doble clic no las cierra ni confirma (ni con el botón justo debajo de "Eliminar"); después de la pausa responden',
+      out.lejos === '1 abierta' && out.cancelarDespues === 'false' && out.encima === '1 abierta', out);
+    check('Ventanas: arrastrar desde un campo hasta el fondo no la cierra ni borra lo escrito; tocar afuera sí cancela',
+      out.arrastre === '1 | pendiente | Ampliación de planta' && out.afuera === '0 null', out);
+    check('Ventanas: la clave de sede tampoco se cierra con un doble clic', out.clave === '1 pendiente' && out.claveEscape === 'null', out);
+    check('Ventanas: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Modo oscuro sin parches claros ni letra que no se lea: listas de
+    // órdenes, el detalle con una observación interna, el Histórico y el
+    // inventario de equipos, la herramienta incompleta, Movimientos del
+    // inventario y Proyectos con su contrato cargado.
+    const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', sheetsEnMemoria().route);
+    await ctx.addInitScript(() => { try { localStorage.setItem('tema', 'dark'); } catch (_) {} });
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      document.getElementById('loginOverlay')?.remove();
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; operacionActual = 'zipaquira';
+      currentUser = { name: 'Ana Prueba', initials: 'AP', email: 'a@x' }; _aplicarRolUI();
+      // Luminancia (WCAG) de un color tal como lo da getComputedStyle.
+      const color = c => {
+        const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null;
+        const [rr, g, bb, a = 1] = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+        const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+        return { L: 0.2126 * f(rr) + 0.7152 * f(g) + 0.0722 * f(bb), a };
+      };
+      const contraste = (x, y) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+      // Lo que se ve detrás: el primer fondo opaco hacia arriba (null con un
+      // degradado, que así no se puede medir).
+      const fondoDe = el => {
+        for (let x = el; x; x = x.parentElement) {
+          const cs = getComputedStyle(x);
+          if (/gradient/.test(cs.backgroundImage)) return null;
+          const f = color(cs.backgroundColor); if (f && f.a >= 0.5) return f.L;
+        }
+        return color(getComputedStyle(document.body).backgroundColor).L;
+      };
+      const hallazgos = [];
+      const revisar = (nombre, raiz) => {
+        raiz.querySelectorAll('*').forEach(el => {
+          if (el.closest('svg, canvas, .bandera')) return;
+          const caja = el.getBoundingClientRect(); if (caja.width < 4 || caja.height < 4) return;
+          const cs = getComputedStyle(el);
+          if (cs.visibility === 'hidden' || Number(cs.opacity) < 0.3) return;
+          const quien = el.id ? '#' + el.id : el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/)[0] : '');
+          const f = color(cs.backgroundColor);
+          if (f && f.a >= 0.5 && f.L > 0.5) { hallazgos.push(`${nombre}: fondo claro en ${quien} (${cs.backgroundColor})`); return; }
+          if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return;
+          const t = color(cs.color), fondo = fondoDe(el);
+          if (t && fondo !== null && contraste(t.L, fondo) < 3)
+            hallazgos.push(`${nombre}: letra poco legible en ${quien} "${el.textContent.trim().slice(0, 30)}" (${cs.color})`);
+        });
+      };
+      const hoy = _isoLocal(new Date());
+      allOrdenes = [
+        { id: 'P1', NumeroOrden: 'OT-P1', Title: 'Fuga en la línea', Equipo: 'CA1', Estado: 'Pendiente', Prioridad: 'Urgente', TipoMantenimiento: 'Correctivo',
+          FechaInicio: hoy, Responsable: 'Técnico Uno', tareas: [{ descripcion: 'Revisar acople', ok: false, observacionFantasma: 'No había repuesto' }] },
+        { id: 'R1', NumeroOrden: 'OT-R1', Title: 'Cambio de filtro', Equipo: 'CA2', Estado: 'Realizada', TipoMantenimiento: 'Preventivo', FechaInicio: hoy, FechaCierre: hoy },
+        { id: 'C1', NumeroOrden: 'OT-C1', Title: 'Ajuste', Equipo: 'CA1', Estado: 'Cerrada', TipoMantenimiento: 'Correctivo', FechaInicio: hoy, FechaCierre: hoy },
+      ];
+      _ultimaCargaOrdenesMs = Date.now(); // recién cargadas: se pintan sin volver a leer
+      for (const panel of ['pendientes', 'realizadas', 'lista']) {
+        showPanel(panel); await espera(200); revisar(panel, document.getElementById('panel-' + panel));
+      }
+      await verDetalle('P1'); await espera(200); revisar('detalle', document.getElementById('panel-detalle'));
+      showPanel('historico'); await espera(300); revisar('histórico', document.getElementById('panel-historico'));
+      document.getElementById('histSelectorVista').value = 'inventario'; histCambiarVista(); await espera(300);
+      _ieRenderTabla([{ Equipo: 'Extintor', Tipo: 'seguridad', Codificacion: 'EXT-1' }, { Equipo: 'Compresor', Tipo: 'operacion', Codificacion: 'CA1' }]);
+      revisar('inventario de equipos', document.getElementById('panel-historico'));
+      showPanel('cronograma'); await espera(300); cronMostrarSubTab('herramienta'); await espera(500);
+      _invhPintarEstado(INVENTARIO_HERRAMIENTA[0].items[0].n, 'incompleta');
+      revisar('herramienta', document.getElementById('panel-cronograma'));
+      await abrirInventario('zipaquira'); await espera(300); invMostrarSubTab('movimiento'); await espera(300);
+      revisar('movimientos', document.getElementById('panel-inventario'));
+      window.pedirDatos = async () => ({ nombre: 'Ampliación de planta' });
+      await abrirProyectos(); await espera(300); await proySembrarPanelGerencial(); await espera(500);
+      for (const sub of ['caja', 'avance', 'alcances']) {
+        proyMostrarSubTab(sub); await espera(300); revisar('proyectos/' + sub, document.getElementById('panel-proyectos'));
+      }
+      return { hallazgos, alcances: proyAlcances().length };
+    });
+    check('Modo oscuro: sin fondos claros ni letra poco legible (órdenes, detalle, Histórico, inventario, herramienta y Proyectos)',
+      r.hallazgos.length === 0 && r.alcances > 0, { alcances: r.alcances, hallazgos: r.hallazgos.slice(0, 12), total: r.hallazgos.length });
+    check('Modo oscuro: sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
 

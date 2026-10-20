@@ -22,6 +22,11 @@ jobs:
       - name: Sintaxis de index.html y sw.js
         run: node pruebas/sintaxis.js
 
+      - name: Análisis del código (nombres que no existen, duplicados, onclick)
+        run: |
+          npm install --no-save --no-audit --no-fund eslint@10.12.0 globals@17.12.0
+          node pruebas/analisis.js
+
       - name: Pruebas del proxy de seguridad
         run: node pruebas/worker.test.mjs
 

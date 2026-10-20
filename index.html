@@ -109,6 +109,19 @@
   --estado-peligro-bg: rgba(239,107,97,.15); --estado-peligro-tx: #f28b82; --estado-peligro-borde: rgba(239,107,97,.45);
   --estado-info-bg: rgba(58,169,216,.15);    --estado-info-tx: #7cc4ea;
 }
+/* Notas amarillas (observación interna de una tarea, consejos de un
+   formulario) y la insignia "Pendiente". En oscuro, translúcidas. */
+:root {
+  --nota-bg: #fffbea; --nota-borde: #d4a72c; --nota-tx: #7c5c00;
+}
+:root[data-theme="dark"] {
+  --nota-bg: rgba(212,167,44,.12); --nota-borde: rgba(212,167,44,.5); --nota-tx: #e2c06a;
+}
+:root[data-theme="dark"] .badge-draft { background: var(--surface2); }
+:root[data-theme="dark"] .badge-pending { background: var(--nota-bg); color: var(--nota-tx); }
+/* Fila del inventario de herramienta marcada como incompleta. */
+.fila-incompleta { background: #fff6f2; }
+:root[data-theme="dark"] .fila-incompleta { background: #2a1c15; }
 
 /* Plan de Mantenimiento: colores del Excel del cliente (punto programado y
    frecuencias trimestral / semestral / anual). En modo oscuro son
@@ -879,7 +892,7 @@ body.rol-operario .solo-admin { display: none !important; }
    descarga, así que el documento se muestra dentro de la app con un botón
    "Descargar PDF" que dispara la impresión → "Guardar como PDF". */
 .visor-doc { position: fixed; inset: 0; z-index: 4000; display: flex; flex-direction: column; background:var(--surface); }
-.visor-doc-barra { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--primary, #02457A); color: #fff; flex-shrink: 0; }
+.visor-doc-barra { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--brand); color: #fff; flex-shrink: 0; }
 .visor-doc-titulo { flex: 1; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .visor-doc-barra button { flex-shrink: 0; }
 .visor-doc-hoja { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 16px; background:var(--surface); color:var(--text); font-family: Arial, sans-serif; font-size: 12px; }
@@ -1503,11 +1516,34 @@ body.rol-operario .btn-principal-operario {
   --proy-line: rgba(16, 35, 59, .10);
   --proy-text: #1B2733;
   --proy-muted: #69758A;
+  /* La tinta sirve de fondo (portada, botones) y de letra (cifras, títulos):
+     en modo oscuro el fondo sigue oscuro y la letra se aclara, así que la
+     letra usa su propia variable. Igual el dorado oscuro de los textos. */
+  --proy-ink-tx: var(--proy-ink);
+  --proy-gold-tx: #8A6314;
   max-width: 1320px;
   margin: 0 auto;
   width: 100%;
   color: var(--proy-text);
 }
+/* Modo oscuro: la misma tinta y el mismo dorado sobre las superficies
+   oscuras de la app (antes las tarjetas quedaban blancas y los títulos en
+   azul oscuro sobre fondo oscuro). */
+:root[data-theme="dark"] .proy {
+  --proy-paper: var(--surface2);
+  --proy-panel: var(--surface);
+  --proy-line: rgba(255, 255, 255, .09);
+  --proy-text: var(--text);
+  --proy-muted: #9aa6b6;
+  --proy-slate: #93a9c2;
+  --proy-verde: #6cc596;
+  --proy-rojo: #f08a8a;
+  --proy-ink-tx: #dbe4ef;
+  --proy-gold-tx: #e3b865;
+}
+:root[data-theme="dark"] .proy-btn { background: var(--proy-ink2); border-color: rgba(255, 255, 255, .18); }
+:root[data-theme="dark"] .proy-table input:focus, :root[data-theme="dark"] .proy-table select:focus { background: rgba(184, 137, 43, .12); }
+:root[data-theme="dark"] .proy-selector select option { color: var(--text); background: var(--surface); }
 .proy .mono, .proy .num { font-variant-numeric: tabular-nums; }
 
 .proy-head {
@@ -1555,7 +1591,7 @@ body.rol-operario .btn-principal-operario {
 }
 .proy-toolbar-grupo select { min-width: 200px; cursor: pointer; }
 .proy-badge {
-  font-size: 11px; background: rgba(184, 137, 43, .14); color: #8A6314;
+  font-size: 11px; background: rgba(184, 137, 43, .14); color: var(--proy-gold-tx);
   padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;
 }
 .proy-badge:empty { display: none; }
@@ -1578,12 +1614,12 @@ body.rol-operario .btn-principal-operario {
 }
 .proy-kpi.acento { border-top: 3px solid var(--proy-gold); }
 .proy-kpi .l { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--proy-muted); margin-bottom: 8px; line-height: 1.3; }
-.proy-kpi .v { font-weight: 800; font-size: 20px; color: var(--proy-ink); font-variant-numeric: tabular-nums; }
+.proy-kpi .v { font-weight: 800; font-size: 20px; color: var(--proy-ink-tx); font-variant-numeric: tabular-nums; }
 .proy-kpi .s { font-size: 11px; color: var(--proy-muted); margin-top: 4px; }
 
 .proy-sec { margin-bottom: 28px; }
 .proy-sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
-.proy-sec-head h2 { font-size: 16px; margin: 0; color: var(--proy-ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.proy-sec-head h2 { font-size: 16px; margin: 0; color: var(--proy-ink-tx); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .proy-sec-head h2 .tag { font-size: 10px; color: var(--proy-gold); background: rgba(184, 137, 43, .1); padding: 2px 8px; border-radius: 12px; letter-spacing: .03em; font-weight: 500; }
 .proy-sec-head p { margin: 0; font-size: 12px; color: var(--proy-muted); max-width: 430px; text-align: right; }
 
@@ -1602,13 +1638,13 @@ body.rol-operario .btn-principal-operario {
 .proy-tgap { height: 18px; font-size: 11px; color: var(--proy-slate); position: relative; z-index: 1; }
 .proy-tgap .inicio { color: var(--proy-muted); font-size: 10px; }
 .proy-tdot-fila { height: 34px; display: flex; align-items: flex-end; justify-content: center; position: relative; z-index: 1; }
-.proy-tdot { width: 14px; height: 14px; border-radius: 50%; background: var(--proy-gold); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--proy-gold); }
-.proy-tfecha { margin-top: 9px; font-size: 11px; color: var(--proy-ink); white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
+.proy-tdot { width: 14px; height: 14px; border-radius: 50%; background: var(--proy-gold); border: 3px solid var(--proy-panel); box-shadow: 0 0 0 1px var(--proy-gold); }
+.proy-tfecha { margin-top: 9px; font-size: 11px; color: var(--proy-ink-tx); white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
 .proy-tmonto { margin-top: 2px; font-size: 10px; color: var(--proy-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* Tablas */
 .proy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.proy-table thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--proy-muted); border-bottom: 2px solid var(--proy-ink); padding: 0 10px 10px; white-space: nowrap; }
+.proy-table thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--proy-muted); border-bottom: 2px solid var(--proy-ink-tx); padding: 0 10px 10px; white-space: nowrap; }
 .proy-table tbody td { padding: 9px 10px; border-bottom: 1px solid var(--proy-line); vertical-align: middle; }
 .proy-table tbody tr:hover { background: rgba(184, 137, 43, .05); }
 .proy-table td.num, .proy-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -1627,14 +1663,14 @@ body.rol-operario .btn-principal-operario {
 .proy-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .proy-chip { background: var(--proy-ink); color: #F4F2EC; font-size: 11px; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
 .proy-pill { display: inline-block; min-width: 26px; text-align: center; padding: 2px 8px; border-radius: 20px; font-size: 12px; background: rgba(74, 101, 128, .12); color: var(--proy-slate); font-variant-numeric: tabular-nums; }
-.proy-pill.alta { background: rgba(184, 137, 43, .16); color: #8A6314; font-weight: 700; }
+.proy-pill.alta { background: rgba(184, 137, 43, .16); color: var(--proy-gold-tx); font-weight: 700; }
 .proy-primero { color: var(--proy-muted); font-size: 11px; }
 
 .proy-estado { font-size: 11px; padding: 3px 10px; border-radius: 20px; display: inline-block; white-space: nowrap; }
 .proy-estado.completo { background: rgba(63, 122, 92, .14); color: var(--proy-verde); }
 .proy-estado.aldia { background: rgba(63, 122, 92, .10); color: var(--proy-verde); }
-.proy-estado.progreso { background: rgba(184, 137, 43, .16); color: #8A6314; }
-.proy-estado.atencion { background: rgba(184, 137, 43, .20); color: #8A6314; }
+.proy-estado.progreso { background: rgba(184, 137, 43, .16); color: var(--proy-gold-tx); }
+.proy-estado.atencion { background: rgba(184, 137, 43, .20); color: var(--proy-gold-tx); }
 .proy-estado.critico { background: rgba(178, 58, 58, .12); color: var(--proy-rojo); }
 .proy-estado.sininiciar { background: rgba(74, 101, 128, .12); color: var(--proy-slate); }
 
@@ -1644,8 +1680,8 @@ body.rol-operario .btn-principal-operario {
 .proy-riesgo { display: flex; gap: 12px; align-items: flex-start; padding: 12px 4px; border-bottom: 1px solid var(--proy-line); }
 .proy-riesgo:last-child { border-bottom: none; }
 .proy-riesgo .icono { flex: 0 0 26px; height: 26px; border-radius: 50%; background: rgba(178, 58, 58, .12); color: var(--proy-rojo); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
-.proy-riesgo .icono.medio { background: rgba(184, 137, 43, .16); color: #8A6314; }
-.proy-riesgo .titulo { font-weight: 700; font-size: 13px; color: var(--proy-ink); }
+.proy-riesgo .icono.medio { background: rgba(184, 137, 43, .16); color: var(--proy-gold-tx); }
+.proy-riesgo .titulo { font-weight: 700; font-size: 13px; color: var(--proy-ink-tx); }
 .proy-riesgo .detalle { font-size: 13px; color: var(--proy-muted); margin-top: 2px; }
 
 .proy-borrar { background: none; border: none; color: var(--proy-muted); cursor: pointer; font-size: 16px; width: 28px; height: 28px; border-radius: 6px; line-height: 1; }
@@ -3932,7 +3968,7 @@ body.rol-operario .btn-principal-operario {
               </div>
               <div class="field" style="grid-column:1/-1"><label>Observaciones</label><input id="invm_obs" placeholder="Opcional"></div>
             </div>
-            <div style="background:#fffbea;border:1px solid #d4a72c;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;color:#7c5c00;display:flex;align-items:flex-start;gap:6px">
+            <div style="background:var(--nota-bg);border:1px solid var(--nota-borde);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;color:var(--nota-tx);display:flex;align-items:flex-start;gap:6px">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.71.71 1.23 1.5 1.41 2.5"></path></svg>
               <span>Cada ingreso guarda su propio precio — si compras el mismo producto más adelante a otro precio, se registra como un lote nuevo. Al usarlo en una orden de trabajo, el sistema toma primero el lote más antiguo que todavía tenga existencias (FIFO).</span>
             </div>
@@ -6979,12 +7015,15 @@ function _pedirClaveSede(nombreSede) {
           <button type="submit" class="btn btn-primary">Entrar</button>
         </div>
       </form>`;
-    const cerrar = valor => { ov.remove(); resolve(valor); };
+    // Escape se escucha en toda la página, como en confirmarAccion: si el
+    // foco salió del campo, igual cierra.
+    const teclas = e => { if (e.key === 'Escape') { e.preventDefault(); cerrar(null); } };
+    const cerrar = valor => { document.removeEventListener('keydown', teclas, true); ov.remove(); resolve(valor); };
     const form = ov.querySelector('form');
     form.addEventListener('submit', e => { e.preventDefault(); cerrar(ov.querySelector('#claveSedeInput').value); });
     ov.querySelector('[data-accion="cancelar"]').addEventListener('click', () => cerrar(null));
-    ov.addEventListener('click', e => { if (e.target === ov) cerrar(null); });
-    ov.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(null); });
+    _clicsDeVentana(ov, () => cerrar(null)); // sin doble clic ni cierre al arrastrar (ver _clicsDeVentana)
+    document.addEventListener('keydown', teclas, true);
     document.body.appendChild(ov);
     ov.querySelector('#claveSedeInput').focus();
   });
@@ -7193,6 +7232,7 @@ window.addEventListener('load', async () => {
   // en la pantalla de acceso y no depende de haber entrado a una sede.
   _iniciarAvisoOffline();
   _aplicarTemaGuardado(); // pinta el ícono del botón de tema según lo guardado
+  _coloresGraficas();     // Chart.js ya cargó (va con defer): toma los colores del tema
   _mostrarAvisoPendiente();
 
   try {
@@ -7592,6 +7632,19 @@ function alternarTema() {
   try { localStorage.setItem('tema', nuevo); } catch (_) {}
   _iconoTema(nuevo);
   if (_mapaOperacionInstancia) { try { renderMapaOperacion(); } catch (_) {} }
+  _coloresGraficas();
+  // Las gráficas de Proyectos llevan los colores de su paleta: se redibujan.
+  const subProy = document.querySelector('#panel-proyectos.active .proy-subpanel.active');
+  if (subProy) { try { proyMostrarSubTab(subProy.id.replace('proySub-', '')); } catch (_) {} }
+}
+/** Letra y líneas de las gráficas (Chart.js) según el tema. Con las de
+ *  fábrica (gris #666 y líneas negras al 10 %) las etiquetas apenas se leían
+ *  en modo oscuro. Las gráficas ya dibujadas se actualizan. */
+function _coloresGraficas() {
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#666';
+  Chart.defaults.borderColor = _temaActual() === 'dark' ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)';
+  Object.values(Chart.instances || {}).forEach(g => { try { g.update('none'); } catch (_) {} });
 }
 function _aplicarTemaGuardado() {
   let t = null;
@@ -8146,7 +8199,6 @@ async function actualizarEstadoPorTareasEditor() {
   if (!o) return;
 
   const checks = Array.from(document.getElementById('e_tbody_tareas').querySelectorAll('input[type="checkbox"]'));
-  const total       = checks.length;
   const completadas = checks.filter(c => c.checked).length;
   const hayAlgunaOk = completadas > 0;
 
@@ -8633,7 +8685,7 @@ const CSS_PALETA_PAPEL = 'body{--brand:#02457A;--brand-dark:#001848;--brand-ligh
   + '--accent:#018ABE;--accent2:#2f9e52;--warn:#d9663f;--danger:#c62828;--pending:#8a8785;--surface:#ffffff;'
   + '--surface2:#f2f5f9;--bg:#f6f8fb;--border:#e6eaf1;--text:#2b2e33;--text2:#666b73;--text3:#9599a1;'
   + '--estado-ok-bg:#e6f4ea;--estado-ok-tx:#15803d;--estado-alerta-bg:#fff4e0;--estado-alerta-tx:#b45309;'
-  + '--estado-peligro-bg:#fde8e8;--estado-peligro-tx:#b91c1c}';
+  + '--estado-peligro-bg:#fde8e8;--estado-peligro-tx:#b91c1c;--nota-bg:#fffbea;--nota-borde:#d4a72c;--nota-tx:#7c5c00}';
 
 function _conPaletaDePapel(html) {
   const estilo = '<style>' + CSS_PALETA_PAPEL + '</style>';
@@ -8842,10 +8894,10 @@ function _crearFilaObservacionFantasma(valor) {
   // ejecutó") se escriba aquí y no en la descripción — si se escribe en la
   // descripción termina saliendo como texto de la foto.
   tr.innerHTML = `
-    <td colspan="6" style="padding:4px 8px 12px 8px;background:#fffbea;border-left:3px solid #d4a72c">
-      <div style="font-size:11px;font-weight:700;color:#8a6314;margin-bottom:3px">Observación</div>
+    <td colspan="6" style="padding:4px 8px 12px 8px;background:var(--nota-bg);border-left:3px solid var(--nota-borde)">
+      <div style="font-size:11px;font-weight:700;color:var(--nota-tx);margin-bottom:3px">Observación</div>
       <input type="text" class="input-obs-fantasma" placeholder=""
-        value="${esc(valor||'')}" style="width:100%;font-size:12px;border:1px solid #d4a72c;background:var(--surface)">
+        value="${esc(valor||'')}" style="width:100%;font-size:12px;border:1px solid var(--nota-borde);background:var(--surface)">
     </td>`;
   return tr;
 }
@@ -12004,7 +12056,6 @@ async function _filasDeOrdenYaGuardadas(hoja, cols, numeroOrden) {
 }
 
 async function guardarOrdenEnSheets(datos, opciones = {}) {
-  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
   const num = datos.NumeroOrden || '';
   // En un reintento, cada hoja que ya recibió sus filas se salta.
   const anexar = async (hoja, cols, filas) => {
@@ -12269,47 +12320,12 @@ async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
 }
 
 async function cargarOrdenesDeSheets() {
-  const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
-  const hdrs = { Authorization: 'Bearer ' + googleAccessToken };
-
-  // Función auxiliar para leer una hoja completa. Si la petición falla por
-  // cualquier motivo (cuota, red, etc.) hay que avisar en vez de tratarlo
-  // como "la hoja está vacía" — si no, un error transitorio al leer, por
-  // ejemplo, Fotos, hacía ver como si TODAS las órdenes hubieran perdido
-  // sus fotos, aunque los datos sí estén en Sheets. cargarOrdenes() ya
-  // tiene un catch que cae a localStorage si esto falla, así que dejar que
-  // el error se propague es más seguro que devolver datos a medias.
-  async function leerHoja(nombre) {
-    const r = await fetch(base + '/values/' + encodeURIComponent(nombre + '!A:ZZ'), { headers: hdrs });
-    if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
-    if (!r.ok) {
-      const t = await r.text();
-      let msg = 'Error ' + r.status;
-      try { msg = JSON.parse(t).error?.message || msg; } catch (_) {}
-      throw new Error('No se pudo leer la hoja ' + nombre + ': ' + msg);
-    }
-    const d = await r.json();
-    if (!d.values || d.values.length < 2) return [];
-    const cols = d.values[0];
-    return d.values.slice(1).map(row => {
-      const obj = {};
-      cols.forEach((c, j) => { obj[c] = row[j] || ''; });
-      return obj;
-    });
-  }
-
-  // Cargar hoja principal Ordenes — el chequeo de encabezados (que puede
-  // repararlos si faltan) y la lectura completa de la hoja no dependen uno
-  // del otro en el caso normal (encabezados ya completos), así que se
-  // piden en paralelo en vez de uno después del otro: esa espera
-  // secuencial era buena parte de la demora al reiniciar el sistema. La
-  // lectura completa usa un rango fijo generoso (A:ZZ) en vez de esperar
-  // los encabezados para calcular hasta dónde leer.
-  // Servicios es una hoja nueva — en sedes donde todavía no se ha guardado
-  // ninguna orden con servicios, la pestaña no existe aún, y leerHoja()
-  // más abajo fallaría con "Unable to parse range" al pedirla. Se asegura
-  // aquí (igual que ya se hace con Ordenes) para que SIEMPRE exista antes
-  // de intentar leerla, sin importar si esta sede ya la usó o no.
+  // El chequeo de encabezados de Ordenes (que puede repararlos si faltan) y
+  // la lectura de las hojas no dependen uno del otro en el caso normal, así
+  // que se piden en paralelo: esperar uno y luego el otro era buena parte de
+  // la demora al reiniciar el sistema. Si alguna pestaña todavía no existe
+  // (Servicios en una sede que nunca la ha usado, por ejemplo), la lectura
+  // en lote la crea y vuelve a intentar.
   // Las SEIS hojas se leen en UNA sola peticion. Antes eran 6 lecturas
   // sueltas por cada carga del sistema, y con el limite de 60 lecturas por
   // minuto y por usuario —compartido si varios tecnicos entran con la
@@ -12326,7 +12342,7 @@ async function cargarOrdenesDeSheets() {
   ]);
   window._sheetsHeaders = hOrdenesHeaders;
 
-  // Mismo formato que devolvia leerHoja(): objetos con las columnas por nombre.
+  // Filas de la hoja → objetos con las columnas por nombre.
   const aObjetos = (filas) => {
     if (!filas || filas.length < 2) return [];
     const cols = filas[0];
@@ -13349,7 +13365,7 @@ async function verDetalle(id) {
       // borra al cerrar: se muestra aquí, en la vista de la orden, para que
       // quede como constancia. Sigue siendo interna (no va al PDF externo).
       if ((t.observacionFantasma||'').trim()) {
-        html += `<tr style="background:#fffbea"><td colspan="4" style="padding:2px 10px 9px 10px;font-size:12px;color:#8a6314;font-style:italic;border-bottom:1px solid var(--border)">${_icono('oculto')} Observación interna: ${esc(t.observacionFantasma)}</td></tr>`;
+        html += `<tr style="background:var(--nota-bg)"><td colspan="4" style="padding:2px 10px 9px 10px;font-size:12px;color:var(--nota-tx);font-style:italic;border-bottom:1px solid var(--border)">${_icono('oculto')} Observación interna: ${esc(t.observacionFantasma)}</td></tr>`;
       }
     });
     html += '</tbody></table></div>';
@@ -14176,6 +14192,26 @@ const ICONOS_CONFIRMAR = {
   escribir: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>',
 };
 
+/** Estas ventanas (y la de la clave de sede) se abren con un clic, y el
+ *  segundo clic de un doble clic caía sobre ellas: las cerraba como
+ *  "Cancelar" o, si coincidía con su botón, confirmaba un borrado sin que se
+ *  alcanzara a leer la pregunta. Por eso no atienden clics en su primer
+ *  medio segundo. Y tocar afuera cierra solo si el clic empezó afuera: quien
+ *  selecciona el texto de un campo arrastrando hasta el fondo ya no pierde
+ *  la ventana ni lo que escribió. */
+const VENTANA_PAUSA_MS = 500;
+function _clicsDeVentana(fondo, alTocarAfuera) {
+  const abierta = performance.now();
+  let empezoAfuera = false;
+  fondo.addEventListener('pointerdown', e => { empezoAfuera = e.target === fondo; }, true);
+  // Ese segundo clic tampoco le quita el foco al campo o al botón de la ventana.
+  fondo.addEventListener('mousedown', e => { if (performance.now() - abierta < VENTANA_PAUSA_MS) e.preventDefault(); }, true);
+  fondo.addEventListener('click', e => {
+    if (performance.now() - abierta < VENTANA_PAUSA_MS) { e.preventDefault(); e.stopPropagation(); return; }
+    if (e.target === fondo && empezoAfuera) alTocarAfuera();
+  }, true);
+}
+
 function confirmarAccion({ titulo, texto = '', aceptar = 'Aceptar', cancelar = 'Cancelar', peligro = false } = {}) {
   return new Promise(resolve => {
     const fondo = document.createElement('div');
@@ -14210,7 +14246,7 @@ function confirmarAccion({ titulo, texto = '', aceptar = 'Aceptar', cancelar = '
     };
     btnNo.addEventListener('click', () => cerrar(false));
     btnSi.addEventListener('click', () => cerrar(true));
-    fondo.addEventListener('click', e => { if (e.target === fondo) cerrar(false); });
+    _clicsDeVentana(fondo, () => cerrar(false));
     document.addEventListener('keydown', teclas, true);
     document.body.appendChild(fondo);
     (peligro ? btnNo : btnSi).focus();
@@ -14309,7 +14345,7 @@ function pedirDatos({ titulo, texto = '', campos = [], aceptar = 'Aceptar', canc
       cerrar(datos);
     });
     form.querySelector('[data-respuesta="no"]').addEventListener('click', () => cerrar(null));
-    fondo.addEventListener('click', e => { if (e.target === fondo) cerrar(null); });
+    _clicsDeVentana(fondo, () => cerrar(null));
     controles.forEach(c => c.addEventListener('input', () => { error.textContent = ''; }));
     document.addEventListener('keydown', teclas, true);
     document.body.appendChild(fondo);
@@ -14879,7 +14915,7 @@ function _auxHtmlPromedio() {
         : 'Se reparte lo anotado entre las 8 horas del turno. El turno que no se registró se muestra en 0.'}
       ${_auxModoForzado ? '' : ' Deducido del dato; si no es así, cámbialo arriba.'}
     </div>
-    ${faltantes ? `<div style="font-size:12px;color:#8a6314;margin:-6px 0 12px;line-height:1.5">
+    ${faltantes ? `<div style="font-size:12px;color:var(--nota-tx);margin:-6px 0 12px;line-height:1.5">
       ${faltantes} ${faltantes === 1 ? 'turno' : 'turnos'} sin registro en este rango ${faltantes === 1 ? 'se muestra' : 'se muestran'} en 0.
     </div>` : ''}
     ${sospechosos.length ? `<div style="font-size:12px;color:var(--estado-peligro-tx);margin:-6px 0 12px;line-height:1.5">
@@ -15737,7 +15773,7 @@ async function pmGuardarHoraBase() {
 
     await pmRenderHoraBase();
     const m2 = document.getElementById('pmHoraBaseMsg');
-    m2.style.color = 'var(--success, #1e7e34)';
+    m2.style.color = 'var(--estado-ok-tx)';
     m2.textContent = 'Horas base guardadas. Recarga la página para que se generen las órdenes que hayan quedado pendientes.';
   } catch (e) {
     msg.style.color = 'var(--danger)';
@@ -15888,7 +15924,7 @@ async function pmGuardarActividades() {
     await _borrarFilasHoja(SH.informeActividades, viejas);
     await pmRenderActividadesInforme(frecuencia, tipo);
     const m2 = document.getElementById('pmActMsg');
-    m2.style.color = 'var(--success, #1e7e34)';
+    m2.style.color = 'var(--estado-ok-tx)';
     m2.textContent = `${lista.length} ${lista.length === 1 ? 'actividad guardada' : 'actividades guardadas'}.`;
   } catch (e) {
     msg.style.color = 'var(--danger)';
@@ -16594,7 +16630,7 @@ async function invRegistrarProducto() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
   try {
     await registrarProductoInventarioDirecto(inventarioOperacionActual, producto);
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Producto registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Producto registrado correctamente.';
     ['invp_codigo','invp_nombre','invp_stockmin','invp_ubicacion'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invp_unidad').value = 'Unidades';
     document.getElementById('invp_proveedor').value = '';
@@ -16618,7 +16654,7 @@ async function invRegistrarServicio() {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
   try {
     await registrarServicioInventarioDirecto(inventarioOperacionActual, servicio);
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Servicio registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Servicio registrado correctamente.';
     ['invs_codigo','invs_nombre','invs_descripcion','invs_precio'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invs_proveedor').value = '';
     document.getElementById('invs_fecha').value = _isoLocal(new Date());
@@ -16752,7 +16788,7 @@ async function invRegistrarMovimiento() {
       responsable, equipo: tipo === 'SALIDA' ? equipo : '',
       observaciones: document.getElementById('invm_obs').value.trim(),
     });
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Movimiento registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Movimiento registrado correctamente.';
     ['invm_codigo','invm_cantidad','invm_precio','invm_responsable','invm_equipo','invm_obs','invm_numeroDocumento'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invm_tipoDocumento').value = '';
     document.getElementById('invm_grupoDocNumero').style.display = 'none';
@@ -16988,7 +17024,7 @@ async function invRegistrarProveedor() {
     const spreadsheetId = _invSpreadsheetId(inventarioOperacionActual);
     await _invAsegurarHoja(spreadsheetId, 'Proveedores', INV_PROVEEDORES_COLS);
     await _invAppend(spreadsheetId, 'Proveedores', [fila]);
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Proveedor registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Proveedor registrado correctamente.';
     ['prov_nombre','prov_contacto','prov_ciudadpais','prov_direccion','prov_insumo'].forEach(id => document.getElementById(id).value = '');
     invCargarProveedores();
     _proveedoresCache = null; // para que Nuevo Producto vea este proveedor nuevo
@@ -19465,12 +19501,12 @@ function _invhPintarEstado(n, estado) {
     btnC.style.cssText = base + compOff;
     btnI.style.cssText = base + incO;
     falta.style.display = 'flex';
-    row.style.background = '#fff6f2';
+    row.classList.add('fila-incompleta');
   } else {
     btnC.style.cssText = base + compO;
     btnI.style.cssText = base + incOff;
     falta.style.display = 'none';
-    row.style.background = '';
+    row.classList.remove('fila-incompleta');
   }
 }
 
@@ -19538,7 +19574,7 @@ async function guardarInventarioHerramienta() {
     _invalidarCacheHoja(SH.inventarioHerramienta);
     _invhCargado = false; // para que al re-render se reseteen las marcas
     await inicializarInventarioHerramienta();
-    msg.style.color = '#15803d';
+    msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = completo ? 'Inventario COMPLETO guardado.' : `Guardado con ${faltantes.length} novedad(es).`;
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo guardar: ' + e.message;
@@ -20807,7 +20843,7 @@ async function agregarOperarioPlanta() {
   try {
     await _marcarOperarioPlanta(nombre, true);
     input.value = '';
-    msg.style.color = '#15803d'; msg.textContent = nombre + ' quedó en la lista.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = nombre + ' quedó en la lista.';
     await _pintarOperariosPlanta();
     renderConteoObservaciones();
   } catch (e) {
@@ -20822,7 +20858,7 @@ async function quitarOperarioPlanta(nombre) {
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
   try {
     await _marcarOperarioPlanta(nombre, false);
-    msg.style.color = '#15803d'; msg.textContent = nombre + ' ya no sale en la lista.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = nombre + ' ya no sale en la lista.';
     await _pintarOperariosPlanta();
     renderConteoObservaciones();
   } catch (e) {
@@ -20856,7 +20892,7 @@ async function guardarObservacionOperario() {
       FechaRegistro: new Date().toISOString(),
     })]);
     _invalidarCacheHoja(SH.observacionesOperarios);
-    msg.style.color = '#15803d'; msg.textContent = 'Observación guardada correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = 'Observación guardada correctamente.';
     await inicializarObservacionesOperarios();
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo guardar: ' + e.message;
@@ -21220,7 +21256,7 @@ async function guardarReporteCompresor() {
     // Las horas del reporte alimentan "Horas de Operación de Equipos".
     const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
     await inicializarReporteCompresores();
-    msg.style.color = '#15803d';
+    msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
@@ -21562,7 +21598,7 @@ async function guardarReporteSecador() {
     // Las horas del reporte alimentan "Horas de Operación de Equipos".
     const _eqHoras = await _sincronizarHorasDesdeReporte(secador, porColumna.FHrS);
     await inicializarReporteSecadores();
-    msg.style.color = '#15803d';
+    msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
@@ -21826,7 +21862,7 @@ async function guardarReporteDrycooler() {
     _invalidarCacheHoja(SH.reporteDrycoolers);
 
     await inicializarReporteDrycoolers();
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = 'Reporte guardado correctamente.';
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -22116,7 +22152,7 @@ async function guardarReporteDecorado() {
     // Las horas del reporte alimentan "Horas de Operación de Equipos".
     const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna.HorasTotales);
     await inicializarReporteDecorado();
-    msg.style.color = '#15803d';
+    msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
@@ -22442,7 +22478,7 @@ async function guardarReporteEmergencia() {
     // Las horas del reporte alimentan "Horas de Operación de Equipos".
     const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna.RunTime);
     await inicializarReporteEmergencia();
-    msg.style.color = '#15803d';
+    msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
@@ -22677,7 +22713,7 @@ async function guardarReportePresionDrycooler() {
     _invalidarCacheHoja(SH.reportePresionDrycooler);
 
     await inicializarReportePresionDrycooler();
-    msg.style.color = '#15803d'; msg.textContent = 'Reporte guardado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = 'Reporte guardado correctamente.';
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -22888,7 +22924,7 @@ async function guardarReporteMaquinasFormacion() {
       document.getElementById('rmf_tecnicoOtroWrap').style.display = '';
       document.getElementById('rmf_tecnicoOtro').value = tecnicoOtro;
     }
-    msg.style.color = '#15803d'; msg.textContent = `Reporte de ${datos.Maquina} guardado correctamente.`;
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = `Reporte de ${datos.Maquina} guardado correctamente.`;
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -23004,7 +23040,7 @@ async function guardarEntregaTurno() {
     await appendHoja(SH.entregaTurno, [valores]);
     _invalidarCacheHoja(SH.entregaTurno);
 
-    msg.style.color = '#15803d'; msg.textContent = 'Entrega guardada correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.textContent = 'Entrega guardada correctamente.';
     document.getElementById('et_recibidoPor').value = '';
     document.getElementById('et_novedadesTurno').value = '';
     document.getElementById('et_camposEquipos').innerHTML = _htmlCamposEquiposEntregaTurno(null);
@@ -23450,7 +23486,7 @@ async function registrarInventarioEquipo() {
       Tipo: tipo,
       Serial: tipo === 'seguridad' ? document.getElementById('ie_serial').value.trim() : '',
     });
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Equipo registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Equipo registrado correctamente.';
     ['ie_codificacion','ie_equipo','ie_marca','ie_descripcion','ie_ubicacion','ie_serial'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('ie_tipo').value = 'operacion';
     ieActualizarVisibilidadSerial();
@@ -23474,7 +23510,7 @@ async function agregarObservacionEquipo() {
   try {
     await asegurarHoja(SH.inventarioEquiposObs, INVENTARIO_EQUIPOS_OBS_COLS);
     await appendHoja(SH.inventarioEquiposObs, [[codificacion, anio, observaciones]]);
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Observación agregada correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Observación agregada correctamente.';
     document.getElementById('ieobs_observaciones').value = '';
     cargarInventarioEquipos();
   } catch (e) {
@@ -23558,7 +23594,7 @@ function _ieRenderTabla(filas) {
     </tr></thead><tbody>` +
     filas.map(f => `<tr>
       <td><strong>${esc(f.Equipo)}</strong></td>
-      <td>${(f.Tipo || 'operacion') === 'seguridad' ? '<span class="badge" style="background:#fef3c7;color:#92400e">Otros equipos</span>' : '<span class="badge" style="background:#dbeafe;color:#1e40af">Operación</span>'}</td>
+      <td>${(f.Tipo || 'operacion') === 'seguridad' ? '<span class="badge" style="background:var(--estado-alerta-bg);color:var(--estado-alerta-tx)">Otros equipos</span>' : '<span class="badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Operación</span>'}</td>
       <td>${esc(f.Marca)}</td>
       <td>${esc(f.DescripcionEspecifica)}</td>
       <td>${esc(f.Codificacion)}</td>
@@ -23832,7 +23868,7 @@ async function hvdSubirFoto(input) {
     await _actualizarFilaPorClave(SH.hvdEquipos, HVD_EQUIPOS_COLS, 'Equipo', hvdEquipoActual, {
       FotoDriveFileId: resultado.driveFileId,
     });
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Foto actualizada.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Foto actualizada.';
     hvdSeleccionarEquipo(hvdEquipoActual); // recarga para mostrar la foto nueva
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
@@ -23858,7 +23894,7 @@ async function hvdGuardarSpecs() {
     await _actualizarFilaPorClave(SH.hvdEquipos, HVD_EQUIPOS_COLS, 'Equipo', hvdEquipoActual, datos);
     if (repuestos !== null) await _guardarRepuestosHVD(hvdEquipoActual, repuestos);
     const txtOk = repuestos !== null ? 'Especificaciones y repuestos guardados.' : 'Especificaciones guardadas.';
-    msg.style.color = '#15803d'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ' + txtOk;
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ' + txtOk;
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> ' + esc(e.message);
   }
@@ -25968,10 +26004,10 @@ function renderListaEquiposHistorico() {
     return `
       <div onclick="seleccionarEquipoHistorico(${_jsArg(eq)})"
         style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;font-size:13px;
-               background:${activo ? 'rgba(20,60,110,.08)' : 'white'};font-weight:${activo ? '700' : '400'};
+               background:${activo ? 'var(--brand-light)' : 'var(--surface)'};font-weight:${activo ? '700' : '400'};
                border-left:3px solid ${activo ? 'var(--accent)' : 'transparent'};border-bottom:1px solid var(--border)"
-        onmouseover="this.style.background='rgba(20,60,110,.08)'"
-        onmouseout="this.style.background='${activo ? 'rgba(20,60,110,.08)' : 'white'}'">
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'var(--surface)'}'">
         <span style="flex:1;color:var(--brand);line-height:1.3">${esc(eq)}</span>
         <span class="badge" style="background:var(--surface2);color:var(--text3)">${totalOrdenes}</span>
       </div>`;
@@ -25995,10 +26031,10 @@ function filtrarListaEquiposHistorico() {
     return `
       <div onclick="seleccionarEquipoHistorico(${_jsArg(eq)})"
         style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;font-size:13px;
-               background:${activo ? 'rgba(20,60,110,.08)' : 'white'};font-weight:${activo ? '700' : '400'};
+               background:${activo ? 'var(--brand-light)' : 'var(--surface)'};font-weight:${activo ? '700' : '400'};
                border-left:3px solid ${activo ? 'var(--accent)' : 'transparent'};border-bottom:1px solid var(--border)"
-        onmouseover="this.style.background='rgba(20,60,110,.08)'"
-        onmouseout="this.style.background='${activo ? 'rgba(20,60,110,.08)' : 'white'}'">
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='${activo ? 'var(--brand-light)' : 'var(--surface)'}'">
         <span style="flex:1;color:var(--brand);line-height:1.3">${esc(eq)}</span>
         <span class="badge" style="background:var(--surface2);color:var(--text3)">${totalOrdenes}</span>
       </div>`;
@@ -26549,13 +26585,21 @@ function proyRiesgos(grupos, totalGlobal) {
 /* ── Panel: navegación y carga ─────────────────────────────────── */
 
 const PROY_PALETA = ['#10233B', '#16304F', '#4A6580', '#B8892B', '#8A6314', '#3F7A5C', '#6B7686', '#C7B08A', '#7C8FA6', '#D8A94E'];
+// En modo oscuro los azules de tinta casi no se ven sobre el fondo: se aclaran.
+const PROY_PALETA_OSCURO = ['#6f93c0', '#9cb6d6', '#93a9c2', '#B8892B', '#e3b865', '#6cc596', '#9aa6b6', '#C7B08A', '#7C8FA6', '#D8A94E'];
+function _proyPaleta() { return _temaActual() === 'dark' ? PROY_PALETA_OSCURO : PROY_PALETA; }
+/** Un color de la paleta de Proyectos tal como está ahora (cambia con el
+ *  modo oscuro), para las gráficas, que no leen variables de CSS. */
+function _proyCss(variable) {
+  return getComputedStyle(document.querySelector('.proy') || document.documentElement).getPropertyValue(variable).trim();
+}
 const PROY_MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 let _proyGraficas = {};
 
 function _proyMsg(texto, tipo) {
   const el = document.getElementById('proyMsg');
   if (!el) return;
-  const color = tipo === 'error' ? '#B23A3A' : tipo === 'ok' ? '#3F7A5C' : 'var(--text3)';
+  const color = tipo === 'error' ? 'var(--proy-rojo)' : tipo === 'ok' ? 'var(--proy-verde)' : 'var(--text3)';
   el.innerHTML = texto ? `<span style="color:${color}">${esc(texto)}</span>` : '';
 }
 
@@ -26802,7 +26846,7 @@ function proyRenderCaja() {
         },
       },
       scales: {
-        y:  { position: 'left', ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y:  { position: 'left', ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } },
         x:  { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
       },
@@ -26816,7 +26860,7 @@ function proyRenderCaja() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
       scales: {
-        y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 } },
       },
     },
@@ -26826,13 +26870,13 @@ function proyRenderCaja() {
     type: 'bar',
     data: {
       labels: alcances.map(a => a.nombre),
-      datasets: [{ label: 'Valor total por alcance (COP)', data: alcances.map(a => a.valor), backgroundColor: alcances.map((a, i) => PROY_PALETA[i % PROY_PALETA.length]), borderRadius: 5 }],
+      datasets: [{ label: 'Valor total por alcance (COP)', data: alcances.map(a => a.valor), backgroundColor: alcances.map((a, i) => _proyPaleta()[i % PROY_PALETA.length]), borderRadius: 5 }],
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         y: { ticks: { font: { size: 10.5 } } },
       },
     },
@@ -26851,7 +26895,7 @@ function proyRenderCaja() {
       const faltan = proyDiasEntre(hoy, proximo.fecha);
       elProximo.innerHTML = `
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--proy-muted);margin-bottom:4px">Próximo pago</div>
-        <div style="font-weight:800;font-size:18px;color:var(--proy-ink)">${esc(proyCOP(proximo.monto))}</div>
+        <div style="font-weight:800;font-size:18px;color:var(--proy-ink-tx)">${esc(proyCOP(proximo.monto))}</div>
         <div style="font-size:12px;color:var(--proy-slate);margin-top:2px">${esc(proyFechaLarga(proximo.fecha))} · en ${faltan} día${faltan === 1 ? '' : 's'}</div>
         <div style="font-size:11px;color:var(--proy-muted);margin-top:4px">${esc(proximo.alcances.join(', '))}</div>`;
     } else {
@@ -26867,7 +26911,7 @@ function proyRenderCaja() {
     type: 'doughnut',
     data: {
       labels: alcances.map(a => a.nombre),
-      datasets: [{ data: alcances.map(a => totalContrato > 0 ? a.valor / totalContrato * 100 : 0), backgroundColor: PROY_PALETA, borderColor: '#fff', borderWidth: 2 }],
+      datasets: [{ data: alcances.map(a => totalContrato > 0 ? a.valor / totalContrato * 100 : 0), backgroundColor: _proyPaleta(), borderColor: _proyCss('--proy-panel'), borderWidth: 2 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '55%',
@@ -26887,7 +26931,7 @@ function proyRenderCaja() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.parsed.y} pago(s)` } } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } }, x: { ticks: { font: { size: 10 } } } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } }, x: { ticks: { font: { size: 10 } } } },
     },
   });
 
@@ -26904,7 +26948,7 @@ function proyRenderCaja() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + proyCOP(c.parsed.y) } } },
-      scales: { y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } }, x: { ticks: { font: { size: 10 } } } },
+      scales: { y: { ticks: { callback: v => '$' + (v / 1e6).toFixed(0) + 'M', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } }, x: { ticks: { font: { size: 10 } } } },
     },
   });
 }
@@ -26917,7 +26961,7 @@ function _proyGauge(id, pct, color, leyenda) {
   const valor = Math.max(0, Math.min(100, pct || 0));
   _proyChart(id, {
     type: 'doughnut',
-    data: { labels: ['Ejecutado', 'Pendiente'], datasets: [{ data: [valor, 100 - valor], backgroundColor: [color, 'rgba(16,35,59,0.08)'], borderWidth: 0, circumference: 180, rotation: 270, cutout: '75%' }] },
+    data: { labels: ['Ejecutado', 'Pendiente'], datasets: [{ data: [valor, 100 - valor], backgroundColor: [color, _proyCss('--proy-line')], borderWidth: 0, circumference: 180, rotation: 270, cutout: '75%' }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } },
   }, [{
     id: id + 'Etiqueta',
@@ -26926,9 +26970,9 @@ function _proyGauge(id, pct, color, leyenda) {
       if (!chartArea) return;
       ctx.save();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = '800 26px system-ui, sans-serif'; ctx.fillStyle = '#10233B';
+      ctx.font = '800 26px system-ui, sans-serif'; ctx.fillStyle = _proyCss('--proy-ink-tx');
       ctx.fillText(valor.toFixed(1) + '%', chartArea.width / 2 + chartArea.left, chartArea.top + chartArea.height * 0.62);
-      ctx.font = '500 11px system-ui, sans-serif'; ctx.fillStyle = '#69758A';
+      ctx.font = '500 11px system-ui, sans-serif'; ctx.fillStyle = _proyCss('--proy-muted');
       ctx.fillText(leyenda, chartArea.width / 2 + chartArea.left, chartArea.top + chartArea.height * 0.62 + 22);
       ctx.restore();
     },
@@ -26974,7 +27018,7 @@ function proyRenderAvance() {
   _proyTexto('proyAvKpiDesvio', (desvio >= 0 ? '+' : '') + desvio.toFixed(1) + ' pp');
   _proyTexto('proyAvKpiDesvioSub', `programado a hoy: ${programado.toFixed(1)}%`);
   const elDesvio = document.getElementById('proyAvKpiDesvio');
-  if (elDesvio) elDesvio.style.color = desvio < -5 ? '#B23A3A' : desvio >= 0 ? '#3F7A5C' : '#8A6314';
+  if (elDesvio) elDesvio.style.color = desvio < -5 ? 'var(--proy-rojo)' : desvio >= 0 ? 'var(--proy-verde)' : 'var(--proy-gold-tx)';
   _proyTexto('proyAvKpiCompletos', `${completos} / ${alcances.length}`);
   _proyTexto('proyAvKpiSinIniciar', `${sinIniciar} sin iniciar`);
   _proyTexto('proyAvKpiValor', proyCOP(valorGanado));
@@ -27000,7 +27044,7 @@ function proyRenderAvance() {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom', labels: { font: { size: 10.5 } } } },
       scales: {
-        x: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        x: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 9 } }, grid: { color: _proyCss('--proy-line') } },
         y: { ticks: { font: { size: 9.5 } } },
       },
     },
@@ -27025,7 +27069,7 @@ function proyRenderAvance() {
         tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y === null ? '—' : c.parsed.y.toFixed(1) + '%'}` } },
       },
       scales: {
-        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 60 }, grid: { display: false } },
       },
     },
@@ -27046,7 +27090,7 @@ function proyRenderAvance() {
       datasets: alcances.map((a, i) => ({
         label: a.nombre,
         data: semanas.map(s => (porAlcance[a.nombre] && porAlcance[a.nombre][s] !== undefined) ? porAlcance[a.nombre][s] : null),
-        borderColor: PROY_PALETA[i % PROY_PALETA.length], backgroundColor: PROY_PALETA[i % PROY_PALETA.length],
+        borderColor: _proyPaleta()[i % PROY_PALETA.length], backgroundColor: _proyPaleta()[i % PROY_PALETA.length],
         tension: .3, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.25,
       })),
     },
@@ -27058,7 +27102,7 @@ function proyRenderAvance() {
         tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.formattedValue}%` } },
       },
       scales: {
-        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         x: { ticks: { font: { size: 9 } }, grid: { display: false } },
       },
     },
@@ -27075,7 +27119,7 @@ function proyRenderAvance() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.formattedValue + '%' } } },
       scales: {
-        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: 'rgba(16,35,59,0.06)' } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: _proyCss('--proy-line') } },
         x: { ticks: { font: { size: 9 }, maxRotation: 40, minRotation: 40 }, grid: { display: false } },
       },
     },
