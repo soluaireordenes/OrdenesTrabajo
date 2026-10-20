@@ -2371,6 +2371,56 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && out.sencilloTablas.lista === 'Fecha,Actividades realizadas,Horómetro,Observaciones,'
       && out.sencilloTablas.filas === 2 && out.sencilloTablas.ultimo === 'Limpieza de radiador',
       { vista: out.sencillo, filas: filasSencillo, tablas: out.sencilloTablas });
+    // La ficha muestra todo lo que tiene cada cuadro, sin cortar ni esconder
+    // texto detrás de una barra: crecen con lo que tienen (también al
+    // escribir, en celular y si la ficha se dibujó oculta), la Hoja de vida
+    // arranca más alta y la tabla de mantenimientos va completa.
+    const medir = () => p.evaluate(() => {
+      const t = [...document.querySelectorAll('#empFicha textarea.emp-texto')];
+      const alto = id => document.getElementById(id).offsetHeight;
+      const lista = document.querySelector('#empf_mantLista .emp-mant-lista');
+      return {
+        cuadros: t.length,
+        cortados: t.filter(x => x.scrollHeight > x.clientHeight + 1).map(x => x.id || x.getAttribute('aria-label')),
+        hojaVida: alto('empf_HojaVida'), mayores: alto('empf_MantMayores'), capacidad: alto('empf_CapacidadTipo'), arrancador: alto('empf_Arrancador'),
+        mayorEsHojaVida: t.every(x => x.offsetHeight <= alto('empf_HojaVida')),
+        listaEntera: !!lista && lista.scrollHeight <= lista.clientHeight + 1,
+        filas: document.querySelectorAll('#empf_mantLista tbody tr').length,
+      };
+    });
+    await p.evaluate(() => {
+      const largo = 'El compresor cuenta con 51 intervenciones registradas entre marzo de 2021 y julio de 2026. '.repeat(9);
+      Object.assign(_empFicha('JOY 2'), { HojaVida: largo, MantMayores: 'Lavado del intercambiador de aire\nLavado del intercambiador de aceite',
+        CapacidadTipo: '5000 SCFM, 800 HP, 600 kW, compresor centrífugo de tres etapas con interenfriadores', Arrancador: '115 kV' });
+      for (let i = 1; i <= 30; i++) _emp.mantenimientos.push({ ID: 'm' + i, Equipo: 'JOY 2', Fecha: `2025-01-${String(i).padStart(2, '0')}`, Descripcion: 'Cambio de filtros de succión' });
+      empSeleccionarEquipo('JOY 2');
+    });
+    out.alto = await medir();
+    out.alEscribir = await p.evaluate(() => {
+      const t = document.getElementById('empf_Arrancador'), antes = t.offsetHeight;
+      t.value += ', arranque suave con protecciones de sobrecorriente, falla a tierra y desbalance de fases';
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+      return { antes, despues: t.offsetHeight, cortado: t.scrollHeight > t.clientHeight + 1 };
+    });
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    out.celular = await medir();
+    await p.evaluate(async () => {
+      const panel = document.getElementById('empSub-recepcion');
+      panel.style.display = 'none';
+      empRenderFicha();
+      await new Promise(r => requestAnimationFrame(r));
+      panel.style.display = '';
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
+    out.oculta = await medir();
+    check('Empalme: la ficha muestra todo el texto (los cuadros crecen con lo que tienen, Hoja de vida la más alta, tabla de mantenimientos completa)',
+      out.alto.cuadros >= 12 && out.alto.cortados.length === 0 && out.alto.mayorEsHojaVida && out.alto.hojaVida > 140
+      && out.alto.mayores > 60 && out.alto.capacidad > out.alto.arrancador && out.alto.listaEntera && out.alto.filas === 32
+      && out.alEscribir.despues > out.alEscribir.antes && !out.alEscribir.cortado
+      && out.celular.cortados.length === 0 && out.celular.hojaVida > out.alto.hojaVida && out.celular.listaEntera
+      && out.oculta.cortados.length === 0 && out.oculta.hojaVida === out.celular.hojaVida,
+      { alto: out.alto, alEscribir: out.alEscribir, celular: out.celular, oculta: out.oculta });
     check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
