@@ -24170,7 +24170,7 @@ function _soloFilasConDatos(nombre, filas) {
 /** Texto CSV → filas. El separador (punto y coma, coma o tabulador) se toma
  *  de la primera línea; respeta las comillas. */
 function _leerCsv(texto) {
-  texto = String(texto || '').replace(/^﻿/, '');
+  texto = String(texto || '').replace(/^\uFEFF/, '');
   const primera = texto.split(/\r?\n/, 1)[0] || '';
   const sep = [';', ',', '\t'].map(s => [s, primera.split(s).length]).sort((a, b) => b[1] - a[1])[0][0];
   const filas = [];
@@ -24750,12 +24750,16 @@ async function empGuardarFicha() {
    Las columnas se reconocen por su título; si el archivo trae varios
    equipos, cada fila va al suyo. Antes de guardar se muestra qué se va a
    registrar, qué ya estaba y qué filas tienen problemas. */
-const EMPALME_MANT_ETIQUETAS = { Equipo: 'Equipo', Fecha: 'Fecha', Tipo: 'Tipo', Descripcion: 'Descripción', Horometro: 'Horómetro', Responsable: 'Responsable', Observaciones: 'Observaciones' };
+// Los archivos del empalme traen EQUIPOS, FECHA, AÑO y ACTIVIDADES
+// REALIZADAS (la descripción): así se llaman también en la app.
+const EMPALME_MANT_ETIQUETAS = { Equipo: 'Equipos', Fecha: 'Fecha', Anio: 'Año', Tipo: 'Tipo', Descripcion: 'Actividades realizadas', Horometro: 'Horómetro', Responsable: 'Responsable', Observaciones: 'Observaciones' };
 // Palabras con que se reconoce cada columna en el título (sin tildes ni
 // mayúsculas). Si un título trae palabras de dos columnas, gana la que va
-// primero en el título: "Descripción del equipo" es la descripción.
+// primero en el título: "Descripción del equipo" es la descripción. El año
+// tiene que ser el título entero ("Año"), para no confundirlo con "mano de obra".
 const EMPALME_MANT_COLUMNAS = [
   { campo: 'Fecha', palabras: ['fecha'] },
+  { campo: 'Anio', palabras: ['ano', 'anio', 'year'], entero: true },
   { campo: 'Horometro', palabras: ['horometro', 'horas'] },
   { campo: 'Tipo', palabras: ['tipo'], salvo: ['equipo'] },
   { campo: 'Observaciones', palabras: ['observacion', 'nota', 'comentario'] },
@@ -24778,7 +24782,7 @@ function _empMantenimientosDe(equipo) {
  *  o Tipo. */
 function _empEncabezadoMantenimientos(filas) {
   for (let i = 0; i < Math.min(filas.length, 15); i++) {
-    const columnas = {};
+    const columnas = {}, titulos = {};
     const fechas = [];
     filas[i].forEach((celda, j) => {
       const h = _empNormTexto(celda);
@@ -24786,16 +24790,19 @@ function _empEncabezadoMantenimientos(filas) {
       let mejor = null, pos = Infinity;
       EMPALME_MANT_COLUMNAS.forEach(d => {
         if ((d.salvo || []).some(w => h.includes(w))) return;
-        const p = Math.min(...d.palabras.map(w => h.indexOf(w)).filter(x => x >= 0));
+        const p = d.entero ? (d.palabras.includes(h) ? 0 : Infinity) : Math.min(...d.palabras.map(w => h.indexOf(w)).filter(x => x >= 0));
         if (p < pos) { pos = p; mejor = d; }
       });
       if (!mejor) return;
       if (mejor.campo === 'Fecha') fechas.push([j, h]);
-      else if (!(mejor.campo in columnas)) columnas[mejor.campo] = j;
+      else if (!(mejor.campo in columnas)) { columnas[mejor.campo] = j; titulos[mejor.campo] = String(celda).trim(); }
     });
     // Entre varias fechas, la del mantenimiento, no la del próximo ni la del registro.
-    if (fechas.length) columnas.Fecha = (fechas.find(([, h]) => !/proxim|siguiente|registro|creacion|program/.test(h)) || fechas[0])[0];
-    if ('Fecha' in columnas && ('Descripcion' in columnas || 'Tipo' in columnas)) return { indice: i, columnas };
+    if (fechas.length) {
+      columnas.Fecha = (fechas.find(([, h]) => !/proxim|siguiente|registro|creacion|program/.test(h)) || fechas[0])[0];
+      titulos.Fecha = String(filas[i][columnas.Fecha]).trim();
+    }
+    if ('Fecha' in columnas && ('Descripcion' in columnas || 'Tipo' in columnas)) return { indice: i, columnas, titulos };
   }
   return null;
 }
@@ -24837,7 +24844,7 @@ function _empInterpretarMantenimientos(hojas, equipoActual, existentes) {
     if (conEquipo) { if (textoEquipo) equipoAnterior = textoEquipo; else textoEquipo = equipoAnterior; }
     const fechaTexto = val(fila, 'Fecha');
     const m = {
-      Equipo: conEquipo ? reconocer(textoEquipo) : equipoActual, Fecha: _fechaDeTexto(fechaTexto),
+      Equipo: conEquipo ? reconocer(textoEquipo) : equipoActual, Fecha: _empFechaConAnio(fechaTexto, val(fila, 'Anio')),
       Tipo: val(fila, 'Tipo'), Descripcion: val(fila, 'Descripcion'),
       Horometro: _empNumeroPegado(val(fila, 'Horometro').replace(/[^\d.,]/g, '')),
       Responsable: val(fila, 'Responsable'), Observaciones: val(fila, 'Observaciones'),
@@ -24852,7 +24859,21 @@ function _empInterpretarMantenimientos(hojas, equipoActual, existentes) {
     vistos.add(clave);
     listos.push(m);
   }
-  return { hoja: hojas.length > 1 ? hoja.nombre : '', columnas: c, listos, repetidos, duplicados, problemas, sinColumnaEquipo: !conEquipo };
+  return { hoja: hojas.length > 1 ? hoja.nombre : '', columnas: c, titulos: enc.titulos, listos, repetidos, duplicados, problemas, sinColumnaEquipo: !conEquipo };
+}
+
+/** La fecha de una fila, con el año de la columna AÑO si el archivo la
+ *  trae: manda ella, porque la FECHA muchas veces se ve sin año ("15-mar")
+ *  y Excel le guarda por debajo el año en que se escribió. También sirve
+ *  cuando la FECHA está escrita sin año ("15/03", "15 de marzo"). */
+function _empFechaConAnio(fechaTexto, anioTexto) {
+  const t = String(anioTexto || '').trim().replace(/\.0+$/, '');
+  const anio = /^\d{4}$/.test(t) ? +t : /^\d{2}$/.test(t) ? 2000 + +t : null;
+  const fecha = _fechaDeTexto(fechaTexto);
+  if (!anio || anio < 1980 || anio > 2100) return fecha;
+  if (fecha) return _fechaDeTexto(anio + fecha.slice(4)); // '' si no existe (29 de febrero)
+  const s = String(fechaTexto || '').trim();
+  return s ? _fechaDeTexto(s + (/^\d{1,2}[-/.]\d{1,2}$/.test(s) ? '/' : ' ') + anio) : '';
 }
 
 function _empFmtHorometro(h) {
@@ -24869,7 +24890,7 @@ function _empHtmlBloqueMantenimientos(equipo) {
         <input type="file" accept=".xlsx,.csv,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="empLeerExcelMantenimientos(this)"></label>
       <button type="button" class="btn btn-ghost" onclick="empFormatoMantenimientos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Formato de ejemplo</button>
     </div>
-    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos. Basta con <b>Equipo</b>, <b>Fecha</b> y <b>Descripción</b> (sin la columna Equipo, todo queda en ${esc(equipo)}); si el archivo trae Tipo, Horómetro, Responsable u Observaciones, también se guardan. Antes de registrar se ve qué entra.</div>
+    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos: <b>EQUIPOS</b>, <b>FECHA</b>, <b>AÑO</b> y <b>ACTIVIDADES REALIZADAS</b>. El año sale de la columna AÑO; si la FECHA ya lo trae, AÑO puede faltar. Sin la columna EQUIPOS, todo queda en ${esc(equipo)}. Si el archivo trae Tipo, Horómetro, Responsable u Observaciones, también se guardan. Antes de registrar se ve qué entra.</div>
     <div id="empf_mantImport"></div>
   </div>`;
 }
@@ -24880,10 +24901,10 @@ function _empHtmlBloqueMantenimientos(equipo) {
 function _empTablaMantenimientos(lista, { conEquipo = false, quitar = false } = {}) {
   const hay = campo => lista.some(m => String(m[campo] || '').trim());
   const cols = [
-    conEquipo && { titulo: 'Equipo', celda: m => `<td>${esc(m.Equipo)}</td>` },
+    conEquipo && { titulo: 'Equipos', celda: m => `<td>${esc(m.Equipo)}</td>` },
     { titulo: 'Fecha', celda: m => `<td class="num">${esc(fmtFecha(m.Fecha))}</td>` },
     hay('Tipo') && { titulo: 'Tipo', celda: m => `<td>${esc(m.Tipo || '—')}</td>` },
-    { titulo: 'Descripción', celda: m => `<td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>` },
+    { titulo: 'Actividades realizadas', celda: m => `<td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>` },
     hay('Horometro') && { titulo: 'Horómetro', celda: m => `<td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td>` },
     hay('Responsable') && { titulo: 'Responsable', celda: m => `<td>${esc(m.Responsable || '—')}</td>` },
     quitar && { titulo: '', celda: m => `<td><button type="button" class="emp-mant-quitar" title="Quitar" aria-label="Quitar el mantenimiento del ${esc(fmtFecha(m.Fecha))}" onclick="empEliminarMantenimiento(${_jsArg(m.ID)})">✕</button></td>` },
@@ -24924,7 +24945,7 @@ async function empLeerExcelMantenimientos(input) {
     return;
   }
   if (!imp) {
-    cont.innerHTML = `<div class="emp-import error">No se encontraron las columnas en "${esc(file.name)}". El archivo necesita una fila de títulos con al menos <b>Fecha</b> y <b>Descripción</b> (o <b>Tipo</b>); si trae varios equipos, también <b>Equipo</b>. Mira el formato de ejemplo.</div>`;
+    cont.innerHTML = `<div class="emp-import error">No se encontraron las columnas en "${esc(file.name)}". El archivo necesita una fila de títulos con al menos <b>FECHA</b> y <b>ACTIVIDADES REALIZADAS</b>; si trae varios equipos, también <b>EQUIPOS</b>. Mira el formato de ejemplo.</div>`;
     return;
   }
   _empImportacion = { ...imp, archivo: file.name, equipo };
@@ -24935,7 +24956,9 @@ function _empHtmlVistaPreviaMantenimientos(imp) {
   const n = imp.listos.length;
   const porEquipo = {};
   imp.listos.forEach(m => { porEquipo[m.Equipo] = (porEquipo[m.Equipo] || 0) + 1; });
-  const columnas = Object.entries(imp.columnas).sort((a, b) => a[1] - b[1]).map(([campo, col]) => `${EMPALME_MANT_ETIQUETAS[campo]} (${numToCol(col)})`).join(', ');
+  // Con el nombre que tienen en el archivo, para que se reconozcan.
+  const columnas = Object.entries(imp.columnas).sort((a, b) => a[1] - b[1])
+    .map(([campo, col]) => `${(imp.titulos || {})[campo] || EMPALME_MANT_ETIQUETAS[campo]} (${numToCol(col)})`).join(', ');
   const muestra = imp.listos.slice(0, 8);
   const p = imp.problemas;
   return `<div class="emp-import">
@@ -25055,16 +25078,16 @@ async function empEliminarMantenimiento(id) {
   }
 }
 
-/** Un CSV de ejemplo con las tres columnas que bastan (Excel lo abre). */
+/** Un CSV de ejemplo con las columnas de los archivos del empalme (Excel lo abre). */
 function empFormatoMantenimientos() {
   const equipo = _empEquipoActual || _empEquiposSede(operacionActual)[0] || 'Equipo';
   const filas = [
-    ['Equipo', 'Fecha', 'Descripción'],
-    [equipo, '15/03/2024', 'Cambio de filtros de aire y aceite'],
-    [equipo, '02/09/2024', 'Cambio de sello del enfriador'],
+    ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS'],
+    [equipo, '15/03/2024', '2024', 'Cambio de filtros de aire y aceite'],
+    [equipo, '02/09/2024', '2024', 'Cambio de sello del enfriador'],
   ];
   const celda = v => (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
-  const blob = new Blob(['﻿' + filas.map(f => f.map(celda).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['\uFEFF' + filas.map(f => f.map(celda).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'formato-mantenimientos.csv';
