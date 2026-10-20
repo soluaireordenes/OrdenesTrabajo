@@ -142,7 +142,8 @@ function sheetsEnMemoria() {
 /** Un .xlsx mínimo (un zip con su XML), para probar el lector de Excel de la
  *  app sin Excel. filas: listas de celdas; una celda es texto, número o
  *  { n, estilo } (número con formato de fecha: 1 = dd/mm/yyyy propio del
- *  libro, 2 = el de fecha corta de Excel). Las partes grandes van
+ *  libro, 2 = el de fecha corta de Excel, 3 = d-mmm, que no muestra el
+ *  año). Las partes grandes van
  *  comprimidas, como en un archivo de verdad. */
 function xlsxDePrueba(filas) {
   const zlib = require('zlib');
@@ -165,7 +166,7 @@ function xlsxDePrueba(filas) {
   const partes = [
     ['xl/workbook.xml', `<workbook ${ns} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Historial" sheetId="1" r:id="rId1"/></sheets></workbook>`],
     ['xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'],
-    ['xl/styles.xml', `<styleSheet ${ns}><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy;@"/></numFmts><cellXfs count="3"><xf numFmtId="0"/><xf numFmtId="164"/><xf numFmtId="14"/></cellXfs></styleSheet>`, true],
+    ['xl/styles.xml', `<styleSheet ${ns}><numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy;@"/><numFmt numFmtId="165" formatCode="d-mmm"/></numFmts><cellXfs count="4"><xf numFmtId="0"/><xf numFmtId="164"/><xf numFmtId="14"/><xf numFmtId="165"/></cellXfs></styleSheet>`, true],
     ['xl/worksheets/sheet1.xml', `<worksheet ${ns}><sheetData>${hoja}</sheetData></worksheet>`, true],
   ];
   partes.splice(2, 0, ['xl/sharedStrings.xml', `<sst ${ns}>${textos.map(t => `<si><t>${escXml(t)}</t></si>`).join('')}</sst>`, true]);
@@ -2318,13 +2319,17 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       usuarioRol = 'admin'; _aplicarRolUI();
       return { acta: /Mantenimientos anteriores registrados<\/th><td>2, del 15\/03\/2024 al 02\/09\/2024/.test(acta) && /<b>3<\/b>mantenimientos anteriores registrados/.test(acta), operario };
     });
-    // Como los archivos del empalme: solo equipo, fecha y descripción, con
-    // los títulos en mayúscula. Las tablas no muestran columnas vacías.
+    // Como los archivos del empalme: EQUIPOS, FECHA, AÑO, ACTIVIDADES
+    // REALIZADAS, HORÓMETRO y OBSERVACIONES. El año sale de AÑO: la FECHA
+    // "1-oct" la guardó Excel con el año en que se escribió (2025) y es de
+    // 2023; "10/08" y "15 de marzo" no lo traen. Horómetro y observaciones
+    // pueden ir vacíos.
     out.sencillo = await subir('mantenimientos.xlsx', xlsxDePrueba([
-      ['EQUIPOS', 'FECHA', 'DESCRIPCIÓN'],
-      ['CB1', { n: 45200 }, 'Cambio de rodamientos del motor'],
-      ['CB1', '10/08/2024', 'Limpieza de radiador'],
-      ['JOY 3', '05/05/2024', 'Cambio de aceite'],
+      ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS', 'HORÓMETRO', 'OBSERVACIONES'],
+      ['CB1', { n: 45931, estilo: 3 }, 2023, 'Cambio de rodamientos del motor', 15200, 'Ruido en el rodamiento lado acople'],
+      ['CB1', '10/08', 2024, 'Limpieza de radiador', '16.050', ''],
+      ['JOY 3', '05/05/2024', 2024, 'Cambio de aceite', '', ''],
+      ['JOY 3', '15 de marzo', '2023', 'Revisión de válvulas', '', 'Sin novedad'],
     ]));
     out.sencilloTablas = await p.evaluate(async () => {
       const vista = [...document.querySelectorAll('#empf_mantImport thead th')].map(th => th.textContent).join(',');
@@ -2336,7 +2341,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: el Excel de mantenimientos se lee (título arriba, fechas de Excel y escritas, equipo en celdas combinadas) y dice qué se registra y qué no',
       /3 mantenimientos listos para registrar: JOY 2 \(2\), JOY 21 \(1\)/.test(out.vista) && /1 fila está repetida en el archivo/.test(out.vista)
       && /Fila 7: el equipo "JOY 20" no está en la lista de la sede/.test(out.vista) && /Fila 8: no tiene fecha/.test(out.vista)
-      && /Fila 9: la fecha "31\/02\/2024" no se reconoce/.test(out.vista) && /Columnas: Equipo \(A\), Fecha \(B\), Tipo \(C\), Descripción \(D\), Horómetro \(E\), Responsable \(F\)/.test(out.vista),
+      && /Fila 9: la fecha "31\/02\/2024" no se reconoce/.test(out.vista)
+      && /Columnas: Equipo \(A\), Fecha de mantenimiento \(B\), Tipo de mantenimiento \(C\), Descripción del trabajo \(D\), Horómetro \(h\) \(E\), Realizado por \(F\)/.test(out.vista),
       out.vista);
     check('Empalme: se registran todos de una vez (una sola escritura) y el último mantenimiento queda en la ficha',
       out.anexos === 1 && hoja.length === 4 && /3 mantenimientos registrados en 2 equipos/.test(out.registro.msg)
@@ -2355,11 +2361,16 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /Excel 97-2003 \(\.xls\).*\.xlsx/.test(out.xls) && out.final.acta
       && out.final.operario.subir === 'none' && out.final.operario.quitar === 0 && out.final.operario.lista === 2,
       { xls: out.xls, final: out.final });
-    check('Empalme: un archivo con solo EQUIPOS, FECHA y DESCRIPCIÓN se registra, sin columnas vacías en las tablas',
-      /Columnas: Equipo \(A\), Fecha \(B\), Descripción \(C\)/.test(out.sencillo) && /3 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(1\)/.test(out.sencillo)
-      && out.sencilloTablas.vista === 'Equipo,Fecha,Descripción' && out.sencilloTablas.lista === 'Fecha,Descripción,'
+    const filasSencillo = fake.hoja(id, 'EmpalmeMantenimientos').filter(f => f[col(hoja, 'Archivo')] === 'mantenimientos.xlsx')
+      .map(f => ['Equipo', 'Fecha', 'Horometro', 'Observaciones'].map(c => f[col(hoja, c)]).join(' | ')).join(' / ');
+    check('Empalme: el archivo con EQUIPOS, FECHA, AÑO, ACTIVIDADES REALIZADAS, HORÓMETRO y OBSERVACIONES se registra con el año de la columna AÑO',
+      /Columnas: EQUIPOS \(A\), FECHA \(B\), AÑO \(C\), ACTIVIDADES REALIZADAS \(D\), HORÓMETRO \(E\), OBSERVACIONES \(F\)/.test(out.sencillo)
+      && /4 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(2\)/.test(out.sencillo)
+      && filasSencillo === 'CB1 | 2023-10-01 | 15200 | Ruido en el rodamiento lado acople / CB1 | 2024-08-10 | 16050 |  / JOY 3 | 2024-05-05 |  |  / JOY 3 | 2023-03-15 |  | Sin novedad'
+      && out.sencilloTablas.vista === 'Equipos,Fecha,Actividades realizadas,Horómetro,Observaciones'
+      && out.sencilloTablas.lista === 'Fecha,Actividades realizadas,Horómetro,Observaciones,'
       && out.sencilloTablas.filas === 2 && out.sencilloTablas.ultimo === 'Limpieza de radiador',
-      { vista: out.sencillo, tablas: out.sencilloTablas });
+      { vista: out.sencillo, filas: filasSencillo, tablas: out.sencilloTablas });
     check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
