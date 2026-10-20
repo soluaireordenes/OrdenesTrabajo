@@ -398,7 +398,6 @@ body::before {
 .emp-mant-cuenta { color: var(--text3); }
 .emp-mant-lista { max-height: 340px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
 .emp-mant-lista .emp-tabla th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
-.emp-mant-obs { font-size: 12px; color: var(--text3); margin-top: 2px; }
 .emp-mant-vacio, .emp-mant-ayuda { font-size: 12px; color: var(--text3); line-height: 1.5; }
 .emp-mant-ayuda { margin-top: 6px; max-width: 760px; }
 .emp-mant-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
@@ -24750,8 +24749,9 @@ async function empGuardarFicha() {
    Las columnas se reconocen por su título; si el archivo trae varios
    equipos, cada fila va al suyo. Antes de guardar se muestra qué se va a
    registrar, qué ya estaba y qué filas tienen problemas. */
-// Los archivos del empalme traen EQUIPOS, FECHA, AÑO y ACTIVIDADES
-// REALIZADAS (la descripción): así se llaman también en la app.
+// Los archivos del empalme traen EQUIPOS, FECHA, AÑO, ACTIVIDADES
+// REALIZADAS (la descripción), HORÓMETRO y OBSERVACIONES: así se llaman
+// también en la app.
 const EMPALME_MANT_ETIQUETAS = { Equipo: 'Equipos', Fecha: 'Fecha', Anio: 'Año', Tipo: 'Tipo', Descripcion: 'Actividades realizadas', Horometro: 'Horómetro', Responsable: 'Responsable', Observaciones: 'Observaciones' };
 // Palabras con que se reconoce cada columna en el título (sin tildes ni
 // mayúsculas). Si un título trae palabras de dos columnas, gana la que va
@@ -24890,23 +24890,23 @@ function _empHtmlBloqueMantenimientos(equipo) {
         <input type="file" accept=".xlsx,.csv,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none" onchange="empLeerExcelMantenimientos(this)"></label>
       <button type="button" class="btn btn-ghost" onclick="empFormatoMantenimientos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Formato de ejemplo</button>
     </div>
-    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos: <b>EQUIPOS</b>, <b>FECHA</b>, <b>AÑO</b> y <b>ACTIVIDADES REALIZADAS</b>. El año sale de la columna AÑO; si la FECHA ya lo trae, AÑO puede faltar. Sin la columna EQUIPOS, todo queda en ${esc(equipo)}. Si el archivo trae Tipo, Horómetro, Responsable u Observaciones, también se guardan. Antes de registrar se ve qué entra.</div>
+    <div class="emp-mant-ayuda solo-admin">Excel (.xlsx) o CSV con una fila de títulos: <b>EQUIPOS</b>, <b>FECHA</b>, <b>AÑO</b>, <b>ACTIVIDADES REALIZADAS</b>, <b>HORÓMETRO</b> y <b>OBSERVACIONES</b>. Horómetro y observaciones pueden ir vacíos. El año sale de la columna AÑO; si la FECHA ya lo trae, AÑO puede faltar. Sin la columna EQUIPOS, todo queda en ${esc(equipo)}. Antes de registrar se ve qué entra.</div>
     <div id="empf_mantImport"></div>
   </div>`;
 }
 
-/** Tabla de mantenimientos. Tipo, Horómetro y Responsable salen solo si
- *  alguno los trae: muchos archivos tienen apenas equipo, fecha y
- *  descripción, y no tiene caso una columna llena de rayas. */
+/** Tabla de mantenimientos. Tipo, Horómetro, Responsable y Observaciones
+ *  salen solo si alguno los trae: no tiene caso una columna llena de rayas. */
 function _empTablaMantenimientos(lista, { conEquipo = false, quitar = false } = {}) {
   const hay = campo => lista.some(m => String(m[campo] || '').trim());
   const cols = [
     conEquipo && { titulo: 'Equipos', celda: m => `<td>${esc(m.Equipo)}</td>` },
     { titulo: 'Fecha', celda: m => `<td class="num">${esc(fmtFecha(m.Fecha))}</td>` },
     hay('Tipo') && { titulo: 'Tipo', celda: m => `<td>${esc(m.Tipo || '—')}</td>` },
-    { titulo: 'Actividades realizadas', celda: m => `<td>${esc(m.Descripcion || '—')}${m.Observaciones ? `<div class="emp-mant-obs">${esc(m.Observaciones)}</div>` : ''}</td>` },
+    { titulo: 'Actividades realizadas', celda: m => `<td>${esc(m.Descripcion || '—')}</td>` },
     hay('Horometro') && { titulo: 'Horómetro', celda: m => `<td class="num">${m.Horometro ? esc(_empFmtHorometro(m.Horometro)) : '—'}</td>` },
     hay('Responsable') && { titulo: 'Responsable', celda: m => `<td>${esc(m.Responsable || '—')}</td>` },
+    hay('Observaciones') && { titulo: 'Observaciones', celda: m => `<td>${esc(m.Observaciones || '—')}</td>` },
     quitar && { titulo: '', celda: m => `<td><button type="button" class="emp-mant-quitar" title="Quitar" aria-label="Quitar el mantenimiento del ${esc(fmtFecha(m.Fecha))}" onclick="empEliminarMantenimiento(${_jsArg(m.ID)})">✕</button></td>` },
   ].filter(Boolean);
   return `<table class="emp-tabla"><thead><tr>${cols.map(c => c.titulo ? `<th>${c.titulo}</th>` : '<th aria-label="Quitar"></th>').join('')}</tr></thead>
@@ -25082,9 +25082,9 @@ async function empEliminarMantenimiento(id) {
 function empFormatoMantenimientos() {
   const equipo = _empEquipoActual || _empEquiposSede(operacionActual)[0] || 'Equipo';
   const filas = [
-    ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS'],
-    [equipo, '15/03/2024', '2024', 'Cambio de filtros de aire y aceite'],
-    [equipo, '02/09/2024', '2024', 'Cambio de sello del enfriador'],
+    ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS', 'HORÓMETRO', 'OBSERVACIONES'],
+    [equipo, '15/03/2024', '2024', 'Cambio de filtros de aire y aceite', '42500', ''],
+    [equipo, '02/09/2024', '2024', 'Cambio de sello del enfriador', '44010', 'Fuga en el enfriador'],
   ];
   const celda = v => (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
   const blob = new Blob(['\uFEFF' + filas.map(f => f.map(celda).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });

@@ -2319,16 +2319,17 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       usuarioRol = 'admin'; _aplicarRolUI();
       return { acta: /Mantenimientos anteriores registrados<\/th><td>2, del 15\/03\/2024 al 02\/09\/2024/.test(acta) && /<b>3<\/b>mantenimientos anteriores registrados/.test(acta), operario };
     });
-    // Como los archivos del empalme: EQUIPOS, FECHA, AÑO y ACTIVIDADES
-    // REALIZADAS. El año sale de AÑO: la FECHA "1-oct" la guardó Excel con
-    // el año en que se escribió (2025) y es de 2023; "10/08" y "15 de
-    // marzo" no lo traen. Las tablas no muestran columnas vacías.
+    // Como los archivos del empalme: EQUIPOS, FECHA, AÑO, ACTIVIDADES
+    // REALIZADAS, HORÓMETRO y OBSERVACIONES. El año sale de AÑO: la FECHA
+    // "1-oct" la guardó Excel con el año en que se escribió (2025) y es de
+    // 2023; "10/08" y "15 de marzo" no lo traen. Horómetro y observaciones
+    // pueden ir vacíos.
     out.sencillo = await subir('mantenimientos.xlsx', xlsxDePrueba([
-      ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS'],
-      ['CB1', { n: 45931, estilo: 3 }, 2023, 'Cambio de rodamientos del motor'],
-      ['CB1', '10/08', 2024, 'Limpieza de radiador'],
-      ['JOY 3', '05/05/2024', 2024, 'Cambio de aceite'],
-      ['JOY 3', '15 de marzo', '2023', 'Revisión de válvulas'],
+      ['EQUIPOS', 'FECHA', 'AÑO', 'ACTIVIDADES REALIZADAS', 'HORÓMETRO', 'OBSERVACIONES'],
+      ['CB1', { n: 45931, estilo: 3 }, 2023, 'Cambio de rodamientos del motor', 15200, 'Ruido en el rodamiento lado acople'],
+      ['CB1', '10/08', 2024, 'Limpieza de radiador', '16.050', ''],
+      ['JOY 3', '05/05/2024', 2024, 'Cambio de aceite', '', ''],
+      ['JOY 3', '15 de marzo', '2023', 'Revisión de válvulas', '', 'Sin novedad'],
     ]));
     out.sencilloTablas = await p.evaluate(async () => {
       const vista = [...document.querySelectorAll('#empf_mantImport thead th')].map(th => th.textContent).join(',');
@@ -2360,14 +2361,16 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /Excel 97-2003 \(\.xls\).*\.xlsx/.test(out.xls) && out.final.acta
       && out.final.operario.subir === 'none' && out.final.operario.quitar === 0 && out.final.operario.lista === 2,
       { xls: out.xls, final: out.final });
-    const fechasSencillo = fake.hoja(id, 'EmpalmeMantenimientos').filter(f => f[col(hoja, 'Archivo')] === 'mantenimientos.xlsx')
-      .map(f => f[col(hoja, 'Equipo')] + ' ' + f[col(hoja, 'Fecha')]).join(', ');
-    check('Empalme: el archivo con EQUIPOS, FECHA, AÑO y ACTIVIDADES REALIZADAS se registra con el año de la columna AÑO, sin columnas vacías',
-      /Columnas: EQUIPOS \(A\), FECHA \(B\), AÑO \(C\), ACTIVIDADES REALIZADAS \(D\)/.test(out.sencillo) && /4 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(2\)/.test(out.sencillo)
-      && fechasSencillo === 'CB1 2023-10-01, CB1 2024-08-10, JOY 3 2024-05-05, JOY 3 2023-03-15'
-      && out.sencilloTablas.vista === 'Equipos,Fecha,Actividades realizadas' && out.sencilloTablas.lista === 'Fecha,Actividades realizadas,'
+    const filasSencillo = fake.hoja(id, 'EmpalmeMantenimientos').filter(f => f[col(hoja, 'Archivo')] === 'mantenimientos.xlsx')
+      .map(f => ['Equipo', 'Fecha', 'Horometro', 'Observaciones'].map(c => f[col(hoja, c)]).join(' | ')).join(' / ');
+    check('Empalme: el archivo con EQUIPOS, FECHA, AÑO, ACTIVIDADES REALIZADAS, HORÓMETRO y OBSERVACIONES se registra con el año de la columna AÑO',
+      /Columnas: EQUIPOS \(A\), FECHA \(B\), AÑO \(C\), ACTIVIDADES REALIZADAS \(D\), HORÓMETRO \(E\), OBSERVACIONES \(F\)/.test(out.sencillo)
+      && /4 mantenimientos listos para registrar: CB1 \(2\), JOY 3 \(2\)/.test(out.sencillo)
+      && filasSencillo === 'CB1 | 2023-10-01 | 15200 | Ruido en el rodamiento lado acople / CB1 | 2024-08-10 | 16050 |  / JOY 3 | 2024-05-05 |  |  / JOY 3 | 2023-03-15 |  | Sin novedad'
+      && out.sencilloTablas.vista === 'Equipos,Fecha,Actividades realizadas,Horómetro,Observaciones'
+      && out.sencilloTablas.lista === 'Fecha,Actividades realizadas,Horómetro,Observaciones,'
       && out.sencilloTablas.filas === 2 && out.sencilloTablas.ultimo === 'Limpieza de radiador',
-      { vista: out.sencillo, fechas: fechasSencillo, tablas: out.sencilloTablas });
+      { vista: out.sencillo, filas: filasSencillo, tablas: out.sencilloTablas });
     check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
