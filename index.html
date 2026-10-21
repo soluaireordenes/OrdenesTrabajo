@@ -389,6 +389,11 @@ body::before {
 .field textarea.emp-texto, .emp-tabla-evaluacion textarea.emp-texto { display: block; min-height: 0; resize: none; overflow: hidden; line-height: 1.45; }
 .emp-tabla-evaluacion textarea.emp-texto { width: 100%; padding: 5px 7px; border-radius: 6px; font-size: 12px; }
 .emp-tabla-evaluacion { min-width: 640px; }
+/* Plan de Mantenimiento: lo que es del programa por horas de Zipaquirá
+   (cinco pestañas y las actividades de los informes) no sale en una sede
+   sin él, y ahí van sus propios textos (abrirPlanMantenimiento). */
+#panel-planmantenimiento.sin-programa .pm-programa,
+#panel-planmantenimiento:not(.sin-programa) .pm-sin-programa { display: none; }
 .emp-tabla-evaluacion td:first-child { min-width: 240px; }
 .emp-docs { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 /* Dentro de un .field, las etiquetas van en mayúscula pequeña y los inputs a
@@ -4290,11 +4295,11 @@ body.rol-operario .btn-principal-operario {
       <!-- Sub-navegación del Plan de Mantenimiento -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-pmtab="registro" onclick="pmMostrarSubTab('registro')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Registro</button>
-        <button class="inv-subtab" data-pmtab="horas" onclick="pmMostrarSubTab('horas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</button>
-        <button class="inv-subtab" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Programa 2026</button>
-        <button class="inv-subtab" data-pmtab="informetrimestral" onclick="pmMostrarSubTab('informetrimestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Trimestral</button>
-        <button class="inv-subtab" data-pmtab="informesemestral" onclick="pmMostrarSubTab('informesemestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Semestral</button>
-                <button class="inv-subtab" data-pmtab="informeanual" onclick="pmMostrarSubTab('informeanual')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Anual</button>
+        <button class="inv-subtab pm-programa" data-pmtab="horas" onclick="pmMostrarSubTab('horas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</button>
+        <button class="inv-subtab pm-programa" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Programa 2026</button>
+        <button class="inv-subtab pm-programa" data-pmtab="informetrimestral" onclick="pmMostrarSubTab('informetrimestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Trimestral</button>
+        <button class="inv-subtab pm-programa" data-pmtab="informesemestral" onclick="pmMostrarSubTab('informesemestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Semestral</button>
+                <button class="inv-subtab pm-programa" data-pmtab="informeanual" onclick="pmMostrarSubTab('informeanual')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Anual</button>
 <button class="inv-subtab solo-admin" data-pmtab="configinformes" onclick="pmMostrarSubTab('configinformes')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> Configuración</button>
       </div>
 
@@ -4305,7 +4310,8 @@ body.rol-operario .btn-principal-operario {
           <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Operación de Equipos</span>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderRegistroHoras()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
         </div>
-        <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Horas actuales de cada equipo. Se alimentan solas con cada reporte del Cronograma que traiga horómetro, y de ahí salen las barras del cronograma de mantenimiento y las órdenes automáticas Trimestral/Semestral/Anual. No se editan a mano: una hora tecleada de más generaría una orden que no toca, o taparía una que sí.</div>
+        <div class="pm-programa" style="font-size:12px;color:var(--text3);padding:12px 18px 0">Horas actuales de cada equipo. Se alimentan solas con cada reporte del Cronograma que traiga horómetro, y de ahí salen las barras del cronograma de mantenimiento y las órdenes automáticas Trimestral/Semestral/Anual. No se editan a mano: una hora tecleada de más generaría una orden que no toca, o taparía una que sí.</div>
+        <div class="pm-sin-programa" id="pmRegistroAyudaSinPrograma" style="font-size:12px;color:var(--text3);padding:12px 18px 0"></div>
         <div class="card-body" style="padding:18px" id="pmRegistroHorasContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
       </div>
 
@@ -4368,15 +4374,16 @@ body.rol-operario .btn-principal-operario {
       <div id="pmSub-configinformes" class="inv-subpanel">
         <div class="card" style="margin-bottom:16px">
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Hora base de cada equipo</div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">
+          <div class="pm-programa" style="font-size:12px;color:var(--text3);padding:12px 18px 0">
             Desde qué horómetro empieza a contar el sistema para generar órdenes automáticas.
             Un equipo que ya llevaba miles de horas antes de entrar al sistema necesita su hora base,
             o se le generarían órdenes de mantenimientos que ya se hicieron. Déjala vacía o en 0 para contar desde cero.
           </div>
+          <div class="pm-sin-programa" id="pmHoraBaseAyudaSinPrograma" style="font-size:12px;color:var(--text3);padding:12px 18px 0"></div>
           <div class="card-body" style="padding:18px" id="pmHoraBaseContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
 
-        <div class="card">
+        <div class="card pm-programa">
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Actividades de cada informe</div>
           <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">
             Las tareas que se escriben automáticamente en la orden. Elige la frecuencia y el tipo de equipo.
@@ -7315,7 +7322,10 @@ window.addEventListener('load', async () => {
       if (GENERAR_ORDENES_PLANES_MANTENIMIENTO) {
         verificarPlanesMantenimientoYGenerar().catch(e => console.warn('Planes de mantenimiento:', e.message));
       }
-      if (GENERAR_ORDENES_INFORMES_POR_HORAS) {
+      // Solo en la sede con informes por horas (Zipaquirá): en las demás,
+      // esta revisión y el catálogo de variables del bot creaban pestañas
+      // que esa sede no usa y costaban una lectura en cada arranque.
+      if (GENERAR_ORDENES_INFORMES_POR_HORAS && _pmGeneraOrdenesAutomaticas(operacionActual)) {
         // Las hojas que van a leer los tres informes se traen de una vez:
         // asi la revision completa cuesta 1 lectura en vez de 5.
         _precargarHojasEnCache(
@@ -15512,6 +15522,7 @@ function abrirPlanMantenimiento(opKey) {
   _actualizarBottomNav(null);
   document.getElementById('panel-planmantenimiento').classList.add('active');
   document.getElementById('planMantTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Plan de Mantenimiento — ' + esc(OPERACIONES[opKey].nombre);
+  _pmAjustarASede(opKey);
 
   document.body.classList.add('inv-activo');
 
@@ -15519,6 +15530,21 @@ function abrirPlanMantenimiento(opKey) {
 
   renderSidebarOperaciones();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Horas de Mantenimiento, Programa 2026 y los tres informes son el programa
+ *  por horas de Zipaquirá. En una sede sin él (como Zipaquirá 2) se quedan
+ *  Registro y Configuración, con textos que dicen de dónde salen sus horas,
+ *  en vez de cinco pestañas que decían "todavía no disponible". */
+function _pmAjustarASede(opKey) {
+  const sinPrograma = !_pmGeneraOrdenesAutomaticas(opKey);
+  document.getElementById('panel-planmantenimiento').classList.toggle('sin-programa', sinPrograma);
+  if (!sinPrograma) return;
+  const conEmpalme = _empalmeDisponible(opKey);
+  document.getElementById('pmRegistroAyudaSinPrograma').textContent = 'Horas actuales de cada equipo. Esta sede todavía no tiene reportes con horómetro ni órdenes automáticas por horas'
+    + (conEmpalme ? ': las horas que aparecen son las del horómetro anotado al recibir cada equipo en el Empalme de entrega.' : '.');
+  document.getElementById('pmHoraBaseAyudaSinPrograma').textContent = 'Desde qué horómetro se cuentan las horas de cada equipo. Esta sede todavía no genera órdenes automáticas por horas: la hora base queda lista para cuando las haya'
+    + (conEmpalme ? ' y se llena sola con el horómetro de la ficha del Empalme de entrega.' : '.');
 }
 
 function volverDePlanMantenimiento() {
@@ -15717,13 +15743,15 @@ async function pmRenderHoraBase() {
   // Se leen tambien las hojas de estado para poder decir, equipo por
   // equipo, que va a hacer el sistema. Sin esto, cuando no aparece una
   // orden esperada no hay forma de saber si es porque no hay horas, porque
-  // la base esta mas adelante o porque ya se genero.
+  // la base esta mas adelante o porque ya se genero. En una sede que no
+  // genera ordenes por horas no hay nada que decir: no se crean ni se leen.
+  const generaOrdenes = _pmGeneraOrdenesAutomaticas(planMantOperacionActual);
   const estados = {};
-  for (const [key, def] of Object.entries({
+  for (const [key, def] of Object.entries(generaOrdenes ? {
     trimestral: { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS },
     semestral:  { hoja: SH.informeSemestralEstado,  cols: INFORME_SEMESTRAL_ESTADO_COLS },
     anual:      { hoja: SH.informeAnualEstado,      cols: INFORME_ANUAL_ESTADO_COLS },
-  })) {
+  } : {})) {
     try {
       await asegurarHoja(def.hoja, def.cols);
       estados[key] = await leerHojaGenericaCacheada(def.hoja) || [];
@@ -15735,18 +15763,17 @@ async function pmRenderHoraBase() {
   );
 
   const equipos = _pmGruposEquipos(planMantOperacionActual).flatMap(g => g.equipos);
-  const generaOrdenes = _pmGeneraOrdenesAutomaticas(planMantOperacionActual);
   const filas = equipos.map(eq => {
     const f = horasEquipos.find(x => x.Equipo === eq) || {};
     const actuales = f.HorasActuales === '' || f.HorasActuales === undefined ? null : Number(f.HorasActuales);
     const base = f.HoraBaseInformes === '' || f.HoraBaseInformes === undefined ? '' : f.HoraBaseInformes;
 
     let estadoTxt, color = 'var(--text3)';
-    if (actuales === null || isNaN(actuales) || actuales <= 0) {
+    if (!generaOrdenes) {
+      estadoTxt = 'Esta sede todavía no genera órdenes automáticas';
+    } else if (actuales === null || isNaN(actuales) || actuales <= 0) {
       estadoTxt = 'Sin horas registradas — no puede generar nada';
       color = 'var(--estado-peligro-tx)';
-    } else if (!generaOrdenes) {
-      estadoTxt = 'Esta sede todavía no genera órdenes automáticas';
     } else {
       const pendientes = [], proximas = [];
       for (const k of ['trimestral', 'semestral', 'anual']) {
@@ -15997,6 +16024,8 @@ async function pmGuardarActividades() {
 
 function pmMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-planmantenimiento');
+  // Una pestaña del programa de Zipaquirá en una sede sin él: a Registro.
+  if (panel.classList.contains('sin-programa') && panel.querySelector(`.inv-subtab[data-pmtab="${nombre}"]`)?.classList.contains('pm-programa')) nombre = 'registro';
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
   document.getElementById('pmSub-' + nombre).classList.add('active');

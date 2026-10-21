@@ -2484,11 +2484,29 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await p.locator('#empListaEquipos').getByText('JOY 3', { exact: true }).tap();
       await p.waitForTimeout(1500);
       out.z2.fichaAlToque = await p.evaluate(() => Math.round(document.getElementById('empFicha').getBoundingClientRect().top));
+      // Plan de Mantenimiento sin las pestañas del programa por horas de
+      // Zipaquirá, y sin crear las pestañas que esta sede no usa.
+      out.z2.plan = await p.evaluate(async () => {
+        abrirPlanMantenimiento('zipaquira2');
+        pmMostrarSubTab('horas');
+        const panel = document.getElementById('panel-planmantenimiento');
+        const r = {
+          pestanas: [...panel.querySelectorAll('.inv-subtab')].filter(b => b.offsetParent).map(b => b.dataset.pmtab).join(','),
+          activa: panel.querySelector('.inv-subtab.active').dataset.pmtab,
+          ayuda: document.getElementById('pmRegistroAyudaSinPrograma').textContent,
+        };
+        pmMostrarSubTab('configinformes');
+        for (let i = 0; i < 50 && !document.querySelector('#pmHoraBaseContenido tbody tr'); i++) await new Promise(x => setTimeout(x, 100));
+        r.horaBase = document.querySelector('#pmHoraBaseContenido tbody tr td:last-child')?.textContent.trim();
+        r.actividades = !!document.getElementById('pmActividadesContenido').offsetParent;
+        return r;
+      });
+      out.z2.sinUso = ['InformeTrimestralEstado', 'InformeSemestralEstado', 'InformeAnualEstado', 'CamposReportes'].filter(n => fake.hoja(id, n).length);
       out.z2.errs = errs;
       await ctx.close();
     }
     {
-      const { ctx, p, errs } = await abrirSede('zipaquira', { viewport: { width: 1366, height: 900 } });
+      const { fake, ctx, p, errs } = await abrirSede('zipaquira', { viewport: { width: 1366, height: 900 } });
       out.z1 = await p.evaluate(async () => {
         const espera = ms => new Promise(x => setTimeout(x, ms));
         showPanel('inicio');
@@ -2507,8 +2525,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
           const chip = document.getElementById(prefijo + '_cronTimer');
           if (chip.scrollWidth > chip.clientWidth + 1 || chip.getBoundingClientRect().right > chip.parentElement.getBoundingClientRect().right + 1) r.avisoSeSale.push(tab);
         }
+        abrirPlanMantenimiento('zipaquira');
+        r.plan = [...document.querySelectorAll('#panel-planmantenimiento .inv-subtab')].filter(b => b.offsetParent).map(b => b.dataset.pmtab).join(',');
         return r;
       });
+      // Zipaquirá sí sigue revisando los informes por horas al arrancar.
+      const idZ1 = await p.evaluate(() => OPERACIONES.zipaquira.spreadsheetId);
+      for (let i = 0; i < 50 && !fake.hoja(idZ1, 'CamposReportes').length; i++) await p.waitForTimeout(100);
+      out.z1.precarga = ['InformeTrimestralEstado', 'CamposReportes'].filter(n => fake.hoja(idZ1, n).length).join(',');
       out.z1.errs = errs;
       await ctx.close();
     }
@@ -2523,6 +2547,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Zipaquirá 1: Variables, Reportes y el acceso de Inicio siguen igual, y el aviso de la hora cabe en su recuadro en los 5 reportes técnicos',
       out.z1.acceso === 'Reporte de esta hora' && out.z1.abajo === 'cronograma' && out.z1.variables && out.z1.variablesAbre
       && out.z1.tarjetas === 'block,block' && out.z1.avisoSeSale.length === 0, out.z1);
+    check('Zipaquirá 2: el Plan de Mantenimiento solo tiene Registro y Configuración, con sus textos, y no crea las pestañas de los informes por horas ni del catálogo',
+      out.z2.plan.pestanas === 'registro,configinformes' && out.z2.plan.activa === 'registro' && /Empalme de entrega/.test(out.z2.plan.ayuda)
+      && out.z2.plan.horaBase === 'Esta sede todavía no genera órdenes automáticas' && !out.z2.plan.actividades && out.z2.sinUso.length === 0, { plan: out.z2.plan, sinUso: out.z2.sinUso });
+    check('Zipaquirá 1: el Plan sigue con sus 7 pestañas y al arrancar sigue revisando los informes por horas',
+      out.z1.plan === 'registro,horas,programa2026,informetrimestral,informesemestral,informeanual,configinformes'
+      && out.z1.precarga === 'InformeTrimestralEstado,CamposReportes', { plan: out.z1.plan, precarga: out.z1.precarga });
     check('Zipaquirá 1 y 2 (arreglos): sin errores de JS', !out.z1.errs.length && !out.z2.errs.length, [...out.z1.errs, ...out.z2.errs].slice(0, 2));
   }
 
