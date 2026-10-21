@@ -2424,6 +2424,107 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme (mantenimientos): sin errores de JS', errs.length === 0, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Lo que salió de revisar Zipaquirá 1 y 2: en celular la ficha del
+    // empalme se ve desde el primer toque; Variables solo en la sede con
+    // reportes técnicos; en Zipaquirá 2 el acceso de Inicio y el botón de
+    // abajo llevan al empalme y Reportes no muestra formularios que no
+    // sirven; el hallazgo queda Resuelto cuando su orden se cierra; y el
+    // aviso de la hora de los reportes técnicos cabe en su recuadro.
+    const abrirSede = async (sede, opciones) => {
+      const fake = sheetsEnMemoria();
+      const ctx = await b.newContext({ serviceWorkers: 'block', ...opciones });
+      await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+      await ctx.route('**/sheets/v4/**', fake.route);
+      await ctx.addInitScript(sede => {
+        sessionStorage.setItem('gUser', JSON.stringify({ name: 'Ana Prueba', email: 'ana@x', initials: 'AP' }));
+        sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', 'admin');
+        sessionStorage.setItem('operacionAutenticada', sede); try { localStorage.setItem('operacionActual', sede); } catch (e) {}
+      }, sede);
+      const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+      await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
+      return { fake, ctx, p, errs };
+    };
+    const out = {};
+    {
+      const { fake, ctx, p, errs } = await abrirSede('zipaquira2', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+      fake.crear(id, 'EmpalmeHallazgos', [
+        ['ID', 'Equipo', 'Descripcion', 'Prioridad', 'Estado', 'OrdenNumero', 'RegistradoPor', 'FechaRegistro'],
+        ['H-1', 'JOY 2', 'Fuga en el enfriador', 'Alta', 'En orden', 'OT-A', 'Ana', '2026-10-01'],
+        ['H-2', 'JOY 3', 'Válvula sin certificar', 'Media', 'En orden', 'OT-B', 'Ana', '2026-10-02'],
+        ['H-3', 'JOY 4', 'Guarda suelta', 'Baja', 'Abierto', '', 'Ana', '2026-10-03'],
+      ]);
+      out.z2 = await p.evaluate(async () => {
+        showPanel('inicio');
+        renderAccesosInicio(0); // el reloj del acceso no lo vuelve a "Reporte de esta hora"
+        const r = {
+          acceso: document.querySelector('#accesoReporteBtn .acceso-titulo').textContent + ' | ' + document.getElementById('accesoReporte').textContent,
+          abajo: [...document.querySelectorAll('#bottomNav button')].map(x => x.dataset.panel + ':' + x.textContent.trim()).join(', '),
+          variables: !!document.querySelector('#sidebarOperaciones [data-grupo="variables"]'),
+        };
+        abrirVariables('compresores');
+        r.variablesAbre = document.getElementById('panel-variables').classList.contains('active');
+        showPanel('cronograma'); await new Promise(x => setTimeout(x, 300));
+        r.tarjetas = ['cronConsultaCard', 'cronInformeCard'].map(id => getComputedStyle(document.getElementById(id)).display).join(',');
+        document.getElementById('accesoReporteBtn').click();
+        r.accesoAbre = document.getElementById('panel-empalme').classList.contains('active');
+        showPanel('inicio');
+        allOrdenes.push({ id: 'OT-A', NumeroOrden: 'OT-A', Estado: 'Realizada', Equipo: 'JOY 2', Title: 'Fuga' },
+          { id: 'OT-B', NumeroOrden: 'OT-B', Estado: 'Pendiente', Equipo: 'JOY 3', Title: 'Válvula' });
+        return r;
+      });
+      await p.locator('#bottomNav button[data-panel="empalme"]').tap();
+      await p.waitForFunction(() => document.querySelector('#empListaEquipos .emp-equipo'), null, { timeout: 10000 });
+      out.z2.abajoAbre = await p.evaluate(() => document.getElementById('panel-empalme').classList.contains('active')
+        && document.querySelector('#bottomNav button[data-panel="empalme"]').classList.contains('activo'));
+      out.z2.hallazgos = await p.evaluate(() => _emp.hallazgos.map(h => h.ID + ':' + h.Estado).join(', '));
+      out.z2.hoja = fake.hoja(id, 'EmpalmeHallazgos').slice(1).map(f => f[0] + ':' + f[4]).join(', ');
+      await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(300);
+      await p.locator('#empListaEquipos').getByText('JOY 3', { exact: true }).tap();
+      await p.waitForTimeout(1500);
+      out.z2.fichaAlToque = await p.evaluate(() => Math.round(document.getElementById('empFicha').getBoundingClientRect().top));
+      out.z2.errs = errs;
+      await ctx.close();
+    }
+    {
+      const { ctx, p, errs } = await abrirSede('zipaquira', { viewport: { width: 1366, height: 900 } });
+      out.z1 = await p.evaluate(async () => {
+        const espera = ms => new Promise(x => setTimeout(x, ms));
+        showPanel('inicio');
+        const r = {
+          acceso: document.querySelector('#accesoReporteBtn .acceso-titulo').textContent,
+          abajo: document.querySelector('#bottomNav button:nth-child(3)').dataset.panel,
+          variables: !!document.querySelector('#sidebarOperaciones [data-grupo="variables"]'),
+        };
+        abrirVariables('compresores');
+        r.variablesAbre = document.getElementById('panel-variables').classList.contains('active');
+        showPanel('cronograma'); await espera(400);
+        r.tarjetas = ['cronConsultaCard', 'cronInformeCard'].map(id => getComputedStyle(document.getElementById(id)).display).join(',');
+        r.avisoSeSale = [];
+        for (const [tab, prefijo] of [['compresores', 'rc'], ['secadores', 'rs'], ['drycoolers', 'rd'], ['decorado', 'rdec'], ['emergencia', 're']]) {
+          cronMostrarSubTab(tab); await espera(200);
+          const chip = document.getElementById(prefijo + '_cronTimer');
+          if (chip.scrollWidth > chip.clientWidth + 1 || chip.getBoundingClientRect().right > chip.parentElement.getBoundingClientRect().right + 1) r.avisoSeSale.push(tab);
+        }
+        return r;
+      });
+      out.z1.errs = errs;
+      await ctx.close();
+    }
+    check('Zipaquirá 2: el acceso de Inicio y el botón de abajo del celular llevan al empalme, no a un Reportes vacío',
+      out.z2.acceso === 'Empalme de entrega | Recepción de equipos, hallazgos y repuestos' && out.z2.accesoAbre && out.z2.abajoAbre
+      && out.z2.abajo === 'inicio:Inicio, pendientes:Órdenes, empalme:Empalme, novedades:Novedades', out.z2);
+    check('Zipaquirá 2: sin Variables (no tiene reportes técnicos) y Reportes sin "Consultar otro día" ni "Descargar informe"',
+      !out.z2.variables && !out.z2.variablesAbre && out.z2.tarjetas === 'none,none', out.z2);
+    check('Empalme: el hallazgo con su orden Realizada queda Resuelto (también en la hoja); los demás no cambian',
+      out.z2.hallazgos === 'H-1:Resuelto, H-2:En orden, H-3:Abierto' && out.z2.hoja === out.z2.hallazgos, out.z2);
+    check('Empalme en celular: el primer equipo tocado lleva hasta su ficha', Math.abs(out.z2.fichaAlToque) < 80, out.z2.fichaAlToque);
+    check('Zipaquirá 1: Variables, Reportes y el acceso de Inicio siguen igual, y el aviso de la hora cabe en su recuadro en los 5 reportes técnicos',
+      out.z1.acceso === 'Reporte de esta hora' && out.z1.abajo === 'cronograma' && out.z1.variables && out.z1.variablesAbre
+      && out.z1.tarjetas === 'block,block' && out.z1.avisoSeSale.length === 0, out.z1);
+    check('Zipaquirá 1 y 2 (arreglos): sin errores de JS', !out.z1.errs.length && !out.z2.errs.length, [...out.z1.errs, ...out.z2.errs].slice(0, 2));
+  }
 
   await b.close();
   srv.close();

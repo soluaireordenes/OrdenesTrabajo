@@ -1829,7 +1829,7 @@ body.rol-operario .btn-principal-operario {
     <!-- Accesos directos: lo que se hace todos los días, primero. Solo con
          una operación autenticada (los llena renderAccesosInicio). -->
     <div id="accesosInicio" class="accesos-inicio" style="display:none">
-      <button type="button" class="acceso-inicio" onclick="showPanel('cronograma')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg></span><span class="acceso-texto"><span class="acceso-titulo">Reporte de esta hora</span><span class="acceso-detalle" id="accesoReporte">Actividades del turno y reportes de equipos</span></span></button>
+      <button type="button" class="acceso-inicio" id="accesoReporteBtn" onclick="showPanel('cronograma')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg></span><span class="acceso-texto"><span class="acceso-titulo">Reporte de esta hora</span><span class="acceso-detalle" id="accesoReporte">Actividades del turno y reportes de equipos</span></span></button>
       <button type="button" class="acceso-inicio" onclick="showPanel('pendientes')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="acceso-texto"><span class="acceso-titulo">Mis pendientes</span><span class="acceso-detalle" id="accesoPendientes">Órdenes por ejecutar</span></span></button>
       <button type="button" class="acceso-inicio solo-admin" onclick="showPanel('nueva')"><span class="acceso-icono"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></span><span class="acceso-texto"><span class="acceso-titulo">Nueva orden</span><span class="acceso-detalle">Crear una orden de trabajo</span></span></button>
     </div>
@@ -2924,7 +2924,7 @@ body.rol-operario .btn-principal-operario {
 
 
     <!-- Consultar otro día (solo lectura) -->
-    <div class="card" style="margin-bottom:14px">
+    <div class="card" id="cronConsultaCard" style="margin-bottom:14px">
       <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:180px">
@@ -2936,7 +2936,7 @@ body.rol-operario .btn-principal-operario {
     </div>
 
     <!-- Descargar informe PDF de un rango de fechas -->
-    <div class="card" style="margin-bottom:14px">
+    <div class="card" id="cronInformeCard" style="margin-bottom:14px">
       <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:160px">
@@ -3081,7 +3081,7 @@ body.rol-operario .btn-principal-operario {
               <select id="rc_hora" onchange="_onCambioHoraReporte('rc')">
                 <option value="">Seleccionar...</option>
               </select>
-              <div id="rc_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);white-space:nowrap;display:inline-block"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
+              <div id="rc_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Compresor *</label>
@@ -3139,7 +3139,7 @@ body.rol-operario .btn-principal-operario {
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rs_hora" onchange="_onCambioHoraReporte('rs')"><option value="">Seleccionar...</option></select>
-              <div id="rs_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);white-space:nowrap;display:inline-block"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
+              <div id="rs_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Secador *</label>
@@ -3219,7 +3219,7 @@ body.rol-operario .btn-principal-operario {
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rd_hora" onchange="_onCambioHoraReporte('rd')"><option value="">Seleccionar...</option></select>
-              <div id="rd_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);white-space:nowrap;display:inline-block"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
+              <div id="rd_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Drycooler a reportar *</label>
@@ -3298,7 +3298,7 @@ body.rol-operario .btn-principal-operario {
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rdec_hora" onchange="_onCambioHoraReporte('rdec')"><option value="">Seleccionar...</option></select>
-              <div id="rdec_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);white-space:nowrap;display:inline-block"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
+              <div id="rdec_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Seleccione compresor *</label>
@@ -3371,7 +3371,7 @@ body.rol-operario .btn-principal-operario {
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="re_hora" onchange="_onCambioHoraReporte('re')"><option value="">Seleccionar...</option></select>
-              <div id="re_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);white-space:nowrap;display:inline-block"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
+              <div id="re_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
               <label>Seleccionar compresor *</label>
@@ -6900,7 +6900,7 @@ function renderSidebarOperaciones() {
       <span style="flex:1;line-height:1.25">Política de privacidad</span>
     </div>
     <div style="border-top:1px solid var(--border);margin:8px 0"></div>
-    ${_sidebarEncabezadoGrupo('variables', 'Variables', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>')}
+    ${_sedeConReportesTecnicos(operacionActual) ? `${_sidebarEncabezadoGrupo('variables', 'Variables', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>')}
     ${(sidebarGrupoExpandido.variables ? VARIABLES_APARTADOS : []).map(ap => {
       const habilitado = operacionAutenticada;
       const activo = ap.key === variablesApartadoActual && document.getElementById('panel-variables')?.classList.contains('active');
@@ -6915,7 +6915,7 @@ function renderSidebarOperaciones() {
           <span style="flex:1;line-height:1.25;padding-left:22px">${esc(ap.label)}</span>
         </div>`;
     }).join('')}
-    <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+    <div style="border-top:1px solid var(--border);margin:8px 0"></div>` : ''}
     ${_sidebarEncabezadoGrupo('inventario', 'Inventario', '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>')}
     ${_sidebarClavesVisibles('inventario').map(key => {
       const op = OPERACIONES[key];
@@ -7297,6 +7297,7 @@ window.addEventListener('load', async () => {
   // (evita traer datos de la operación sin haber puesto la contraseña primero).
   if (operacionAutenticada) {
     document.body.classList.add('autenticado'); // habilita la barra inferior móvil
+    _ajustarAccesosDeLaSede();
     cargarOrdenes().then(() => {
       renderPendientes();
       renderKpisInicio(); // resumen de un vistazo en Inicio
@@ -7583,6 +7584,7 @@ function renderAccesosInicio(pendientes) {
   const elP = document.getElementById('accesoPendientes');
   if (elP) elP.textContent = !pendientes ? 'Todo al día' : pendientes === 1 ? '1 orden por ejecutar' : pendientes + ' órdenes por ejecutar';
   const pintarVentana = () => {
+    if (_empalmeDisponible(operacionActual)) return; // ese acceso lleva al empalme (_ajustarAccesosDeLaSede)
     const elR = document.getElementById('accesoReporte');
     if (elR) elR.textContent = _textoVentanaReporteAhora();
   };
@@ -7607,6 +7609,30 @@ function _textoVentanaReporteAhora() {
   const proxima = horas.find(h => _estadoVentanaReporte(h) === 'antes');
   if (proxima) return `${ctx.turno.nombre} · próxima ventana ${proxima}`;
   return `${ctx.turno.nombre} · actividades del turno`;
+}
+
+/** Una sede que se está recibiendo (Zipaquirá 2) no tiene cronograma: en
+ *  Reportes no hay nada que hacer y su trabajo del día es el empalme. Ahí
+ *  el acceso principal de Inicio y el botón "Reportes" de la barra de abajo
+ *  del celular llevan al empalme. Se llama una vez al entrar a la sede. */
+function _ajustarAccesosDeLaSede() {
+  if (!_empalmeDisponible(operacionActual)) return;
+  const icono = SIDEBAR_SECCIONES_OPERACION.find(s => s.key === 'empalme').icon;
+  const boton = document.querySelector('#bottomNav button[data-panel="cronograma"]');
+  if (boton) {
+    boton.setAttribute('data-panel', 'empalme');
+    boton.setAttribute('onclick', "showPanel('empalme')");
+    boton.title = 'Empalme de entrega';
+    boton.querySelector('svg').innerHTML = icono;
+    boton.querySelector('span').textContent = 'Empalme';
+  }
+  const acceso = document.getElementById('accesoReporteBtn');
+  if (acceso) {
+    acceso.setAttribute('onclick', "showPanel('empalme')");
+    acceso.querySelector('.acceso-icono svg').innerHTML = icono;
+    acceso.querySelector('.acceso-titulo').textContent = 'Empalme de entrega';
+    document.getElementById('accesoReporte').textContent = 'Recepción de equipos, hallazgos y repuestos';
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -15424,6 +15450,12 @@ function variablesMostrarSubTab(nombre) {
   renderSidebarOperaciones();
 }
 
+/** Las sedes con reportes técnicos (Compresores, Secadores, Drycoolers…),
+ *  que son los mismos que muestra la pestaña de Reportes: hoy solo
+ *  Zipaquirá. Variables grafica lo que traen esos reportes, así que en las
+ *  demás solo listaba equipos de Zipaquirá, sin datos. */
+function _sedeConReportesTecnicos(sede) { return sede === 'zipaquira'; }
+
 /** Abre la seccion Variables en uno de sus apartados. Mismo criterio de
  *  acceso que abrirInventario(): hay que haber entrado a una operacion,
  *  porque las variables son por sede. */
@@ -15431,6 +15463,10 @@ function abrirVariables(apartado) {
   if (!operacionAutenticada) {
     alert('Primero selecciona e ingresa la contraseña de una operación en el panel izquierdo.');
     showPanel('inicio');
+    return;
+  }
+  if (!_sedeConReportesTecnicos(operacionActual)) {
+    alert('Variables muestra lo que traen los reportes técnicos, y ' + OPERACIONES[operacionActual].nombre + ' todavía no los tiene.');
     return;
   }
 
@@ -19921,6 +19957,13 @@ async function inicializarPanelCronograma() {
   if (grupoTecnicos) grupoTecnicos.style.display = mostrarEntrega ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
+  // Sin cronograma no hay día que consultar ni informe que armar: esas dos
+  // tarjetas solo dejaban formularios que no llevaban a nada.
+  const conCronograma = !!CRONOGRAMA_POR_SEDE[operacionActual];
+  ['cronConsultaCard', 'cronInformeCard'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = conCronograma ? '' : 'none';
+  });
   if (mostrarEntrega) inicializarEntregaTurno();
   // Arranca en "Actividades Temporales" (la pestaña "Actividades" está
   // deshabilitada mientras se corrigen en campo las condiciones de alturas).
@@ -24481,6 +24524,7 @@ async function inicializarPanelEmpalme() {
     document.getElementById('empListaEquipos').innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
     return;
   }
+  await _empResolverHallazgosConOrdenCerrada();
   if (_empEquipoActual && !_empEquiposSede(operacionActual).includes(_empEquipoActual)) _empEquipoActual = null;
   _empLlenarSelectsEquipos();
   _empRenderKpis();
@@ -24646,7 +24690,10 @@ function _empAjustarAltos(textos) {
   textos.forEach(t => { t.style.height = 'auto'; });
   const altos = textos.map(t => t.scrollHeight + t.offsetHeight - t.clientHeight);
   textos.forEach((t, i) => { t.style.height = altos[i] + 'px'; });
-  pagina.scrollTop = y;
+  // Solo si la página se movió al medir: escribir scrollTop aunque sea con
+  // el mismo valor corta el desplazamiento suave hasta la ficha, y en el
+  // celular el primer equipo tocado se quedaba sin mostrar su ficha.
+  if (pagina.scrollTop !== y) pagina.scrollTop = y;
 }
 
 /** Una sola vez por contenedor: al escribir crece el cuadro, y cuando la
@@ -25289,6 +25336,27 @@ async function empCrearOrdenDeHallazgo(id) {
   _empRenderKpis();
 }
 
+/** Un hallazgo "En orden" queda Resuelto cuando su orden se cierra
+ *  (Realizada o Cerrada); antes se quedaba "En orden" hasta que alguien lo
+ *  marcara a mano, y así salía en "Sin resolver" y en el acta. Se revisa al
+ *  abrir el empalme y al armar el acta, con las órdenes ya cargadas, y los
+ *  cambios van a la hoja en una sola escritura. Si no se puede escribir,
+ *  quedan como estaban y se intenta la próxima vez. */
+async function _empResolverHallazgosConOrdenCerrada() {
+  const estadoOrden = new Map(allOrdenes.map(o => [o.NumeroOrden, o.Estado]));
+  const cambios = {};
+  _emp.hallazgos.forEach(h => {
+    if (h.Estado === 'En orden' && ['Realizada', 'Cerrada'].includes(estadoOrden.get(h.OrdenNumero))) cambios[h.ID] = { Estado: 'Resuelto' };
+  });
+  if (!Object.keys(cambios).length) return;
+  try {
+    await _actualizarFilasPorClaveEnLote(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS, 'ID', cambios);
+    _emp.hallazgos.forEach(h => { if (cambios[h.ID]) Object.assign(h, cambios[h.ID]); });
+  } catch (e) {
+    console.warn('No se pudieron dar por resueltos los hallazgos con orden cerrada:', e.message);
+  }
+}
+
 async function empMarcarHallazgoResuelto(id) {
   if (!esAdmin()) { alert('Solo un administrador puede cerrar hallazgos.'); return; }
   const h = _emp.hallazgos.find(x => x.ID === id);
@@ -25524,6 +25592,7 @@ async function descargarActaEmpalme() {
   let bodega = null;
   try {
     await _empCargarDatos();
+    await _empResolverHallazgosConOrdenCerrada();
     try { bodega = await _empMovimientosBodegaInicial(operacionActual); } catch (_) { bodega = null; }
   } catch (e) {
     if (ventana) { try { ventana.close(); } catch (_) {} }
