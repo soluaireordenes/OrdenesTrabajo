@@ -1067,23 +1067,34 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Zipaquirá 2 tiene su propia lista de equipos (ya no la general)
+    // Zipaquirá 2 tiene su propia lista de equipos (ya no la general), con
+    // sus 14 bombas de vacío
     const { ctx, p, errs } = await nuevaPagina(b);
     const r = await p.evaluate(() => {
       const grupos = _gruposEquiposParaOrden('zipaquira2');
       const nombres = Object.values(grupos).flat();
       operacionActual = 'zipaquira2';
       const hvd = _listaEquiposPlanaSede();
+      inicializarCampoEquipo();
+      const enOrden = [...document.querySelectorAll('#f_equipo optgroup[label="Bombas de Vacío"] option')].map(o => o.value);
+      inventarioOperacionActual = 'zipaquira2';
+      invPoblarEquipos();
+      const enInventario = [...document.querySelectorAll('#invm_equipo option')].filter(o => /BOMBA DE VACIO/.test(o.value)).length;
       operacionActual = 'zipaquira';
       return {
         grupos: Object.keys(grupos).join(' | '), total: nombres.length, unicos: new Set(nombres).size,
         sinGeneral: !nombres.includes('ARRANCADOR CA1') && !nombres.includes('SCA1'),
         hvd: hvd.length, soachaGeneral: _gruposEquiposParaOrden('soacha') === EQUIPOS_LISTADO_GENERAL,
+        bombas: grupos['Bombas de Vacío'].join(','), enOrden: enOrden.length, enInventario,
+        planSinBombas: _pmGruposEquipos('zipaquira2').flatMap(g => g.equipos).filter(e => /BOMBA/.test(e)).length === 0,
       };
     });
-    check('Zipaquirá 2: su propia lista de equipos (4 grupos, 31 equipos sin repetidos) en órdenes y Hoja de Vida; Soacha sigue con la general',
-      r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores' && r.total === 31 && r.unicos === 31
-      && r.sinGeneral && r.hvd === 31 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
+    check('Zipaquirá 2: su propia lista de equipos (5 grupos, 45 equipos sin repetidos, con las 14 bombas de vacío) en órdenes, inventario y Hoja de Vida; el Plan sigue solo con compresores; Soacha sigue con la general',
+      r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores | Bombas de Vacío' && r.total === 45 && r.unicos === 45
+      && r.bombas === ['IR 6', 'IR 5', 'IR 4', 'IR 7', 'IR 9', 'KAESER 7', 'SULLAIR 8', 'SULLAIR 1', 'SULLAIR 2', 'SULLAIR 3',
+        'PNEUMOFORE 10', 'PNEUMOFORE 1', 'PNEUMOFORE 2', 'PNEUMOFORE 3'].map(x => 'BOMBA DE VACIO ' + x).join(',')
+      && r.enOrden === 14 && r.enInventario === 14 && r.planSinBombas
+      && r.sinGeneral && r.hvd === 45 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
@@ -1186,9 +1197,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const movs = fake.hoja(ids.inv, 'Movimientos');
     const col = (filas, nombre) => filas[0] ? filas[0].indexOf(nombre) : -1;
     const filaJoy = horas.find(f => f[0] === 'JOY 2') || [];
-    check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 31 equipos', r.menu && !r.menuZipa1 && r.lista === 31 && r.kpiAntes === '0 de 31', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
+    check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 45 equipos', r.menu && !r.menuZipa1 && r.lista === 45 && r.kpiAntes === '0 de 45', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
     check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
-      /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 31' && r.chip === 'Operativo con fallas'
+      /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 45' && r.chip === 'Operativo con fallas'
       && ficha.length === 2 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
       && ficha[1][col(ficha, 'Identificacion')] === 'Joy TA-48 / S/N 1234 / 2004' && ficha[1][col(ficha, 'TorreEnfriamiento')] === 'Torre 2'
       && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
