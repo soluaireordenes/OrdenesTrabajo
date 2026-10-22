@@ -2609,6 +2609,134 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && out.z1.programa.filas2099 > 100, out.z1.programa);
     check('Zipaquirá 1 y 2 (arreglos): sin errores de JS', !out.z1.errs.length && !out.z2.errs.length, [...out.z1.errs, ...out.z2.errs].slice(0, 2));
   }
+  {
+    // Lo que salió de la segunda revisión del empalme de Zipaquirá 2: la
+    // misma bodega cargada dos veces no duplica el stock; dos toques en
+    // "Crear orden" con Sheets lento no crean dos órdenes; y el hallazgo
+    // cuya orden se eliminó vuelve a Abierto.
+    const fake = sheetsEnMemoria();
+    let lento = false, fallanOrdenes = false;
+    const ctx = await b.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 900 } });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+    await ctx.route('**/sheets/v4/**', async r => {
+      if (fallanOrdenes && /batchGet/.test(r.request().url()) && /Ordenes/.test(decodeURIComponent(r.request().url()))) {
+        return r.fulfill({ status: 503, contentType: 'application/json', body: '{"error":{"message":"Servicio no disponible"}}' });
+      }
+      if (lento && r.request().method() !== 'GET') await new Promise(x => setTimeout(x, 1500));
+      return fake.route(r);
+    });
+    await ctx.addInitScript(() => {
+      sessionStorage.setItem('gUser', JSON.stringify({ name: 'Ana Prueba', email: 'ana@x', initials: 'AP' }));
+      sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', 'admin');
+      sessionStorage.setItem('operacionAutenticada', 'zipaquira2'); try { localStorage.setItem('operacionActual', 'zipaquira2'); } catch (e) {}
+    });
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
+    const ids = await p.evaluate(() => ({ ord: OPERACIONES.zipaquira2.spreadsheetId, inv: INVENTARIO_SHEETS.zipaquira2 }));
+    fake.crear(ids.inv, 'Config', [['hash']]);
+    const out = {};
+
+    // 1. Bodega: la segunda vez solo entra lo nuevo, y si todo ya estaba, nada.
+    out.bodega = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const preguntas = [];
+      const confirmarOriginal = window.confirmarAccion;
+      window.confirmarAccion = async o => { preguntas.push(o.titulo + ' ' + (o.texto || '')); return true; };
+      showPanel('empalme');
+      for (let i = 0; i < 50 && !document.querySelector('#empListaEquipos .emp-equipo'); i++) await espera(100);
+      const cargar = async texto => {
+        empMostrarSubTab('bodega');
+        document.getElementById('empb_tbody').innerHTML = '';
+        document.getElementById('empb_pegar').value = 'Código\tNombre\tCantidad\n' + texto;
+        empPegarBodega();
+        const antes = preguntas.length;
+        await empCargarBodega();
+        return { msg: document.getElementById('empbMsg').textContent, pregunta: preguntas.slice(antes).join(' | '),
+          filasQuedan: document.querySelectorAll('#empb_tbody tr').length };
+      };
+      const lista = 'FIL-01\tFiltro de aceite\t4\nACE-02\tAceite compresor\t20';
+      const r = { primera: await cargar(lista), segunda: await cargar(lista + '\nGRA-03\tGrasa\t2'), tercera: await cargar(lista) };
+      const stock = await obtenerStockInventarioDirecto('zipaquira2');
+      r.stock = stock.map(s => s.codigo + '=' + s.cantidad).sort().join(', ');
+      r.movimientos = (await _empMovimientosBodegaInicial('zipaquira2')).length;
+      window.confirmarAccion = confirmarOriginal;
+      return r;
+    });
+
+    // 2. Dos toques en "Crear orden" mientras Sheets va lento.
+    await p.evaluate(async () => {
+      empMostrarSubTab('hallazgos');
+      document.getElementById('emph_equipo').value = 'JOY 4';
+      document.getElementById('emph_descripcion').value = 'Fuga en la válvula de alivio';
+      await empRegistrarHallazgo();
+    });
+    const ordenesAntes = fake.hoja(ids.ord, 'Ordenes').length;
+    lento = true;
+    await p.locator('#empHallazgosLista button', { hasText: 'Crear orden' }).click();
+    await p.waitForTimeout(700); // la ventana ignora los clics de su primer medio segundo
+    await p.locator('.confirmar-ventana [data-respuesta="si"]').click();
+    await p.waitForTimeout(300);
+    out.doble = await p.evaluate(() => {
+      const fila = document.querySelector('#empHallazgosLista tbody tr');
+      const botones = [...fila.querySelectorAll('button')].map(b => b.textContent.trim() + (b.disabled ? ' (deshabilitado)' : '')).join(', ');
+      empCrearOrdenDeHallazgo(_emp.hallazgos[0].ID); // el segundo toque, por si llega a la función
+      return { botones, ventanas: document.querySelectorAll('.confirmar-ventana').length };
+    });
+    await p.waitForFunction(() => !_emp.hallazgos[0]._creandoOrden, null, { timeout: 30000 });
+    lento = false;
+    out.doble.ordenes = fake.hoja(ids.ord, 'Ordenes').length - ordenesAntes;
+    out.doble.hallazgo = await p.evaluate(() => {
+      const h = _emp.hallazgos[0];
+      return { estado: h.Estado, conOrden: allOrdenes.some(o => o.NumeroOrden === h.OrdenNumero),
+        botones: [...document.querySelectorAll('#empHallazgosLista tbody tr:first-child button')].map(b => b.textContent.trim()).join(', ') };
+    });
+
+    // 3. Hallazgos "En orden": el de una orden eliminada vuelve a Abierto; el
+    // de una orden que otro equipo creó después de la última lectura, no; y
+    // si no se pueden leer las órdenes, no se reabre ninguno.
+    const encabezadosOrden = fake.hoja(ids.ord, 'Ordenes')[0];
+    const filaOrden = (num, estado) => encabezadosOrden.map(c => ({ NumeroOrden: num, Estado: estado, Equipo: 'JOY 3', Title: 'Válvula', TipoMantenimiento: 'Correctivo' })[c] || '');
+    const hallazgos = fake.hoja(ids.ord, 'EmpalmeHallazgos');
+    const encabezadosH = hallazgos[0];
+    const filaH = (id, orden) => encabezadosH.map(c => ({ ID: id, Equipo: 'JOY 3', Descripcion: 'Hallazgo ' + id, Prioridad: 'Media', Estado: 'En orden', OrdenNumero: orden, RegistradoPor: 'Ana', FechaRegistro: '2026-10-01' })[c] || '');
+    hallazgos.push(filaH('H-BORRADA', 'OT-BORRADA'), filaH('H-OTRO', 'OT-OTRO-EQUIPO'));
+    fake.hoja(ids.ord, 'Ordenes').push(filaOrden('OT-OTRO-EQUIPO', 'Pendiente')); // está en Sheets, no en este equipo
+    const estados = () => Object.fromEntries(fake.hoja(ids.ord, 'EmpalmeHallazgos').slice(1)
+      .map(f => [f[encabezadosH.indexOf('ID')], f[encabezadosH.indexOf('Estado')] + ':' + f[encabezadosH.indexOf('OrdenNumero')]]));
+    const abrirEmpalme = () => p.evaluate(async () => {
+      _invalidarCacheHoja(SH.empalmeHallazgos);
+      await inicializarPanelEmpalme();
+      empMostrarSubTab('hallazgos');
+      const fila = id => [...document.querySelectorAll('#empHallazgosLista tbody tr')].find(tr => tr.textContent.includes('Hallazgo ' + id));
+      return {
+        memoria: Object.fromEntries(_emp.hallazgos.filter(h => h.ID.startsWith('H-')).map(h => [h.ID, h.Estado])),
+        crearOrdenBorrada: !!fila('H-BORRADA') && /Crear orden/.test(fila('H-BORRADA').textContent),
+      };
+    });
+    fallanOrdenes = true;
+    out.sinLectura = { pantalla: await abrirEmpalme(), hoja: estados() };
+    fallanOrdenes = false;
+    out.conLectura = { pantalla: await abrirEmpalme(), hoja: estados() };
+    out.errs = errs;
+    await ctx.close();
+
+    check('Empalme (bodega): la misma lista otra vez solo carga lo nuevo, avisa cuáles ya estaban y el stock no se duplica',
+      /Listo: 2 productos cargados/.test(out.bodega.primera.msg) && !/ya se cargaron antes/.test(out.bodega.primera.pregunta)
+      && /¿Cargar 1 producto/.test(out.bodega.segunda.pregunta) && /ya se cargaron antes y no se vuelven a cargar: FIL-01, ACE-02/.test(out.bodega.segunda.pregunta)
+      && /Listo: 1 producto cargado/.test(out.bodega.segunda.msg) && /No se repitieron los que ya estaban: FIL-01, ACE-02/.test(out.bodega.segunda.msg)
+      && out.bodega.tercera.pregunta === '' && /Todos esos productos ya se cargaron como inventario inicial \(FIL-01, ACE-02\); no se cargó nada otra vez/.test(out.bodega.tercera.msg)
+      && out.bodega.tercera.filasQuedan === 2
+      && out.bodega.stock === 'ACE-02=20, FIL-01=4, GRA-03=2' && out.bodega.movimientos === 3, out.bodega);
+    check('Empalme (hallazgos): con Sheets lento, la fila dice "Creando orden…" y un segundo toque no crea otra orden',
+      out.doble.botones === 'Creando orden… (deshabilitado)' && out.doble.ventanas === 0 && out.doble.ordenes === 1
+      && out.doble.hallazgo.estado === 'En orden' && out.doble.hallazgo.conOrden && out.doble.hallazgo.botones === 'Resuelto', out.doble);
+    check('Empalme (hallazgos): el de una orden eliminada vuelve a Abierto con "Crear orden"; el de una orden de otro equipo no cambia; sin poder leer las órdenes no se reabre ninguno',
+      out.sinLectura.hoja['H-BORRADA'] === 'En orden:OT-BORRADA' && out.sinLectura.pantalla.memoria['H-BORRADA'] === 'En orden'
+      && out.conLectura.hoja['H-BORRADA'] === 'Abierto:' && out.conLectura.pantalla.memoria['H-BORRADA'] === 'Abierto' && out.conLectura.pantalla.crearOrdenBorrada
+      && out.conLectura.hoja['H-OTRO'] === 'En orden:OT-OTRO-EQUIPO' && out.conLectura.pantalla.memoria['H-OTRO'] === 'En orden',
+      { sinLectura: out.sinLectura, conLectura: out.conLectura });
+    check('Empalme (segunda revisión): sin errores de JS', !out.errs.length, out.errs.slice(0, 2));
+  }
 
   await b.close();
   srv.close();

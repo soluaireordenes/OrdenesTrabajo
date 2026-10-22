@@ -7210,6 +7210,7 @@ const FUNCIONES_DE_UN_SOLO_TOQUE = [
   'proyBorrarAlcance', 'proyBorrarPago', 'proyBorrarAvance',
   'agregarRecargaExtintor', 'eliminarRecargaExtintor',
   'empRegistrarMantenimientosImportados', 'empDeshacerCargaMantenimientos', 'empEliminarMantenimiento',
+  'empCrearOrdenDeHallazgo',
 ];
 
 function _protegerContraDobleToque(nombres) {
@@ -24602,7 +24603,7 @@ async function inicializarPanelEmpalme() {
     document.getElementById('empListaEquipos').innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
     return;
   }
-  await _empResolverHallazgosConOrdenCerrada();
+  await _empActualizarHallazgosSegunOrdenes();
   if (_empEquipoActual && !_empEquiposSede(operacionActual).includes(_empEquipoActual)) _empEquipoActual = null;
   _empLlenarSelectsEquipos();
   _empRenderKpis();
@@ -25365,9 +25366,10 @@ function empRenderHallazgos() {
       <td><span class="emp-chip ${_empClaseHallazgo(h.Estado)}">${esc(h.Estado || 'Abierto')}</span>${h.OrdenNumero
         ? `<div style="margin-top:4px"><a href="#" onclick="verDetalle(${_jsArg(h.OrdenNumero)});showPanel('detalle');return false" style="font-size:12px;color:var(--accent);font-weight:600">${esc(h.OrdenNumero)}</a></div>` : ''}</td>
       <td style="font-size:12px;color:var(--text3);white-space:nowrap">${esc(h.RegistradoPor || '—')}<br>${esc(_empFechaLegible(h.FechaRegistro))}</td>
-      ${admin ? `<td><div class="emp-acciones">
-        ${(h.Estado || 'Abierto') === 'Abierto' ? `<button class="btn btn-ghost btn-sm" onclick="empCrearOrdenDeHallazgo(${_jsArg(h.ID)})">Crear orden</button>` : ''}
-        ${h.Estado !== 'Resuelto' ? `<button class="btn btn-ghost btn-sm" onclick="empMarcarHallazgoResuelto(${_jsArg(h.ID)})">Resuelto</button>` : ''}
+      ${admin ? `<td><div class="emp-acciones">${h._creandoOrden
+        ? '<button class="btn btn-ghost btn-sm" disabled>Creando orden…</button>'
+        : `${(h.Estado || 'Abierto') === 'Abierto' ? `<button class="btn btn-ghost btn-sm" onclick="empCrearOrdenDeHallazgo(${_jsArg(h.ID)})">Crear orden</button>` : ''}
+        ${h.Estado !== 'Resuelto' ? `<button class="btn btn-ghost btn-sm" onclick="empMarcarHallazgoResuelto(${_jsArg(h.ID)})">Resuelto</button>` : ''}`}
       </div></td>` : ''}
     </tr>`).join('')}</tbody></table>`;
 }
@@ -25379,6 +25381,22 @@ async function empCrearOrdenDeHallazgo(id) {
   const h = _emp.hallazgos.find(x => x.ID === id);
   if (!h || (h.Estado || 'Abierto') !== 'Abierto') return;
   if (!(await confirmarAccion({ titulo: `¿Crear una orden correctiva para ${h.Equipo}?`, texto: 'La orden lleva este hallazgo como tarea.', aceptar: 'Crear orden' }))) return;
+  // Mientras se guarda, la fila muestra "Creando orden…" en vez de los
+  // botones: con señal lenta el botón seguía igual y un segundo toque creaba
+  // otra orden para el mismo hallazgo.
+  h._creandoOrden = true;
+  empRenderHallazgos();
+  try {
+    await _empCrearOrdenDeHallazgo(h);
+  } finally {
+    delete h._creandoOrden;
+    empRenderHallazgos();
+    _empRenderKpis();
+  }
+}
+
+async function _empCrearOrdenDeHallazgo(h) {
+  const id = h.ID;
   const numOrden = generarNumeroOrdenUnico();
   const orden = {
     id: numOrden, NumeroOrden: numOrden,
@@ -25410,28 +25428,41 @@ async function empCrearOrdenDeHallazgo(id) {
   } catch (e) {
     alert(`La orden ${numOrden} quedó creada, pero no se pudo anotar en el hallazgo: ${e.message}`);
   }
-  empRenderHallazgos();
-  _empRenderKpis();
 }
 
-/** Un hallazgo "En orden" queda Resuelto cuando su orden se cierra
- *  (Realizada o Cerrada); antes se quedaba "En orden" hasta que alguien lo
- *  marcara a mano, y así salía en "Sin resolver" y en el acta. Se revisa al
- *  abrir el empalme y al armar el acta, con las órdenes ya cargadas, y los
- *  cambios van a la hoja en una sola escritura. Si no se puede escribir,
- *  quedan como estaban y se intenta la próxima vez. */
-async function _empResolverHallazgosConOrdenCerrada() {
+/** Pone al día los hallazgos "En orden" con su orden: quedan Resuelto
+ *  cuando la orden se cierra (Realizada o Cerrada), y vuelven a Abierto,
+ *  para poder crearles otra, cuando la orden se eliminó. Antes se quedaban
+ *  "En orden" hasta que alguien los marcara a mano, y el de una orden
+ *  eliminada mostraba un número que ya no existía. Se revisa al abrir el
+ *  empalme y al armar el acta, y los cambios van a la hoja en una sola
+ *  escritura. Si no se puede escribir, quedan como estaban y se intenta la
+ *  próxima vez. */
+async function _empActualizarHallazgosSegunOrdenes() {
+  const enOrden = () => _emp.hallazgos.filter(h => h.Estado === 'En orden');
+  // La orden que no aparece pudo crearse en otro equipo después de la
+  // última lectura de este: antes de reabrir nada se vuelven a leer las
+  // órdenes, y si esa lectura falla no se reabre ninguno.
+  let ordenesAlDia = false;
+  const numeros = () => new Set(allOrdenes.map(o => o.NumeroOrden));
+  if (enOrden().some(h => !numeros().has(h.OrdenNumero))) {
+    const lecturaAnterior = _ultimaCargaOrdenesMs;
+    await cargarOrdenes();
+    ordenesAlDia = _ultimaCargaOrdenesMs !== lecturaAnterior;
+  }
   const estadoOrden = new Map(allOrdenes.map(o => [o.NumeroOrden, o.Estado]));
   const cambios = {};
-  _emp.hallazgos.forEach(h => {
-    if (h.Estado === 'En orden' && ['Realizada', 'Cerrada'].includes(estadoOrden.get(h.OrdenNumero))) cambios[h.ID] = { Estado: 'Resuelto' };
+  enOrden().forEach(h => {
+    const estado = estadoOrden.get(h.OrdenNumero);
+    if (['Realizada', 'Cerrada'].includes(estado)) cambios[h.ID] = { Estado: 'Resuelto' };
+    else if (estado === undefined && ordenesAlDia) cambios[h.ID] = { Estado: 'Abierto', OrdenNumero: '' };
   });
   if (!Object.keys(cambios).length) return;
   try {
     await _actualizarFilasPorClaveEnLote(SH.empalmeHallazgos, EMPALME_HALLAZGOS_COLS, 'ID', cambios);
     _emp.hallazgos.forEach(h => { if (cambios[h.ID]) Object.assign(h, cambios[h.ID]); });
   } catch (e) {
-    console.warn('No se pudieron dar por resueltos los hallazgos con orden cerrada:', e.message);
+    console.warn('No se pudieron poner al día los hallazgos con su orden:', e.message);
   }
 }
 
@@ -25618,18 +25649,43 @@ async function empCargarBodega() {
     msg.innerHTML = errores.slice(0, 5).map(esc).join('<br>') + (errores.length > 5 ? `<br>Y ${errores.length - 5} más.` : '');
     return;
   }
-  const nombreSede = OPERACIONES[operacionActual]?.nombre || '';
-  if (!(await confirmarAccion({
-    titulo: `¿Cargar ${items.length} ${items.length === 1 ? 'producto' : 'productos'} al inventario de ${nombreSede}?`,
-    texto: 'Entran como inventario inicial.', aceptar: items.length === 1 ? 'Cargar producto' : 'Cargar productos' }))) return;
+  // Lo que ya entró como inventario inicial no se vuelve a cargar: antes,
+  // pegar la misma lista dos veces dejaba el stock al doble sin ningún aviso.
   const btn = document.getElementById('empbBtnCargar');
   btn.disabled = true;
+  _empMensaje('empbMsg', 'Revisando lo que ya está cargado…');
+  let yaCargados;
+  try {
+    yaCargados = new Set((await _empMovimientosBodegaInicial(operacionActual)).map(m => String(m.codigo).trim().toUpperCase()));
+  } catch (e) {
+    _empMensaje('empbMsg', 'No se pudo revisar lo que ya está cargado: ' + e.message, 'error');
+    btn.disabled = false;
+    return;
+  }
+  const repetidos = items.filter(p => yaCargados.has(p.codigo)).map(p => p.codigo);
+  const nuevos = items.filter(p => !yaCargados.has(p.codigo));
+  const listaRepetidos = repetidos.length > 8 ? `${repetidos.slice(0, 8).join(', ')} y ${repetidos.length - 8} más` : repetidos.join(', ');
+  const comoCorregir = 'Si una cantidad cambió, corrígela con un ajuste en Inventario › Movimientos.';
+  if (!nuevos.length) {
+    _empMensaje('empbMsg', `${items.length === 1 ? 'Ese producto ya se cargó' : 'Todos esos productos ya se cargaron'} como inventario inicial (${listaRepetidos}); no se cargó nada otra vez. ${comoCorregir}`, 'error');
+    btn.disabled = false;
+    return;
+  }
+  _empMensaje('empbMsg', '');
+  const nombreSede = OPERACIONES[operacionActual]?.nombre || '';
+  const confirmado = await confirmarAccion({
+    titulo: `¿Cargar ${nuevos.length} ${nuevos.length === 1 ? 'producto' : 'productos'} al inventario de ${nombreSede}?`,
+    texto: 'Entran como inventario inicial.' + (repetidos.length
+      ? ` ${repetidos.length === 1 ? 'Este ya se cargó antes y no se vuelve' : 'Estos ya se cargaron antes y no se vuelven'} a cargar: ${listaRepetidos}.` : ''),
+    aceptar: nuevos.length === 1 ? 'Cargar producto' : 'Cargar productos' });
+  if (!confirmado) { btn.disabled = false; return; }
   _empMensaje('empbMsg', 'Cargando… no cierres la página.');
   try {
-    const r = await registrarConteoInicialInventarioDirecto(operacionActual, items, _empQuien());
+    const r = await registrarConteoInicialInventarioDirecto(operacionActual, nuevos, _empQuien());
     document.getElementById('empb_tbody').innerHTML = '';
     empAgregarFilaBodega();
-    _empMensaje('empbMsg', `Listo: ${r.ingresos} ${r.ingresos === 1 ? 'producto cargado' : 'productos cargados'} al inventario (${r.productosNuevos} nuevos en el catálogo).`, 'ok');
+    _empMensaje('empbMsg', `Listo: ${r.ingresos} ${r.ingresos === 1 ? 'producto cargado' : 'productos cargados'} al inventario (${r.productosNuevos} ${r.productosNuevos === 1 ? 'nuevo' : 'nuevos'} en el catálogo).`
+      + (repetidos.length ? ` No se repitieron los que ya estaban: ${listaRepetidos}. ${comoCorregir}` : ''), 'ok');
     empRenderBodegaCargada();
   } catch (e) {
     _empMensaje('empbMsg', 'No se pudo cargar: ' + e.message, 'error');
@@ -25670,7 +25726,7 @@ async function descargarActaEmpalme() {
   let bodega = null;
   try {
     await _empCargarDatos();
-    await _empResolverHallazgosConOrdenCerrada();
+    await _empActualizarHallazgosSegunOrdenes();
     try { bodega = await _empMovimientosBodegaInicial(operacionActual); } catch (_) { bodega = null; }
   } catch (e) {
     if (ventana) { try { ventana.close(); } catch (_) {} }
