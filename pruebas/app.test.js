@@ -2529,6 +2529,49 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         r.plan = [...document.querySelectorAll('#panel-planmantenimiento .inv-subtab')].filter(b => b.offsetParent).map(b => b.dataset.pmtab).join(',');
         return r;
       });
+      // Dashboard de Reportes sin la librería de gráficas (no cargó, sin
+      // señal): los números se ven y el cuadro de la gráfica lo explica.
+      out.z1.sinGraficas = await p.evaluate(async () => {
+        const espera = ms => new Promise(x => setTimeout(x, ms));
+        const original = window.Chart;
+        window.Chart = undefined;
+        showPanel('cronograma'); cronMostrarSubTab('dashboard');
+        const texto = id => document.getElementById(id).textContent.replace(/\s+/g, ' ').trim();
+        for (let i = 0; i < 80 && !(/cumplimiento/.test(texto('cronDashResumen')) && /Cumplimiento/.test(texto('rc_cumpResumen'))); i++) await espera(100);
+        const aviso = id => !!document.getElementById(id).parentElement.querySelector('.aviso-sin-grafica');
+        const r = {
+          turnos: texto('cronDashResumen').slice(0, 60), compresores: texto('rc_cumpResumen').slice(0, 40),
+          avisoTurnos: aviso('chartCumplimientoTurnos'), avisoCompresores: aviso('chartCumplimientoRc'),
+          lienzoOculto: getComputedStyle(document.getElementById('chartCumplimientoTurnos')).display === 'none',
+        };
+        // Con la librería de vuelta, se dibuja y el aviso se va.
+        let dibujadas = 0;
+        window.Chart = function () { dibujadas++; this.destroy = () => {}; };
+        await renderDashboardCronograma();
+        r.conLibreria = { aviso: aviso('chartCumplimientoTurnos'), dibujadas, alto: document.getElementById('chartCumplimientoTurnos').parentElement.style.height };
+        window.Chart = original;
+        return r;
+      });
+      // Programa de Mantenimiento por año: el del año en curso si está
+      // cargado; si no, el último, con un aviso (2099 nunca va a estar).
+      out.z1.programa = await p.evaluate(async () => {
+        abrirPlanMantenimiento('zipaquira');
+        const r = {
+          pestana: document.querySelector('[data-pmtab="programa2026"]').textContent.trim(),
+          esperada: 'Programa ' + _pmProgramaVigente().anio,
+          de2026: _pmProgramaVigente(new Date(2026, 9, 22)).anio,
+        };
+        const lejano = _pmProgramaVigente(new Date(2099, 0, 15));
+        r.lejano = { anio: lejano.anio, esDelAnio: lejano.esDelAnio, ultimo: Math.max(...Object.keys(PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA).map(Number)) };
+        pmMostrarSubTab('programa2026');
+        for (let i = 0; i < 50 && !document.querySelector('#pmPrograma2026Contenido table'); i++) await new Promise(x => setTimeout(x, 100));
+        r.avisoHoy = !!document.querySelector('#pmPrograma2026Contenido .pm-aviso-anio');
+        r.avisoHoyEsperado = !PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA[new Date().getFullYear()];
+        await pmRenderPrograma2026(new Date(2099, 0, 15));
+        r.aviso2099 = document.querySelector('#pmPrograma2026Contenido .pm-aviso-anio')?.textContent.trim();
+        r.filas2099 = document.querySelectorAll('#pmPrograma2026Contenido tbody tr').length;
+        return r;
+      });
       // Zipaquirá sí sigue revisando los informes por horas al arrancar.
       const idZ1 = await p.evaluate(() => OPERACIONES.zipaquira.spreadsheetId);
       for (let i = 0; i < 50 && !fake.hoja(idZ1, 'CamposReportes').length; i++) await p.waitForTimeout(100);
@@ -2553,6 +2596,17 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Zipaquirá 1: el Plan sigue con sus 7 pestañas y al arrancar sigue revisando los informes por horas',
       out.z1.plan === 'registro,horas,programa2026,informetrimestral,informesemestral,informeanual,configinformes'
       && out.z1.precarga === 'InformeTrimestralEstado,CamposReportes', { plan: out.z1.plan, precarga: out.z1.precarga });
+    check('Dashboard de Reportes sin la librería de gráficas: muestra los números y explica el cuadro vacío; con la librería, dibuja',
+      /Turno 1: \d+% cumplimiento/.test(out.z1.sinGraficas.turnos) && /Cumplimiento: \d+%/.test(out.z1.sinGraficas.compresores)
+      && out.z1.sinGraficas.avisoTurnos && out.z1.sinGraficas.avisoCompresores && out.z1.sinGraficas.lienzoOculto
+      && !out.z1.sinGraficas.conLibreria.aviso && out.z1.sinGraficas.conLibreria.dibujadas === 1 && out.z1.sinGraficas.conLibreria.alto === '280px',
+      out.z1.sinGraficas);
+    check('Programa de Mantenimiento por año: la pestaña dice el año; sin el programa del año en curso muestra el último con un aviso',
+      out.z1.programa.pestana === out.z1.programa.esperada && out.z1.programa.de2026 === 2026
+      && out.z1.programa.lejano.anio === out.z1.programa.lejano.ultimo && !out.z1.programa.lejano.esDelAnio
+      && out.z1.programa.avisoHoy === out.z1.programa.avisoHoyEsperado
+      && new RegExp(`Programa de Mantenimiento 2099: se muestra el de ${out.z1.programa.lejano.ultimo}`).test(out.z1.programa.aviso2099 || '')
+      && out.z1.programa.filas2099 > 100, out.z1.programa);
     check('Zipaquirá 1 y 2 (arreglos): sin errores de JS', !out.z1.errs.length && !out.z2.errs.length, [...out.z1.errs, ...out.z2.errs].slice(0, 2));
   }
 
