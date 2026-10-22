@@ -1086,14 +1086,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         sinGeneral: !nombres.includes('ARRANCADOR CA1') && !nombres.includes('SCA1'),
         hvd: hvd.length, soachaGeneral: _gruposEquiposParaOrden('soacha') === EQUIPOS_LISTADO_GENERAL,
         bombas: grupos['Bombas de Vacío'].join(','), enOrden: enOrden.length, enInventario,
-        planSinBombas: _pmGruposEquipos('zipaquira2').flatMap(g => g.equipos).filter(e => /BOMBA/.test(e)).length === 0,
+        planBombas: _pmGruposEquipos('zipaquira2').flatMap(g => g.equipos).filter(e => /BOMBA DE VACIO/.test(e)).length,
+        compresoresPlan: _pmCompresores('zipaquira2').length,
       };
     });
-    check('Zipaquirá 2: su propia lista de equipos (5 grupos, 45 equipos sin repetidos, con las 14 bombas de vacío) en órdenes, inventario y Hoja de Vida; el Plan sigue solo con compresores; Soacha sigue con la general',
+    check('Zipaquirá 2: su propia lista de equipos (5 grupos, 45 equipos sin repetidos, con las 14 bombas de vacío) en órdenes, inventario, Hoja de Vida y Plan (que sigue con 22 compresores); Soacha sigue con la general',
       r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores | Bombas de Vacío' && r.total === 45 && r.unicos === 45
       && r.bombas === ['IR 6', 'IR 5', 'IR 4', 'IR 7', 'IR 9', 'KAESER 7', 'SULLAIR 8', 'SULLAIR 1', 'SULLAIR 2', 'SULLAIR 3',
         'PNEUMOFORE 10', 'PNEUMOFORE 1', 'PNEUMOFORE 2', 'PNEUMOFORE 3'].map(x => 'BOMBA DE VACIO ' + x).join(',')
-      && r.enOrden === 14 && r.enInventario === 14 && r.planSinBombas
+      && r.enOrden === 14 && r.enInventario === 14 && r.planBombas === 14 && r.compresoresPlan === 22
       && r.sinGeneral && r.hvd === 45 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
@@ -1139,6 +1140,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.evaluacionReabre = document.querySelector('.emp-tabla-evaluacion tr[data-item="vibraciones"] [data-campo="estado"]').value;
       out.kpiDespues = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
       out.chip = document.querySelector('#empListaEquipos .emp-equipo.activo .emp-chip').textContent;
+      // Una bomba de vacío: sin la evaluación técnica (es de compresores),
+      // pero su horómetro también queda en el Plan de Mantenimiento.
+      empSeleccionarEquipo('BOMBA DE VACIO IR 6');
+      out.bombaSinEvaluacion = !document.querySelector('.emp-tabla-evaluacion');
+      document.getElementById('empf_estado').value = 'Operativo';
+      document.getElementById('empf_horometro').value = '12800';
+      await empGuardarFicha();
+      out.bombaMsg = document.getElementById('empfMsg').textContent;
+      out.kpiEvaluacionConBomba = document.querySelector('#empKpis .emp-kpi-sub').textContent;
 
       // 2. Hallazgo y su orden
       empNuevoHallazgoDe('JOY 2');
@@ -1200,10 +1210,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 45 equipos', r.menu && !r.menuZipa1 && r.lista === 45 && r.kpiAntes === '0 de 45', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
     check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
       /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 45' && r.chip === 'Operativo con fallas'
-      && ficha.length === 2 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
+      && ficha.length === 3 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
       && ficha[1][col(ficha, 'Identificacion')] === 'Joy TA-48 / S/N 1234 / 2004' && ficha[1][col(ficha, 'TorreEnfriamiento')] === 'Torre 2'
       && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
       { sinEstado: r.sinEstado, msg: r.fichaMsg, kpi: r.kpiDespues, ficha: ficha[1], horas: filaJoy });
+    const filaBomba = horas.find(f => f[0] === 'BOMBA DE VACIO IR 6') || [];
+    check('Empalme: la ficha de una bomba de vacío no lleva la evaluación técnica y su horómetro también queda en el Plan',
+      r.bombaSinEvaluacion && /Ficha guardada.*Plan de Mantenimiento/.test(r.bombaMsg) && /0 de 22 compresores/.test(r.kpiEvaluacionConBomba)
+      && filaBomba[col(horas, 'HoraBaseInformes')] === '12800' && filaBomba[col(horas, 'HorasActuales')] === '12800',
+      { msg: r.bombaMsg, kpi: r.kpiEvaluacionConBomba, horas: filaBomba });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
@@ -1255,10 +1270,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return { zipa2: await leer('zipaquira2'), zipa1: await leer('zipaquira') };
     });
     const z2 = r.zipa2, z1 = r.zipa1;
-    check('Plan de Mantenimiento de Zipaquirá 2: sus 22 compresores (Baja y Alta Presión) en Registro y Configuración',
-      z2.equipos.length === 22 && z2.equipos.includes('JOY 2') && z2.equipos.includes('IR 12') && !z2.equipos.includes('COMPRESOR DE EMERGENCIA NX200')
-      && !z2.equipos.some(e => /Secador/.test(e)) && /Baja Presión/.test(z2.texto) && /Alta Presión/.test(z2.texto)
-      && !/no captura horómetro/.test(z2.texto) && z2.horaBase === 22 && /todavía no están disponibles para esta sede/.test(z2.actividades) && errs.length === 0,
+    check('Plan de Mantenimiento de Zipaquirá 2: sus 22 compresores (Baja y Alta Presión) y sus 14 bombas de vacío en Registro y Configuración',
+      z2.equipos.length === 36 && z2.equipos.includes('JOY 2') && z2.equipos.includes('IR 12') && !z2.equipos.includes('COMPRESOR DE EMERGENCIA NX200')
+      && z2.equipos.filter(e => /^BOMBA DE VACIO /.test(e)).length === 14
+      && !z2.equipos.some(e => /Secador/.test(e)) && /Baja Presión/.test(z2.texto) && /Alta Presión/.test(z2.texto) && /Bombas de Vacío/.test(z2.texto)
+      && !/no captura horómetro/.test(z2.texto) && z2.horaBase === 36 && /todavía no están disponibles para esta sede/.test(z2.actividades) && errs.length === 0,
       { equipos: z2.equipos.length, horaBase: z2.horaBase, actividades: z2.actividades.slice(0, 80), errs: errs.slice(0, 2) });
     check('Plan de Mantenimiento de Zipaquirá: sigue con sus 11 compresores y el editor de actividades',
       z1.equipos.length === 11 && z1.equipos.includes('COMPRESOR DE EMERGENCIA NX200') && z1.horaBase === 11 && /Se aplica a/.test(z1.actividades),
