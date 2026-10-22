@@ -2613,7 +2613,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       !out.z2.variables && !out.z2.variablesAbre && out.z2.tarjetas === 'none,none', out.z2);
     check('Empalme: el hallazgo con su orden Realizada queda Resuelto (también en la hoja); los demás no cambian',
       out.z2.hallazgos === 'H-1:Resuelto, H-2:En orden, H-3:Abierto' && out.z2.hoja === out.z2.hallazgos, out.z2);
-    check('Empalme en celular: el primer equipo tocado lleva hasta su ficha', Math.abs(out.z2.fichaAlToque) < 80, out.z2.fichaAlToque);
+    check('Empalme en celular: el primer equipo tocado lleva hasta su ficha, visible debajo del encabezado', out.z2.fichaAlToque >= 56 && out.z2.fichaAlToque < 160, out.z2.fichaAlToque);
     check('Zipaquirá 1: Variables, Reportes y el acceso de Inicio siguen igual, y el aviso de la hora cabe en su recuadro en los 5 reportes técnicos',
       out.z1.acceso === 'Reporte de esta hora' && out.z1.abajo === 'cronograma' && out.z1.variables && out.z1.variablesAbre
       && out.z1.tarjetas === 'block,block' && out.z1.avisoSeSale.length === 0, out.z1);
@@ -2763,6 +2763,89 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && out.conLectura.hoja['H-OTRO'] === 'En orden:OT-OTRO-EQUIPO' && out.conLectura.pantalla.memoria['H-OTRO'] === 'En orden',
       { sinLectura: out.sinLectura, conLectura: out.conLectura });
     check('Empalme (segunda revisión): sin errores de JS', !out.errs.length, out.errs.slice(0, 2));
+  }
+  {
+    // Lo que salió de revisar Zipaquirá 2 con sus bombas de vacío: la Hoja
+    // de Vida por grupos y, en celular, llevando a la ficha del equipo
+    // tocado; guardar horas base sin crear las pestañas de los informes por
+    // horas ni prometer órdenes; y los secadores sin RPM.
+    const abrir = async (sede, opciones) => {
+      const fake = sheetsEnMemoria();
+      const ctx = await b.newContext({ serviceWorkers: 'block', ...opciones });
+      await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+      await ctx.route('**/sheets/v4/**', fake.route);
+      await ctx.addInitScript(sede => {
+        sessionStorage.setItem('gUser', JSON.stringify({ name: 'Ana Prueba', email: 'ana@x', initials: 'AP' }));
+        sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', 'admin');
+        sessionStorage.setItem('operacionAutenticada', sede); try { localStorage.setItem('operacionActual', sede); } catch (e) {}
+      }, sede);
+      const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+      await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
+      return { fake, ctx, p, errs, id: await p.evaluate(s => OPERACIONES[s].spreadsheetId, sede) };
+    };
+    const guardarHoraBase = (p, sede, equipo) => p.evaluate(async ([sede, equipo]) => {
+      abrirPlanMantenimiento(sede); pmMostrarSubTab('configinformes');
+      for (let i = 0; i < 50 && !document.querySelector('#pmHoraBaseContenido .pm-hora-base'); i++) await new Promise(x => setTimeout(x, 100));
+      document.querySelector(`#pmHoraBaseContenido .pm-hora-base[data-equipo="${equipo}"]`).value = '15000';
+      await pmGuardarHoraBase();
+      return document.getElementById('pmHoraBaseMsg').textContent;
+    }, [sede, equipo]);
+    const informes = (fake, id) => ['InformeTrimestralEstado', 'InformeSemestralEstado', 'InformeAnualEstado'].map(n => fake.hoja(id, n).length);
+    const out = {};
+    {
+      const { fake, ctx, p, errs, id } = await abrir('zipaquira2', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      await p.evaluate(async () => {
+        showPanel('historico'); document.getElementById('histSelectorVista').value = 'hvd'; histCambiarVista();
+        for (let i = 0; i < 50 && !document.querySelector('#hvdListaEquipos .hvd-grupo'); i++) await new Promise(x => setTimeout(x, 100));
+      });
+      out.grupos = await p.evaluate(() => [...document.querySelectorAll('#hvdListaEquipos .hvd-grupo')].map(g => g.textContent).join(' | '));
+      out.bajoBombas = await p.evaluate(() => {
+        const g = [...document.querySelectorAll('#hvdListaEquipos .hvd-grupo')].find(x => x.textContent === 'Bombas de Vacío');
+        const nombres = []; for (let e = g && g.nextElementSibling; e && !e.classList.contains('hvd-grupo'); e = e.nextElementSibling) nombres.push(e.textContent.trim());
+        return nombres.length + ' ' + (nombres[0] || '');
+      });
+      const item = p.locator('#hvdListaEquipos > div[onclick]', { hasText: 'Secador Kaeser 1' }).first();
+      await item.scrollIntoViewIfNeeded();
+      await item.tap();
+      await p.waitForTimeout(1500);
+      out.alTocar = await p.evaluate(() => ({
+        titulo: Math.round(document.getElementById('hvdTitulo').getBoundingClientRect().top),
+        texto: document.getElementById('hvdTitulo').textContent.trim(),
+        secadorSinRpm: !document.getElementById('hvd_rpm') && !!document.getElementById('hvd_potencia'),
+      }));
+      // Recargar el mismo equipo (como tras subir una foto) no mueve la vista.
+      await p.evaluate(() => window.scrollBy(0, 300)); await p.waitForTimeout(300);
+      const antes = await p.evaluate(() => Math.round(window.scrollY));
+      await p.evaluate(() => hvdSeleccionarEquipo('Secador Kaeser 1')); await p.waitForTimeout(1000);
+      out.recargaQuieta = Math.abs(await p.evaluate(() => Math.round(window.scrollY)) - antes) < 5;
+      out.rpm = await p.evaluate(() => ['Secador Kaeser 1', 'Secador #4 - Hankinson', 'SCA1', 'JOY 2', 'BOMBA DE VACIO IR 6', 'ARRANCADOR CA1']
+        .map(e => e + ':' + (_camposSpecsParaEquipo(e).some(c => c.col === 'RPM') ? 'RPM' : '-')).join(', '));
+      out.z2msg = await guardarHoraBase(p, 'zipaquira2', 'BOMBA DE VACIO IR 4');
+      const horas = fake.hoja(id, 'HorasEquipos');
+      out.z2hora = (horas.find(f => f[0] === 'BOMBA DE VACIO IR 4') || [])[horas[0].indexOf('HoraBaseInformes')];
+      out.z2informes = informes(fake, id);
+      out.z2errs = errs;
+      await ctx.close();
+    }
+    {
+      const { fake, ctx, p, errs, id } = await abrir('zipaquira', { viewport: { width: 1366, height: 900 } });
+      out.z1msg = await guardarHoraBase(p, 'zipaquira', 'CA1');
+      const tri = fake.hoja(id, 'InformeTrimestralEstado');
+      out.z1reinicio = (tri.find(f => f[0] === 'CA1') || [])[tri[0] ? tri[0].indexOf('UltimaGeneracionHoras') : -1];
+      out.z1errs = errs;
+      await ctx.close();
+    }
+    check('Hoja de Vida: la lista va por grupos (las 14 bombas bajo "Bombas de Vacío") y en celular tocar un equipo lleva a su hoja de vida, visible debajo del encabezado',
+      out.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores | Bombas de Vacío'
+      && out.bajoBombas === '14 BOMBA DE VACIO IR 6' && /Secador Kaeser 1/.test(out.alTocar.texto)
+      && out.alTocar.titulo >= 56 && out.alTocar.titulo < 160 && out.recargaQuieta, { grupos: out.grupos, bombas: out.bajoBombas, alTocar: out.alTocar, quieta: out.recargaQuieta });
+    check('Hoja de Vida: los secadores de Zipaquirá 2 tampoco llevan RPM (como los de Zipaquirá); compresores y bombas sí',
+      out.alTocar.secadorSinRpm && out.rpm === 'Secador Kaeser 1:-, Secador #4 - Hankinson:-, SCA1:-, JOY 2:RPM, BOMBA DE VACIO IR 6:RPM, ARRANCADOR CA1:-', out.rpm);
+    check('Plan de Zipaquirá 2: guardar horas base no crea las pestañas de los informes por horas ni promete órdenes; Zipaquirá sigue reiniciando sus informes',
+      out.z2msg === 'Horas base guardadas.' && out.z2hora === '15000' && out.z2informes.join(',') === '0,0,0'
+      && /Recarga la página para que se generen las órdenes/.test(out.z1msg) && out.z1reinicio === '15000',
+      { z2: [out.z2msg, out.z2hora, out.z2informes], z1: [out.z1msg, out.z1reinicio] });
+    check('Zipaquirá 2 (tercera revisión): sin errores de JS', !out.z2errs.length && !out.z1errs.length, [...out.z2errs, ...out.z1errs].slice(0, 2));
   }
 
   await b.close();
