@@ -10439,17 +10439,24 @@ const INFORME_EQUIPOS_POR_TIPO = {
 
 /** Equipos que muestra el Plan de Mantenimiento de cada sede (Registro y
  *  Configuración), en grupos. Zipaquirá usa los tipos de los informes por
- *  horas. Zipaquirá 2 tiene sus compresores de baja y alta presión; los
- *  secadores no van, porque el plan por horas es solo de compresores, igual
- *  que en Zipaquirá. Una sede sin lista propia muestra la de Zipaquirá. */
+ *  horas. Zipaquirá 2 tiene sus compresores de baja y alta presión y sus
+ *  bombas de vacío; los secadores no van. Las bombas llevan horas, pero no
+ *  son compresores: no llevan la evaluación técnica del empalme
+ *  (sinEvaluacionTecnica). Una sede sin lista propia muestra la de Zipaquirá. */
 const PM_GRUPOS_POR_SEDE = {
   zipaquira2: [
     { nombre: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
     { nombre: 'Alta Presión', equipos: EQUIPOS_ZIPAQUIRA2['Alta Presión'] },
+    { nombre: 'Bombas de Vacío', equipos: EQUIPOS_ZIPAQUIRA2['Bombas de Vacío'], sinEvaluacionTecnica: true },
   ],
 };
 function _pmGruposEquipos(sede) {
   return PM_GRUPOS_POR_SEDE[sede] || INFORME_TIPOS_EQUIPO.map(t => ({ nombre: t.nombreTipo, equipos: INFORME_EQUIPOS_POR_TIPO[t.tipo] }));
+}
+/** Los compresores del Plan de la sede: los que llevan la evaluación
+ *  técnica del empalme (sin las bombas de vacío). */
+function _pmCompresores(sede) {
+  return _pmGruposEquipos(sede).filter(g => !g.sinEvaluacionTecnica).flatMap(g => g.equipos);
 }
 /** Solo Zipaquirá genera órdenes automáticas por horas: es la única sede
  *  con Cronograma, que es de donde salen las horas. */
@@ -24589,7 +24596,7 @@ function _empEvaluacion(equipo) {
 }
 /** Compresores con los once ítems de la evaluación técnica calificados. */
 function _empCompresoresEvaluados() {
-  const compresores = _pmGruposEquipos(operacionActual).flatMap(g => g.equipos);
+  const compresores = _pmCompresores(operacionActual);
   const completos = compresores.filter(e => {
     const ev = _empEvaluacion(e);
     return EMPALME_EVALUACION_COMPRESORES.every(i => ev[i.id]?.Estado);
@@ -24751,7 +24758,7 @@ function empRenderFicha() {
         </div>
         <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div>
       </div>`)}
-    ${_empLlevaHoras(equipo) ? _empHtmlEvaluacion(equipo) : ''}
+    ${_pmCompresores(operacionActual).includes(equipo) ? _empHtmlEvaluacion(equipo) : ''}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
       <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
       <button class="btn btn-ghost" onclick="empNuevoHallazgoDe(${_jsArg(equipo)})">Registrar un hallazgo de este equipo</button>
@@ -24844,12 +24851,13 @@ async function _empGuardarEvaluacion(equipo) {
   });
 }
 
-/** Si el equipo lleva horas en el Plan de Mantenimiento (los compresores). */
+/** Si el equipo lleva horas en el Plan de Mantenimiento (los compresores y,
+ *  en Zipaquirá 2, las bombas de vacío). */
 function _empLlevaHoras(equipo) {
   return _pmGruposEquipos(operacionActual).some(g => g.equipos.includes(equipo));
 }
 
-/** El horómetro con que se recibe un compresor queda como su hora base en el
+/** El horómetro con que se recibe un equipo del Plan queda como su hora base en el
  *  Plan de Mantenimiento: desde ahí se cuentan sus mantenimientos. Si sus
  *  horas actuales no tienen otra fuente (están vacías o son las de la ficha
  *  anterior), también se ponen, para que el Registro no se quede en blanco. */
@@ -25770,7 +25778,7 @@ function _htmlActaEmpalme(sede, bodega) {
   // compresores, los ítems de la evaluación técnica que tienen calificación.
   const camposDetalle = [...EMPALME_CAMPOS_FICHA.equipo, ...EMPALME_CAMPOS_FICHA.historial, ...EMPALME_CAMPOS_FICHA.documentos,
     ...EMPALME_CAMPOS_FICHA.repuestos, ...EMPALME_CAMPOS_FICHA.operacion];
-  const compresores = new Set(_pmGruposEquipos(sede).flatMap(g => g.equipos));
+  const compresores = new Set(_pmCompresores(sede));
   const detalle = equipos.map(e => {
     const f = _empFicha(e) || {};
     const llenos = camposDetalle.filter(c => String(f[c.col] || '').trim());
