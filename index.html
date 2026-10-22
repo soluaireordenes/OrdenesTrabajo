@@ -389,6 +389,9 @@ body::before {
 .field textarea.emp-texto, .emp-tabla-evaluacion textarea.emp-texto { display: block; min-height: 0; resize: none; overflow: hidden; line-height: 1.45; }
 .emp-tabla-evaluacion textarea.emp-texto { width: 100%; padding: 5px 7px; border-radius: 6px; font-size: 12px; }
 .emp-tabla-evaluacion { min-width: 640px; }
+/* En vez de la gráfica, cuando su librería no cargó (_avisoSinGrafica). */
+.pm-aviso-anio { margin-bottom: 12px; padding: 10px 14px; border: 1px solid var(--estado-alerta-borde); border-radius: 8px; background: var(--estado-alerta-bg); color: var(--estado-alerta-tx); font-size: 13px; line-height: 1.5; }
+.aviso-sin-grafica { padding: 14px 16px; border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; color: var(--text3); text-align: center; line-height: 1.5; }
 /* Plan de Mantenimiento: lo que es del programa por horas de Zipaquirá
    (cinco pestañas y las actividades de los informes) no sale en una sede
    sin él, y ahí van sus propios textos (abrirPlanMantenimiento). */
@@ -4296,7 +4299,7 @@ body.rol-operario .btn-principal-operario {
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-pmtab="registro" onclick="pmMostrarSubTab('registro')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Registro</button>
         <button class="inv-subtab pm-programa" data-pmtab="horas" onclick="pmMostrarSubTab('horas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</button>
-        <button class="inv-subtab pm-programa" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Programa 2026</button>
+        <button class="inv-subtab pm-programa" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa <span class="pm-programa-anio">2026</span></span></button>
         <button class="inv-subtab pm-programa" data-pmtab="informetrimestral" onclick="pmMostrarSubTab('informetrimestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Trimestral</button>
         <button class="inv-subtab pm-programa" data-pmtab="informesemestral" onclick="pmMostrarSubTab('informesemestral')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Semestral</button>
                 <button class="inv-subtab pm-programa" data-pmtab="informeanual" onclick="pmMostrarSubTab('informeanual')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Anual</button>
@@ -4331,10 +4334,10 @@ body.rol-operario .btn-principal-operario {
       <div id="pmSub-programa2026" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Programa de Mantenimiento 2026</span>
+            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa de Mantenimiento <span class="pm-programa-anio">2026</span></span></span>
             <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderPrograma2026()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica completa del Programa de Mantenimiento 2026 real de Zipaquirá: cada actividad por equipo, con responsable, documento/registro, frecuencia y los meses en que está programada.</div>
+          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica completa del Programa de Mantenimiento <span class="pm-programa-anio">2026</span> real de Zipaquirá: cada actividad por equipo, con responsable, documento/registro, frecuencia y los meses en que está programada.</div>
           <div class="card-body" style="padding:18px" id="pmPrograma2026Contenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
       </div>
@@ -10236,8 +10239,23 @@ const PROGRAMA_2026_COMPLETO_ZIPAQUIRA = [
   { categoria:'MANTENIMIENNTOS UPS DE COMPRESORES', equipo:'CB1', actividad:'LIMPIEZA DE UPS', responsable:'COORDINADOR DE OPERACIONES , INGENIERIA SOLUCIONAIRE.', documento:'hoja de vida de equipos', frecuencia:'Cada 6 meses', meses:['ABR', 'OCT'] },
   { categoria:'MANTENIMIENNTOS UPS DE COMPRESORES', equipo:'CB2', actividad:'LIMPIEZA DE UPS', responsable:'COORDINADOR DE OPERACIONES , INGENIERIA SOLUCIONAIRE.', documento:'hoja de vida de equipos', frecuencia:'Cada 6 meses', meses:['ABR', 'OCT'] },
   { categoria:'MANTENIMIENNTOS UPS DE COMPRESORES', equipo:'CB3', actividad:'LIMPIEZA DE UPS', responsable:'COORDINADOR DE OPERACIONES , INGENIERIA SOLUCIONAIRE.', documento:'hoja de vida de equipos', frecuencia:'Cada 6 meses', meses:['ABR', 'OCT'] },
-  { categoria:'MANTENIMIENNTOS UPS DE COMPRESORES', equipo:'CB4', actividad:'LIMPIEZA DE UPS', responsable:'COORDINADOR DE OPERACIONES , INGENIERIA SOLUCIONAIRE.', documento:'hoja de vida de equipos', frecuencia:'Cada 6 meses', meses:['ABR', 'OCT'] },
+  { categoria:'MANTENIMIENNTOS UPS DE COMPRESORES', equipo:'CB4', actividad:'LIMPIEZA DE UPS', responsable:'COORDINADORDE OPERACIONES , INGENIERIA SOLUCIONAIRE.', documento:'hoja de vida de equipos', frecuencia:'Cada 6 meses', meses:['ABR', 'OCT'] },
 ];
+
+/** Los Programas de Mantenimiento de Zipaquirá que hay cargados, por año.
+ *  Cuando el cliente entregue el de 2027 se agrega aquí (2027: [...], con
+ *  el mismo formato) y la pestaña lo toma sola desde el 1 de enero. */
+const PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA = { 2026: PROGRAMA_2026_COMPLETO_ZIPAQUIRA };
+
+/** El programa que toca mostrar: el del año en curso si ya está cargado; si
+ *  no, el más reciente que haya, avisando que es de otro año (enero de 2027
+ *  sin el programa nuevo). */
+function _pmProgramaVigente(hoy = new Date()) {
+  const anioActual = hoy.getFullYear();
+  const anios = Object.keys(PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA).map(Number).sort((a, b) => a - b);
+  const anio = anios.includes(anioActual) ? anioActual : (anios.filter(a => a < anioActual).pop() ?? anios[anios.length - 1]);
+  return { anio, anioActual, actividades: PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA[anio], esDelAnio: anio === anioActual };
+}
 
 /** Checklist del "Informe Cada Trimestral" del cliente — un formulario de
  *  inspección con estas 8 actividades, que se repite cada 2.000 horas de
@@ -15539,6 +15557,8 @@ function abrirPlanMantenimiento(opKey) {
 function _pmAjustarASede(opKey) {
   const sinPrograma = !_pmGeneraOrdenesAutomaticas(opKey);
   document.getElementById('panel-planmantenimiento').classList.toggle('sin-programa', sinPrograma);
+  // La pestaña dice el año del programa que va a mostrar (ver _pmProgramaVigente).
+  document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = _pmProgramaVigente().anio; });
   if (!sinPrograma) return;
   const conEmpalme = _empalmeDisponible(opKey);
   document.getElementById('pmRegistroAyudaSinPrograma').textContent = 'Horas actuales de cada equipo. Esta sede todavía no tiene reportes con horómetro ni órdenes automáticas por horas'
@@ -16171,10 +16191,12 @@ async function pmRenderHorasMantenimiento() {
  *  (ver PROGRAMA_2026_COMPLETO_ZIPAQUIRA): categoría → equipo → cada
  *  actividad con su responsable, documento/registro, frecuencia (tal
  *  como está escrita en el Excel) y los meses en que está programada. */
-async function pmRenderPrograma2026() {
+async function pmRenderPrograma2026(hoy = new Date()) {
   const cont = document.getElementById('pmPrograma2026Contenido');
   if (!cont) return;
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
+  const programa = _pmProgramaVigente(hoy);
+  document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = programa.anio; });
 
   if (planMantOperacionActual !== 'zipaquira') {
     cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Esta tabla replica el Programa de Mantenimiento real de Zipaquirá — todavía no está disponible para esta sede.</div>';
@@ -16204,7 +16226,7 @@ async function pmRenderPrograma2026() {
   // en que aparecen en el Excel.
   const categorias = [];
   const mapaCategorias = new Map();
-  PROGRAMA_2026_COMPLETO_ZIPAQUIRA.forEach(a => {
+  programa.actividades.forEach(a => {
     if (!mapaCategorias.has(a.categoria)) {
       const cat = { nombre: a.categoria, equipos: [], mapaEquipos: new Map() };
       mapaCategorias.set(a.categoria, cat);
@@ -16245,7 +16267,10 @@ async function pmRenderPrograma2026() {
     });
   });
 
-  cont.innerHTML = `
+  // Pasado el año del programa sin que se haya cargado el nuevo, se sigue
+  // viendo el último, pero diciendo de qué año es.
+  const avisoAnio = programa.esDelAnio ? '' : `<div class="pm-aviso-anio">Todavía no está cargado el Programa de Mantenimiento ${programa.anioActual}: se muestra el de ${programa.anio}. Para cargarlo hace falta el Excel del programa ${programa.anioActual} del cliente.</div>`;
+  cont.innerHTML = `${avisoAnio}
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--text2)">
       <span><span style="display:inline-block;width:10px;height:10px;background:var(--pm-verde);border-radius:2px;margin-right:4px;vertical-align:middle"></span>Mes programado</span>
     </div>
@@ -20128,16 +20153,39 @@ function _htmlAvisoRangoRecortado(aviso) {
  *  cayendo a 0 en vez de suavizarse, porque es un valor binario. Los
  *  turnos que todavía no han empezado (hoy, más adelante en el día) se
  *  omiten en vez de contarlos como "no cumplidos" antes de tiempo. */
+/** Si la librería de gráficas no cargó (la primera vez sin buena señal), el
+ *  cuadro de la gráfica dice por qué está vacío y se encoge; los números
+ *  del cumplimiento se muestran igual. Antes el Dashboard de Reportes
+ *  quedaba en blanco, sin números ni explicación. Devuelve si hay con qué
+ *  dibujar. */
+function _avisoSinGrafica(canvas) {
+  const caja = canvas.parentElement;
+  const hayLibreria = typeof Chart !== 'undefined';
+  if (caja.dataset.alto === undefined) caja.dataset.alto = caja.style.height;
+  caja.style.height = hayLibreria ? caja.dataset.alto : 'auto';
+  canvas.style.display = hayLibreria ? '' : 'none';
+  let aviso = caja.querySelector('.aviso-sin-grafica');
+  if (hayLibreria) { aviso?.remove(); return true; }
+  if (!aviso) {
+    aviso = document.createElement('div');
+    aviso.className = 'aviso-sin-grafica';
+    aviso.textContent = 'La gráfica no cargó (sin conexión o señal débil). Los números de arriba están completos; recarga con señal para ver la gráfica.';
+    caja.appendChild(aviso);
+  }
+  return false;
+}
+
 async function renderDashboardCronograma() {
   const canvas = document.getElementById('chartCumplimientoTurnos');
   const resumenEl = document.getElementById('cronDashResumen');
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (!canvas) return;
   const cfg = CRONOGRAMA_POR_SEDE[operacionActual];
   if (window._chartCumplimientoTurnos) { window._chartCumplimientoTurnos.destroy(); window._chartCumplimientoTurnos = null; }
   if (!cfg) {
     if (resumenEl) resumenEl.innerHTML = '<div style="color:var(--text3);font-size:13px">Esta sede todavía no tiene un cronograma de actividades configurado.</div>';
     return;
   }
+  const conGrafica = _avisoSinGrafica(canvas);
   const desde = document.getElementById('cronDashDesde')?.value;
   const hasta = document.getElementById('cronDashHasta')?.value;
   if (!desde || !hasta || desde > hasta) return;
@@ -20194,7 +20242,7 @@ async function renderDashboardCronograma() {
       return;
     }
 
-    window._chartCumplimientoTurnos = new Chart(canvas.getContext('2d'), {
+    if (conGrafica) window._chartCumplimientoTurnos = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: { labels, datasets: [{
         label: 'Cumplimiento del turno', data: valores,
@@ -21029,8 +21077,9 @@ const HORA_REPORTE_A_24H = {
 function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, chartVar, desde, hasta, colEquipo) {
   const canvas = document.getElementById(canvasId);
   const resumenEl = document.getElementById(resumenId);
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (!canvas) return;
   if (window[chartVar]) { window[chartVar].destroy(); window[chartVar] = null; }
+  const conGrafica = _avisoSinGrafica(canvas);
 
   // Una hoja puede cubrir varios equipos (p. ej. Compresores tiene 3 de Alta
   // y 4 de Baja), así que la franja no es "sí/no": se mide QUÉ PROPORCIÓN de
@@ -21116,7 +21165,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
     return;
   }
 
-  window[chartVar] = new Chart(canvas.getContext('2d'), {
+  if (conGrafica) window[chartVar] = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [{
       label: 'Equipos reportados', data: valores,
