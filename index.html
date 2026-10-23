@@ -8843,9 +8843,12 @@ async function descargarOrdenPDF(id) {
 </div>`;
   }
 
+  // La sede va en el documento: Zipaquirá 1 y 2 tienen equipos con el mismo
+  // nombre (CA1, CB1…), y un PDF reenviado o impreso no decía de cuál era.
+  const nombreSede = OPERACIONES[operacionActual]?.nombre || '';
   const html = `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
-<title>Orden ${esc(o.NumeroOrden)}</title>
+<title>Orden ${esc(o.NumeroOrden)}${nombreSede ? ' — ' + esc(nombreSede) : ''}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
   h1{font-size:18px;color:#02457A;margin-bottom:4px}
@@ -8864,7 +8867,7 @@ async function descargarOrdenPDF(id) {
 </style>
 </head><body>
 <h1>Orden de Trabajo — ${esc(o.NumeroOrden||'—')}</h1>
-<div class="sub">Generada el ${new Date().toLocaleString('es-CO')} · <span class="badge">${esc(o.Estado)}</span></div>
+<div class="sub">${nombreSede ? '<b>' + esc(nombreSede) + '</b> · ' : ''}Generada el ${new Date().toLocaleString('es-CO')} · <span class="badge">${esc(o.Estado)}</span></div>
 
 <div class="section-title">Identificación</div>
 <div class="grid">
@@ -8905,7 +8908,7 @@ ${fotosHtml}
 ${_bloqueFirmaPdf(o, 'FirmaCreador', 'Firma del solicitante')}
 ${_bloqueFirmaPdf(o, 'FirmaCierre', 'Firma del técnico ejecutor')}
 
-<div class="footer">${esc(o.NumeroOrden||'—')} · Sistema de Órdenes de Trabajo · ${new Date().toLocaleString('es-CO')}</div>
+<div class="footer">${esc(o.NumeroOrden||'—')}${nombreSede ? ' · ' + esc(nombreSede) : ''} · Sistema de Órdenes de Trabajo · ${new Date().toLocaleString('es-CO')}</div>
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 

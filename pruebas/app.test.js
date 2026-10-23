@@ -465,6 +465,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       ];
       await descargarOrdenPDF('T1');
       const pdf = doc || '';
+      // La sede va en el documento (Zipaquirá 1 y 2 tienen equipos con el mismo nombre)
+      const sedeAntes = operacionActual; operacionActual = 'zipaquira2';
+      doc = null; await descargarOrdenPDF('T1');
+      const pdfZipa2 = doc || '';
+      operacionActual = sedeAntes;
       doc = null; ordenDetalleId = 'T1'; imprimirOrden(); await new Promise(x => setTimeout(x, 200));
       const imprimir = doc || '';
       // Exportar: solo lo filtrado, y sin fórmulas ejecutables
@@ -478,9 +483,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await guardarOrdenEnSheets({ NumeroOrden: 'OT-R1', tareas: [{ descripcion: 'x' }] }, { reintento: true });
       const enReintento = anexadas.splice(0);
       await guardarOrdenEnSheets({ NumeroOrden: 'OT-R2', tareas: [{ descripcion: 'x' }] });
-      return { pdf, imprimir, csv, opcionEnEjecucion, enReintento, normal: anexadas };
+      return { pdf, pdfZipa2, imprimir, csv, opcionEnEjecucion, enReintento, normal: anexadas };
     });
     check('PDF de la orden trae tareas, repuestos, servicios y totales', /Cambiar filtro de aire/.test(r.pdf) && /Filtro de aire/.test(r.pdf) && /Torno externo/.test(r.pdf) && /Total/.test(r.pdf));
+    check('PDF de la orden dice de qué sede es (título del documento, encabezado y pie)',
+      /<title>Orden OT-T1 — CO O-I ZIPAQUIRA 2<\/title>/.test(r.pdfZipa2) && /<div class="sub"><b>CO O-I ZIPAQUIRA 2<\/b> · Generada el/.test(r.pdfZipa2)
+      && /OT-T1 · CO O-I ZIPAQUIRA 2 · Sistema de Órdenes de Trabajo/.test(r.pdfZipa2),
+      (r.pdfZipa2.match(/<title>.*?<\/title>|<div class="sub">.*?Generada|<div class="footer">.*?<\/div>/g) || []).join(' | '));
     check('PDF de la orden no trae la observación interna', !/nota interna del equipo/.test(r.pdf));
     check('"Imprimir / PDF" del detalle abre el documento de la orden', /OT-T1/.test(r.imprimir) && /Cambiar filtro de aire/.test(r.imprimir));
     check('Exportar descarga CSV solo con lo filtrado', /OT-T1/.test(r.csv) && /OT-T2/.test(r.csv) && !/OT-T3/.test(r.csv), r.csv.slice(0, 200));
