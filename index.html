@@ -377,7 +377,7 @@ body::before {
 .emp-chip.en-orden { background: var(--brand-light); color: var(--brand); }
 :root[data-theme="dark"] .emp-chip.operativo, :root[data-theme="dark"] .emp-chip.resuelto { color: #4ade80; }
 :root[data-theme="dark"] .emp-chip.fallas, :root[data-theme="dark"] .emp-chip.media, :root[data-theme="dark"] .emp-chip.abierto { color: #f0a35e; }
-.emp-grupo { padding: 12px 14px 4px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text3); }
+.emp-grupo, .hvd-grupo { padding: 12px 14px 4px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text3); }
 .emp-equipo { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: none; border: none; border-bottom: 1px solid var(--border); font: inherit; font-size: 13px; color: var(--text); text-align: left; cursor: pointer; }
 .emp-equipo:hover { background: var(--brand-light); }
 .emp-equipo.activo { background: var(--brand-light); color: var(--brand); font-weight: 700; }
@@ -542,6 +542,9 @@ body::after {
   border-bottom: 1px solid var(--border);
 }
 .app-header h1 { font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+/* Lo que se lleva a la vista en celular (la ficha del empalme, la hoja de
+   vida) queda debajo del encabezado fijo, no tapado por él. */
+#empFichaCard, #hvdTitulo { scroll-margin-top: 76px; }
 .header-logo-area {
   display: flex;
   align-items: center;
@@ -4197,7 +4200,7 @@ body.rol-operario .btn-principal-operario {
       <div id="empSub-recepcion" class="inv-subpanel active">
         <div class="grid-lista-detalle" style="--lista-w:280px">
           <div class="card" style="overflow:hidden"><div id="empListaEquipos"></div></div>
-          <div class="card"><div class="card-body" id="empFicha" style="padding:18px"></div></div>
+          <div class="card" id="empFichaCard"><div class="card-body" id="empFicha" style="padding:18px"></div></div>
         </div>
       </div>
 
@@ -15878,11 +15881,14 @@ async function pmGuardarHoraBase() {
     // base ANTERIOR, la generacion toma el mayor de los dos y se queda con
     // la sembrada, de modo que los mantenimientos que quedaron pendientes
     // entre la hora base y hoy nunca se generarian.
+    // Una sede que no genera órdenes por horas (Zipaquirá 2) no tiene esos
+    // informes: ahí solo se guarda la hora base, sin crear sus pestañas.
+    const generaOrdenes = _pmGeneraOrdenesAutomaticas(planMantOperacionActual);
     const reinicios = {};
     Object.entries(cambios).forEach(([equipo, v]) => {
       if (v.HoraBaseInformes !== '') reinicios[equipo] = { UltimaGeneracionHoras: v.HoraBaseInformes };
     });
-    if (Object.keys(reinicios).length) {
+    if (generaOrdenes && Object.keys(reinicios).length) {
       for (const { hoja, cols } of [
         { hoja: SH.informeTrimestralEstado, cols: INFORME_TRIMESTRAL_ESTADO_COLS },
         { hoja: SH.informeSemestralEstado,  cols: INFORME_SEMESTRAL_ESTADO_COLS },
@@ -15896,7 +15902,9 @@ async function pmGuardarHoraBase() {
     await pmRenderHoraBase();
     const m2 = document.getElementById('pmHoraBaseMsg');
     m2.style.color = 'var(--estado-ok-tx)';
-    m2.textContent = 'Horas base guardadas. Recarga la página para que se generen las órdenes que hayan quedado pendientes.';
+    m2.textContent = generaOrdenes
+      ? 'Horas base guardadas. Recarga la página para que se generen las órdenes que hayan quedado pendientes.'
+      : 'Horas base guardadas.';
   } catch (e) {
     msg.style.color = 'var(--danger)';
     msg.textContent = 'No se pudo guardar: ' + e.message;
@@ -23809,8 +23817,9 @@ function _esEquipoInfraestructura(nombre) {
 function _colsOcultasHVD(nombre) {
   const n = String(nombre || '').toUpperCase();
   const ocultas = new Set();
-  // Todos los SC (secadores) y los arrancadores no llevan RPM.
-  if (/^SC/.test(n) || /^ARRANCADOR/.test(n)) ocultas.add('RPM');
+  // Todos los secadores (SC… en Zipaquirá, "Secador …" en Zipaquirá 2) y
+  // los arrancadores no llevan RPM.
+  if (/^SC/.test(n) || /^SECADOR/.test(n) || /^ARRANCADOR/.test(n)) ocultas.add('RPM');
   // Drycoolers, SCPISTON, SCAIRESELLOS y las UPS tampoco llevan Potencia.
   if (/DRYCOOLER/.test(n) || n === 'SCPISTON' || n === 'SCAIRESELLOS' || /^UPS/.test(n)) { ocultas.add('Potencia'); ocultas.add('RPM'); }
   return ocultas;
@@ -23875,9 +23884,13 @@ async function hvdRenderListaEquipos() {
   }
 
   if (hvdModoActual === 'operacion') {
-    const equipos = _listaEquiposPlanaSede();
-    if (!equipos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Esta sede aún no tiene una lista de equipos configurada.</div>'; return; }
-    cont.innerHTML = equipos.map(eq => _htmlItemListaHVD(eq, esc(eq))).join('');
+    // Con sus grupos, como en órdenes y en el empalme: con 45 equipos
+    // seguidos no se sabía dónde empezaba cada tipo.
+    const grupos = Object.entries(EQUIPOS_POR_SEDE[operacionActual] || EQUIPOS_LISTADO_GENERAL)
+      .map(([grupo, items]) => [grupo, items.map(i => (Array.isArray(i) ? i[0] : i))]).filter(([, equipos]) => equipos.length);
+    if (!grupos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Esta sede aún no tiene una lista de equipos configurada.</div>'; return; }
+    cont.innerHTML = grupos.map(([grupo, equipos]) => `<div class="hvd-grupo">${esc(grupo)}</div>`
+      + equipos.map(eq => _htmlItemListaHVD(eq, esc(eq))).join('')).join('');
     return;
   }
 
@@ -23932,6 +23945,7 @@ async function _leerFilaHVD(equipo) {
 }
 
 async function hvdSeleccionarEquipo(equipo) {
+  const otroEquipo = equipo !== hvdEquipoActual;
   hvdEquipoActual = equipo;
   hvdRenderListaEquipos();
   document.getElementById('hvdTitulo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> ' + esc(equipo);
@@ -24002,6 +24016,13 @@ async function hvdSeleccionarEquipo(equipo) {
       <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${conComentarios ? 'Comentarios (los que se agreguen desde Inventario de Equipos de Seguridad)' : 'Historial de mantenimientos (se agrega solo al cerrar una orden)'}</div>
       <div id="hvdHistorial" style="overflow-x:auto"></div>
     </div>`;
+  // En celular la hoja de vida queda debajo de la lista: al elegir otro
+  // equipo se lleva la vista hasta ella, ya dibujada (con "Cargando…" la
+  // página todavía no alcanzaba). No al recargar el mismo equipo, por
+  // ejemplo después de subirle una foto.
+  if (otroEquipo && hvdEquipoActual === equipo && window.innerWidth <= 720) {
+    document.getElementById('hvdTitulo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (specs.FotoDriveFileId) {
     _obtenerDataUrlFoto(specs.FotoDriveFileId).then(url => {
@@ -24689,7 +24710,9 @@ function empSeleccionarEquipo(equipo) {
   empRenderListaEquipos();
   empRenderFicha();
   // En celular la ficha queda debajo de la lista: se lleva la vista hasta ella.
-  if (window.innerWidth <= 720) document.getElementById('empFicha')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Se lleva la tarjeta, no la ficha: la tarjeta recorta su contenido
+  // (overflow hidden) y con la ficha el margen de arriba no se respetaba.
+  if (window.innerWidth <= 720) document.getElementById('empFichaCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function _empHtmlFoto(foto) {
