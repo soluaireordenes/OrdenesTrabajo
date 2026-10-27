@@ -24645,6 +24645,30 @@ const EMPALME_DATOS_FIJOS = {
     ContactoFabricante: 'Kaeser – www.kaeser.com',
     ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
   },
+  // Modelo más antiguo: la placa trae otros datos (potencia y FLA del
+  // compresor, succión, temperatura ambiente), que van en el campo más cercano.
+  'Secador #5 - Hankinson': {
+    TipoEquipo: 'Secador de aire comprimido refrigerado',
+    IdentificacionPlanta: 'Secador Hankinson #5 (según etiqueta del tablero)',
+    Fabricante: 'Hankison',
+    Modelo: 'H-22',
+    NumeroSerie: 'HI525268001001-1 (placa desgastada, verificar) · código de placa 506.10',
+    LugarFabricacion: 'Made in U.S.A.',
+    Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '50 PSI',
+    CodigoActivo: '1000305 (número pintado en el tablero; por confirmar si es el código de activo)',
+    CapacidadNominal: '1350 SCFM @ 60 PSIG y 100 °F de aire de entrada',
+    PresionMaxima: '175 PSIG (M.W.P.)',
+    TempMaxEntrada: 'No indicada en placa. Temperatura ambiente mínima / máxima: 35 °F (2 °C) / 130 °F (54 °C)',
+    PresionPrueba: 'Lado refrigerante: 300 PSIG (presión máxima de prueba)',
+    Tension: '460 V / 3 / 60 Hz',
+    CompresorRLA: '14,1 A (FLA, corriente a plena carga) · compresor de 7-1/2 HP',
+    CompresorLRA: '85 A',
+    RefrigeranteTipo: 'R-22 (en eliminación progresiva por el Protocolo de Montreal: prever su disponibilidad o un refrigerante sustituto para recargas)',
+    RefrigeranteCarga: '50 lb · presión de succión 52 PSIG',
+    KitsMantenimiento: 'La placa no indica kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Hankison o Neumair con el modelo H-22 y el número de serie.',
+    ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+  },
 };
 function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
 /** Todos los campos de texto de la ficha de un equipo, en el orden de la
