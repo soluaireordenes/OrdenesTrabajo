@@ -403,8 +403,11 @@ body::before {
    todo lo ancho: aquí son casillas con su texto y el botón de la foto. */
 .field .emp-docs label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 400; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
 .field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
-.field .emp-fotos label.btn { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--brand); }
-.emp-fotos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Fotos de la ficha: grandes y completas (sin recortar) para poder leer la
+   placa del equipo; al tocarla se abre la imagen en tamaño original. */
+.emp-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 10px; }
+.emp-fotos:empty { display: none; }
+.emp-foto-agregar { cursor: pointer; font-size: 12px; font-weight: 600; }
 /* Mantenimientos anteriores (Historial y documentos de la ficha) y la
    revisión del Excel antes de registrarlo. */
 .emp-mant-cuenta { color: var(--text3); }
@@ -449,9 +452,11 @@ body::before {
 .cap-tabla td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
 .cap-tabla th:not(:first-child), .cap-tabla td:not(:first-child) { text-align: right; white-space: nowrap; }
 @media (max-width: 640px) { .cap-tabla .cap-columnas, .cap-tabla .cap-filas { display: none; } }
-.emp-foto { position: relative; display: inline-block; width: 64px; height: 64px; }
-.emp-foto img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); }
-.emp-foto button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--danger); color: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
+.emp-foto { position: relative; display: block; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface2); }
+.emp-foto a { display: block; }
+.emp-foto img { display: block; width: 100%; height: 340px; object-fit: contain; }
+.emp-foto button { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--danger); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+@media (max-width: 720px) { .emp-foto img { height: 300px; } }
 .emp-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
 .emp-tabla th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--border); color: var(--text3); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .emp-tabla td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -24720,7 +24725,7 @@ function empSeleccionarEquipo(equipo) {
 
 function _empHtmlFoto(foto) {
   const id = foto.DriveFileId;
-  return `<span class="emp-foto"><a id="empFotoA_${esc(id)}" href="#" target="_blank" rel="noopener" onclick="return this.getAttribute('href')!=='#'"><img id="empFotoImg_${esc(id)}" alt="Foto de ${esc(foto.Equipo)}"></a>${
+  return `<span class="emp-foto"><a id="empFotoA_${esc(id)}" href="#" target="_blank" rel="noopener" title="Ver la foto en tamaño completo" onclick="return this.getAttribute('href')!=='#'"><img id="empFotoImg_${esc(id)}" alt="Foto de ${esc(foto.Equipo)}"></a>${
     esAdmin() ? `<button type="button" title="Quitar foto" aria-label="Quitar foto" onclick="empEliminarFoto(${_jsArg(id)})">✕</button>` : ''}</span>`;
 }
 
@@ -24755,6 +24760,13 @@ function empRenderFicha() {
       <div style="flex:1;font-weight:800;font-size:16px;color:var(--brand)">${esc(equipo)}</div>
       <span id="empfChip">${_empChipEstado(f.Estado)}</span>
     </div>
+    ${seccion('Fotos (placa y estado general)', `
+      <div style="grid-column:1/-1">
+        <div class="emp-fotos" id="empf_fotos">${fotos.map(_empHtmlFoto).join('')}</div>
+        <label class="btn btn-ghost emp-foto-agregar"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto
+          <input type="file" accept="image/*" style="display:none" onchange="empSubirFoto(this)"></label>
+        <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div>
+      </div>`)}
     ${seccion('Recepción', `
       <div class="field" style="margin:0"><label for="empf_estado">Estado al recibir *</label>
         <select id="empf_estado"><option value="">Elegir…</option>${EMPALME_ESTADOS_EQUIPO.map(e => `<option${e.valor === f.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></div>
@@ -24776,14 +24788,6 @@ function empRenderFicha() {
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
         <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
-    ${seccion('Fotos (placa y estado general)', `
-      <div style="grid-column:1/-1">
-        <div class="emp-fotos" id="empf_fotos">${fotos.map(_empHtmlFoto).join('')}
-          <label class="btn btn-ghost" style="cursor:pointer;font-size:12px;font-weight:600"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto
-            <input type="file" accept="image/*" style="display:none" onchange="empSubirFoto(this)"></label>
-        </div>
-        <div id="empf_fotoMsg" style="font-size:12px;margin-top:4px"></div>
-      </div>`)}
     ${_pmCompresores(operacionActual).includes(equipo) ? _empHtmlEvaluacion(equipo) : ''}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
       <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
@@ -25321,7 +25325,7 @@ async function empSubirFoto(input) {
     // Se agrega la miniatura sin volver a pintar la ficha: lo que ya se
     // escribió en el formulario y no se ha guardado no se pierde.
     if (_empEquipoActual === equipo) {
-      document.querySelector('#empf_fotos > label')?.insertAdjacentHTML('beforebegin', _empHtmlFoto(fila));
+      document.getElementById('empf_fotos')?.insertAdjacentHTML('beforeend', _empHtmlFoto(fila));
       _empCargarMiniaturas([fila]);
     }
   } catch (e) {
