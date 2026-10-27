@@ -1144,7 +1144,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.fichaMsg = document.getElementById('empfMsg').textContent;
       out.kpiEvaluacion = document.querySelector('#empKpis .emp-kpi-sub').textContent;
       empSeleccionarEquipo('Secador Kaeser 1');
-      out.secadorSinEvaluacion = !document.querySelector('.emp-tabla-evaluacion') && !!document.getElementById('empf_Arrancador');
+      out.secadorSinEvaluacion = !document.querySelector('.emp-tabla-evaluacion') && !!document.getElementById('empf_Modelo');
       empSeleccionarEquipo('JOY 2');
       out.evaluacionReabre = document.querySelector('.emp-tabla-evaluacion tr[data-item="vibraciones"] [data-campo="estado"]').value;
       out.kpiDespues = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
@@ -1172,6 +1172,22 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await empGuardarFicha();
       out.bombaMsg = document.getElementById('empfMsg').textContent;
       out.kpiEvaluacionConBomba = document.querySelector('#empKpis .emp-kpi-sub').textContent;
+      // Un secador: su ficha trae los datos de la hoja de vida del secador
+      // (identificación, placa, eléctricos y de refrigeración, kits y
+      // contactos) en vez de los campos de compresor.
+      empSeleccionarEquipo('Secador #1 - Hankinson');
+      out.secadorSecciones = [...document.querySelectorAll('#empFicha .emp-seccion')].map(s => s.textContent.trim()).join(' | ');
+      out.secadorSinCamposCompresor = !document.getElementById('empf_Arrancador') && !document.getElementById('empf_CapacidadTipo');
+      document.getElementById('empf_estado').value = 'Operativo';
+      Object.entries({ Fabricante: 'SPX Flow – Hankison', Modelo: 'HES2500 HCWC', NumeroSerie: '1000003283414-1', PresionOperacion: '50 PSI',
+        CapacidadNominal: '2500 SCFM @ 100 PSIG y 100 °F', Tension: '460 V / 3 / 60 Hz', CompresorRLA: '17,9 A', RefrigeranteTipo: 'R-404a',
+        RefrigeranteCarga: '31 lb (14,1 kg)', KitsMantenimiento: 'Kit de mantenimiento MKHES5000D2', ServicioTecnicoLocal: 'Neumair S.A.S. – servicio 24/7' })
+        .forEach(([c, v]) => { document.getElementById('empf_' + c).value = v; });
+      await empGuardarFicha();
+      out.secadorMsg = document.getElementById('empfMsg').textContent;
+      empSeleccionarEquipo('JOY 2');
+      empSeleccionarEquipo('Secador #1 - Hankinson');
+      out.secadorReabre = document.getElementById('empf_Modelo').value + ' | ' + document.getElementById('empf_RefrigeranteTipo').value;
 
       // 2. Hallazgo y su orden
       empNuevoHallazgoDe('JOY 2');
@@ -1233,7 +1249,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 45 equipos', r.menu && !r.menuZipa1 && r.lista === 45 && r.kpiAntes === '0 de 45', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
     check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
       /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 45' && r.chip === 'Operativo con fallas'
-      && ficha.length === 3 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
+      && ficha.length === 4 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
       && ficha[1][col(ficha, 'Identificacion')] === 'Joy TA-48 / S/N 1234 / 2004' && ficha[1][col(ficha, 'TorreEnfriamiento')] === 'Torre 2'
       && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
       { sinEstado: r.sinEstado, msg: r.fichaMsg, kpi: r.kpiDespues, ficha: ficha[1], horas: filaJoy });
@@ -1245,6 +1261,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: las fotos van primero en la ficha, debajo del nombre, grandes y sin recortar (se lee la placa)',
       r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
       && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
+    const filaSecador = ficha.find(f => f[0] === 'Secador #1 - Hankinson') || [];
+    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos), los guarda y salen en el acta',
+      r.secadorSecciones === 'Fotos (placa y estado general) | Recepción | Identificación del equipo | Datos técnicos de placa | Datos eléctricos y de refrigeración | Historial y documentos | Repuestos | Contactos de fabricante y servicio | Operación'
+      && r.secadorSinCamposCompresor && /Ficha guardada/.test(r.secadorMsg) && r.secadorReabre === 'HES2500 HCWC | R-404a'
+      && filaSecador[col(ficha, 'Modelo')] === 'HES2500 HCWC' && filaSecador[col(ficha, 'NumeroSerie')] === '1000003283414-1'
+      && filaSecador[col(ficha, 'CompresorRLA')] === '17,9 A' && filaSecador[col(ficha, 'KitsMantenimiento')] === 'Kit de mantenimiento MKHES5000D2'
+      && /Refrigerante: tipo<\/th><td[^>]*>R-404a/.test(r.acta) && /Servicio técnico local/.test(r.acta) && /2500 SCFM @ 100 PSIG/.test(r.acta),
+      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, fila: filaSecador });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
@@ -2456,13 +2480,19 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return { antes, despues: t.offsetHeight, cortado: t.scrollHeight > t.clientHeight + 1 };
     });
     await p.setViewportSize({ width: 390, height: 844 });
+    // Al pasar a celular el margen del contenido se anima (.28 s): se mide
+    // cuando terminó, no a mitad de la animación con la ficha más angosta.
+    await p.waitForTimeout(450);
     await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     out.celular = await medir();
     await p.evaluate(async () => {
       const panel = document.getElementById('empSub-recepcion');
       panel.style.display = 'none';
       empRenderFicha();
-      await new Promise(r => requestAnimationFrame(r));
+      // Oculta durante un cuadro entero, como cuando se está en otra sección:
+      // con un solo requestAnimationFrame se volvía a mostrar antes de que el
+      // navegador la dibujara oculta, y la prueba fallaba a veces.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       panel.style.display = '';
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     });
