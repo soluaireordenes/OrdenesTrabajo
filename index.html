@@ -24576,6 +24576,7 @@ const EMPALME_CAMPOS_SECADOR = {
 // Datos ya conocidos de algunos equipos, tomados de su hoja de vida (placa,
 // kits, contactos). Llenan los campos de la ficha que aún no tienen nada
 // guardado; quedan registrados al tocar "Guardar ficha".
+const _SERVICIO_NEUMAIR = 'Neumair S.A.S. – 310 699 1911 – servicio 24/7, 365 días';
 // Lo común de los secadores Hankison HES2500 HCWC (#1 y #2 son iguales de placa).
 const _SECADOR_HANKISON_HES2500 = {
   TipoEquipo: 'Secador de aire comprimido refrigerado',
@@ -24600,7 +24601,7 @@ const _SECADOR_HANKISON_HES2500 = {
   RefrigeranteTipo: 'R-404a',
   RefrigeranteCarga: '31 lb (14,1 kg)',
   ContactoFabricante: 'SPX Flow – 4647 SW 40th Ave, Ocala FL 34474, USA\nwww.spx.com · hankison.americas@spx.com\nTeléfono: 724-745-1555',
-  ServicioTecnicoLocal: 'Neumair S.A.S. – 310 699 1911 – servicio 24/7, 365 días',
+  ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
 };
 const EMPALME_DATOS_FIJOS = {
   'Secador #1 - Hankinson': {
@@ -24614,6 +24615,35 @@ const EMPALME_DATOS_FIJOS = {
     IdentificacionPlanta: 'Secador Hankinson #2 (según etiqueta del tablero)',
     NumeroSerie: '1000003283413-2',
     KitsMantenimiento: 'Kit de mantenimiento: MKHES7500D2 (distinto al del secador #1 aunque es el mismo modelo: confirmar con Neumair o Hankison antes de comprar)\nKit de servicio del dren: 7428278',
+  },
+  'Secador Kaeser 2': {
+    TipoEquipo: 'Secador de aire comprimido refrigerado',
+    IdentificacionPlanta: 'Secador Kaeser #2 (según etiqueta del tablero)',
+    Fabricante: 'Kaeser',
+    Modelo: 'TL2120 HC WC',
+    NumeroSerie: '1000002982420-3 (KID 4702907; EMR S/N: NA)',
+    LugarFabricacion: 'Newport, NC – Made in USA',
+    Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '100 PSI (línea de alta presión)',
+    CodigoActivo: '1002777 (número pintado en el gabinete; por confirmar si es el código de activo)',
+    CapacidadNominal: '2500 SCFM @ 100 PSIG y 100 °F',
+    CapacidadMetrica: '4295 m³/h @ 6,9 bar y 38 °C',
+    PresionMaxima: '232 PSIG (16 bar)',
+    TempMaxEntrada: '120 °F (49 °C)',
+    PresionPrueba: '333 / 175 PSIG (23 / 12,1 bar)',
+    Certificacion: 'ETL Intertek 3160742 – ANSI/UL STD 1995 – CAN/CSA STD C22.2 No. 236',
+    Tension: '460 V / 3 / 60 Hz',
+    AmpacidadMinima: '26 A',
+    ProteccionMaxima: '40 A – breaker tipo HACR según NEC',
+    CompresorRLA: '9 / 9,1 A (dos compresores de refrigeración)',
+    CompresorLRA: '70 / 70 A (dos compresores de refrigeración)',
+    VentiladorCondensador: 'No aplica en placa',
+    CalentadorCarter: '460 V / 0,2 A / 70 W',
+    RefrigeranteTipo: 'R-404a',
+    RefrigeranteCarga: '64 lb (29 kg)',
+    KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 4702907.',
+    ContactoFabricante: 'Kaeser – www.kaeser.com',
+    ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
   },
 };
 function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
