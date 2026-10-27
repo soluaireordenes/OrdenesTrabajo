@@ -1191,6 +1191,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         document.getElementById('empf_CompresorLRA').value, /KID 5248907/.test(document.getElementById('empf_KitsMantenimiento').value)].join(' | ');
       // Los Hankinson #1, #2 y #5 (50 PSI) van con los secadores de baja presión y el #4 (100 PSI) con los de alta.
       out.gruposSecadores = _empGruposEquipos('zipaquira2').filter(g => /Secadores/.test(g.grupo)).map(g => g.grupo + ': ' + g.equipos.filter(e => /Hankinson/.test(e)).map(e => e.match(/#\d/)[0]).join(',')).join(' | ');
+      out.generalNeumatics = _empGruposEquipos('zipaquira2').flatMap(g => g.equipos).filter(e => /General Neumatics/.test(e)).join(',');
       empSeleccionarEquipo('Secador #3 - Hankinson');
       out.hankison3 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_CapacidadNominal').value.split(' @')[0],
         /desmontado/.test(document.getElementById('empf_obs').value)].join(' | ');
@@ -1298,13 +1299,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.hankison5 === 'H-22 | R-22 | 1350 SCFM | '
       && r.hankison4 === 'H-45 | 100 PSI | 214,0 A | true'
       && r.hankison3 === 'H-55 | 5000 SCFM | true'
+      && r.generalNeumatics === 'Secador General Neumatics'
       && r.kaeser1 === 'Kaeser | KES2500 HCWC | 125 A | true'
       && r.gruposSecadores === 'Alta Presión Secadores: #3,#4 | Baja Presión Secadores: #1,#2,#5'
       && filaSecador[col(ficha, 'CompresorLRA')] === '125 A' && /^ETL Intertek 3160742/.test(filaSecador[col(ficha, 'Certificacion')])
       && filaSecador[col(ficha, 'Modelo')] === 'HES2500 HCWC' && filaSecador[col(ficha, 'NumeroSerie')] === '1000003283414-1'
       && filaSecador[col(ficha, 'CompresorRLA')] === '17,9 A' && filaSecador[col(ficha, 'KitsMantenimiento')] === 'Kit de mantenimiento MKHES5000D2'
       && /Refrigerante: tipo<\/th><td[^>]*>R-404a/.test(r.acta) && /Servicio técnico local/.test(r.acta) && /2500 SCFM @ 100 PSIG/.test(r.acta),
-      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, hankison3: r.hankison3, kaeser1: r.kaeser1, grupos: r.gruposSecadores, fila: filaSecador });
+      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, hankison3: r.hankison3, generalNeumatics: r.generalNeumatics, kaeser1: r.kaeser1, grupos: r.gruposSecadores, fila: filaSecador });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
