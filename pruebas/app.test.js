@@ -1175,7 +1175,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       // Un secador: su ficha trae los datos de la hoja de vida del secador
       // (identificación, placa, eléctricos y de refrigeración, kits y
       // contactos) en vez de los campos de compresor.
-      empSeleccionarEquipo('Secador Kaeser 1');
+      empSeleccionarEquipo('Secador SPX Flow 1');
       out.otroSecadorVacio = !document.getElementById('empf_Modelo').value && !document.getElementById('empfPrecargados');
       empSeleccionarEquipo('Secador #2 - Hankinson');
       out.secador2 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_NumeroSerie').value,
@@ -1186,6 +1186,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       empSeleccionarEquipo('Secador #5 - Hankinson');
       out.hankison5 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_RefrigeranteTipo').value.split(' (')[0],
         document.getElementById('empf_CapacidadNominal').value.split(' @')[0], document.getElementById('empf_Certificacion').value].join(' | ');
+      empSeleccionarEquipo('Secador Kaeser 1');
+      out.kaeser1 = [document.getElementById('empf_Fabricante').value, document.getElementById('empf_Modelo').value,
+        document.getElementById('empf_CompresorLRA').value, /KID 5248907/.test(document.getElementById('empf_KitsMantenimiento').value)].join(' | ');
+      // El Hankinson #4 (100 PSI) va con los secadores de alta presión.
+      out.gruposSecadores = _empGruposEquipos('zipaquira2').filter(g => /Secadores/.test(g.grupo)).map(g => g.grupo + ': ' + g.equipos.length + (g.equipos.includes('Secador #4 - Hankinson') ? ' (con #4)' : '')).join(' | ');
       empSeleccionarEquipo('Secador #4 - Hankinson');
       out.hankison4 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_PresionOperacion').value,
         document.getElementById('empf_CompresorLRA').value, /H-45/.test(document.getElementById('empf_KitsMantenimiento').value)].join(' | ');
@@ -1281,7 +1286,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
       && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
     const filaSecador = ficha.find(f => f[0] === 'Secador #1 - Hankinson') || [];
-    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1, #2, #4 y #5 y el Kaeser 2 ya vienen llenos, se guarda y sale en el acta',
+    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1, #2, #4 y #5 y los Kaeser 1 y 2 ya vienen llenos (el #4 en alta presión), se guarda y sale en el acta',
       r.secadorSecciones === 'Fotos (placa y estado general) | Recepción | Identificación del equipo | Datos técnicos de placa | Datos eléctricos y de refrigeración | Historial y documentos | Repuestos | Contactos de fabricante y servicio | Operación'
       && r.secadorSinCamposCompresor && /Ficha guardada/.test(r.secadorMsg) && r.secadorReabre === 'HES2500 HCWC | R-404a | aviso: false'
       && r.secadorPrecargado === 'HES2500 HCWC | 125 A | R-404a | Kit de mantenimiento: MKHES5000D2 | true' && r.otroSecadorVacio
@@ -1289,11 +1294,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.kaeser2 === 'TL2120 HC WC | 100 PSI | 64 lb (29 kg) | true'
       && r.hankison5 === 'H-22 | R-22 | 1350 SCFM | '
       && r.hankison4 === 'H-45 | 100 PSI | 214,0 A | true'
+      && r.kaeser1 === 'Kaeser | KES2500 HCWC | 125 A | true'
+      && r.gruposSecadores === 'Alta Presión Secadores: 7 (con #4) | Baja Presión Secadores: 2'
       && filaSecador[col(ficha, 'CompresorLRA')] === '125 A' && /^ETL Intertek 3160742/.test(filaSecador[col(ficha, 'Certificacion')])
       && filaSecador[col(ficha, 'Modelo')] === 'HES2500 HCWC' && filaSecador[col(ficha, 'NumeroSerie')] === '1000003283414-1'
       && filaSecador[col(ficha, 'CompresorRLA')] === '17,9 A' && filaSecador[col(ficha, 'KitsMantenimiento')] === 'Kit de mantenimiento MKHES5000D2'
       && /Refrigerante: tipo<\/th><td[^>]*>R-404a/.test(r.acta) && /Servicio técnico local/.test(r.acta) && /2500 SCFM @ 100 PSIG/.test(r.acta),
-      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, fila: filaSecador });
+      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, kaeser1: r.kaeser1, grupos: r.gruposSecadores, fila: filaSecador });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',

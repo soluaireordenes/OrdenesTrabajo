@@ -9082,8 +9082,8 @@ const EQUIPOS_ZIPAQUIRA = {
 const EQUIPOS_ZIPAQUIRA2 = {
   'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
   'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
-  'Alta Presión Secadores':      ['Secador #5 - Hankinson','Secador Kaeser 1','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #3 - General Neumatics','Secador Kaeser 2'],
-  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #4 - Hankinson'],
+  'Alta Presión Secadores':      ['Secador #5 - Hankinson','Secador Kaeser 1','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #3 - General Neumatics','Secador Kaeser 2','Secador #4 - Hankinson'],
+  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2'],
   'Bombas de Vacío':             ['BOMBA DE VACIO IR 6','BOMBA DE VACIO IR 5','BOMBA DE VACIO IR 4','BOMBA DE VACIO IR 7','BOMBA DE VACIO IR 9',
                                   'BOMBA DE VACIO KAESER 7','BOMBA DE VACIO SULLAIR 8','BOMBA DE VACIO SULLAIR 1','BOMBA DE VACIO SULLAIR 2',
                                   'BOMBA DE VACIO SULLAIR 3','BOMBA DE VACIO PNEUMOFORE 10','BOMBA DE VACIO PNEUMOFORE 1',
@@ -24577,8 +24577,9 @@ const EMPALME_CAMPOS_SECADOR = {
 // kits, contactos). Llenan los campos de la ficha que aún no tienen nada
 // guardado; quedan registrados al tocar "Guardar ficha".
 const _SERVICIO_NEUMAIR = 'Neumair S.A.S. – 310 699 1911 – servicio 24/7, 365 días';
-// Lo común de los secadores Hankison HES2500 HCWC (#1 y #2 son iguales de placa).
-const _SECADOR_HANKISON_HES2500 = {
+// Lo común de los secadores de 2500 SCFM HCWC: los Hankison HES2500 (#1 y #2)
+// y el Kaeser KES2500 (Kaeser 1) tienen la misma placa.
+const _SECADOR_2500_HCWC = {
   TipoEquipo: 'Secador de aire comprimido refrigerado',
   Fabricante: 'SPX Flow – Hankison',
   Modelo: 'HES2500 HCWC',
@@ -24621,16 +24622,26 @@ const _SECADOR_HANKISON_SERIE_H = {
 const _kitSegunPlaca = (marca, modelo) => `La placa no indica kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a ${marca} o Neumair con el modelo ${modelo} y el número de serie.`;
 const EMPALME_DATOS_FIJOS = {
   'Secador #1 - Hankinson': {
-    ..._SECADOR_HANKISON_HES2500,
+    ..._SECADOR_2500_HCWC,
     IdentificacionPlanta: 'Secador Hankinson #1 (según etiqueta del tablero)',
     NumeroSerie: '1000003283414-1',
     KitsMantenimiento: 'Kit de mantenimiento: MKHES5000D2\nKit de servicio del dren: 7428278',
   },
   'Secador #2 - Hankinson': {
-    ..._SECADOR_HANKISON_HES2500,
+    ..._SECADOR_2500_HCWC,
     IdentificacionPlanta: 'Secador Hankinson #2 (según etiqueta del tablero)',
     NumeroSerie: '1000003283413-2',
     KitsMantenimiento: 'Kit de mantenimiento: MKHES7500D2 (distinto al del secador #1 aunque es el mismo modelo: confirmar con Neumair o Hankison antes de comprar)\nKit de servicio del dren: 7428278',
+  },
+  'Secador Kaeser 1': {
+    ..._SECADOR_2500_HCWC,
+    IdentificacionPlanta: 'Secador Kaeser #1 (según etiqueta del tablero)',
+    Fabricante: 'Kaeser',
+    Modelo: 'KES2500 HCWC',
+    NumeroSerie: '1000003074311 (KID 5248907; EMR S/N: NA)',
+    PresionOperacion: '100 PSI (línea de alta presión)',
+    KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 5248907.',
+    ContactoFabricante: 'Kaeser – www.kaeser.com',
   },
   'Secador Kaeser 2': {
     TipoEquipo: 'Secador de aire comprimido refrigerado',
