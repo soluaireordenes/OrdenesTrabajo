@@ -1149,6 +1149,20 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.evaluacionReabre = document.querySelector('.emp-tabla-evaluacion tr[data-item="vibraciones"] [data-campo="estado"]').value;
       out.kpiDespues = document.querySelector('#empKpis .emp-kpi-num').textContent.replace(/\s+/g, ' ').trim();
       out.chip = document.querySelector('#empListaEquipos .emp-equipo.activo .emp-chip').textContent;
+      // Las fotos van arriba, debajo del nombre del equipo, y grandes y
+      // completas (sin recortar) para poder leer la placa.
+      _emp.fotos.push({ Equipo: 'JOY 2', DriveFileId: 'FOTO-PLACA' });
+      empSeleccionarEquipo('JOY 2');
+      const fotoFicha = document.querySelector('#empf_fotos .emp-foto');
+      const imgFicha = fotoFicha?.querySelector('img');
+      out.fotosFicha = {
+        primera: document.querySelector('#empFicha .emp-seccion')?.textContent,
+        ancho: Math.round(fotoFicha?.getBoundingClientRect().width || 0),
+        alto: Math.round(imgFicha?.getBoundingClientRect().height || 0),
+        ajuste: imgFicha && getComputedStyle(imgFicha).objectFit,
+        agregar: !!document.querySelector('#empFicha .emp-foto-agregar input[type=file]'),
+      };
+      _emp.fotos.pop();
       // Una bomba de vacío: sin la evaluación técnica (es de compresores),
       // pero su horómetro también queda en el Plan de Mantenimiento.
       empSeleccionarEquipo('BOMBA DE VACIO IR 6');
@@ -1228,6 +1242,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.bombaSinEvaluacion && /Ficha guardada.*Plan de Mantenimiento/.test(r.bombaMsg) && /0 de 22 compresores/.test(r.kpiEvaluacionConBomba)
       && filaBomba[col(horas, 'HoraBaseInformes')] === '12800' && filaBomba[col(horas, 'HorasActuales')] === '12800',
       { msg: r.bombaMsg, kpi: r.kpiEvaluacionConBomba, horas: filaBomba });
+    check('Empalme: las fotos van primero en la ficha, debajo del nombre, grandes y sin recortar (se lee la placa)',
+      r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
+      && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
