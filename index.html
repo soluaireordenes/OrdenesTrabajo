@@ -9077,13 +9077,14 @@ const EQUIPOS_ZIPAQUIRA = {
 
 // Lista de equipos activos exclusiva de CO O-I Zipaquirá 2. Reemplaza a la
 // lista general que tenía mientras no había una propia. Los secadores que
-// se repetían de nombre se numeraron (Kaeser 1 y 2, SPX Flow 1 y 2) para
-// que cada uno tenga su propia hoja de vida e historial.
+// se repetían de nombre se numeraron (Kaeser 1 y 2) para que cada uno tenga
+// su propia hoja de vida e historial. Los grupos de secadores van según la
+// presión de su línea: 100 PSI alta y 50 PSI baja.
 const EQUIPOS_ZIPAQUIRA2 = {
   'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
   'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
-  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - General Neumatics','Secador Kaeser 2','Secador #4 - Hankinson'],
-  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #5 - Hankinson'],
+  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - Hankinson','Secador Kaeser 2','Secador #4 - Hankinson'],
+  'Baja Presión Secadores':      ['Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #5 - Hankinson','Secador General Pneumatics'],
   'Bombas de Vacío':             ['BOMBA DE VACIO IR 6','BOMBA DE VACIO IR 5','BOMBA DE VACIO IR 4','BOMBA DE VACIO IR 7','BOMBA DE VACIO IR 9',
                                   'BOMBA DE VACIO KAESER 7','BOMBA DE VACIO SULLAIR 8','BOMBA DE VACIO SULLAIR 1','BOMBA DE VACIO SULLAIR 2',
                                   'BOMBA DE VACIO SULLAIR 3','BOMBA DE VACIO PNEUMOFORE 10','BOMBA DE VACIO PNEUMOFORE 1',
@@ -24607,6 +24608,7 @@ const _SECADOR_2500_HCWC = {
 // Lo común de los Hankison de la serie H (H-22, H-45): modelos más antiguos
 // cuya placa trae otros datos (potencia y FLA del compresor, succión,
 // temperatura ambiente), que van en el campo más cercano con su nombre.
+const _REFRIGERANTE_R22 = 'R-22 (en eliminación progresiva por el Protocolo de Montreal: prever su disponibilidad o un refrigerante sustituto para recargas)';
 const _SECADOR_HANKISON_SERIE_H = {
   TipoEquipo: 'Secador de aire comprimido refrigerado',
   Fabricante: 'Hankison',
@@ -24616,7 +24618,7 @@ const _SECADOR_HANKISON_SERIE_H = {
   TempMaxEntrada: 'No indicada en placa. Temperatura ambiente mínima / máxima: 35 °F (2 °C) / 130 °F (54 °C)',
   PresionPrueba: 'Lado refrigerante: 300 PSIG (presión máxima de prueba)',
   Tension: '460 V / 3 / 60 Hz',
-  RefrigeranteTipo: 'R-22 (en eliminación progresiva por el Protocolo de Montreal: prever su disponibilidad o un refrigerante sustituto para recargas)',
+  RefrigeranteTipo: _REFRIGERANTE_R22,
   ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
 };
 const _kitSegunPlaca = (marca, modelo) => `La placa no indica kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a ${marca} o Neumair con el modelo ${modelo} y el número de serie.`;
@@ -24642,6 +24644,32 @@ const EMPALME_DATOS_FIJOS = {
     PresionOperacion: '100 PSI (línea de alta presión)',
     KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 5248907.',
     ContactoFabricante: 'Kaeser – www.kaeser.com',
+  },
+  // Placa rayada y partida: lo dudoso queda marcado para verificar en sitio.
+  'Secador General Pneumatics': {
+    TipoEquipo: 'Secador de aire comprimido refrigerado (condensador enfriado por aire)',
+    IdentificacionPlanta: 'Secador General Pneumatics (según etiqueta del tablero) · caja inferior marcada "SEC 1" (por confirmar)',
+    Fabricante: 'General Pneumatics',
+    Modelo: 'TK2500A',
+    NumeroSerie: '96FTK1229 · código de placa 47DE15A',
+    LugarFabricacion: 'No indicado en placa · fabricado en junio de 1996',
+    Ubicacion: 'Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '50 PSI',
+    CapacidadNominal: 'No indicada en placa (por el modelo, probablemente 2500 SCFM; confirmar)',
+    PresionMaxima: '150 PSIG (presión máxima de aire de entrada)',
+    TempMaxEntrada: '130 °F (54 °C) · temperatura ambiente mínima / máxima: 40 / 120 °F (4 / 49 °C)',
+    PresionPrueba: 'No indicada · presión de diseño del lado refrigerante (bajo / alto): 150 / 150 PSIG',
+    Tension: '460 V / 60 Hz / 3 · corriente nominal de la unidad (RLA): 24,9 A',
+    AmpacidadMinima: '30,0 A',
+    ProteccionMaxima: 'Fusible de alimentación 25 A, tipo UL-RK5 (verificar en sitio)',
+    CompresorRLA: '21,0 A · compresor de 16,0 HP',
+    CompresorLRA: '130 A',
+    VentiladorCondensador: '0,5 HP / 0,9 A RLA · cantidad: 2 (verificar en sitio)',
+    RefrigeranteTipo: _REFRIGERANTE_R22,
+    RefrigeranteCarga: '23 lb 0 oz (carga de fábrica)',
+    KitsMantenimiento: 'La placa no indica kit: pedir a Neumair las referencias del kit de mantenimiento, del kit de servicio del dren y de los fusibles de alimentación (25 A UL-RK5) con el modelo TK2500A y el número de serie.',
+    ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+    Observaciones: 'La placa está rayada y partida: verificar en sitio los valores del ventilador y del fusible.',
   },
   'Secador Kaeser 2': {
     TipoEquipo: 'Secador de aire comprimido refrigerado',
@@ -24671,6 +24699,20 @@ const EMPALME_DATOS_FIJOS = {
     KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 4702907.',
     ContactoFabricante: 'Kaeser – www.kaeser.com',
     ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+  },
+  'Secador #3 - Hankinson': {
+    ..._SECADOR_HANKISON_SERIE_H,
+    IdentificacionPlanta: 'Secador Hankinson #3 (según etiqueta del tablero)',
+    Modelo: 'H-55',
+    NumeroSerie: 'HI525268002001 · código de placa 506.10',
+    PresionOperacion: '100 PSI (etiqueta poco legible en la foto, confirmar)',
+    CodigoActivo: '1000808 (número pintado en el tablero; por confirmar si es el código de activo) · 1000135 en el panel de manómetros (por confirmar)',
+    CapacidadNominal: '5000 SCFM @ 100 PSIG y 100 °F de aire de entrada',
+    CompresorRLA: '42,9 A (FLA, corriente a plena carga) · compresor de 25 HP',
+    CompresorLRA: '214 A',
+    RefrigeranteCarga: '100 lb · presión de succión 52 PSIG',
+    KitsMantenimiento: _kitSegunPlaca('Hankison', 'H-55'),
+    Observaciones: 'En la foto: la tapa de un intercambiador está retirada (haz de tubos a la vista) y el panel de manómetros está desmontado. Confirmar si el equipo está fuera de servicio o en reparación.',
   },
   'Secador #4 - Hankinson': {
     ..._SECADOR_HANKISON_SERIE_H,
@@ -24988,7 +25030,7 @@ function empRenderFicha() {
     ${seccion('Operación', `
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
-        <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
+        <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(String(f.Observaciones || '').trim() ? f.Observaciones : fijos.Observaciones || '')}</textarea></div>`)}
     ${_pmCompresores(operacionActual).includes(equipo) ? _empHtmlEvaluacion(equipo) : ''}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
       <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
