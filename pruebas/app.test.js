@@ -1099,12 +1099,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         compresoresPlan: _pmCompresores('zipaquira2').length,
       };
     });
-    check('Zipaquirá 2: su propia lista de equipos (5 grupos, 45 equipos sin repetidos, con las 14 bombas de vacío) en órdenes, inventario, Hoja de Vida y Plan (que sigue con 22 compresores); Soacha sigue con la general',
-      r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores | Bombas de Vacío' && r.total === 45 && r.unicos === 45
+    check('Zipaquirá 2: su propia lista de equipos (5 grupos, 46 equipos sin repetidos, con las 14 bombas de vacío) en órdenes, inventario, Hoja de Vida y Plan (que sigue con 22 compresores); Soacha sigue con la general',
+      r.grupos === 'Baja Presión | Alta Presión | Alta Presión Secadores | Baja Presión Secadores | Bombas de Vacío' && r.total === 46 && r.unicos === 46
       && r.bombas === ['IR 6', 'IR 5', 'IR 4', 'IR 7', 'IR 9', 'KAESER 7', 'SULLAIR 8', 'SULLAIR 1', 'SULLAIR 2', 'SULLAIR 3',
         'PNEUMOFORE 10', 'PNEUMOFORE 1', 'PNEUMOFORE 2', 'PNEUMOFORE 3'].map(x => 'BOMBA DE VACIO ' + x).join(',')
       && r.enOrden === 14 && r.enInventario === 14 && r.planBombas === 14 && r.compresoresPlan === 22
-      && r.sinGeneral && r.hvd === 45 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
+      && r.sinGeneral && r.hvd === 46 && r.soachaGeneral && errs.length === 0, { ...r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
@@ -1191,6 +1191,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         document.getElementById('empf_CompresorLRA').value, /KID 5248907/.test(document.getElementById('empf_KitsMantenimiento').value)].join(' | ');
       // Los Hankinson #1, #2 y #5 (50 PSI) van con los secadores de baja presión y el #4 (100 PSI) con los de alta.
       out.gruposSecadores = _empGruposEquipos('zipaquira2').filter(g => /Secadores/.test(g.grupo)).map(g => g.grupo + ': ' + g.equipos.filter(e => /Hankinson/.test(e)).map(e => e.match(/#\d/)[0]).join(',')).join(' | ');
+      empSeleccionarEquipo('Secador #3 - Hankinson');
+      out.hankison3 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_CapacidadNominal').value.split(' @')[0],
+        /desmontado/.test(document.getElementById('empf_obs').value)].join(' | ');
       empSeleccionarEquipo('Secador #4 - Hankinson');
       out.hankison4 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_PresionOperacion').value,
         document.getElementById('empf_CompresorLRA').value, /H-45/.test(document.getElementById('empf_KitsMantenimiento').value)].join(' | ');
@@ -1270,9 +1273,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const movs = fake.hoja(ids.inv, 'Movimientos');
     const col = (filas, nombre) => filas[0] ? filas[0].indexOf(nombre) : -1;
     const filaJoy = horas.find(f => f[0] === 'JOY 2') || [];
-    check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 45 equipos', r.menu && !r.menuZipa1 && r.lista === 45 && r.kpiAntes === '0 de 45', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
+    check('Empalme: aparece en el menú de Zipaquirá 2 (no en Zipaquirá) y lista sus 46 equipos', r.menu && !r.menuZipa1 && r.lista === 46 && r.kpiAntes === '0 de 46', { menu: r.menu, zipa1: r.menuZipa1, lista: r.lista, kpi: r.kpiAntes });
     check('Empalme: la ficha pide el estado y guarda; el horómetro queda como hora base del compresor',
-      /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 45' && r.chip === 'Operativo con fallas'
+      /Elige el estado/.test(r.sinEstado) && /Ficha guardada.*Plan de Mantenimiento/.test(r.fichaMsg) && r.kpiDespues === '1 de 46' && r.chip === 'Operativo con fallas'
       && ficha.length === 4 && ficha[1][col(ficha, 'Estado')] === 'Operativo con fallas' && ficha[1][col(ficha, 'Documentacion')] === 'Manual de operación'
       && ficha[1][col(ficha, 'Identificacion')] === 'Joy TA-48 / S/N 1234 / 2004' && ficha[1][col(ficha, 'TorreEnfriamiento')] === 'Torre 2'
       && filaJoy[col(horas, 'HoraBaseInformes')] === '45210' && filaJoy[col(horas, 'HorasActuales')] === '45210',
@@ -1286,7 +1289,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
       && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
     const filaSecador = ficha.find(f => f[0] === 'Secador #1 - Hankinson') || [];
-    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1, #2, #4 y #5 y los Kaeser 1 y 2 ya vienen llenos (el #4 en alta presión; #1, #2 y #5 en baja), se guarda y sale en el acta',
+    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1 a #5 y los Kaeser 1 y 2 ya vienen llenos (el #4 en alta presión; #1, #2 y #5 en baja), se guarda y sale en el acta',
       r.secadorSecciones === 'Fotos (placa y estado general) | Recepción | Identificación del equipo | Datos técnicos de placa | Datos eléctricos y de refrigeración | Historial y documentos | Repuestos | Contactos de fabricante y servicio | Operación'
       && r.secadorSinCamposCompresor && /Ficha guardada/.test(r.secadorMsg) && r.secadorReabre === 'HES2500 HCWC | R-404a | aviso: false'
       && r.secadorPrecargado === 'HES2500 HCWC | 125 A | R-404a | Kit de mantenimiento: MKHES5000D2 | true' && r.otroSecadorVacio
@@ -1294,13 +1297,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.kaeser2 === 'TL2120 HC WC | 100 PSI | 64 lb (29 kg) | true'
       && r.hankison5 === 'H-22 | R-22 | 1350 SCFM | '
       && r.hankison4 === 'H-45 | 100 PSI | 214,0 A | true'
+      && r.hankison3 === 'H-55 | 5000 SCFM | true'
       && r.kaeser1 === 'Kaeser | KES2500 HCWC | 125 A | true'
-      && r.gruposSecadores === 'Alta Presión Secadores: #4 | Baja Presión Secadores: #1,#2,#5'
+      && r.gruposSecadores === 'Alta Presión Secadores: #3,#4 | Baja Presión Secadores: #1,#2,#5'
       && filaSecador[col(ficha, 'CompresorLRA')] === '125 A' && /^ETL Intertek 3160742/.test(filaSecador[col(ficha, 'Certificacion')])
       && filaSecador[col(ficha, 'Modelo')] === 'HES2500 HCWC' && filaSecador[col(ficha, 'NumeroSerie')] === '1000003283414-1'
       && filaSecador[col(ficha, 'CompresorRLA')] === '17,9 A' && filaSecador[col(ficha, 'KitsMantenimiento')] === 'Kit de mantenimiento MKHES5000D2'
       && /Refrigerante: tipo<\/th><td[^>]*>R-404a/.test(r.acta) && /Servicio técnico local/.test(r.acta) && /2500 SCFM @ 100 PSIG/.test(r.acta),
-      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, kaeser1: r.kaeser1, grupos: r.gruposSecadores, fila: filaSecador });
+      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, kaeser2: r.kaeser2, hankison5: r.hankison5, hankison4: r.hankison4, hankison3: r.hankison3, kaeser1: r.kaeser1, grupos: r.gruposSecadores, fila: filaSecador });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',

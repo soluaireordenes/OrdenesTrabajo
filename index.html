@@ -9082,7 +9082,7 @@ const EQUIPOS_ZIPAQUIRA = {
 const EQUIPOS_ZIPAQUIRA2 = {
   'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
   'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
-  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - General Neumatics','Secador Kaeser 2','Secador #4 - Hankinson'],
+  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - General Neumatics','Secador #3 - Hankinson','Secador Kaeser 2','Secador #4 - Hankinson'],
   'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #5 - Hankinson'],
   'Bombas de Vacío':             ['BOMBA DE VACIO IR 6','BOMBA DE VACIO IR 5','BOMBA DE VACIO IR 4','BOMBA DE VACIO IR 7','BOMBA DE VACIO IR 9',
                                   'BOMBA DE VACIO KAESER 7','BOMBA DE VACIO SULLAIR 8','BOMBA DE VACIO SULLAIR 1','BOMBA DE VACIO SULLAIR 2',
@@ -24672,6 +24672,20 @@ const EMPALME_DATOS_FIJOS = {
     ContactoFabricante: 'Kaeser – www.kaeser.com',
     ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
   },
+  'Secador #3 - Hankinson': {
+    ..._SECADOR_HANKISON_SERIE_H,
+    IdentificacionPlanta: 'Secador Hankinson #3 (según etiqueta del tablero)',
+    Modelo: 'H-55',
+    NumeroSerie: 'HI525268002001 · código de placa 506.10',
+    PresionOperacion: '100 PSI (etiqueta poco legible en la foto, confirmar)',
+    CodigoActivo: '1000808 (número pintado en el tablero; por confirmar si es el código de activo) · 1000135 en el panel de manómetros (por confirmar)',
+    CapacidadNominal: '5000 SCFM @ 100 PSIG y 100 °F de aire de entrada',
+    CompresorRLA: '42,9 A (FLA, corriente a plena carga) · compresor de 25 HP',
+    CompresorLRA: '214 A',
+    RefrigeranteCarga: '100 lb · presión de succión 52 PSIG',
+    KitsMantenimiento: _kitSegunPlaca('Hankison', 'H-55'),
+    Observaciones: 'En la foto: la tapa de un intercambiador está retirada (haz de tubos a la vista) y el panel de manómetros está desmontado. Confirmar si el equipo está fuera de servicio o en reparación.',
+  },
   'Secador #4 - Hankinson': {
     ..._SECADOR_HANKISON_SERIE_H,
     IdentificacionPlanta: 'Secador Hankinson #4 (según etiqueta del tablero)',
@@ -24988,7 +25002,7 @@ function empRenderFicha() {
     ${seccion('Operación', `
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
-        <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(f.Observaciones || '')}</textarea></div>`)}
+        <textarea id="empf_obs" class="emp-texto" rows="3" placeholder="Fugas, ruidos, presiones o temperaturas que marcaba, lo que se vea">${esc(String(f.Observaciones || '').trim() ? f.Observaciones : fijos.Observaciones || '')}</textarea></div>`)}
     ${_pmCompresores(operacionActual).includes(equipo) ? _empHtmlEvaluacion(equipo) : ''}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
       <button class="btn btn-primary" id="empfBtnGuardar" onclick="empGuardarFicha()">Guardar ficha</button>
