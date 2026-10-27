@@ -24573,6 +24573,39 @@ const EMPALME_CAMPOS_SECADOR = {
     { col: 'ServicioTecnicoLocal', label: 'Servicio técnico local', ayuda: 'Empresa, teléfono y horario', largo: true },
   ],
 };
+// Datos ya conocidos de algunos equipos, tomados de su hoja de vida (placa,
+// kits, contactos). Llenan los campos de la ficha que aún no tienen nada
+// guardado; quedan registrados al tocar "Guardar ficha".
+const EMPALME_DATOS_FIJOS = {
+  'Secador #1 - Hankinson': {
+    TipoEquipo: 'Secador de aire comprimido refrigerado',
+    IdentificacionPlanta: 'Secador Hankinson #1 (según etiqueta del tablero)',
+    Fabricante: 'SPX Flow – Hankison',
+    Modelo: 'HES2500 HCWC',
+    NumeroSerie: '1000003283414-1',
+    LugarFabricacion: 'Newport, NC – Made in USA',
+    Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '50 PSI',
+    CapacidadNominal: '2500 SCFM @ 100 PSIG y 100 °F',
+    CapacidadMetrica: '4250 m³/h @ 6,9 bar y 38 °C',
+    PresionMaxima: '232 PSIG (16 bar)',
+    TempMaxEntrada: '130 °F (54 °C)',
+    PresionPrueba: '254 / 175 PSIG (18 / 12 bar)',
+    Certificacion: 'ETL Intertek 3160742 – ANSI/UL STD 1995 – CAN/CSA STD C22.2 No. 236',
+    Tension: '460 V / 3 / 60 Hz',
+    AmpacidadMinima: '22 A',
+    ProteccionMaxima: '40 A – breaker tipo HACR según NEC',
+    CompresorRLA: '17,9 A',
+    CompresorLRA: '125 A',
+    VentiladorCondensador: '460 V / 0,20 A / 90 W (cantidad no indicada en placa)',
+    CalentadorCarter: '460 V / 0,2 A / 90 W',
+    RefrigeranteTipo: 'R-404a',
+    RefrigeranteCarga: '31 lb (14,1 kg)',
+    KitsMantenimiento: 'Kit de mantenimiento: MKHES5000D2\nKit de servicio del dren: 7428278',
+    ContactoFabricante: 'SPX Flow – 4647 SW 40th Ave, Ocala FL 34474, USA\nwww.spx.com · hankison.americas@spx.com\nTeléfono: 724-745-1555',
+    ServicioTecnicoLocal: 'Neumair S.A.S. – 310 699 1911 – servicio 24/7, 365 días',
+  },
+};
 function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
 /** Todos los campos de texto de la ficha de un equipo, en el orden de la
  *  ficha. En un secador van al final los de "Información del equipo": no se
@@ -24811,14 +24844,21 @@ function empRenderFicha() {
   const fotos = _emp.fotos.filter(x => x.Equipo === equipo);
   // Todos son cuadros de texto que crecen con lo que tienen: los cortos
   // arrancan de una línea y, si el texto no cabe, bajan en vez de cortarse.
-  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label><textarea id="empf_${c.col}" class="empf-campo emp-texto" data-col="${c.col}" rows="${c.filas || (c.largo ? 3 : 1)}" placeholder="${esc(c.ayuda || '')}">${esc(f[c.col] || '')}</textarea></div>`;
+  // Lo que se sabe del equipo (EMPALME_DATOS_FIJOS) llena lo que no se ha guardado.
+  const fijos = EMPALME_DATOS_FIJOS[equipo] || {};
+  const precargados = Object.keys(fijos).filter(col => fijos[col] && !String(f[col] || '').trim()).length;
+  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label><textarea id="empf_${c.col}" class="empf-campo emp-texto" data-col="${c.col}" rows="${c.filas || (c.largo ? 3 : 1)}" placeholder="${esc(c.ayuda || '')}">${esc(String(f[c.col] || '').trim() ? f[c.col] : fijos[c.col] || '')}</textarea></div>`;
   const seccion = (titulo, contenido) => `<div class="emp-seccion">${esc(titulo)}</div><div class="emp-campos">${contenido}</div>`;
   const esSecador = _empEsSecador(equipo), S = EMPALME_CAMPOS_SECADOR;
   // En un secador, lo que ya se haya escrito en los campos de compresor
   // (identificación, capacidad…) se sigue viendo, para no perderlo.
   const anteriores = EMPALME_CAMPOS_FICHA.equipo.filter(c => String(f[c.col] || '').trim());
+  const avisoPrecargados = precargados
+    ? `<div id="empfPrecargados" style="margin-top:14px;padding:8px 12px;font-size:13px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px">Los datos de placa, kits y contactos ya vienen llenos con la hoja de vida de este equipo. Revísalos y toca <b>Guardar ficha</b> para dejarlos registrados.</div>`
+    : '';
   const infoEquipo = esSecador
-    ? `${seccion('Identificación del equipo', [...S.identificacion, ...anteriores].map(campo).join(''))}
+    ? `${avisoPrecargados}
+      ${seccion('Identificación del equipo', [...S.identificacion, ...anteriores].map(campo).join(''))}
       ${seccion('Datos técnicos de placa', S.placa.map(campo).join(''))}
       ${seccion('Datos eléctricos y de refrigeración', S.electrico.map(campo).join(''))}`
     : seccion('Información del equipo', EMPALME_CAMPOS_FICHA.equipo.map(campo).join(''));
