@@ -405,7 +405,7 @@ body::before {
 .field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
 /* Fotos de la ficha: grandes y completas (sin recortar) para poder leer la
    placa del equipo; al tocarla se abre la imagen en tamaño original. */
-.emp-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 10px; }
+.emp-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 10px; }
 .emp-fotos:empty { display: none; }
 .emp-foto-agregar { cursor: pointer; font-size: 12px; font-weight: 600; }
 /* Mantenimientos anteriores (Historial y documentos de la ficha) y la
@@ -9082,8 +9082,8 @@ const EQUIPOS_ZIPAQUIRA = {
 const EQUIPOS_ZIPAQUIRA2 = {
   'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
   'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
-  'Alta Presión Secadores':      ['Secador #5 - Hankinson','Secador Kaeser 1','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #3 - General Neumatics','Secador Kaeser 2'],
-  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #4 - Hankinson'],
+  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - General Neumatics','Secador Kaeser 2','Secador #4 - Hankinson'],
+  'Baja Presión Secadores':      ['Secador SPX Flow 1','Secador SPX Flow 2','Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #5 - Hankinson'],
   'Bombas de Vacío':             ['BOMBA DE VACIO IR 6','BOMBA DE VACIO IR 5','BOMBA DE VACIO IR 4','BOMBA DE VACIO IR 7','BOMBA DE VACIO IR 9',
                                   'BOMBA DE VACIO KAESER 7','BOMBA DE VACIO SULLAIR 8','BOMBA DE VACIO SULLAIR 1','BOMBA DE VACIO SULLAIR 2',
                                   'BOMBA DE VACIO SULLAIR 3','BOMBA DE VACIO PNEUMOFORE 10','BOMBA DE VACIO PNEUMOFORE 1',
@@ -24497,7 +24497,12 @@ function _fechaDeTexto(valor) {
 ══════════════════════════════════════════════ */
 const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha','UltimoMantDetalle','Documentacion','Observaciones','RecibidoPor','FechaRegistro',
   'Identificacion','CapacidadTipo','Arrancador','Subestacion','TorreEnfriamiento','HojaVida','MantMayores','Garantias','Certificados',
-  'RepuestosEntregados','RepuestosCriticosFabricante','MonitoreoTurno'];
+  'RepuestosEntregados','RepuestosCriticosFabricante','MonitoreoTurno',
+  // Ficha de los secadores (formato de hoja de vida del secador)
+  'TipoEquipo','IdentificacionPlanta','Fabricante','Modelo','NumeroSerie','LugarFabricacion','Ubicacion','PresionOperacion','FechaInstalacion','CodigoActivo',
+  'CapacidadNominal','CapacidadMetrica','PresionMaxima','TempMaxEntrada','PresionPrueba','Certificacion',
+  'Tension','AmpacidadMinima','ProteccionMaxima','CompresorRLA','CompresorLRA','VentiladorCondensador','CalentadorCarter','RefrigeranteTipo','RefrigeranteCarga',
+  'KitsMantenimiento','ContactoFabricante','ServicioTecnicoLocal'];
 // Información de cada equipo al recibirlo (Parte 1 del formato de empalme).
 // largo: se escribe en un cuadro de varias líneas.
 const EMPALME_CAMPOS_FICHA = {
@@ -24525,6 +24530,185 @@ const EMPALME_CAMPOS_FICHA = {
     { col: 'MonitoreoTurno', label: 'Monitoreo de variables de cada turno', ayuda: 'Qué variables se registran en cada turno y dónde', largo: true },
   ],
 };
+// Los secadores llevan su propia ficha, con los datos de su hoja de vida
+// (identificación, placa, parte eléctrica y de refrigeración, kits y
+// contactos) en lugar de "Información del equipo", que es de compresores.
+const EMPALME_CAMPOS_SECADOR = {
+  identificacion: [
+    { col: 'TipoEquipo', label: 'Equipo', ayuda: 'Ej: secador de aire comprimido refrigerado' },
+    { col: 'IdentificacionPlanta', label: 'Identificación en planta', ayuda: 'Como dice la etiqueta del tablero' },
+    { col: 'Fabricante', label: 'Fabricante', ayuda: 'Ej: SPX Flow – Hankison' },
+    { col: 'Modelo', label: 'Modelo' },
+    { col: 'NumeroSerie', label: 'Número de serie' },
+    { col: 'LugarFabricacion', label: 'Lugar de fabricación' },
+    { col: 'Ubicacion', label: 'Ubicación', ayuda: 'Ej: sala de compresores' },
+    { col: 'PresionOperacion', label: 'Presión de operación en planta', ayuda: 'PSI' },
+    { col: 'FechaInstalacion', label: 'Fecha de instalación' },
+    { col: 'CodigoActivo', label: 'Código de activo / SAP' },
+  ],
+  placa: [
+    { col: 'CapacidadNominal', label: 'Capacidad nominal', ayuda: 'Ej: 2500 SCFM @ 100 PSIG y 100 °F' },
+    { col: 'CapacidadMetrica', label: 'Capacidad nominal (métrica)', ayuda: 'Ej: 4250 m³/h @ 6,9 bar y 38 °C' },
+    { col: 'PresionMaxima', label: 'Presión máxima de trabajo', ayuda: 'PSIG (bar)' },
+    { col: 'TempMaxEntrada', label: 'Temperatura máxima de entrada', ayuda: '°F (°C)' },
+    { col: 'PresionPrueba', label: 'Presión de prueba de fábrica (lado alto / lado bajo)', ayuda: 'PSIG (bar)' },
+    { col: 'Certificacion', label: 'Certificación' },
+  ],
+  electrico: [
+    { col: 'Tension', label: 'Tensión / fases / frecuencia', ayuda: 'Ej: 460 V / 3 / 60 Hz' },
+    { col: 'AmpacidadMinima', label: 'Ampacidad mínima del circuito', ayuda: 'A' },
+    { col: 'ProteccionMaxima', label: 'Protección máxima (fusible / breaker)', ayuda: 'A y tipo' },
+    { col: 'CompresorRLA', label: 'Compresor de refrigeración: corriente nominal (RLA)', ayuda: 'A' },
+    { col: 'CompresorLRA', label: 'Compresor de refrigeración: rotor bloqueado (LRA)', ayuda: 'A' },
+    { col: 'VentiladorCondensador', label: 'Motor ventilador del condensador', ayuda: 'V / A / W y cantidad' },
+    { col: 'CalentadorCarter', label: 'Calentador del cárter', ayuda: 'V / A / W' },
+    { col: 'RefrigeranteTipo', label: 'Refrigerante: tipo', ayuda: 'Ej: R-404a' },
+    { col: 'RefrigeranteCarga', label: 'Refrigerante: carga', ayuda: 'lb (kg)' },
+  ],
+  repuestos: [
+    { col: 'KitsMantenimiento', label: 'Kits de mantenimiento (referencia del fabricante)', ayuda: 'Ej: kit de mantenimiento MKHES5000D2; kit de servicio del dren 7428278', largo: true },
+  ],
+  contactos: [
+    { col: 'ContactoFabricante', label: 'Fabricante: dirección, web, correo y teléfono', largo: true },
+    { col: 'ServicioTecnicoLocal', label: 'Servicio técnico local', ayuda: 'Empresa, teléfono y horario', largo: true },
+  ],
+};
+// Datos ya conocidos de algunos equipos, tomados de su hoja de vida (placa,
+// kits, contactos). Llenan los campos de la ficha que aún no tienen nada
+// guardado; quedan registrados al tocar "Guardar ficha".
+const _SERVICIO_NEUMAIR = 'Neumair S.A.S. – 310 699 1911 – servicio 24/7, 365 días';
+// Lo común de los secadores de 2500 SCFM HCWC: los Hankison HES2500 (#1 y #2)
+// y el Kaeser KES2500 (Kaeser 1) tienen la misma placa.
+const _SECADOR_2500_HCWC = {
+  TipoEquipo: 'Secador de aire comprimido refrigerado',
+  Fabricante: 'SPX Flow – Hankison',
+  Modelo: 'HES2500 HCWC',
+  LugarFabricacion: 'Newport, NC – Made in USA',
+  Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+  PresionOperacion: '50 PSI',
+  CapacidadNominal: '2500 SCFM @ 100 PSIG y 100 °F',
+  CapacidadMetrica: '4250 m³/h @ 6,9 bar y 38 °C',
+  PresionMaxima: '232 PSIG (16 bar)',
+  TempMaxEntrada: '130 °F (54 °C)',
+  PresionPrueba: '254 / 175 PSIG (18 / 12 bar)',
+  Certificacion: 'ETL Intertek 3160742 – ANSI/UL STD 1995 – CAN/CSA STD C22.2 No. 236',
+  Tension: '460 V / 3 / 60 Hz',
+  AmpacidadMinima: '22 A',
+  ProteccionMaxima: '40 A – breaker tipo HACR según NEC',
+  CompresorRLA: '17,9 A',
+  CompresorLRA: '125 A',
+  VentiladorCondensador: '460 V / 0,20 A / 90 W (cantidad no indicada en placa)',
+  CalentadorCarter: '460 V / 0,2 A / 90 W',
+  RefrigeranteTipo: 'R-404a',
+  RefrigeranteCarga: '31 lb (14,1 kg)',
+  ContactoFabricante: 'SPX Flow – 4647 SW 40th Ave, Ocala FL 34474, USA\nwww.spx.com · hankison.americas@spx.com\nTeléfono: 724-745-1555',
+  ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+};
+// Lo común de los Hankison de la serie H (H-22, H-45): modelos más antiguos
+// cuya placa trae otros datos (potencia y FLA del compresor, succión,
+// temperatura ambiente), que van en el campo más cercano con su nombre.
+const _SECADOR_HANKISON_SERIE_H = {
+  TipoEquipo: 'Secador de aire comprimido refrigerado',
+  Fabricante: 'Hankison',
+  LugarFabricacion: 'Made in U.S.A.',
+  Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+  PresionMaxima: '175 PSIG (M.W.P.)',
+  TempMaxEntrada: 'No indicada en placa. Temperatura ambiente mínima / máxima: 35 °F (2 °C) / 130 °F (54 °C)',
+  PresionPrueba: 'Lado refrigerante: 300 PSIG (presión máxima de prueba)',
+  Tension: '460 V / 3 / 60 Hz',
+  RefrigeranteTipo: 'R-22 (en eliminación progresiva por el Protocolo de Montreal: prever su disponibilidad o un refrigerante sustituto para recargas)',
+  ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+};
+const _kitSegunPlaca = (marca, modelo) => `La placa no indica kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a ${marca} o Neumair con el modelo ${modelo} y el número de serie.`;
+const EMPALME_DATOS_FIJOS = {
+  'Secador #1 - Hankinson': {
+    ..._SECADOR_2500_HCWC,
+    IdentificacionPlanta: 'Secador Hankinson #1 (según etiqueta del tablero)',
+    NumeroSerie: '1000003283414-1',
+    KitsMantenimiento: 'Kit de mantenimiento: MKHES5000D2\nKit de servicio del dren: 7428278',
+  },
+  'Secador #2 - Hankinson': {
+    ..._SECADOR_2500_HCWC,
+    IdentificacionPlanta: 'Secador Hankinson #2 (según etiqueta del tablero)',
+    NumeroSerie: '1000003283413-2',
+    KitsMantenimiento: 'Kit de mantenimiento: MKHES7500D2 (distinto al del secador #1 aunque es el mismo modelo: confirmar con Neumair o Hankison antes de comprar)\nKit de servicio del dren: 7428278',
+  },
+  'Secador Kaeser 1': {
+    ..._SECADOR_2500_HCWC,
+    IdentificacionPlanta: 'Secador Kaeser #1 (según etiqueta del tablero)',
+    Fabricante: 'Kaeser',
+    Modelo: 'KES2500 HCWC',
+    NumeroSerie: '1000003074311 (KID 5248907; EMR S/N: NA)',
+    PresionOperacion: '100 PSI (línea de alta presión)',
+    KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 5248907.',
+    ContactoFabricante: 'Kaeser – www.kaeser.com',
+  },
+  'Secador Kaeser 2': {
+    TipoEquipo: 'Secador de aire comprimido refrigerado',
+    IdentificacionPlanta: 'Secador Kaeser #2 (según etiqueta del tablero)',
+    Fabricante: 'Kaeser',
+    Modelo: 'TL2120 HC WC',
+    NumeroSerie: '1000002982420-3 (KID 4702907; EMR S/N: NA)',
+    LugarFabricacion: 'Newport, NC – Made in USA',
+    Ubicacion: 'Sala de compresores – Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '100 PSI (línea de alta presión)',
+    CodigoActivo: '1002777 (número pintado en el gabinete; por confirmar si es el código de activo)',
+    CapacidadNominal: '2500 SCFM @ 100 PSIG y 100 °F',
+    CapacidadMetrica: '4295 m³/h @ 6,9 bar y 38 °C',
+    PresionMaxima: '232 PSIG (16 bar)',
+    TempMaxEntrada: '120 °F (49 °C)',
+    PresionPrueba: '333 / 175 PSIG (23 / 12,1 bar)',
+    Certificacion: 'ETL Intertek 3160742 – ANSI/UL STD 1995 – CAN/CSA STD C22.2 No. 236',
+    Tension: '460 V / 3 / 60 Hz',
+    AmpacidadMinima: '26 A',
+    ProteccionMaxima: '40 A – breaker tipo HACR según NEC',
+    CompresorRLA: '9 / 9,1 A (dos compresores de refrigeración)',
+    CompresorLRA: '70 / 70 A (dos compresores de refrigeración)',
+    VentiladorCondensador: 'No aplica en placa',
+    CalentadorCarter: '460 V / 0,2 A / 70 W',
+    RefrigeranteTipo: 'R-404a',
+    RefrigeranteCarga: '64 lb (29 kg)',
+    KitsMantenimiento: 'En las fotos no aparece etiqueta de kit: pedir la referencia del kit de mantenimiento y del kit de servicio del dren a Kaeser o Neumair con el KID 4702907.',
+    ContactoFabricante: 'Kaeser – www.kaeser.com',
+    ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
+  },
+  'Secador #4 - Hankinson': {
+    ..._SECADOR_HANKISON_SERIE_H,
+    IdentificacionPlanta: 'Secador Hankinson #4 (según etiqueta del tablero)',
+    Modelo: 'H-45',
+    NumeroSerie: 'HI530528002001 · código de placa 506.10',
+    PresionOperacion: '100 PSI',
+    CodigoActivo: '1262880-F (número pintado en el tablero; por confirmar si es el código de activo)',
+    CapacidadNominal: '4500 SCFM @ 100 PSIG y 100 °F de aire de entrada',
+    CompresorRLA: '42,9 A (FLA, corriente a plena carga) · compresor de 25 HP',
+    CompresorLRA: '214,0 A',
+    RefrigeranteCarga: '100 lb · presión de succión 52 PSIG',
+    KitsMantenimiento: _kitSegunPlaca('Hankison', 'H-45'),
+  },
+  'Secador #5 - Hankinson': {
+    ..._SECADOR_HANKISON_SERIE_H,
+    IdentificacionPlanta: 'Secador Hankinson #5 (según etiqueta del tablero)',
+    Modelo: 'H-22',
+    NumeroSerie: 'HI525268001001-1 (placa desgastada, verificar) · código de placa 506.10',
+    PresionOperacion: '50 PSI',
+    CodigoActivo: '1000305 (número pintado en el tablero; por confirmar si es el código de activo)',
+    CapacidadNominal: '1350 SCFM @ 60 PSIG y 100 °F de aire de entrada',
+    CompresorRLA: '14,1 A (FLA, corriente a plena carga) · compresor de 7-1/2 HP',
+    CompresorLRA: '85 A',
+    RefrigeranteCarga: '50 lb · presión de succión 52 PSIG',
+    KitsMantenimiento: _kitSegunPlaca('Hankison', 'H-22'),
+  },
+};
+function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
+/** Todos los campos de texto de la ficha de un equipo, en el orden de la
+ *  ficha. En un secador van al final los de "Información del equipo": no se
+ *  muestran, pero si se llenaron antes siguen saliendo en el acta. */
+function _empCamposFicha(equipo) {
+  const F = EMPALME_CAMPOS_FICHA, S = EMPALME_CAMPOS_SECADOR;
+  return _empEsSecador(equipo)
+    ? [...S.identificacion, ...S.placa, ...S.electrico, ...F.historial, ...F.documentos, ...F.repuestos, ...S.repuestos, ...S.contactos, ...F.operacion, ...F.equipo]
+    : [...F.equipo, ...F.historial, ...F.documentos, ...F.repuestos, ...F.operacion];
+}
 // Evaluación técnica de los compresores (Parte 2, A. Compresores). El id es
 // la clave en la hoja: si se reescribe el texto, lo guardado no se pierde.
 const EMPALME_EVALUACION_COMPRESORES = [
@@ -24753,8 +24937,24 @@ function empRenderFicha() {
   const fotos = _emp.fotos.filter(x => x.Equipo === equipo);
   // Todos son cuadros de texto que crecen con lo que tienen: los cortos
   // arrancan de una línea y, si el texto no cabe, bajan en vez de cortarse.
-  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label><textarea id="empf_${c.col}" class="empf-campo emp-texto" data-col="${c.col}" rows="${c.filas || (c.largo ? 3 : 1)}" placeholder="${esc(c.ayuda || '')}">${esc(f[c.col] || '')}</textarea></div>`;
+  // Lo que se sabe del equipo (EMPALME_DATOS_FIJOS) llena lo que no se ha guardado.
+  const fijos = EMPALME_DATOS_FIJOS[equipo] || {};
+  const precargados = Object.keys(fijos).filter(col => fijos[col] && !String(f[col] || '').trim()).length;
+  const campo = c => `<div class="field" style="margin:0${c.largo ? ';grid-column:1/-1' : ''}"><label for="empf_${c.col}">${esc(c.label)}</label><textarea id="empf_${c.col}" class="empf-campo emp-texto" data-col="${c.col}" rows="${c.filas || (c.largo ? 3 : 1)}" placeholder="${esc(c.ayuda || '')}">${esc(String(f[c.col] || '').trim() ? f[c.col] : fijos[c.col] || '')}</textarea></div>`;
   const seccion = (titulo, contenido) => `<div class="emp-seccion">${esc(titulo)}</div><div class="emp-campos">${contenido}</div>`;
+  const esSecador = _empEsSecador(equipo), S = EMPALME_CAMPOS_SECADOR;
+  // En un secador, lo que ya se haya escrito en los campos de compresor
+  // (identificación, capacidad…) se sigue viendo, para no perderlo.
+  const anteriores = EMPALME_CAMPOS_FICHA.equipo.filter(c => String(f[c.col] || '').trim());
+  const avisoPrecargados = precargados
+    ? `<div id="empfPrecargados" style="margin-top:14px;padding:8px 12px;font-size:13px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px">Los datos de placa, kits y contactos ya vienen llenos con la hoja de vida de este equipo. Revísalos y toca <b>Guardar ficha</b> para dejarlos registrados.</div>`
+    : '';
+  const infoEquipo = esSecador
+    ? `${avisoPrecargados}
+      ${seccion('Identificación del equipo', [...S.identificacion, ...anteriores].map(campo).join(''))}
+      ${seccion('Datos técnicos de placa', S.placa.map(campo).join(''))}
+      ${seccion('Datos eléctricos y de refrigeración', S.electrico.map(campo).join(''))}`
+    : seccion('Información del equipo', EMPALME_CAMPOS_FICHA.equipo.map(campo).join(''));
   cont.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
       <div style="flex:1;font-weight:800;font-size:16px;color:var(--brand)">${esc(equipo)}</div>
@@ -24772,7 +24972,7 @@ function empRenderFicha() {
         <select id="empf_estado"><option value="">Elegir…</option>${EMPALME_ESTADOS_EQUIPO.map(e => `<option${e.valor === f.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></div>
       <div class="field" style="margin:0"><label for="empf_horometro">Horómetro / horas al momento de entrega</label>
         <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>`)}
-    ${seccion('Información del equipo', EMPALME_CAMPOS_FICHA.equipo.map(campo).join(''))}
+    ${infoEquipo}
     ${seccion('Historial y documentos', `
       ${EMPALME_CAMPOS_FICHA.historial.map(campo).join('')}
       <div class="field" style="margin:0"><label for="empf_mantFecha">Último mantenimiento: fecha</label>
@@ -24783,7 +24983,8 @@ function empRenderFicha() {
         <div class="emp-docs">${opcionesDocs.map(d => `<label><input type="checkbox" class="empf-doc" value="${esc(d)}"${docs.includes(d) ? ' checked' : ''}> ${esc(d)}</label>`).join('')}</div></div>
       ${EMPALME_CAMPOS_FICHA.documentos.map(campo).join('')}
       ${_empHtmlBloqueMantenimientos(equipo)}`)}
-    ${seccion('Repuestos', EMPALME_CAMPOS_FICHA.repuestos.map(campo).join(''))}
+    ${seccion('Repuestos', [...EMPALME_CAMPOS_FICHA.repuestos, ...(esSecador ? S.repuestos : [])].map(campo).join(''))}
+    ${esSecador ? seccion('Contactos de fabricante y servicio', S.contactos.map(campo).join('')) : ''}
     ${seccion('Operación', `
       ${EMPALME_CAMPOS_FICHA.operacion.map(campo).join('')}
       <div class="field" style="margin:0;grid-column:1/-1"><label for="empf_obs">Observaciones</label>
@@ -25806,12 +26007,10 @@ function _htmlActaEmpalme(sede, bodega) {
 
   // Detalle por equipo: solo los campos que se llenaron y, en los
   // compresores, los ítems de la evaluación técnica que tienen calificación.
-  const camposDetalle = [...EMPALME_CAMPOS_FICHA.equipo, ...EMPALME_CAMPOS_FICHA.historial, ...EMPALME_CAMPOS_FICHA.documentos,
-    ...EMPALME_CAMPOS_FICHA.repuestos, ...EMPALME_CAMPOS_FICHA.operacion];
   const compresores = new Set(_pmCompresores(sede));
   const detalle = equipos.map(e => {
     const f = _empFicha(e) || {};
-    const llenos = camposDetalle.filter(c => String(f[c.col] || '').trim());
+    const llenos = _empCamposFicha(e).filter(c => String(f[c.col] || '').trim());
     const ev = _empEvaluacion(e);
     const items = compresores.has(e) ? EMPALME_EVALUACION_COMPRESORES.filter(i => ev[i.id]?.Estado || ev[i.id]?.Observaciones) : [];
     // Los mantenimientos anteriores cargados del Excel: cuántos y de qué fechas.
