@@ -1177,6 +1177,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       // contactos) en vez de los campos de compresor.
       empSeleccionarEquipo('Secador Kaeser 1');
       out.otroSecadorVacio = !document.getElementById('empf_Modelo').value && !document.getElementById('empfPrecargados');
+      empSeleccionarEquipo('Secador #2 - Hankinson');
+      out.secador2 = [document.getElementById('empf_Modelo').value, document.getElementById('empf_NumeroSerie').value,
+        document.getElementById('empf_KitsMantenimiento').value.split(' (')[0]].join(' | ');
       empSeleccionarEquipo('Secador #1 - Hankinson');
       out.secadorSecciones = [...document.querySelectorAll('#empFicha .emp-seccion')].map(s => s.textContent.trim()).join(' | ');
       out.secadorSinCamposCompresor = !document.getElementById('empf_Arrancador') && !document.getElementById('empf_CapacidadTipo');
@@ -1269,15 +1272,16 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
       && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
     const filaSecador = ficha.find(f => f[0] === 'Secador #1 - Hankinson') || [];
-    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); el Secador #1 ya viene lleno, se guarda y sale en el acta',
+    check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1 y #2 ya vienen llenos, se guarda y sale en el acta',
       r.secadorSecciones === 'Fotos (placa y estado general) | Recepción | Identificación del equipo | Datos técnicos de placa | Datos eléctricos y de refrigeración | Historial y documentos | Repuestos | Contactos de fabricante y servicio | Operación'
       && r.secadorSinCamposCompresor && /Ficha guardada/.test(r.secadorMsg) && r.secadorReabre === 'HES2500 HCWC | R-404a | aviso: false'
       && r.secadorPrecargado === 'HES2500 HCWC | 125 A | R-404a | Kit de mantenimiento: MKHES5000D2 | true' && r.otroSecadorVacio
+      && r.secador2 === 'HES2500 HCWC | 1000003283413-2 | Kit de mantenimiento: MKHES7500D2'
       && filaSecador[col(ficha, 'CompresorLRA')] === '125 A' && /^ETL Intertek 3160742/.test(filaSecador[col(ficha, 'Certificacion')])
       && filaSecador[col(ficha, 'Modelo')] === 'HES2500 HCWC' && filaSecador[col(ficha, 'NumeroSerie')] === '1000003283414-1'
       && filaSecador[col(ficha, 'CompresorRLA')] === '17,9 A' && filaSecador[col(ficha, 'KitsMantenimiento')] === 'Kit de mantenimiento MKHES5000D2'
       && /Refrigerante: tipo<\/th><td[^>]*>R-404a/.test(r.acta) && /Servicio técnico local/.test(r.acta) && /2500 SCFM @ 100 PSIG/.test(r.acta),
-      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, fila: filaSecador });
+      { secciones: r.secadorSecciones, sinCompresor: r.secadorSinCamposCompresor, msg: r.secadorMsg, reabre: r.secadorReabre, precargado: r.secadorPrecargado, otro: r.otroSecadorVacio, secador2: r.secador2, fila: filaSecador });
     const evaluacion = fake.hoja(ids.ord, 'EmpalmeEvaluacion');
     const filaVib = evaluacion.find(f => f[0] === 'JOY 2|vibraciones') || [];
     check('Empalme: la evaluación técnica (11 ítems) va solo en los compresores y guarda estado y observaciones',
