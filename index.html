@@ -9083,7 +9083,7 @@ const EQUIPOS_ZIPAQUIRA = {
 const EQUIPOS_ZIPAQUIRA2 = {
   'Baja Presión':                ['JOY 2','JOY 3','JOY 4','JOY 5','JOY 7','CB1','CB2','CB3','CB4','TA 18'],
   'Alta Presión':                ['JOY 6','JOY 21','JOY 22','JOY 14','JOY 23','CA1','CA2','CA3','IR 20','IR 15','IR 16','IR 12'],
-  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - Hankinson','Secador Kaeser 2','Secador #4 - Hankinson'],
+  'Alta Presión Secadores':      ['Secador Kaeser 1','Secador #3 - Hankinson','Secador Kaeser 2','Secador #4 - Hankinson','Secador Pneumatic Products'],
   'Baja Presión Secadores':      ['Secador #1 - Hankinson','Secador #2 - Hankinson','Secador #5 - Hankinson','Secador General Pneumatics'],
   'Bombas de Vacío':             ['BOMBA DE VACIO IR 6','BOMBA DE VACIO IR 5','BOMBA DE VACIO IR 4','BOMBA DE VACIO IR 7','BOMBA DE VACIO IR 9',
                                   'BOMBA DE VACIO KAESER 7','BOMBA DE VACIO SULLAIR 8','BOMBA DE VACIO SULLAIR 1','BOMBA DE VACIO SULLAIR 2',
@@ -24670,6 +24670,27 @@ const EMPALME_DATOS_FIJOS = {
     KitsMantenimiento: 'La placa no indica kit: pedir a Neumair las referencias del kit de mantenimiento, del kit de servicio del dren y de los fusibles de alimentación (25 A UL-RK5) con el modelo TK2500A y el número de serie.',
     ServicioTecnicoLocal: _SERVICIO_NEUMAIR,
     Observaciones: 'La placa está rayada y partida: verificar en sitio los valores del ventilador y del fusible.',
+  },
+  // De adsorción (desecante, dos torres): no lleva refrigerante; sus
+  // consumibles van en Kits de mantenimiento.
+  'Secador Pneumatic Products': {
+    TipoEquipo: 'Secador de aire comprimido por adsorción (dos torres con desecante)',
+    IdentificacionPlanta: 'Número en el controlador: #24 (por confirmar)',
+    Fabricante: 'Pneumatic Products',
+    Modelo: '400DHASP-AA4B1S-F01-P4 · línea DHA, control AMLOC Energy Saver',
+    NumeroSerie: '1050328-1 (Customer I.D. en blanco en la placa)',
+    Ubicacion: 'Planta Zipaquirá (por confirmar)',
+    PresionOperacion: '100 PSI (línea de alta presión; no se ve etiqueta, confirmar)',
+    CodigoActivo: '"PLACA 1600380" y "1000483" marcados en el tablero (por confirmar cuál es el código de activo)',
+    CapacidadNominal: 'No indicada en placa (el "400" del modelo sugiere 400 SCFM; confirmar)',
+    PresionMaxima: '150 PSIG (presión de diseño del sistema)',
+    TempMaxEntrada: '150 °F (66 °C) (temperatura de diseño del sistema)',
+    Tension: '120 V / 60 Hz / 1 fase (control) · 0,16 A',
+    RefrigeranteTipo: 'No aplica: secador por adsorción (desecante)',
+    KitsMantenimiento: 'La placa no indica referencias: pedirlas al fabricante o a Neumair con el modelo y el número de serie. Consumibles: desecante (carga para las dos torres), silenciadores de purga, elemento del prefiltro, elemento del posfiltro y kit de válvulas / sellos.',
+    ContactoFabricante: 'Pneumatic Products',
+    ServicioTecnicoLocal: _SERVICIO_NEUMAIR + ' (confirmar si atiende este equipo)',
+    Observaciones: 'Instrumentos en el tablero: manómetros de presión de entrada, de salida, de torre izquierda y de torre derecha, e indicador de humedad.',
   },
   'Secador Kaeser 2': {
     TipoEquipo: 'Secador de aire comprimido refrigerado',
