@@ -2873,8 +2873,8 @@ body.rol-operario .btn-principal-operario {
     </div>
 
     <!-- Sub-navegación de Reportes en dos grupos: lo del turno y los reportes
-         técnicos de los equipos (estos solo en Zipaquirá, ver
-         inicializarPanelCronograma). En celular cada grupo es una fila que se
+         técnicos de los equipos (los de cada sede, ver
+         REPORTES_TECNICOS_POR_SEDE). En celular cada grupo es una fila que se
          desliza de lado. -->
     <div class="cron-grupos">
       <div class="cron-grupo" id="cronGrupoTurno">
@@ -10830,6 +10830,26 @@ const COMPRESORES_LISTA_REPORTE = [
   'Compresor de Alta Presión #1', 'Compresor de Alta Presión #2', 'Compresor de Alta Presión #3',
   'Compresor de Baja Presión #1', 'Compresor de Baja Presión #2', 'Compresor de Baja Presión #3', 'Compresor de Baja Presión #4',
 ];
+// Los reportes técnicos de cada sede (las pestañas de "Reportes técnicos").
+// Zipaquirá 2, por ahora, solo lleva el de los compresores de su sala: con
+// los mismos campos de Zipaquirá 1 (los de Alta o los de Baja según el grupo
+// del compresor), sin los IR y sin franja horaria.
+const REPORTES_TECNICOS_POR_SEDE = {
+  zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true },
+  zipaquira2: { pestanas: ['compresores'], conHora: false },
+};
+function _reportesTecnicosDe(sede) {
+  return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
+}
+/** Los compresores del reporte de la sede, por grupo (sin grupo en
+ *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
+function _gruposCompresoresReporte(sede) {
+  if (sede === 'zipaquira2') return [
+    { grupo: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
+    { grupo: 'Alta Presión', equipos: EQUIPOS_ZIPAQUIRA2['Alta Presión'].filter(e => !/^IR\b/.test(e)) },
+  ];
+  return [{ grupo: '', equipos: COMPRESORES_LISTA_REPORTE }];
+}
 const HORAS_REPORTE_COMPRESOR = ['6:00 a.m.', '10:00 a.m.', '2:00 p.m.', '6:00 p.m.', '10:00 p.m.', '2:00 a.m.'];
 // Los 34 campos numéricos del formulario, agrupados igual que el original.
 // "hint" es solo informativo (rango normal) — un valor fuera de rango NO
@@ -10928,9 +10948,10 @@ const REPORTE_COMPRESORES_CAMPOS_BAJA = [
   { grupo: 'Descarga y uso (Baja Presión)', id: 'tempDescargaAire', label: 'Temperatura descarga aire [°C]', col: 'BTempDescargaAire' },
   { grupo: 'Descarga y uso (Baja Presión)', id: 'horasUsoBaja', label: 'Horas de uso del equipo', col: 'BHorasUso', hint: 'Número entero' },
 ];
-/** true si el nombre de compresor seleccionado es de Baja Presión. */
+/** true si el nombre de compresor seleccionado es de Baja Presión: en
+ *  Zipaquirá lo dice el nombre; en Zipaquirá 2, el grupo del compresor. */
 function esCompresorBaja(compresor) {
-  return (compresor || '').includes('Baja');
+  return (compresor || '').includes('Baja') || EQUIPOS_ZIPAQUIRA2['Baja Presión'].includes(compresor);
 }
 
 // Reporte de seguimiento de secadores (Zipaquirá) — calcado del formulario
@@ -15502,10 +15523,10 @@ function variablesMostrarSubTab(nombre) {
   renderSidebarOperaciones();
 }
 
-/** Las sedes con reportes técnicos (Compresores, Secadores, Drycoolers…),
- *  que son los mismos que muestra la pestaña de Reportes: hoy solo
- *  Zipaquirá. Variables grafica lo que traen esos reportes, así que en las
- *  demás solo listaba equipos de Zipaquirá, sin datos. */
+/** Las sedes cuyos reportes técnicos grafica Variables: hoy solo
+ *  Zipaquirá (sus equipos y sus franjas). En las demás solo listaba equipos
+ *  de Zipaquirá, sin datos; Zipaquirá 2 tiene por ahora únicamente el
+ *  reporte de compresores, sin franjas, y todavía no entra aquí. */
 function _sedeConReportesTecnicos(sede) { return sede === 'zipaquira'; }
 
 /** Abre la seccion Variables en uno de sus apartados. Mismo criterio de
@@ -15585,8 +15606,13 @@ function _pmAjustarASede(opKey) {
   document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = _pmProgramaVigente().anio; });
   if (!sinPrograma) return;
   const conEmpalme = _empalmeDisponible(opKey);
-  document.getElementById('pmRegistroAyudaSinPrograma').textContent = 'Horas actuales de cada equipo. Esta sede todavía no tiene reportes con horómetro ni órdenes automáticas por horas'
-    + (conEmpalme ? ': las horas que aparecen son las del horómetro anotado al recibir cada equipo en el Empalme de entrega.' : '.');
+  const conReporteCompresores = _reportesTecnicosDe(opKey).pestanas.includes('compresores');
+  document.getElementById('pmRegistroAyudaSinPrograma').textContent = conReporteCompresores
+    ? 'Horas actuales de cada equipo: las del último Reporte de compresores'
+      + (conEmpalme ? ' o, si todavía no tiene, las del horómetro anotado al recibirlo en el Empalme de entrega' : '')
+      + '. Esta sede todavía no genera órdenes automáticas por horas.'
+    : 'Horas actuales de cada equipo. Esta sede todavía no tiene reportes con horómetro ni órdenes automáticas por horas'
+      + (conEmpalme ? ': las horas que aparecen son las del horómetro anotado al recibir cada equipo en el Empalme de entrega.' : '.');
   document.getElementById('pmHoraBaseAyudaSinPrograma').textContent = 'Desde qué horómetro se cuentan las horas de cada equipo. Esta sede todavía no genera órdenes automáticas por horas: la hora base queda lista para cuando las haya'
     + (conEmpalme ? ' y se llena sola con el horómetro de la ficha del Empalme de entrega.' : '.');
 }
@@ -20002,11 +20028,10 @@ function _onCambioHoraReporte(prefijo) {
 async function inicializarPanelCronograma() {
   // La Entrega de Turno va arriba de las actividades, dentro de la misma
   // sección — por ahora solo aplica a Zipaquirá (los equipos del reporte
-  // —CA, CB, NX220, IR160, etc.— son específicos de esa operación). Las
-  // pestañas "Reporte Compresores", "Máquinas de Formación", "Reporte
-  // Secadores", "Reporte Drycoolers", "Reporte Decorado", "Reporte
-  // Emergencia", "Presión Drycooler" y "Observaciones" son aparte y también
-  // solo aplican a Zipaquirá.
+  // —CA, CB, NX220, IR160, etc.— son específicos de esa operación), igual
+  // que "Observaciones". Los reportes técnicos (Compresores, Máquinas de
+  // Formación, Secadores, Drycoolers, Decorado, Emergencia, Presión
+  // Drycooler) van según la sede: ver REPORTES_TECNICOS_POR_SEDE.
   const wrapEntrega = document.getElementById('cronEntregaTurnoWrap');
   const wrapHistorial = document.getElementById('cronEntregasHistorialWrap');
   const tabObservaciones = document.getElementById('cronTabObservaciones');
@@ -20029,15 +20054,13 @@ async function inicializarPanelCronograma() {
   if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabCondiciones) tabCondiciones.style.display = mostrarEntrega ? '' : 'none';
   if (tabHerramienta) tabHerramienta.style.display = mostrarEntrega ? '' : 'none';
-  if (tabCompresores) tabCompresores.style.display = mostrarEntrega ? '' : 'none';
-  if (tabSecadores) tabSecadores.style.display = mostrarEntrega ? '' : 'none';
-  if (tabDrycoolers) tabDrycoolers.style.display = mostrarEntrega ? '' : 'none';
-  if (tabDecorado) tabDecorado.style.display = mostrarEntrega ? '' : 'none';
-  if (tabEmergencia) tabEmergencia.style.display = mostrarEntrega ? '' : 'none';
-  if (tabPresionDrycooler) tabPresionDrycooler.style.display = mostrarEntrega ? '' : 'none';
-  if (tabFormacion) tabFormacion.style.display = mostrarEntrega ? '' : 'none';
+  // Los reportes técnicos, los que tenga la sede (REPORTES_TECNICOS_POR_SEDE).
+  const tecnicos = _reportesTecnicosDe(operacionActual).pestanas;
+  const pestanasTecnicas = { compresores: tabCompresores, secadores: tabSecadores, drycoolers: tabDrycoolers, decorado: tabDecorado,
+    emergencia: tabEmergencia, presiondrycooler: tabPresionDrycooler, formacion: tabFormacion };
+  Object.entries(pestanasTecnicas).forEach(([nombre, tab]) => { if (tab) tab.style.display = tecnicos.includes(nombre) ? '' : 'none'; });
   const grupoTecnicos = document.getElementById('cronGrupoTecnicos');
-  if (grupoTecnicos) grupoTecnicos.style.display = mostrarEntrega ? '' : 'none';
+  if (grupoTecnicos) grupoTecnicos.style.display = tecnicos.length ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
   // Sin cronograma no hay día que consultar ni informe que armar: esas dos
@@ -20050,7 +20073,9 @@ async function inicializarPanelCronograma() {
   if (mostrarEntrega) inicializarEntregaTurno();
   // Arranca en "Actividades Temporales" (la pestaña "Actividades" está
   // deshabilitada mientras se corrigen en campo las condiciones de alturas).
-  cronMostrarSubTab('temporal');
+  // Una sede sin cronograma pero con reportes técnicos (Zipaquirá 2) arranca
+  // en el primero de ellos: sus actividades del turno estarían vacías.
+  cronMostrarSubTab(!conCronograma && tecnicos.length ? tecnicos[0] : 'temporal');
 
   // Checklist de trabajo (cronograma activo: el temporal si está habilitado).
   // La pestaña "Actividades" (cronograma normal) está deshabilitada con un
@@ -21289,17 +21314,58 @@ function _siguienteCodigoReporteCompresor() {
   return _codigoConsecutivoUnico('RC', allReportesCompresores, 4);
 }
 
-async function inicializarReporteCompresores() {
-  document.getElementById('rc_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_COMPRESORES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
+/** Técnicos para elegir: en Zipaquirá, la lista del formulario original; en
+ *  las demás sedes, los que ya hicieron reportes ahí (uno nuevo entra por
+ *  "Otras"), sin nombres escritos en el código. */
+function _tecnicosReporteCompresores() {
+  if (operacionActual === 'zipaquira') return TECNICOS_REPORTE_COMPRESORES;
+  const nombres = new Map();
+  allReportesCompresores.forEach(r => {
+    const n = _normalizarNombreOperario(r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico);
+    if (n && n !== 'Otras' && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n);
+  });
+  return [...nombres.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function _llenarTecnicosReporteCompresores() {
+  const sel = document.getElementById('rc_tecnico');
+  const elegido = sel.value;
+  sel.innerHTML = '<option value="">Seleccionar...</option>' +
+    _tecnicosReporteCompresores().map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
     '<option value="Otras">Otras</option>';
+  sel.value = elegido;
+}
+
+/** La hora que se muestra de un reporte: su franja o, en una sede sin
+ *  franjas (Zipaquirá 2), la hora en que se guardó. */
+function _horaReporteParaMostrar(r) {
+  if (r.Hora) return r.Hora;
+  const d = new Date(r.FechaRegistro);
+  return isNaN(d) ? '—' : d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
+}
+
+async function inicializarReporteCompresores() {
+  const conHora = _reportesTecnicosDe(operacionActual).conHora;
+  document.getElementById('rc_tecnico').value = '';
+  _llenarTecnicosReporteCompresores();
   document.getElementById('rc_hora').innerHTML = '<option value="">Seleccionar...</option>' +
     HORAS_REPORTE_COMPRESOR.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  document.getElementById('rc_hora').closest('.field').style.display = conHora ? '' : 'none';
   document.getElementById('rc_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
-    COMPRESORES_LISTA_REPORTE.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    _gruposCompresoresReporte(operacionActual).map(g => {
+      const opciones = g.equipos.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+      return g.grupo ? `<optgroup label="${esc(g.grupo)}">${opciones}</optgroup>` : opciones;
+    }).join('');
 
   const fechaEl = document.getElementById('rc_fecha');
-  if (fechaEl) fechaEl.value = _isoLocal(new Date());
+  if (fechaEl) {
+    fechaEl.value = _isoLocal(new Date());
+    // Con franja, la fecha la pone la hora elegida; sin franja se escoge
+    // (hasta hoy).
+    fechaEl.readOnly = conHora;
+    fechaEl.max = conHora ? '' : _isoLocal(new Date());
+    fechaEl.title = conHora ? 'La fecha la pone la hora del reporte que elijas' : '';
+  }
   document.getElementById('rc_tecnicoOtroWrap').style.display = 'none';
   document.getElementById('rc_tecnicoOtro').value = '';
   document.getElementById('rc_estadoHoraFecha').value = '';
@@ -21314,6 +21380,7 @@ async function inicializarReporteCompresores() {
   try {
     await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
     allReportesCompresores = await _cargarReportesTecnicos('rc', SH.reporteCompresores);
+    _llenarTecnicosReporteCompresores();
     renderTablaReportesCompresores();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -21350,7 +21417,7 @@ function renderTablaReportesCompresores() {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(_horaReporteParaMostrar(r))}</td>
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -21379,20 +21446,28 @@ async function guardarReporteCompresor() {
   const hora = document.getElementById('rc_hora').value;
   const compresor = document.getElementById('rc_compresor').value;
   const estadoHoraFecha = document.getElementById('rc_estadoHoraFecha').value;
+  const conHora = _reportesTecnicosDe(operacionActual).conHora;
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoHoraFecha) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y si la hora/fecha del compresor están bien.';
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (conHora && !hora) || !compresor || !estadoHoraFecha) {
+    msg.textContent = conHora
+      ? 'Completa todos los campos: técnico, fecha, hora, compresor y si la hora/fecha del compresor están bien.'
+      : 'Completa todos los campos: técnico, fecha, compresor y si la hora/fecha del compresor están bien.';
     return;
   }
 
-  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
-  if (fueraDeVentana) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = fueraDeVentana;
+  if (conHora) {
+    const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
+    if (fueraDeVentana) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = fueraDeVentana;
+      return;
+    }
+    fecha = _fechaDeFranjaReporte(hora);
+    document.getElementById('rc_fecha').value = fecha;
+  } else if (fecha > _isoLocal(new Date())) {
+    msg.textContent = 'La fecha del reporte no puede ser posterior a hoy.';
     return;
   }
-  fecha = _fechaDeFranjaReporte(hora);
-  document.getElementById('rc_fecha').value = fecha;
 
   const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
   const porColumna = {};
@@ -21421,7 +21496,7 @@ async function guardarReporteCompresor() {
     const colsHoja = await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
     const codigo = _siguienteCodigoReporteCompresor();
     Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Codigo: codigo, Fecha: fecha, Hora: conHora ? hora : '', Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
       Compresor: compresor, EstadoHoraFecha: estadoHoraFecha,
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
       FechaRegistro: new Date().toISOString(), Estado: 'Activo',
@@ -21486,7 +21561,8 @@ function _construirHtmlReporteCompresor(r, conTitulo) {
   return `
     ${conTitulo ? `<h1 style="color:var(--brand);font-size:18px;text-align:center;margin-bottom:6px">Reporte de Compresor — ${esc(r.Codigo)}</h1>` : `<div style="font-weight:700;color:var(--brand);font-size:13px;margin-bottom:6px">Reporte de Compresor — ${esc(r.Codigo)}</div>`}
     <div style="${conTitulo ? 'text-align:center;' : ''}font-size:13px;color:var(--text2);margin-bottom:16px">
-      ${esc(fmtFecha(r.Fecha))} · ${esc(r.Hora)} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp;
+      <b>${esc(OPERACIONES[operacionActual]?.nombre || '')}</b> &nbsp;·&nbsp;
+      ${esc(fmtFecha(r.Fecha))} · ${esc(_horaReporteParaMostrar(r))} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp;
       <b>Técnico:</b> ${esc(tecnico)} &nbsp;·&nbsp; <b>¿Hora/fecha OK?:</b> ${esc(r.EstadoHoraFecha)}
     </div>
     ${gruposHtml}
@@ -21515,7 +21591,7 @@ async function exportarReporteCompresorPDF(codigo) {
   if (!r) return;
   const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Reporte de Compresor — ${esc(r.Codigo)}</title>
+<title>Reporte de Compresor — ${esc(r.Codigo)}${OPERACIONES[operacionActual] ? ' — ' + esc(OPERACIONES[operacionActual].nombre) : ''}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
   @media print{body{padding:0}}
@@ -26246,6 +26322,15 @@ const EQUIPO_REPORTE_A_HORAS = {
   'Secador Emergencia': 'SCEMERGENCIA',
 };
 
+/** El equipo de "Horas de Operación" que corresponde al del reporte: en
+ *  Zipaquirá el reporte usa otros nombres (la tabla de arriba); en
+ *  Zipaquirá 2 el compresor del reporte se llama igual que en el Plan. */
+function _equipoDeHorasDelReporte(equipoReporte) {
+  const e = (equipoReporte || '').trim();
+  if (EQUIPO_REPORTE_A_HORAS[e]) return EQUIPO_REPORTE_A_HORAS[e];
+  return _gruposCompresoresReporte(operacionActual).some(g => g.grupo && g.equipos.includes(e)) ? e : '';
+}
+
 /** Salto maximo plausible de un horometro entre dos reportes del mismo
  *  equipo. Los compresores corren ~22 h/dia, asi que 1.000 h son unos 45
  *  dias seguidos de operacion: cubre de sobra cualquier temporada sin
@@ -26264,7 +26349,7 @@ const HOROMETRO_SALTO_MAXIMO = 1000;
  *  nadie lo note, porque estas horas mueven las barras del cronograma y
  *  disparan las ordenes de trabajo. */
 async function _avisoHorometro(equipoReporte, valor) {
-  const clave = EQUIPO_REPORTE_A_HORAS[equipoReporte];
+  const clave = _equipoDeHorasDelReporte(equipoReporte);
   const nuevo = Number(String(valor).replace(',', '.'));
   if (!clave || !isFinite(nuevo)) return null;
   let anterior = null;
@@ -26296,7 +26381,7 @@ async function _avisoHorometro(equipoReporte, valor) {
  *  Devuelve el nombre del equipo actualizado, o '' si no aplicaba. */
 async function _sincronizarHorasDesdeReporte(equipoReporte, horas) {
   try {
-    const clave = EQUIPO_REPORTE_A_HORAS[(equipoReporte || '').trim()];
+    const clave = _equipoDeHorasDelReporte(equipoReporte);
     const n = Number(horas);
     // Solo horómetros creíbles: un valor vacío, no numérico o negativo se
     // ignora en silencio (el reporte igual ya quedó guardado).
