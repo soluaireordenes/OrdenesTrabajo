@@ -1347,6 +1347,100 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Reporte de compresores de Zipaquirá 2: solo la pestaña de compresores,
+    // sus 18 compresores sin los IR (Baja y Alta con los campos de Zipaquirá),
+    // sin franja horaria; las horas pasan al Plan y Zipaquirá 1 sigue igual.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      const preguntas = []; window.confirmarAccion = async o => { preguntas.push(o.titulo); return false; };
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      const visibles = sel => [...document.querySelectorAll(sel)].filter(x => getComputedStyle(x).display !== 'none').map(x => x.textContent.trim());
+      await showPanel('cronograma'); await espera(600);
+      const out = {
+        tecnicas: visibles('#cronGrupoTecnicos .inv-subtab').join(' | '),
+        abreEn: document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab,
+        horaOculta: getComputedStyle(document.getElementById('rc_hora').closest('.field')).display === 'none',
+        fechaEditable: !document.getElementById('rc_fecha').readOnly,
+        grupos: [...document.querySelectorAll('#rc_compresor optgroup')].map(g => g.label + ':' + g.children.length).join(' | '),
+        conIR: [...document.querySelectorAll('#rc_compresor option')].some(o => /^IR\b/.test(o.value)),
+      };
+      const llenar = (compresor, valor, horas) => {
+        document.getElementById('rc_compresor').value = compresor; _actualizarCamposMedicionesCompresor();
+        const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
+        campos.forEach(c => { document.getElementById('rc_' + c.id).value = c.id.startsWith('horasUso') ? horas : valor; });
+        document.getElementById('rc_estadoHoraFecha').value = 'SI';
+        return campos.length;
+      };
+      // Baja: JOY 2, con un técnico nuevo escrito en "Otras"
+      document.getElementById('rc_tecnico').value = 'Otras';
+      document.getElementById('rc_tecnicoOtro').value = 'Técnico Uno';
+      out.camposBaja = llenar('JOY 2', '12.5', '45300');
+      await guardarReporteCompresor();
+      out.msgBaja = document.getElementById('rc_msg').textContent;
+      // Alta: CA1, ya con el técnico en la lista
+      out.tecnicoEnLista = [...document.getElementById('rc_tecnico').options].some(o => o.value === 'Técnico Uno');
+      document.getElementById('rc_tecnico').value = 'Técnico Uno';
+      out.camposAlta = llenar('CA1', '20', '30100');
+      await guardarReporteCompresor();
+      out.msgAlta = document.getElementById('rc_msg').textContent;
+      document.getElementById('rc_filtroDesde').value = _isoLocal(new Date()); renderTablaReportesCompresores();
+      out.tabla = [...document.querySelectorAll('#rc_tablaWrap tbody tr')].map(tr => [...tr.cells].slice(2, 5).map(c => c.textContent.trim()).join('/')).join(' | ');
+      // Un horómetro que baja pregunta antes de guardar (y aquí se cancela)
+      document.getElementById('rc_tecnico').value = 'Técnico Uno';
+      llenar('JOY 2', '12.5', '45000');
+      await guardarReporteCompresor();
+      out.preguntaHorometro = preguntas.join(' | ');
+      // Una fecha futura no se acepta
+      const manana = new Date(); manana.setDate(manana.getDate() + 1);
+      document.getElementById('rc_fecha').value = _isoLocal(manana);
+      llenar('JOY 3', '1', '100');
+      await guardarReporteCompresor();
+      out.futura = document.getElementById('rc_msg').textContent;
+      out.verReporte = _construirHtmlReporteCompresor(allReportesCompresores.find(x => x.Compresor === 'CA1'));
+      // Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria y sus 7 compresores
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
+      await inicializarPanelCronograma(); cronMostrarSubTab('compresores'); await espera(300);
+      out.zipa1 = {
+        tecnicas: visibles('#cronGrupoTecnicos .inv-subtab').length,
+        hora: getComputedStyle(document.getElementById('rc_hora').closest('.field')).display !== 'none',
+        fechaFija: document.getElementById('rc_fecha').readOnly,
+        compresores: document.querySelectorAll('#rc_compresor option[value]:not([value=""])').length,
+        tecnicos: document.querySelectorAll('#rc_tecnico option').length,
+      };
+      out.avisos = avisos;
+      return out;
+    });
+    const rep = fake.hoja(id, 'ReporteCompresores');
+    const horas = fake.hoja(id, 'HorasEquipos');
+    const col = (filas, n) => filas[0] ? filas[0].indexOf(n) : -1;
+    const filaJoy = rep.find(f => f[col(rep, 'Compresor')] === 'JOY 2') || [];
+    const filaCa = rep.find(f => f[col(rep, 'Compresor')] === 'CA1') || [];
+    const horasDe = e => (horas.find(f => f[col(horas, 'Equipo')] === e) || [])[col(horas, 'HorasActuales')];
+    check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores, arranca en ella, sin franja horaria y con sus 18 compresores sin los IR',
+      r.tecnicas === 'Compresores' && r.abreEn === 'compresores' && r.horaOculta && r.fechaEditable
+      && r.grupos === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
+    check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá, se guardan sin hora y las horas pasan al Plan',
+      r.camposBaja === 39 && r.camposAlta === 34 && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
+      && rep.length === 3 && filaJoy[col(rep, 'Hora')] === '' && filaJoy[col(rep, 'BHorasUso')] === '45300' && filaJoy[col(rep, 'TecnicoOtro')] === 'Técnico Uno'
+      && filaCa[col(rep, 'HorasUso')] === '30100' && filaCa[col(rep, 'Tecnico')] === 'Técnico Uno' && filaCa[col(rep, 'BHorasUso')] === ''
+      && horasDe('JOY 2') === '45300' && horasDe('CA1') === '30100' && r.tecnicoEnLista,
+      { msgBaja: r.msgBaja, msgAlta: r.msgAlta, campos: [r.camposBaja, r.camposAlta], filaJoy, filaCa, horas });
+    check('Reporte de compresores Zipaquirá 2: la tabla y el reporte muestran la hora en que se guardó y la sede; horómetro que baja pregunta; sin fechas futuras',
+      /^\d{1,2}:\d{2}/.test(r.tabla.split('/')[0]) && !/undefined|NaN/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.verReporte)
+      && /El horómetro de JOY 2 no debería bajar/.test(r.preguntaHorometro) && /no puede ser posterior a hoy/.test(r.futura),
+      { tabla: r.tabla, pregunta: r.preguntaHorometro, futura: r.futura });
+    check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores y su lista de técnicos',
+      r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10, r.zipa1);
+    check('Reporte de compresores Zipaquirá 2: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
     // Plan de Mantenimiento: cada sede ve sus propios compresores
     const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[],"replies":[]}' }) });
     const r = await p.evaluate(async () => {
