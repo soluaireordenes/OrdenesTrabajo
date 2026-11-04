@@ -727,6 +727,70 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
 
+  // Editar los repuestos de una orden YA cerrada ajusta el inventario por la
+  // diferencia (antes guardaba la cantidad nueva y el inventario se quedaba
+  // con la vieja: 4 en la orden, 3 descontados), contra un Sheets en memoria.
+  {
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const invId = await p.evaluate(() => _invSpreadsheetId('zipaquira'));
+    fake.crear(invId, 'Productos', [['Codigo', 'Nombre', 'Unidad'], ['FIL', 'Filtro de aire', 'und']]);
+    fake.crear(invId, 'Movimientos', [['Codigo', 'Fecha', 'Tipo', 'Cantidad', 'Usuario', 'Timestamp', 'Responsable', 'Equipo', 'Obs', 'Stock', 'Precio'],
+      ['FIL', '2026-09-01', 'INGRESO', '10', 'u', 't', '', '', '', '10', '1000'],
+      ['FIL', '2026-09-02', 'SALIDA', '3', 'u', 't', 'OT-E', 'CB1', 'Salida automática por cierre de orden de trabajo', '7', '']]);
+    fake.crear(invId, 'Config', [['clave'], ['']]);
+    const r = await p.evaluate(async () => {
+      window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'ana@x' };
+      window.actualizarOrdenEnSheets = async () => {}; // la orden en sí se guarda bien; aquí interesa el inventario
+      const stock = async () => (await obtenerStockInventarioDirecto('zipaquira')).find(x => x.codigo === 'FIL')?.cantidad;
+      const cantidad = v => { document.querySelectorAll('#e_tbody_repuestos tr')[0].querySelectorAll('input,select')[2].value = v; };
+      const editar = async (id, cambiar) => { abrirModalCompletar(id); cambiar(); await guardarEdicion(); };
+      const fila = c => [{ codigo: 'FIL', nombre: 'Filtro de aire', cantidad: c, unidades: 'und', costoUnitario: '1000' }];
+      allOrdenes = [
+        { id: 'E1', NumeroOrden: 'OT-E', Title: 'Cambio de filtros', Equipo: 'CB1', Estado: 'Cerrada', FechaCierre: _isoLocal(new Date()),
+          repuestos: fila('3'), insumos: [], tareas: [], servicios: [] },
+        { id: 'A1', NumeroOrden: 'OT-ABIERTA', Title: 'Abierta', Equipo: 'CB1', Estado: 'Pendiente',
+          repuestos: fila('1'), insumos: [], tareas: [], servicios: [] },
+      ];
+      const out = { inicio: await stock() };
+      await editar('E1', () => cantidad('4'));
+      out.sube = await stock(); out.msgSube = document.getElementById('alertEditor').textContent;
+      await editar('E1', () => cantidad('2'));
+      out.baja = await stock(); out.msgBaja = document.getElementById('alertEditor').textContent;
+      await editar('E1', () => { document.getElementById('e_descripcion').value = 'Cambio de filtros (revisada)'; });
+      out.soloTexto = await stock();
+      await editar('A1', () => cantidad('5'));
+      out.abierta = await stock();
+      // "Cerrar orden" en el editor de una orden que ya quedó cerrada (la
+      // marcaron "Realizada" mientras el editor seguía abierto): de 2 a 3, sale 1.
+      abrirModalCompletar('E1'); cantidad('3');
+      document.getElementById('mFechaEjecucion').value = _isoLocal(new Date());
+      document.getElementById('mEjecutadoPor').value = 'Ana Prueba';
+      document.getElementById('mObsCierre').value = 'Cambio de filtros';
+      await guardarCierre();
+      out.cierre = await stock(); out.msgCierre = document.getElementById('alertEditor').textContent;
+      // "Descuentos pendientes" resta lo devuelto: si la orden dijera 4 sin
+      // que se moviera el inventario, faltaría 1 (salieron 3 + 1 + 1, volvieron 2).
+      allOrdenes[0].repuestos = fila('4');
+      out.pendientes = (await _calcularDescuentosPendientes('2026-01-01')).map(x => x.numeroOrden + ':' + x.faltante).join(',');
+      return out;
+    });
+    const movs = fake.hoja(invId, 'Movimientos').filter(f => f[6] === 'OT-E').map(f => f[2] + ':' + f[3]).join(',');
+    check('Orden ya cerrada: subir un repuesto de 3 a 4 descuenta 1 más del inventario y lo dice',
+      r.inicio === 7 && r.sube === 6 && /Se descontó lo agregado: Filtro de aire \(1\)/.test(r.msgSube), r);
+    check('Orden ya cerrada: bajarlo de 4 a 2 devuelve 2 al inventario',
+      r.baja === 8 && /Se devolvió al inventario lo quitado: Filtro de aire \(2\)/.test(r.msgBaja), r);
+    check('Orden ya cerrada: cambiar solo el texto no mueve el inventario; una orden abierta tampoco (descuenta al cerrarse)',
+      r.soloTexto === 8 && r.abierta === 8, r);
+    check('Orden ya cerrada: "Cerrar orden" otra vez desde el editor ajusta solo la diferencia (de 2 a 3, sale 1)',
+      r.cierre === 7 && /Se descontó lo agregado: Filtro de aire \(1\)/.test(r.msgCierre) && movs === 'SALIDA:3,SALIDA:1,INGRESO:2,SALIDA:1', { r, movs });
+    check('Descuentos pendientes resta lo devuelto por editar una orden cerrada', r.pendientes === 'OT-E:1', r.pendientes);
+    check('Ajuste por edición: sin errores de JS', errs.length === 0, errs.slice(0, 2));
+    await ctx.close();
+  }
+
   // 17) A8: la actualización en lote solo escribe las filas que cambian
   {
     const escrituras = [];
