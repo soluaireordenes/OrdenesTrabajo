@@ -6622,12 +6622,15 @@ async function _calcularDescuentosPendientes(desdeIso) {
     porNombre.set(String(p.nombre).trim().toLowerCase(), p);
   });
   // Salidas ya registradas por orden: "Quién saca" (columna G) = número de orden.
+  // Las devoluciones por bajar una cantidad en una orden ya cerrada restan.
   const yaSalio = new Map();
   movimientos.forEach(r => {
     const tipo = String(r[2] || '').trim().toUpperCase();
-    if (tipo !== 'SALIDA' && tipo !== 'AJUSTE_NEGATIVO') return;
+    const esDevolucion = tipo === 'INGRESO' && String(r[8] || '').trim() === INV_OBS_DEVOLUCION_EDICION;
+    if (tipo !== 'SALIDA' && tipo !== 'AJUSTE_NEGATIVO' && !esDevolucion) return;
     const clave = String(r[6] || '').trim() + '|' + String(r[0] || '').trim().toUpperCase();
-    yaSalio.set(clave, (yaSalio.get(clave) || 0) + (parseFloat(r[3]) || 0));
+    const cantidad = parseFloat(r[3]) || 0;
+    yaSalio.set(clave, (yaSalio.get(clave) || 0) + (esDevolucion ? -cantidad : cantidad));
   });
   const pendientes = [];
   allOrdenes
@@ -6697,6 +6700,119 @@ function _resumenDescuentoInventario(res) {
   if (res.descontados.length) partes.push(`Descontado del inventario: ${res.descontados.join(', ')}.`);
   if (res.noEncontrados.length) partes.push(`No están en el inventario (no se descontaron): ${res.noEncontrados.join(', ')}.`);
   if (res.errores.length) partes.push(`Error al descontar: ${res.errores.join(', ')}.`);
+  return partes.join('\n');
+}
+
+/** Suma la cantidad pedida por producto (repuestos + insumos juntos),
+ *  emparejando igual que el descuento: por código exacto o, si no hay, por
+ *  nombre exacto. Devuelve un Map(códigoReal → { producto, cantidad }). Los
+ *  ítems que no existen en el inventario se acumulan aparte, por su nombre,
+ *  en `sinInv` (no se pueden ajustar). */
+function _materialesAgrupadosPorProducto(materiales, porCodigo, porNombre, sinInv) {
+  const mapa = new Map();
+  [...(materiales?.repuestos || []), ...(materiales?.insumos || [])]
+    .filter(it => it.nombre || it.codigo)
+    .forEach(it => {
+      const cant = Number(it.cantidad) || 0;
+      if (cant <= 0) return;
+      const prod = (it.codigo && porCodigo.get(String(it.codigo).trim().toLowerCase()))
+                || (it.nombre && porNombre.get(String(it.nombre).trim().toLowerCase()));
+      if (!prod) {
+        const clave = String(it.nombre || it.codigo).trim().toLowerCase();
+        sinInv.set(clave, { nombre: it.nombre || it.codigo, cantidad: (sinInv.get(clave)?.cantidad || 0) + cant });
+        return;
+      }
+      const k = String(prod.codigo).trim().toUpperCase();
+      mapa.set(k, { producto: prod, cantidad: (mapa.get(k)?.cantidad || 0) + cant });
+    });
+  return mapa;
+}
+
+// Observación de la devolución al inventario cuando se baja una cantidad en
+// una orden ya cerrada. "Descuentos pendientes" la resta de lo que ya salió
+// por esa orden, para no dar por descontado algo que se devolvió.
+const INV_OBS_DEVOLUCION_EDICION = 'Ajuste: devolución por editar una orden ya cerrada';
+
+/** Al editar los repuestos/insumos de una orden que YA estaba cerrada (y que
+ *  por tanto ya había descontado del inventario al cerrarse), ajusta solo la
+ *  DIFERENCIA: descuenta lo que se agregó y devuelve lo que se quitó, por
+ *  producto. Así el inventario siempre refleja lo que dice la orden, sin
+ *  descontar dos veces ni quedarse corto. Devuelve un resumen; los ítems que
+ *  no están en el inventario se reportan sin tocar nada. */
+async function _ajustarInventarioPorEdicionOrden(o, materialesAntes) {
+  const resultado = { descontados: [], devueltos: [], noEncontrados: [], errores: [] };
+  let stock;
+  try {
+    stock = await obtenerStockInventarioDirecto(operacionActual);
+  } catch (e) {
+    return resultado; // sin inventario que consultar no se ajusta (igual que el descuento)
+  }
+
+  const porCodigo = new Map(), porNombre = new Map();
+  (stock || []).forEach(p => {
+    if (p.codigo) porCodigo.set(String(p.codigo).trim().toLowerCase(), p);
+    if (p.nombre) porNombre.set(String(p.nombre).trim().toLowerCase(), p);
+  });
+
+  const sinInv = new Map();
+  const antes  = _materialesAgrupadosPorProducto(materialesAntes, porCodigo, porNombre, sinInv);
+  const ahora  = _materialesAgrupadosPorProducto({ repuestos: o.repuestos, insumos: o.insumos }, porCodigo, porNombre, sinInv);
+  resultado.noEncontrados = [...sinInv.values()].map(x => x.nombre);
+
+  const fecha = _isoLocal(new Date());
+  for (const codigo of new Set([...antes.keys(), ...ahora.keys()])) {
+    const prod  = (ahora.get(codigo) || antes.get(codigo)).producto;
+    const delta = Math.round(((ahora.get(codigo)?.cantidad || 0) - (antes.get(codigo)?.cantidad || 0)) * 100) / 100;
+    if (delta === 0) continue;
+    const esSalida = delta > 0; // más repuestos usados → sale más; menos → se devuelve
+    try {
+      await registrarMovimientoInventarioDirecto(operacionActual, {
+        codigo: prod.codigo,
+        fecha,
+        tipo: esSalida ? 'SALIDA' : 'INGRESO',
+        cantidad: Math.abs(delta),
+        responsable: o.NumeroOrden,
+        equipo: o.Equipo || '',
+        precioUnitario: esSalida ? undefined : _precioRecienteDeProducto(prod),
+        observaciones: esSalida
+          ? 'Ajuste: salida adicional por editar una orden ya cerrada'
+          : INV_OBS_DEVOLUCION_EDICION,
+      });
+      (esSalida ? resultado.descontados : resultado.devueltos).push(`${prod.nombre} (${Math.abs(delta)})`);
+    } catch (e) {
+      resultado.errores.push(`${prod.nombre}: ${e.message}`);
+    }
+  }
+  return resultado;
+}
+
+/** El precio del lote más reciente de un producto (para que una devolución
+ *  entre al inventario con un costo realista). 0 si no se sabe. */
+function _precioRecienteDeProducto(prod) {
+  const lotes = (prod && prod.lotes) || [];
+  if (!lotes.length) return 0;
+  const ult = lotes.reduce((a, b) => (new Date(b.fecha) >= new Date(a.fecha) ? b : a));
+  return Math.max(0, Number(ult.precio) || 0);
+}
+
+/** ¿Cambiaron los repuestos o insumos entre dos estados de la orden? Compara
+ *  solo código, nombre y cantidad (lo que mueve inventario), no el costo. */
+function _materialesCambiaron(a, b) {
+  const norm = mats => JSON.stringify([...(mats?.repuestos || []), ...(mats?.insumos || [])]
+    .map(it => [String(it.codigo || '').trim().toLowerCase(), String(it.nombre || '').trim().toLowerCase(), Number(it.cantidad) || 0])
+    .filter(x => x[0] || x[1])
+    .sort());
+  return norm(a) !== norm(b);
+}
+
+/** Resumen legible del ajuste de inventario al editar una orden cerrada. */
+function _resumenAjusteEdicionInventario(res) {
+  if (!res) return '';
+  const partes = [];
+  if (res.descontados.length) partes.push(`Se descontó lo agregado: ${res.descontados.join(', ')}.`);
+  if (res.devueltos.length) partes.push(`Se devolvió al inventario lo quitado: ${res.devueltos.join(', ')}.`);
+  if (res.noEncontrados.length) partes.push(`No están en el inventario (no se ajustaron): ${res.noEncontrados.join(', ')}.`);
+  if (res.errores.length) partes.push(`No se pudo ajustar: ${res.errores.join(', ')}.`);
   return partes.join('\n');
 }
 
@@ -8383,6 +8499,16 @@ async function guardarEdicion() {
   }
 
   const o = allOrdenes.find(x => String(x.id) === String(modalOrdenId) || x.NumeroOrden === modalOrdenId);
+
+  // Si la orden YA estaba cerrada, ya descontó sus repuestos/insumos al
+  // cerrarse. Guardamos cómo estaban ANTES de aplicar los cambios para, al
+  // final, ajustar en el inventario solo la diferencia (ver más abajo). En una
+  // orden todavía abierta no se toca nada: descontará al cerrarse.
+  const estabaDescontada = !!o && ['Cerrada', 'Realizada'].includes(o.Estado);
+  const materialesAntes = estabaDescontada
+    ? { repuestos: JSON.parse(JSON.stringify(o.repuestos || [])), insumos: JSON.parse(JSON.stringify(o.insumos || [])) }
+    : null;
+
   if (o) Object.assign(o, datos);
 
   // Nueva firma si se dibujó
@@ -8423,9 +8549,24 @@ async function guardarEdicion() {
     return;
   }
 
+  // Si la orden ya había descontado (estaba cerrada) y cambiaron sus
+  // repuestos/insumos, ajustar en el inventario SOLO la diferencia: descontar
+  // lo que se agregó y devolver lo que se quitó. Sin esto, subir una cantidad
+  // después de cerrar mostraba el número nuevo pero el inventario se quedaba
+  // con el viejo (y bajarla no devolvía nada).
+  let resumenAjuste = '';
+  if (estabaDescontada && o && _materialesCambiaron(materialesAntes, { repuestos: o.repuestos, insumos: o.insumos })) {
+    try {
+      alerta.className = 'alert show';
+      alerta.textContent = 'Ajustando el inventario con los cambios...';
+      resumenAjuste = _resumenAjusteEdicionInventario(await _ajustarInventarioPorEdicionOrden(o, materialesAntes));
+    } catch (e) { console.warn('No se pudo ajustar el inventario por la edición:', e.message); }
+  }
+
   alerta.className = 'alert alert-ok show';
-  alerta.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Cambios guardados correctamente.';
-  setTimeout(() => { alerta.className = 'alert'; }, 3000);
+  alerta.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Cambios guardados correctamente.'
+    + (resumenAjuste ? '<div style="margin-top:6px;font-weight:400;white-space:pre-line">' + esc(resumenAjuste) + '</div>' : '');
+  setTimeout(() => { alerta.className = 'alert'; }, resumenAjuste ? 6000 : 3000);
 }
 
 /** Convierte un texto de tiempo tipo "2h 30min", "1h", "45min" o solo "3"
@@ -8639,6 +8780,13 @@ async function guardarCierre() {
         const res = await descontarInventarioPorCierreOrden(o);
         resumenInventario = _resumenDescuentoInventario(res);
       } catch(e) { console.warn('No se pudo descontar del inventario:', e.message); }
+    } else if (_materialesCambiaron(antes, { repuestos: o.repuestos, insumos: o.insumos })) {
+      // Ya estaba cerrada (por ejemplo, la marcaron "Realizada" mientras este
+      // editor seguía abierto): ya descontó, así que solo se ajusta la
+      // diferencia con lo que cambió aquí, igual que en guardarEdicion.
+      try {
+        resumenInventario = _resumenAjusteEdicionInventario(await _ajustarInventarioPorEdicionOrden(o, antes));
+      } catch(e) { console.warn('No se pudo ajustar el inventario por la edición:', e.message); }
     }
   }
 
