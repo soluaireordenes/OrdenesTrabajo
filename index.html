@@ -22146,7 +22146,7 @@ function renderTablaEntregasSala() {
 function _construirHtmlEntregaSala(r, conTitulo = true) {
   const estilos = { ok: 'background:var(--estado-ok-bg);color:var(--estado-ok-tx)', respaldo: 'background:var(--brand-light);color:var(--brand)',
     mal: 'background:var(--estado-peligro-bg);color:var(--estado-peligro-tx)', '': 'background:var(--surface2);color:var(--text2)' };
-  const chip = v => `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-weight:700;font-size:11px;${estilos[_esCategoria(v)]}">${esc(v || '—')}</span>`;
+  const chip = v => `<span style="display:inline-block;padding:1px 8px;border-radius:999px;font-weight:700;font-size:11px;${estilos[_esCategoria(v)]}">${esc(v || '—')}</span>`;
   const caja = (titulo, contenido) => `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:6px;overflow:hidden;page-break-inside:avoid">
       <div style="background:var(--surface2);color:var(--brand);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(titulo)}</div>${contenido}</div>`;
   const secciones = _seccionesEntregaSala(operacionActual).map(s => {
