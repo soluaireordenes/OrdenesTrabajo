@@ -11056,7 +11056,9 @@ const COMPRESORES_LISTA_REPORTE = [
 // camposOmitidos: ids de REPORTE_COMPRESORES_CAMPOS(_BAJA) que la sede no lleva.
 const REPORTES_TECNICOS_POR_SEDE = {
   zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true },
-  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true,
+  // medicionesOpcionales: el reporte se guarda aunque falten mediciones (lo
+  // que sí se escriba tiene que ser un número).
+  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
 };
 function _reportesTecnicosDe(sede) {
@@ -21779,8 +21781,11 @@ async function guardarReporteCompresor() {
 
   const campos = _camposReporteCompresor(compresor);
   const porColumna = {};
+  let vacios = 0;
   for (const c of campos) {
     const valor = document.getElementById('rc_' + c.id).value.trim();
+    // En las sedes con mediciones opcionales, la que quede vacía se guarda vacía.
+    if (!valor && cfgSede.medicionesOpcionales) { vacios++; continue; }
     if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
@@ -21817,7 +21822,8 @@ async function guardarReporteCompresor() {
     const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
     await inicializarReporteCompresores();
     msg.style.color = 'var(--estado-ok-tx)';
-    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '');
+    msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '')
+      + (vacios ? ` Quedaron ${vacios === 1 ? '1 campo vacío' : vacios + ' campos vacíos'}.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -22037,19 +22043,20 @@ async function guardarEntregaTurnoSala() {
 
   const campos = [...document.querySelectorAll('#es_campos [data-col]')];
   if (!campos.length) { msg.textContent = 'Espera a que carguen los equipos.'; return; }
-  const revisar = [entregadoEl, ...campos];
-  const faltan = revisar.filter(c => !c.value.trim());
-  revisar.forEach(c => c.classList.toggle('es-falta', !c.value.trim()));
-  if (faltan.length) {
-    const nombres = faltan.slice(0, 4).map(c => c.getAttribute('aria-label')).join(', ');
-    msg.textContent = `Falta llenar ${faltan.length === 1 ? '1 dato' : faltan.length + ' datos'}: ${nombres}${faltan.length > 4 ? '...' : ''}.`;
-    faltan[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Solo quién entrega es obligatorio: los equipos y las temperaturas que
+  // queden sin llenar se guardan vacíos.
+  entregadoEl.classList.toggle('es-falta', !entregadoPor);
+  if (!entregadoPor) {
+    msg.textContent = 'Escribe quién entrega el turno.';
+    entregadoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+  campos.forEach(c => c.classList.remove('es-falta'));
+  const vacios = campos.filter(c => !c.value.trim()).length;
   // Las temperaturas: solo el número en °C (acepta coma o punto para decimales).
   const temperaturas = campos.filter(c => c.tagName === 'INPUT');
   temperaturas.forEach(c => { c.value = c.value.trim().replace(',', '.'); });
-  const tempMala = temperaturas.find(c => !_esNumeroDecimal(c.value));
+  const tempMala = temperaturas.find(c => c.value && !_esNumeroDecimal(c.value));
   if (tempMala) {
     tempMala.classList.add('es-falta');
     msg.textContent = `${tempMala.getAttribute('aria-label')}: escribe solo el número en °C (por ejemplo 28 o 28.5).`;
@@ -22078,7 +22085,8 @@ async function guardarEntregaTurnoSala() {
     _invalidarCacheHoja(SH.entregaTurnoSala);
     await inicializarEntregaTurnoSala();
     msg.style.color = 'var(--estado-ok-tx)';
-    msg.textContent = `Entrega de turno ${porColumna.Codigo} guardada.`;
+    msg.textContent = `Entrega de turno ${porColumna.Codigo} guardada.`
+      + (vacios ? ` Quedaron ${vacios === 1 ? '1 dato vacío' : vacios + ' datos vacíos'}.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
   }
@@ -26956,6 +26964,7 @@ const HOROMETRO_SALTO_MAXIMO = 1000;
  *  nadie lo note, porque estas horas mueven las barras del cronograma y
  *  disparan las ordenes de trabajo. */
 async function _avisoHorometro(equipoReporte, valor) {
+  if (valor === undefined || valor === null || String(valor).trim() === '') return null; // sin horómetro no hay nada que comparar
   const clave = _equipoDeHorasDelReporte(equipoReporte);
   const nuevo = Number(String(valor).replace(',', '.'));
   if (!clave || !isFinite(nuevo)) return null;

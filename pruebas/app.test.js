@@ -1470,6 +1470,18 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       llenar('JOY 3', '1', '100');
       await guardarReporteCompresor();
       out.futura = document.getElementById('rc_msg').textContent;
+      // En Zipaquirá 2 se guarda aunque falten mediciones; lo que se escribe tiene que ser un número
+      document.getElementById('rc_fecha').value = _isoLocal(new Date());
+      document.getElementById('rc_tecnico').value = 'Técnico Uno';
+      document.getElementById('rc_compresor').value = 'JOY 4'; _actualizarCamposMedicionesCompresor();
+      document.getElementById('rc_presionSistema').value = 'abc';
+      await guardarReporteCompresor();
+      out.parcialMalo = document.getElementById('rc_msg').textContent;
+      document.getElementById('rc_presionSistema').value = '95';
+      const preguntasAntes = preguntas.length;
+      await guardarReporteCompresor();
+      out.parcial = document.getElementById('rc_msg').textContent;
+      out.parcialSinPregunta = preguntas.length === preguntasAntes;
       out.verReporte = _construirHtmlReporteCompresor(allReportesCompresores.find(x => x.Compresor === 'CA1'));
       // Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria y sus 7 compresores
       operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
@@ -1500,7 +1512,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá menos la PDT del filtro de aire y las temperaturas de estator A, B y C, y sin la pregunta de hora/fecha del compresor; se guardan sin hora y las horas pasan al Plan',
       r.camposBaja === 35 && r.camposAlta === 34 && r.sinPdt && r.sinEstator && filaJoy[col(rep, 'EstadoHoraFecha')] === '' && filaJoy[col(rep, 'BPDTFiltroAire')] === ''
       && filaJoy[col(rep, 'BTempEstatorA')] === '' && filaJoy[col(rep, 'BTempEstatorC')] === '' && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
-      && rep.length === 3 && filaJoy[col(rep, 'Hora')] === '' && filaJoy[col(rep, 'BHorasUso')] === '45300' && filaJoy[col(rep, 'TecnicoOtro')] === 'Técnico Uno'
+      && rep.length === 4 && filaJoy[col(rep, 'Hora')] === '' && filaJoy[col(rep, 'BHorasUso')] === '45300' && filaJoy[col(rep, 'TecnicoOtro')] === 'Técnico Uno'
       && filaCa[col(rep, 'HorasUso')] === '30100' && filaCa[col(rep, 'Tecnico')] === 'Técnico Uno' && filaCa[col(rep, 'BHorasUso')] === ''
       && horasDe('JOY 2') === '45300' && horasDe('CA1') === '30100' && r.tecnicoEnLista,
       { msgBaja: r.msgBaja, msgAlta: r.msgAlta, campos: [r.camposBaja, r.camposAlta], filaJoy, filaCa, horas });
@@ -1508,6 +1520,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /^\d{1,2}:\d{2}/.test(r.tabla.split('/')[0]) && !/undefined|NaN/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.verReporte)
       && /El horómetro de JOY 2 no debería bajar/.test(r.preguntaHorometro) && /no puede ser posterior a hoy/.test(r.futura),
       { tabla: r.tabla, pregunta: r.preguntaHorometro, futura: r.futura });
+    const filaJoy4 = rep.find(f => f[col(rep, 'Compresor')] === 'JOY 4') || [];
+    check('Reporte de compresores Zipaquirá 2: se guarda aunque falten mediciones (y lo dice); lo que se escribe tiene que ser un número; sin horómetro no pregunta ni toca las horas',
+      /debe tener un número/.test(r.parcialMalo) && /Reporte guardado correctamente\. Quedaron 34 campos vacíos\./.test(r.parcial) && r.parcialSinPregunta
+      && filaJoy4[col(rep, 'BPresionSistema')] === '95' && filaJoy4[col(rep, 'BHorasUso')] === '' && horasDe('JOY 4') === undefined,
+      { malo: r.parcialMalo, parcial: r.parcial, filaJoy4: filaJoy4.slice(0, 10) });
     check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores, su lista de técnicos, la pregunta de hora/fecha, la PDT y las temperaturas de estator',
       r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10
       && r.zipa1.horaFecha && r.zipa1.pdt, r.zipa1);
@@ -1582,6 +1599,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       entregaEl.value = 'Ana Prueba'; de('TemperaturaSala').value = '29'; de('TemperaturaAmbiente').value = '15';
       await guardarEntregaTurnoSala();
       out.preguntas = preguntas.join(' | ');
+      // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno, ayer
+      const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+      document.getElementById('es_fecha').value = _isoLocal(ayer); document.getElementById('es_turno').value = 'noche';
+      entregaEl.value = 'Técnico Tres'; de('TemperaturaSala').value = ''; de('TemperaturaAmbiente').value = '';
+      de('JOY 3 · Estado').value = ''; de('JOY 3 · Subestación').value = ''; de('Línea verde · Bomba 1').value = '';
+      await guardarEntregaTurnoSala();
+      out.msgParcial = msg();
       // Zipaquirá 1 no tiene esta entrega (tiene la suya)
       operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
       Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
@@ -1603,12 +1627,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.bombas === 'Bomba 1,Bomba 2,Bomba 3 | Bomba Worthington 8,Bomba Worthington 9,Bomba Worthington 10,Bomba Worthington 11'
       && r.vacio === 'En funcionamiento,Detenido,Fuera de servicio' && r.secadores
       && r.turnos === 'Mañana (6:00–14:00) | Tarde (14:00–22:00) | Noche (22:00–6:00)', r);
-    check('Entrega de turno Zipaquirá 2: sin llenar no se guarda y se marcan los 77 que faltan (quién entrega, equipos y temperaturas); una temperatura que no es número no se acepta; los colores y el conteo siguen lo elegido',
-      /Falta llenar 77 datos: Entregado por, Estado de JOY 2/.test(r.falta) && r.marcados === 77
+    check('Entrega de turno Zipaquirá 2: sin quién entrega no se guarda (y se marca solo ese campo); una temperatura que no es número no se acepta; los colores y el conteo siguen lo elegido',
+      /Escribe quién entrega el turno/.test(r.falta) && r.marcados === 1
       && /Temperatura de sala: escribe solo el número/.test(r.tempMala)
       && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
     check('Entrega de turno Zipaquirá 2: se guarda una fila con una columna por equipo, los nombres escritos y la temperatura con coma queda con punto',
-      /Entrega de turno ET-001.* guardada/.test(r.msg) && hoja.length === 2 && hoja[0].length === 86
+      /Entrega de turno ET-001.* guardada\.$/.test(r.msg) && hoja.length === 3 && hoja[0].length === 86
       && v('JOY 2 · Estado') === 'Operando' && v('JOY 2 · Subestación') === 'SUB 4A' && v('CB1 · Estado') === 'Respaldo'
       && v('TemperaturaSala') === '30.5' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba Worthington 11') && !!v('Línea verde · Bomba 3') && !!v('BOMBA DE VACIO IR 6')
       && !!v('Secador General Pneumatics') && v('EntregadoPor') === 'Ana Prueba' && v('RecibidoPor') === 'Técnico Dos'
@@ -1619,6 +1643,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && /Se llenó con la última entrega/.test(r.previa.aviso)
       && /Ana Prueba\/Técnico Dos\/Operando: \d+/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.vista) && /SUB 4A/.test(r.vista) && /30\.5 °C/.test(r.vista)
       && /Ese turno ya tiene entrega/.test(r.preguntas), { previa: r.previa, tabla: r.tabla, preguntas: r.preguntas });
+    const fila2 = hoja[2] || [];
+    const v2 = n => fila2[col(n)];
+    check('Entrega de turno Zipaquirá 2: se guarda aunque falten equipos o temperaturas, y dice cuántos quedaron vacíos',
+      /Entrega de turno ET-002.* guardada\. Quedaron 5 datos vacíos\./.test(r.msgParcial) && v2('EntregadoPor') === 'Técnico Tres' && v2('TurnoNombre') === 'Noche'
+      && v2('TemperaturaSala') === '' && v2('JOY 3 · Estado') === '' && v2('Línea verde · Bomba 1') === '' && !!v2('JOY 2 · Estado'),
+      { msg: r.msgParcial, fila: fila2.slice(0, 10) });
     check('Entrega de turno Zipaquirá 2: Zipaquirá 1 no la ve ni la abre; sin errores de JS ni avisos',
       r.zipa1.tab === 'none' && r.zipa1.abre === 'temporal' && r.zipa1.forzada === 'temporal' && errs.length === 0 && r.avisos.length === 0,
       { zipa1: r.zipa1, errs: errs.slice(0, 2), avisos: r.avisos });
