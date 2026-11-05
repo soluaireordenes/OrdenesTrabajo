@@ -11049,11 +11049,13 @@ const COMPRESORES_LISTA_REPORTE = [
 ];
 // Los reportes técnicos de cada sede (las pestañas de "Reportes técnicos").
 // Zipaquirá 2, por ahora, solo lleva el de los compresores de su sala: con
-// los mismos campos de Zipaquirá 1 (los de Alta o los de Baja según el grupo
-// del compresor), sin los IR y sin franja horaria.
+// los campos de Zipaquirá 1 (los de Alta o los de Baja según el grupo del
+// compresor), sin los IR, sin franja horaria, sin la pregunta de si la hora
+// y la fecha del compresor están bien y sin la PDT del filtro de aire.
+// camposOmitidos: ids de REPORTE_COMPRESORES_CAMPOS(_BAJA) que la sede no lleva.
 const REPORTES_TECNICOS_POR_SEDE = {
   zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true },
-  zipaquira2: { pestanas: ['compresores'], conHora: false },
+  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, camposOmitidos: ['pdtFiltroAire'] },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
@@ -21601,8 +21603,14 @@ function _htmlCamposReporteCompresor(existente, campos) {
  *  Baja Presión tienen paneles de control y mediciones totalmente distintos). */
 function _actualizarCamposMedicionesCompresor() {
   const compresor = document.getElementById('rc_compresor').value;
-  const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
-  document.getElementById('rc_camposMediciones').innerHTML = compresor ? _htmlCamposReporteCompresor(null, campos) : '';
+  document.getElementById('rc_camposMediciones').innerHTML = compresor ? _htmlCamposReporteCompresor(null, _camposReporteCompresor(compresor)) : '';
+}
+
+/** Los campos de medición de ese compresor (los de Alta o los de Baja) que
+ *  lleva el reporte de la sede: sin los que la sede omite. */
+function _camposReporteCompresor(compresor) {
+  const omitidos = _reportesTecnicosDe(operacionActual).camposOmitidos || [];
+  return (esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS).filter(c => !omitidos.includes(c.id));
 }
 
 function _siguienteCodigoReporteCompresor() {
@@ -21664,6 +21672,7 @@ async function inicializarReporteCompresores() {
   document.getElementById('rc_tecnicoOtroWrap').style.display = 'none';
   document.getElementById('rc_tecnicoOtro').value = '';
   document.getElementById('rc_estadoHoraFecha').value = '';
+  document.getElementById('rc_estadoHoraFecha').closest('.field').style.display = _reportesTecnicosDe(operacionActual).sinHoraFechaCompresor ? 'none' : '';
   document.getElementById('rc_msg').textContent = '';
   document.getElementById('rc_compresor').value = '';
   _actualizarCamposMedicionesCompresor();
@@ -21740,13 +21749,15 @@ async function guardarReporteCompresor() {
   let fecha = document.getElementById('rc_fecha').value;
   const hora = document.getElementById('rc_hora').value;
   const compresor = document.getElementById('rc_compresor').value;
-  const estadoHoraFecha = document.getElementById('rc_estadoHoraFecha').value;
-  const conHora = _reportesTecnicosDe(operacionActual).conHora;
+  const cfgSede = _reportesTecnicosDe(operacionActual);
+  const conHora = cfgSede.conHora;
+  // La pregunta de si la hora y la fecha del compresor están bien no va en todas las sedes.
+  const pideHoraFecha = !cfgSede.sinHoraFechaCompresor;
+  const estadoHoraFecha = pideHoraFecha ? document.getElementById('rc_estadoHoraFecha').value : '';
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (conHora && !hora) || !compresor || !estadoHoraFecha) {
-    msg.textContent = conHora
-      ? 'Completa todos los campos: técnico, fecha, hora, compresor y si la hora/fecha del compresor están bien.'
-      : 'Completa todos los campos: técnico, fecha, compresor y si la hora/fecha del compresor están bien.';
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (conHora && !hora) || !compresor || (pideHoraFecha && !estadoHoraFecha)) {
+    const pide = ['técnico', 'fecha', ...(conHora ? ['hora'] : []), 'compresor', ...(pideHoraFecha ? ['si la hora/fecha del compresor están bien'] : [])];
+    msg.textContent = `Completa todos los campos: ${pide.slice(0, -1).join(', ')} y ${pide[pide.length - 1]}.`;
     return;
   }
 
@@ -21764,7 +21775,7 @@ async function guardarReporteCompresor() {
     return;
   }
 
-  const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
+  const campos = _camposReporteCompresor(compresor);
   const porColumna = {};
   for (const c of campos) {
     const valor = document.getElementById('rc_' + c.id).value.trim();
@@ -21858,7 +21869,7 @@ function _construirHtmlReporteCompresor(r, conTitulo) {
     <div style="${conTitulo ? 'text-align:center;' : ''}font-size:13px;color:var(--text2);margin-bottom:16px">
       <b>${esc(OPERACIONES[operacionActual]?.nombre || '')}</b> &nbsp;·&nbsp;
       ${esc(fmtFecha(r.Fecha))} · ${esc(_horaReporteParaMostrar(r))} &nbsp;·&nbsp; <b>${esc(r.Compresor)}</b> &nbsp;·&nbsp;
-      <b>Técnico:</b> ${esc(tecnico)} &nbsp;·&nbsp; <b>¿Hora/fecha OK?:</b> ${esc(r.EstadoHoraFecha)}
+      <b>Técnico:</b> ${esc(tecnico)}${r.EstadoHoraFecha ? ` &nbsp;·&nbsp; <b>¿Hora/fecha OK?:</b> ${esc(r.EstadoHoraFecha)}` : ''}
     </div>
     ${gruposHtml}
   `;

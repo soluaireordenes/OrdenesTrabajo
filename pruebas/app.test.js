@@ -1432,21 +1432,22 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         tecnicas: visibles('#cronGrupoTecnicos .inv-subtab').join(' | '),
         abreEn,
         horaOculta: getComputedStyle(document.getElementById('rc_hora').closest('.field')).display === 'none',
+        horaFechaOculta: getComputedStyle(document.getElementById('rc_estadoHoraFecha').closest('.field')).display === 'none',
         fechaEditable: !document.getElementById('rc_fecha').readOnly,
         grupos: [...document.querySelectorAll('#rc_compresor optgroup')].map(g => g.label + ':' + g.children.length).join(' | '),
         conIR: [...document.querySelectorAll('#rc_compresor option')].some(o => /^IR\b/.test(o.value)),
       };
       const llenar = (compresor, valor, horas) => {
         document.getElementById('rc_compresor').value = compresor; _actualizarCamposMedicionesCompresor();
-        const campos = esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
+        const campos = _camposReporteCompresor(compresor);
         campos.forEach(c => { document.getElementById('rc_' + c.id).value = c.id.startsWith('horasUso') ? horas : valor; });
-        document.getElementById('rc_estadoHoraFecha').value = 'SI';
         return campos.length;
       };
       // Baja: JOY 2, con un técnico nuevo escrito en "Otras"
       document.getElementById('rc_tecnico').value = 'Otras';
       document.getElementById('rc_tecnicoOtro').value = 'Técnico Uno';
       out.camposBaja = llenar('JOY 2', '12.5', '45300');
+      out.sinPdt = !document.getElementById('rc_pdtFiltroAire') && !/PDT/.test(document.getElementById('rc_camposMediciones').textContent);
       await guardarReporteCompresor();
       out.msgBaja = document.getElementById('rc_msg').textContent;
       // Alta: CA1, ya con el técnico en la lista
@@ -1479,7 +1480,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         fechaFija: document.getElementById('rc_fecha').readOnly,
         compresores: document.querySelectorAll('#rc_compresor option[value]:not([value=""])').length,
         tecnicos: document.querySelectorAll('#rc_tecnico option').length,
+        horaFecha: getComputedStyle(document.getElementById('rc_estadoHoraFecha').closest('.field')).display !== 'none',
       };
+      document.getElementById('rc_compresor').value = 'Compresor de Baja Presión #1'; _actualizarCamposMedicionesCompresor();
+      out.zipa1.pdt = !!document.getElementById('rc_pdtFiltroAire');
       out.avisos = avisos;
       return out;
     });
@@ -1490,10 +1494,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const filaCa = rep.find(f => f[col(rep, 'Compresor')] === 'CA1') || [];
     const horasDe = e => (horas.find(f => f[col(horas, 'Equipo')] === e) || [])[col(horas, 'HorasActuales')];
     check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores (Reportes arranca en la entrega de turno), sin franja horaria y con sus 18 compresores sin los IR',
-      r.tecnicas === 'Compresores' && r.abreEn === 'entregasala' && r.horaOculta && r.fechaEditable
+      r.tecnicas === 'Compresores' && r.abreEn === 'entregasala' && r.horaOculta && r.horaFechaOculta && r.fechaEditable
       && r.grupos === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
-    check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá, se guardan sin hora y las horas pasan al Plan',
-      r.camposBaja === 39 && r.camposAlta === 34 && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
+    check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá menos la PDT del filtro de aire y sin la pregunta de hora/fecha del compresor; se guardan sin hora y las horas pasan al Plan',
+      r.camposBaja === 38 && r.camposAlta === 34 && r.sinPdt && filaJoy[col(rep, 'EstadoHoraFecha')] === '' && filaJoy[col(rep, 'BPDTFiltroAire')] === '' && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
       && rep.length === 3 && filaJoy[col(rep, 'Hora')] === '' && filaJoy[col(rep, 'BHorasUso')] === '45300' && filaJoy[col(rep, 'TecnicoOtro')] === 'Técnico Uno'
       && filaCa[col(rep, 'HorasUso')] === '30100' && filaCa[col(rep, 'Tecnico')] === 'Técnico Uno' && filaCa[col(rep, 'BHorasUso')] === ''
       && horasDe('JOY 2') === '45300' && horasDe('CA1') === '30100' && r.tecnicoEnLista,
@@ -1502,8 +1506,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /^\d{1,2}:\d{2}/.test(r.tabla.split('/')[0]) && !/undefined|NaN/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.verReporte)
       && /El horómetro de JOY 2 no debería bajar/.test(r.preguntaHorometro) && /no puede ser posterior a hoy/.test(r.futura),
       { tabla: r.tabla, pregunta: r.preguntaHorometro, futura: r.futura });
-    check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores y su lista de técnicos',
-      r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10, r.zipa1);
+    check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores, su lista de técnicos, la pregunta de hora/fecha y la PDT',
+      r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10
+      && r.zipa1.horaFecha && r.zipa1.pdt, r.zipa1);
     check('Reporte de compresores Zipaquirá 2: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
     await ctx.close();
   }
