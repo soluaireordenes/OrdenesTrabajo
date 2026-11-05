@@ -1425,9 +1425,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
       const visibles = sel => [...document.querySelectorAll(sel)].filter(x => getComputedStyle(x).display !== 'none').map(x => x.textContent.trim());
       await showPanel('cronograma'); await espera(600);
+      // Reportes arranca en la entrega de turno de la sala; de ahí, a Compresores.
+      const abreEn = document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab;
+      cronMostrarSubTab('compresores'); await espera(600);
       const out = {
         tecnicas: visibles('#cronGrupoTecnicos .inv-subtab').join(' | '),
-        abreEn: document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab,
+        abreEn,
         horaOculta: getComputedStyle(document.getElementById('rc_hora').closest('.field')).display === 'none',
         fechaEditable: !document.getElementById('rc_fecha').readOnly,
         grupos: [...document.querySelectorAll('#rc_compresor optgroup')].map(g => g.label + ':' + g.children.length).join(' | '),
@@ -1486,8 +1489,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const filaJoy = rep.find(f => f[col(rep, 'Compresor')] === 'JOY 2') || [];
     const filaCa = rep.find(f => f[col(rep, 'Compresor')] === 'CA1') || [];
     const horasDe = e => (horas.find(f => f[col(horas, 'Equipo')] === e) || [])[col(horas, 'HorasActuales')];
-    check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores, arranca en ella, sin franja horaria y con sus 18 compresores sin los IR',
-      r.tecnicas === 'Compresores' && r.abreEn === 'compresores' && r.horaOculta && r.fechaEditable
+    check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores (Reportes arranca en la entrega de turno), sin franja horaria y con sus 18 compresores sin los IR',
+      r.tecnicas === 'Compresores' && r.abreEn === 'entregasala' && r.horaOculta && r.fechaEditable
       && r.grupos === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
     check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá, se guardan sin hora y las horas pasan al Plan',
       r.camposBaja === 39 && r.camposAlta === 34 && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
@@ -1502,6 +1505,109 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores y su lista de técnicos',
       r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10, r.zipa1);
     check('Reporte de compresores Zipaquirá 2: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
+    // Entrega de turno de la sala de Zipaquirá 2: todo con listas y con los
+    // equipos de la sede; una columna por equipo en la hoja, la siguiente
+    // entrega arranca con lo de la última y Zipaquirá 1 no la ve.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      const preguntas = []; window.confirmarAccion = async o => { preguntas.push(o.titulo); return false; };
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      await showPanel('cronograma'); await espera(800);
+      const sels = () => [...document.querySelectorAll('#es_campos select[data-col]')];
+      const de = c => sels().find(s => s.dataset.col === c);
+      const opciones = s => [...s.options].map(o => o.value).filter(Boolean);
+      const activa = () => document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab;
+      const out = {
+        abreEn: activa(),
+        total: sels().length,
+        textoLibre: document.querySelectorAll('#es_campos input, #es_campos textarea').length,
+        estadosComp: opciones(de('JOY 2 · Estado')).join(','),
+        subestaciones: opciones(de('JOY 2 · Subestación')).join(','),
+        conIR12: !!de('IR 12 · Estado') && !!de('TA 18 · Subestación'),
+        bombaVerde: opciones(de('Línea verde · Bomba 1')).join(','),
+        bombaRoja: !!de('Línea roja · Bomba 4'),
+        temperaturas: opciones(de('TemperaturaSala')).length + '/' + opciones(de('TemperaturaAmbiente')).length,
+        vacio: opciones(de('BOMBA DE VACIO PNEUMOFORE 3')).join(','),
+        secadores: ['Secador Kaeser 1', 'Secador Pneumatic Products', 'Secador General Pneumatics'].every(n => !!de(n)),
+        turnos: [...document.querySelectorAll('#es_turno option')].map(o => o.textContent).join(' | '),
+        entrega: document.getElementById('es_entregadoPor').value,
+      };
+      // Sin elegir los equipos no se guarda, y se marca lo que falta
+      await guardarEntregaTurnoSala();
+      out.falta = document.getElementById('es_msg').textContent;
+      out.marcados = document.querySelectorAll('#es_campos select.es-falta').length;
+      // Todo elegido (temperaturas 30 °C y 14 °C)
+      sels().forEach((s, i) => {
+        const o = opciones(s);
+        s.value = s.dataset.col === 'TemperaturaSala' ? '30' : s.dataset.col === 'TemperaturaAmbiente' ? '14' : o[i % o.length];
+        s.dispatchEvent(new Event('change'));
+      });
+      const elegir = (c, v) => { const s = de(c); s.value = v; s.dispatchEvent(new Event('change')); };
+      elegir('JOY 2 · Estado', 'Operando'); elegir('JOY 2 · Subestación', 'SUB 4A'); elegir('CB1 · Estado', 'Respaldo');
+      out.colores = [de('JOY 2 · Estado').dataset.estado, de('CB1 · Estado').dataset.estado].join(',');
+      out.resumen = document.getElementById('es_resumenCompresores').textContent;
+      document.getElementById('es_recibidoPor').value = 'Otras'; _esMostrarOtro('recibidoPor');
+      document.getElementById('es_recibidoPorOtro').value = 'Técnico Dos';
+      document.getElementById('es_novedades').value = 'Sin novedad';
+      await guardarEntregaTurnoSala();
+      out.msg = document.getElementById('es_msg').textContent;
+      // La siguiente arranca con lo de la última, menos las temperaturas
+      out.previa = { joy2: de('JOY 2 · Estado').value, sub: de('JOY 2 · Subestación').value, cb1: de('CB1 · Estado').value,
+        temp: de('TemperaturaSala').value, aviso: document.getElementById('es_avisoPrevio').textContent,
+        recibe: [...document.getElementById('es_recibidoPor').options].some(o => o.value === 'Técnico Dos') };
+      out.tabla = [...document.querySelectorAll('#es_tablaWrap tbody tr')].map(tr => [...tr.cells].slice(2, 6).map(c => c.textContent.trim()).join('/')).join(' | ');
+      out.vista = _construirHtmlEntregaSala(allEntregasSala[0]);
+      // Otra entrega del mismo turno pregunta antes (y aquí se cancela)
+      document.getElementById('es_turno').value = allEntregasSala[0].TurnoId;
+      document.getElementById('es_fecha').value = allEntregasSala[0].Fecha;
+      sels().forEach(s => { if (!s.value) s.value = opciones(s)[0]; });
+      await guardarEntregaTurnoSala();
+      out.preguntas = preguntas.join(' | ');
+      // Zipaquirá 1 no tiene esta entrega (tiene la suya)
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
+      await inicializarPanelCronograma(); await espera(300);
+      out.zipa1 = { tab: getComputedStyle(document.getElementById('cronTabEntregaSala')).display, abre: activa() };
+      cronMostrarSubTab('entregasala'); out.zipa1.forzada = activa();
+      out.avisos = avisos;
+      return out;
+    });
+    const hoja = fake.hoja(id, 'EntregaTurnoSala');
+    const col = n => hoja[0] ? hoja[0].indexOf(n) : -1;
+    const fila = hoja[1] || [];
+    const v = n => fila[col(n)];
+    check('Entrega de turno Zipaquirá 2: Reportes arranca en ella, todo con listas y con los equipos del sistema (22 compresores, bombas de agua, temperaturas, 14 bombas de vacío y 9 secadores)',
+      r.abreEn === 'entregasala' && r.total === 77 && r.textoLibre === 0
+      && r.estadosComp === 'Operando,Respaldo,Fuera de servicio'
+      && r.subestaciones === 'SUB 1,SUB 2,SUB 3,SUB 4A,SUB 4B,SUB 5,SUB 6,SUB 7,SUB 8,SUB 9,Diésel,Térmica,115 kV,34,5 kV,Trafo Y,Trafo Z'
+      && r.conIR12 && r.bombaVerde === 'Habilitada,No habilitada,Fuera de servicio' && r.bombaRoja && r.temperaturas === '61/61'
+      && r.vacio === 'En funcionamiento,Detenido,Fuera de servicio' && r.secadores
+      && r.turnos === 'Mañana (6:00–14:00) | Tarde (14:00–22:00) | Noche (22:00–6:00)' && r.entrega === 'Ana Prueba', r);
+    check('Entrega de turno Zipaquirá 2: sin elegir los equipos no se guarda y se marcan los 77 que faltan; los colores y el conteo siguen lo elegido',
+      /Falta elegir 77 datos/.test(r.falta) && r.marcados === 77 && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
+    check('Entrega de turno Zipaquirá 2: se guarda una fila con una columna por equipo (estado y subestación de cada compresor, bombas, temperaturas, bombas de vacío y secadores)',
+      /Entrega de turno ET-001.* guardada/.test(r.msg) && hoja.length === 2 && hoja[0].length === 87
+      && v('JOY 2 · Estado') === 'Operando' && v('JOY 2 · Subestación') === 'SUB 4A' && v('CB1 · Estado') === 'Respaldo'
+      && v('TemperaturaSala') === '30' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba 4') && !!v('BOMBA DE VACIO IR 6')
+      && !!v('Secador General Pneumatics') && v('EntregadoPor') === 'Ana Prueba' && v('RecibidoPor') === 'Técnico Dos'
+      && ['Mañana', 'Tarde', 'Noche'].includes(v('TurnoNombre')) && v('Novedades') === 'Sin novedad' && v('Estado') === 'Activo',
+      { msg: r.msg, filas: hoja.length, columnas: hoja[0] && hoja[0].length, fila: fila.slice(0, 12) });
+    check('Entrega de turno Zipaquirá 2: la siguiente arranca con lo de la última (sin temperaturas), se ve en la lista y en la vista con la sede, y repetir el turno pregunta',
+      r.previa.joy2 === 'Operando' && r.previa.sub === 'SUB 4A' && r.previa.cb1 === 'Respaldo' && r.previa.temp === ''
+      && /Se llenó con la última entrega/.test(r.previa.aviso) && r.previa.recibe
+      && /Ana Prueba\/Técnico Dos\/Operando: \d+/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.vista) && /SUB 4A/.test(r.vista) && /30 °C/.test(r.vista)
+      && /Ese turno ya tiene entrega/.test(r.preguntas), { previa: r.previa, tabla: r.tabla, preguntas: r.preguntas });
+    check('Entrega de turno Zipaquirá 2: Zipaquirá 1 no la ve ni la abre; sin errores de JS ni avisos',
+      r.zipa1.tab === 'none' && r.zipa1.abre === 'temporal' && r.zipa1.forzada === 'temporal' && errs.length === 0 && r.avisos.length === 0,
+      { zipa1: r.zipa1, errs: errs.slice(0, 2), avisos: r.avisos });
     await ctx.close();
   }
   {
@@ -2145,7 +2251,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return out;
     });
     check('Orden: Reportes en dos grupos (Turno y Reportes técnicos); los técnicos solo en Zipaquirá y sin repetir "Reporte"',
-      r.turno === 'actividades,temporal,dashboard,observaciones,condiciones,herramienta'
+      r.turno === 'actividades,entregasala,temporal,dashboard,observaciones,condiciones,herramienta'
       && r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler'
       && !/Reporte /.test(r.nombresTecnicos) && r.tecnicosZipa !== 'none' && r.tecnicosSoacha === 'none', r);
     check('Orden: todas las secciones arrancan con el mismo encabezado (título con ícono)', r.sinEncabezado === '', r.sinEncabezado);
