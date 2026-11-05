@@ -1053,6 +1053,30 @@ body.rol-operario .solo-admin { display: none !important; }
   box-shadow: 0 0 0 3px rgba(1,138,190,.12);
 }
 
+/* ── Entrega de turno de la sala (Zipaquirá 2) ── */
+.es-seccion { border-top: 1px solid var(--border); padding-top: 12px; margin-bottom: 14px; }
+.es-titulo { font-weight: 700; color: var(--brand); margin-bottom: 8px; font-size: 13px; }
+.es-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px; }
+.es-tabla-comp { display: grid; gap: 6px; }
+.es-fila-comp { display: grid; grid-template-columns: minmax(58px, 84px) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+.es-fila-comp select { width: 100%; min-width: 0; }
+.es-fila-comp.es-cab { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .6px; }
+.es-nombre { font-weight: 700; font-size: 13px; }
+.es-resumen { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.es-resumen:empty { display: none; }
+/* En celular la subestación va debajo del estado: en una sola fila de tres
+   columnas "Fuera de servicio" no cabía. */
+@media (max-width: 520px) {
+  .es-fila-comp { grid-template-columns: 52px minmax(0, 1fr); row-gap: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .es-fila-comp > select:last-child { grid-column: 2; }
+  .es-fila-comp.es-cab { display: none; }
+}
+/* El desplegable toma el color de lo elegido, para leer la sala de un vistazo. */
+#es_campos select[data-estado="ok"]       { background: var(--estado-ok-bg); color: var(--estado-ok-tx); border-color: var(--estado-ok-tx); }
+#es_campos select[data-estado="respaldo"] { background: var(--brand-light); color: var(--brand); border-color: var(--brand); }
+#es_campos select[data-estado="mal"]      { background: var(--estado-peligro-bg); color: var(--estado-peligro-tx); border-color: var(--estado-peligro-tx); }
+#cronSub-entregasala select.es-falta { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(198,40,40,.18); }
+
 /* ── Signature field ── */
 .sig-pad {
   border: 1px solid var(--border);
@@ -2881,6 +2905,7 @@ body.rol-operario .btn-principal-operario {
         <div class="cron-grupo-titulo">Turno</div>
         <div class="cron-grupo-tabs">
           <button class="inv-subtab" id="cronTabActividades" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></button>
+          <button class="inv-subtab" id="cronTabEntregaSala" data-crontab="entregasala" onclick="cronMostrarSubTab('entregasala')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</button>
           <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
           <button class="inv-subtab" data-crontab="dashboard" onclick="cronMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
           <button class="inv-subtab solo-admin" id="cronTabObservaciones" data-crontab="observaciones" onclick="cronMostrarSubTab('observaciones')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</button>
@@ -3076,6 +3101,51 @@ body.rol-operario .btn-principal-operario {
 
     <!-- Reporte de Compresores: formulario técnico completo por compresor,
          calcado del formulario "Seguimiento compresores" — solo Zipaquirá. -->
+    <!-- Entrega de turno de la sala de compresores (Zipaquirá 2): el estado
+         de cada equipo al entregar el turno, todo con listas desplegables.
+         Los campos de los equipos los arma _htmlCamposEntregaSala. -->
+    <div id="cronSub-entregasala" class="inv-subpanel">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno · Sala de compresores</div>
+        <div class="card-body" style="padding:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin-bottom:12px">
+            <div class="field"><label>Fecha del turno *</label><input type="date" id="es_fecha"></div>
+            <div class="field"><label>Turno *</label><select id="es_turno"></select></div>
+            <div class="field"><label>Entregado por *</label><select id="es_entregadoPor" onchange="_esMostrarOtro('entregadoPor')"></select></div>
+            <div class="field" id="es_entregadoPorOtroWrap" style="display:none"><label>Nombre de quien entrega</label><input id="es_entregadoPorOtro" placeholder="Nombre completo"></div>
+            <div class="field"><label>Recibido por</label><select id="es_recibidoPor" onchange="_esMostrarOtro('recibidoPor')"></select></div>
+            <div class="field" id="es_recibidoPorOtroWrap" style="display:none"><label>Nombre de quien recibe</label><input id="es_recibidoPorOtro" placeholder="Nombre completo"></div>
+          </div>
+          <div id="es_avisoPrevio" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:6px;background:var(--nota-bg);border:1px solid var(--nota-borde);color:var(--nota-tx);font-size:12px"></div>
+          <div id="es_campos"></div>
+          <div class="field" style="margin-top:6px;margin-bottom:14px">
+            <label>Novedades del turno <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+            <textarea id="es_novedades" rows="3" placeholder="Cualquier situación adicional que deba saber quien recibe..."></textarea>
+          </div>
+          <div id="es_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
+          <button class="btn btn-primary" style="width:100%" onclick="guardarEntregaTurnoSala()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <input type="date" id="es_filtroDesde" onchange="renderTablaEntregasSala()" style="margin:0">
+          </div>
+          <div class="field" style="margin:0;min-width:150px">
+            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <input type="date" id="es_filtroHasta" onchange="renderTablaEntregasSala()" style="margin:0">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('es_filtroDesde').value='';document.getElementById('es_filtroHasta').value='';renderTablaEntregasSala()">Limpiar filtro</button>
+        </div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <div id="es_tablaWrap"></div>
+        </div>
+      </div>
+    </div><!-- /cronSub-entregasala -->
+
     <div id="cronSub-compresores" class="inv-subpanel">
       <div class="card" style="margin-bottom:16px">
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Compresores</div>
@@ -10695,6 +10765,7 @@ const SH = {
   cronogramaFotos: 'CronogramaFotos',
   cronogramaAdicionales: 'CronogramaActividadesAdicionales',
   entregaTurno: 'EntregaTurno',
+  entregaTurnoSala: 'EntregaTurnoSala',
   observacionesOperarios: 'ObservacionesOperarios',
   reporteCompresores: 'ReporteCompresores',
   reporteSecadores: 'ReporteSecadores',
@@ -10998,7 +11069,79 @@ function _gruposCompresoresReporte(sede) {
   ];
   return [{ grupo: '', equipos: COMPRESORES_LISTA_REPORTE }];
 }
-const HORAS_REPORTE_COMPRESOR = ['6:00 a.m.', '10:00 a.m.', '2:00 p.m.', '6:00 p.m.', '10:00 p.m.', '2:00 a.m.'];
+
+// ── Entrega de turno de la sala (Zipaquirá 2) ──
+// Al entregar el turno se deja el estado de cada equipo de la sala, todo
+// elegido de listas y con los equipos de la sede (EQUIPOS_ZIPAQUIRA2).
+// Zipaquirá 1 tiene su propia entrega (ENTREGA_TURNO_CAMPOS), con otros equipos.
+// Subestaciones por las que puede estar un compresor (las del archivo de compresores de la sala).
+const SUBESTACIONES_ZIPAQUIRA2 = ['SUB 1', 'SUB 2', 'SUB 3', 'SUB 4A', 'SUB 4B', 'SUB 5', 'SUB 6', 'SUB 7', 'SUB 8', 'SUB 9',
+  'Diésel', 'Térmica', '115 kV', '34,5 kV', 'Trafo Y', 'Trafo Z'];
+const ESTADOS_COMPRESOR_TURNO  = ['Operando', 'Respaldo', 'Fuera de servicio'];
+const ESTADOS_BOMBA_AGUA_TURNO = ['Habilitada', 'No habilitada', 'Fuera de servicio'];
+const ESTADOS_EQUIPO_TURNO     = ['En funcionamiento', 'Detenido', 'Fuera de servicio'];
+// Las bombas de agua de cada línea de la sala (la roja son las Worthington).
+// Cambiarlas es editar esta lista: las entregas ya guardadas conservan sus
+// columnas y una bomba nueva agrega la suya al final.
+const BOMBAS_AGUA_ZIPAQUIRA2 = {
+  'Línea verde': ['Bomba 1', 'Bomba 2', 'Bomba 3'],
+  'Línea roja':  ['Bomba Worthington 8', 'Bomba Worthington 9', 'Bomba Worthington 10', 'Bomba Worthington 11'],
+};
+// Temperaturas en °C, de grado en grado, para elegirlas de una lista.
+const TEMPERATURAS_TURNO = Array.from({ length: 61 }, (_, i) => String(i));
+const TURNOS_ENTREGA_SALA = [
+  { id: 'manana', nombre: 'Mañana', horaInicio: '6:00',  horaFin: '14:00' },
+  { id: 'tarde',  nombre: 'Tarde',  horaInicio: '14:00', horaFin: '22:00' },
+  { id: 'noche',  nombre: 'Noche',  horaInicio: '22:00', horaFin: '6:00' },
+];
+
+function _entregaSalaDisponible(sede) { return sede === 'zipaquira2'; }
+
+/** El turno de ahora y la fecha en que empezó: de medianoche a las 6 a.m.
+ *  sigue el turno de noche del día anterior. */
+function _turnoEntregaSalaAhora(ahora = new Date()) {
+  const h = ahora.getHours();
+  const turno = (h >= 22 || h < 6) ? TURNOS_ENTREGA_SALA[2] : h >= 14 ? TURNOS_ENTREGA_SALA[1] : TURNOS_ENTREGA_SALA[0];
+  const inicio = new Date(ahora);
+  if (h < 6) inicio.setDate(inicio.getDate() - 1);
+  return { turno, fecha: _isoLocal(inicio) };
+}
+
+/** Las secciones del formulario, en el orden de la entrega. Cada ítem es un
+ *  desplegable: `col` es su columna en la hoja; los compresores llevan además
+ *  la subestación (`colSub`). */
+function _seccionesEntregaSala(sede) {
+  if (!_entregaSalaDisponible(sede)) return [];
+  const eq = EQUIPOS_ZIPAQUIRA2;
+  const compresores = (titulo, lista) => ({ titulo, tipo: 'compresor', estados: ESTADOS_COMPRESOR_TURNO,
+    items: lista.map(e => ({ nombre: e, etiqueta: e, col: e + ' · Estado', colSub: e + ' · Subestación' })) });
+  const conEstado = (titulo, lista, estados, linea) => ({ titulo, tipo: 'estado', estados,
+    items: lista.map(e => ({ nombre: e, etiqueta: linea ? `${e} (${linea.toLowerCase()})` : e, col: linea ? linea + ' · ' + e : e })) });
+  return [
+    compresores('Compresores de Baja Presión', eq['Baja Presión']),
+    compresores('Compresores de Alta Presión', eq['Alta Presión']),
+    ...Object.entries(BOMBAS_AGUA_ZIPAQUIRA2).map(([linea, bombas]) =>
+      conEstado('Bombas de agua · ' + linea, bombas, ESTADOS_BOMBA_AGUA_TURNO, linea)),
+    { titulo: 'Temperaturas', tipo: 'temperatura', estados: TEMPERATURAS_TURNO, items: [
+      { nombre: 'Temperatura de sala', etiqueta: 'Temperatura de sala', col: 'TemperaturaSala' },
+      { nombre: 'Temperatura ambiente', etiqueta: 'Temperatura ambiente', col: 'TemperaturaAmbiente' },
+    ] },
+    conEstado('Bombas de vacío', eq['Bombas de Vacío'], ESTADOS_EQUIPO_TURNO),
+    conEstado('Secadores de Alta Presión', eq['Alta Presión Secadores'], ESTADOS_EQUIPO_TURNO),
+    conEstado('Secadores de Baja Presión', eq['Baja Presión Secadores'], ESTADOS_EQUIPO_TURNO),
+  ];
+}
+
+/** Columnas de la hoja: una por cada desplegable, legibles en la propia hoja
+ *  ("JOY 2 · Estado", "Línea verde · Bomba 1"...). Un equipo nuevo en la lista
+ *  agrega su columna al final la próxima vez que se abre. */
+function _columnasEntregaSala(sede) {
+  const cols = ['Codigo', 'Fecha', 'TurnoId', 'TurnoNombre', 'EntregadoPor', 'RecibidoPor'];
+  _seccionesEntregaSala(sede).forEach(s => s.items.forEach(it => { cols.push(it.col); if (it.colSub) cols.push(it.colSub); }));
+  return cols.concat(['Novedades', 'RegistradoPor', 'FechaRegistro', 'Estado']);
+}
+
+const HORAS_REPORTE_COMPRESOR =['6:00 a.m.', '10:00 a.m.', '2:00 p.m.', '6:00 p.m.', '10:00 p.m.', '2:00 a.m.'];
 // Los 34 campos numéricos del formulario, agrupados igual que el original.
 // "hint" es solo informativo (rango normal) — un valor fuera de rango NO
 // bloquea el guardado, tal como indican las instrucciones del formulario
@@ -20011,6 +20154,7 @@ function cronMostrarSubTab(nombre) {
   // está oculta para el operario; esto cubre cualquier otro camino).
   if (nombre === 'observaciones' && !esAdmin()) nombre = 'temporal';
   if (nombre === 'actividades' && operacionActual !== 'zipaquira') nombre = 'temporal';
+  if (nombre === 'entregasala' && !_entregaSalaDisponible(operacionActual)) nombre = 'temporal';
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
@@ -20022,6 +20166,7 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'condiciones') inicializarCondicionesInseguras();
   if (nombre === 'herramienta') inicializarInventarioHerramienta();
   if (nombre === 'dashboard') inicializarDashboardCronograma();
+  if (nombre === 'entregasala') inicializarEntregaTurnoSala();
   if (nombre === 'compresores') inicializarReporteCompresores();
   if (nombre === 'formacion') inicializarReporteMaquinasFormacion();
   if (nombre === 'secadores') inicializarReporteSecadores();
@@ -20209,6 +20354,10 @@ async function inicializarPanelCronograma() {
   Object.entries(pestanasTecnicas).forEach(([nombre, tab]) => { if (tab) tab.style.display = tecnicos.includes(nombre) ? '' : 'none'; });
   const grupoTecnicos = document.getElementById('cronGrupoTecnicos');
   if (grupoTecnicos) grupoTecnicos.style.display = tecnicos.length ? '' : 'none';
+  // La entrega de turno de la sala de compresores (Zipaquirá 2), con sus equipos.
+  const conEntregaSala = _entregaSalaDisponible(operacionActual);
+  const tabEntregaSala = document.getElementById('cronTabEntregaSala');
+  if (tabEntregaSala) tabEntregaSala.style.display = conEntregaSala ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
   if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
   // Sin cronograma no hay día que consultar ni informe que armar: esas dos
@@ -20221,9 +20370,10 @@ async function inicializarPanelCronograma() {
   if (mostrarEntrega) inicializarEntregaTurno();
   // Arranca en "Actividades Temporales" (la pestaña "Actividades" está
   // deshabilitada mientras se corrigen en campo las condiciones de alturas).
-  // Una sede sin cronograma pero con reportes técnicos (Zipaquirá 2) arranca
-  // en el primero de ellos: sus actividades del turno estarían vacías.
-  cronMostrarSubTab(!conCronograma && tecnicos.length ? tecnicos[0] : 'temporal');
+  // Zipaquirá 2 no tiene cronograma (sus actividades del turno estarían
+  // vacías): arranca en su entrega de turno. Una sede sin cronograma ni
+  // entrega, pero con reportes técnicos, arranca en el primero de ellos.
+  cronMostrarSubTab(conEntregaSala ? 'entregasala' : (!conCronograma && tecnicos.length ? tecnicos[0] : 'temporal'));
 
   // Checklist de trabajo (cronograma activo: el temporal si está habilitado).
   // La pestaña "Actividades" (cronograma normal) está deshabilitada con un
@@ -21748,6 +21898,330 @@ ${_construirHtmlReporteCompresor(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   _entregarDocumentoImprimible(html, ventana);
+}
+
+/* ══════════════════════════════════════════════
+   ENTREGA DE TURNO DE LA SALA — Zipaquirá 2.
+   Qué compresores quedan operando y cuáles de
+   respaldo (y por qué subestación), las bombas
+   habilitadas en las líneas de agua, las
+   temperaturas y qué bombas de vacío y secadores
+   funcionan. Todo de listas, con los equipos de la
+   sede; arranca con lo de la última entrega para
+   cambiar solo lo que cambió.
+══════════════════════════════════════════════ */
+let allEntregasSala = [];
+
+function _siguienteCodigoEntregaSala() {
+  return _codigoConsecutivoUnico('ET', allEntregasSala, 3);
+}
+
+/** 'ok' (funciona), 'respaldo', 'mal' (fuera de servicio) o '' — da el color. */
+function _esCategoria(valor) {
+  if (['Operando', 'En funcionamiento', 'Habilitada'].includes(valor)) return 'ok';
+  if (valor === 'Respaldo') return 'respaldo';
+  if (valor === 'Fuera de servicio') return 'mal';
+  return '';
+}
+
+function _esOpciones(lista, valor, etiqueta, vacia = 'Seleccionar...') {
+  return `<option value="">${esc(vacia)}</option>` + lista.map(v =>
+    `<option value="${esc(v)}"${String(valor ?? '') === String(v) ? ' selected' : ''}>${esc(etiqueta ? etiqueta(v) : v)}</option>`).join('');
+}
+
+function _htmlCamposEntregaSala(previa) {
+  return '<div id="es_resumenCompresores" class="es-resumen"></div>' + _seccionesEntregaSala(operacionActual).map(s => {
+    let cuerpo;
+    if (s.tipo === 'compresor') {
+      cuerpo = `<div class="es-tabla-comp">
+        <div class="es-fila-comp es-cab"><span>Compresor</span><span>Estado</span><span>Subestación</span></div>
+        ${s.items.map(it => `<div class="es-fila-comp">
+          <span class="es-nombre">${esc(it.nombre)}</span>
+          <select data-col="${esc(it.col)}" data-tipo="compresor" aria-label="Estado de ${esc(it.etiqueta)}" onchange="_esPintarEstado(this)">${_esOpciones(s.estados, previa?.[it.col], null, 'Estado...')}</select>
+          <select data-col="${esc(it.colSub)}" aria-label="Subestación de ${esc(it.etiqueta)}" onchange="this.classList.remove('es-falta')">${_esOpciones(SUBESTACIONES_ZIPAQUIRA2, previa?.[it.colSub], null, 'Subestación...')}</select>
+        </div>`).join('')}
+      </div>`;
+    } else {
+      // Las temperaturas cambian de un turno a otro: no se llenan con la entrega anterior.
+      const esTemp = s.tipo === 'temperatura';
+      cuerpo = `<div class="es-rejilla">${s.items.map(it => `<div class="field"><label>${esc(it.nombre)}</label>
+        <select data-col="${esc(it.col)}" aria-label="${esc(it.etiqueta)}" onchange="_esPintarEstado(this)">${_esOpciones(s.estados, esTemp ? '' : previa?.[it.col], esTemp ? v => v + ' °C' : null)}</select></div>`).join('')}</div>`;
+    }
+    return `<div class="es-seccion"><div class="es-titulo">${esc(s.titulo)}</div>${cuerpo}</div>`;
+  }).join('');
+}
+
+function _esPintarEstado(sel) {
+  sel.dataset.estado = _esCategoria(sel.value);
+  sel.classList.remove('es-falta');
+  _esActualizarResumen();
+}
+
+/** "Operando: 8 · Respaldo: 10 · Fuera de servicio: 4", en vivo. */
+function _esActualizarResumen() {
+  const el = document.getElementById('es_resumenCompresores');
+  if (!el) return;
+  const estados = [...document.querySelectorAll('#es_campos select[data-tipo="compresor"]')].map(s => s.value);
+  el.textContent = estados.some(Boolean) ? _esTextoConteo(estados) : '';
+}
+
+function _esTextoConteo(estados) {
+  return ESTADOS_COMPRESOR_TURNO.map(e => `${e}: ${estados.filter(x => x === e).length}`).join(' · ');
+}
+
+/** Quienes ya entregaron o recibieron turno en la sede, más quien está en la
+ *  app (sin nombres escritos en el código). Uno nuevo entra por "Otra persona". */
+function _nombresEntregaSala() {
+  const nombres = new Map();
+  const agregar = v => { const n = _normalizarNombreOperario(v); if (n && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n); };
+  agregar(currentUser?.name);
+  allEntregasSala.forEach(r => { agregar(r.EntregadoPor); agregar(r.RecibidoPor); });
+  return [...nombres.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function _esLlenarPersonas(valores) {
+  const nombres = _nombresEntregaSala();
+  ['entregadoPor', 'recibidoPor'].forEach(k => {
+    const sel = document.getElementById('es_' + k);
+    const valor = valores[k];
+    sel.innerHTML = '<option value="">Seleccionar...</option>'
+      + nombres.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+      + '<option value="Otras">Otra persona...</option>';
+    sel.value = valor === 'Otras' || nombres.includes(valor) ? valor : '';
+    _esMostrarOtro(k);
+  });
+}
+
+function _esMostrarOtro(k) {
+  document.getElementById('es_' + k + 'OtroWrap').style.display = document.getElementById('es_' + k).value === 'Otras' ? '' : 'none';
+  document.getElementById('es_' + k).classList.remove('es-falta');
+}
+
+function _esPersona(k) {
+  const v = document.getElementById('es_' + k).value;
+  return v === 'Otras' ? _normalizarNombreOperario(document.getElementById('es_' + k + 'Otro').value) : v;
+}
+
+function _esPintarCampos(previa) {
+  document.getElementById('es_campos').innerHTML = _htmlCamposEntregaSala(previa);
+  document.querySelectorAll('#es_campos select[data-col]').forEach(s => { s.dataset.estado = _esCategoria(s.value); });
+  _esActualizarResumen();
+  const aviso = document.getElementById('es_avisoPrevio');
+  aviso.style.display = previa ? '' : 'none';
+  aviso.textContent = previa
+    ? `Se llenó con la última entrega (${fmtFecha(previa.Fecha)}, turno ${previa.TurnoNombre || ''}). Revisa cada equipo y cambia lo que haya cambiado; las temperaturas van vacías.`
+    : '';
+}
+
+/** Se llama al abrir la pestaña "Entrega de Turno". */
+async function inicializarEntregaTurnoSala() {
+  document.getElementById('es_msg').textContent = '';
+  const { turno, fecha } = _turnoEntregaSalaAhora();
+  const selTurno = document.getElementById('es_turno');
+  selTurno.innerHTML = TURNOS_ENTREGA_SALA.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
+  selTurno.value = turno.id;
+  const fechaEl = document.getElementById('es_fecha');
+  fechaEl.value = fecha;
+  fechaEl.max = _isoLocal(new Date());
+  document.getElementById('es_novedades').value = '';
+  document.getElementById('es_entregadoPorOtro').value = '';
+  document.getElementById('es_recibidoPorOtro').value = '';
+  _esLlenarPersonas({ entregadoPor: currentUser?.name || '', recibidoPor: '' });
+  // Los equipos se pintan cuando llega la última entrega, para no borrarle
+  // a nadie lo que alcance a elegir mientras tanto.
+  document.getElementById('es_campos').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3)">Cargando la última entrega...</div>';
+  document.getElementById('es_avisoPrevio').style.display = 'none';
+
+  const wrap = document.getElementById('es_tablaWrap');
+  wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando entregas...</div>';
+  try {
+    await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
+    allEntregasSala = await _cargarReportesTecnicos('es', SH.entregaTurnoSala);
+    _esPintarCampos(allEntregasSala[0] || null);
+    _esLlenarPersonas({ entregadoPor: document.getElementById('es_entregadoPor').value || currentUser?.name || '',
+      recibidoPor: document.getElementById('es_recibidoPor').value });
+    renderTablaEntregasSala();
+  } catch (e) {
+    _esPintarCampos(null);
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
+  }
+}
+
+async function guardarEntregaTurnoSala() {
+  const msg = document.getElementById('es_msg');
+  msg.style.color = 'var(--danger)';
+  const fecha = document.getElementById('es_fecha').value;
+  const turno = TURNOS_ENTREGA_SALA.find(t => t.id === document.getElementById('es_turno').value);
+  const entregadoPor = _esPersona('entregadoPor');
+  const recibidoPor = _esPersona('recibidoPor');
+  if (!fecha || !turno || !entregadoPor) {
+    if (!entregadoPor) document.getElementById('es_entregadoPor').classList.add('es-falta');
+    msg.textContent = 'Completa la fecha, el turno y quién entrega el turno.';
+    return;
+  }
+  if (fecha > _isoLocal(new Date())) { msg.textContent = 'La fecha del turno no puede ser posterior a hoy.'; return; }
+
+  const selects = [...document.querySelectorAll('#es_campos select[data-col]')];
+  if (!selects.length) { msg.textContent = 'Espera a que carguen los equipos.'; return; }
+  const faltan = selects.filter(s => !s.value);
+  selects.forEach(s => s.classList.toggle('es-falta', !s.value));
+  if (faltan.length) {
+    const nombres = faltan.slice(0, 4).map(s => s.getAttribute('aria-label')).join(', ');
+    msg.textContent = `Falta elegir ${faltan.length === 1 ? '1 dato' : faltan.length + ' datos'}: ${nombres}${faltan.length > 4 ? '...' : ''}.`;
+    faltan[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  const repetida = allEntregasSala.find(r => r.Fecha === fecha && r.TurnoId === turno.id);
+  if (repetida && !(await confirmarAccion({
+    titulo: 'Ese turno ya tiene entrega',
+    texto: `El turno ${turno.nombre} del ${fmtFecha(fecha)} ya lo entregó ${repetida.EntregadoPor || '—'} (${repetida.Codigo}). ¿Guardar otra entrega para el mismo turno?`,
+    aceptar: 'Guardar otra', cancelar: 'Revisar' }))) return;
+
+  msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
+  try {
+    const colsHoja = await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
+    const porColumna = {
+      Codigo: _siguienteCodigoEntregaSala(), Fecha: fecha, TurnoId: turno.id, TurnoNombre: turno.nombre,
+      EntregadoPor: entregadoPor, RecibidoPor: recibidoPor,
+      Novedades: document.getElementById('es_novedades').value.trim(),
+      RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
+      FechaRegistro: new Date().toISOString(), Estado: 'Activo',
+    };
+    selects.forEach(s => { porColumna[s.dataset.col] = s.value; });
+    await appendHoja(SH.entregaTurnoSala, [colsHoja.map(c => porColumna[c] ?? '')]);
+    _invalidarCacheHoja(SH.entregaTurnoSala);
+    await inicializarEntregaTurnoSala();
+    msg.style.color = 'var(--estado-ok-tx)';
+    msg.textContent = `Entrega de turno ${porColumna.Codigo} guardada.`;
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
+  }
+}
+
+const _ENTREGAS_SALA_SIN_FILTRO = 10;
+
+function renderTablaEntregasSala() {
+  const wrap = document.getElementById('es_tablaWrap');
+  if (_traerReportesSiFaltan('es', SH.entregaTurnoSala, f => { allEntregasSala = f; }, renderTablaEntregasSala)) return;
+  if (!allEntregasSala.length) {
+    wrap.innerHTML = _estadoVacio({ icono: 'lista', titulo: 'Todavía no hay entregas de turno', detalle: 'La primera que se guarde aparece aquí.' });
+    return;
+  }
+  // Sin fechas se ven las últimas; con Desde/Hasta, ese rango.
+  const conFiltro = document.getElementById('es_filtroDesde').value || document.getElementById('es_filtroHasta').value;
+  const filas = conFiltro ? _filtrarReportesPorFecha(allEntregasSala, 'es') : allEntregasSala.slice(0, _ENTREGAS_SALA_SIN_FILTRO);
+  if (!filas.length) { wrap.innerHTML = _estadoVacioFiltroFecha('es'); return; }
+  const colsComp = _seccionesEntregaSala(operacionActual).filter(s => s.tipo === 'compresor').flatMap(s => s.items.map(it => it.col));
+  const iconoVer = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+  const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+  const th = (t, centro) => `<th style="padding:8px 10px;text-align:${centro ? 'center' : 'left'};border-bottom:2px solid var(--border)">${t}</th>`;
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--surface2)">${th('Código')}${th('Fecha')}${th('Turno')}${th('Entregó')}${th('Recibió')}${th('Compresores')}${th('', true)}</tr></thead><tbody>`;
+  filas.forEach(r => {
+    const estados = colsComp.map(c => r[c]);
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
+      <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
+      <td style="padding:7px 10px">${esc(r.TurnoNombre)}</td>
+      <td style="padding:7px 10px">${esc(r.EntregadoPor)}</td>
+      <td style="padding:7px 10px">${esc(r.RecibidoPor || '—')}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2)">${esc(_esTextoConteo(estados))}</td>
+      <td style="padding:7px 10px;text-align:center;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" title="Ver" onclick="verEntregaSala(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button class="btn btn-ghost btn-sm" title="PDF" onclick="exportarEntregaSalaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button class="btn btn-ghost btn-sm solo-admin" title="Eliminar" onclick="eliminarEntregaSala(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  if (!conFiltro && allEntregasSala.length > filas.length) {
+    html += `<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Se ven las ${filas.length} últimas. Usa Desde/Hasta para ver otras.</div>`;
+  }
+  wrap.innerHTML = html;
+}
+
+/** HTML de una entrega (el mismo para la vista en pantalla y el PDF). */
+function _construirHtmlEntregaSala(r, conTitulo = true) {
+  const estilos = { ok: 'background:var(--estado-ok-bg);color:var(--estado-ok-tx)', respaldo: 'background:var(--brand-light);color:var(--brand)',
+    mal: 'background:var(--estado-peligro-bg);color:var(--estado-peligro-tx)', '': 'background:var(--surface2);color:var(--text2)' };
+  const chip = v => `<span style="display:inline-block;padding:1px 8px;border-radius:999px;font-weight:700;font-size:11px;${estilos[_esCategoria(v)]}">${esc(v || '—')}</span>`;
+  const caja = (titulo, contenido) => `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:6px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:var(--surface2);color:var(--brand);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px">${esc(titulo)}</div>${contenido}</div>`;
+  const secciones = _seccionesEntregaSala(operacionActual).map(s => {
+    if (s.tipo === 'compresor') {
+      return caja(s.titulo, `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr><th style="text-align:left;padding:5px 10px;color:var(--text3);font-size:10px">COMPRESOR</th><th style="text-align:left;padding:5px 10px;color:var(--text3);font-size:10px">ESTADO</th><th style="text-align:left;padding:5px 10px;color:var(--text3);font-size:10px">SUBESTACIÓN</th></tr></thead>
+        <tbody>${s.items.map(it => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 10px;font-weight:700">${esc(it.nombre)}</td><td style="padding:5px 10px">${chip(r[it.col])}</td><td style="padding:5px 10px">${esc(r[it.colSub] || '—')}</td></tr>`).join('')}</tbody></table>`);
+    }
+    const valor = (it) => s.tipo === 'temperatura'
+      ? `<b>${r[it.col] !== undefined && r[it.col] !== '' ? esc(r[it.col]) + ' °C' : '—'}</b>` : chip(r[it.col]);
+    return caja(s.titulo, `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${s.items.map(it =>
+      `<div style="padding:7px 10px;border-left:1px solid var(--border);font-size:12px"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">${esc(it.nombre)}</div>${valor(it)}</div>`).join('')}</div>`);
+  }).join('');
+  const titulo = `Entrega de Turno — ${esc(r.Codigo)}`;
+  return `
+    ${conTitulo ? `<h1 style="color:var(--brand);font-size:18px;text-align:center;margin-bottom:6px">${titulo}</h1>` : ''}
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:13px;color:var(--text2);margin-bottom:14px">
+      <b>${esc(OPERACIONES[operacionActual]?.nombre || '')}</b> &nbsp;·&nbsp; ${esc(fmtFecha(r.Fecha))} · Turno ${esc(r.TurnoNombre)}
+      &nbsp;·&nbsp; <b>Entregó:</b> ${esc(r.EntregadoPor || '—')} &nbsp;·&nbsp; <b>Recibió:</b> ${esc(r.RecibidoPor || '—')}
+    </div>
+    <div style="${conTitulo ? 'text-align:center;' : ''}font-size:12px;color:var(--text2);margin-bottom:12px">Compresores — ${esc(_esTextoConteo(_seccionesEntregaSala(operacionActual).filter(s => s.tipo === 'compresor').flatMap(s => s.items.map(it => r[it.col]))))}</div>
+    ${secciones}
+    ${r.Novedades ? caja('Novedades del turno', `<div style="padding:8px 10px;font-size:12px;white-space:pre-wrap">${esc(r.Novedades)}</div>`) : ''}
+  `;
+}
+
+function verEntregaSala(codigo) {
+  const r = allEntregasSala.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:12px;max-width:720px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center">
+        <span>Entrega de Turno — ${esc(r.Codigo)}</span>
+        <span onclick="this.closest('div[style*=fixed]').remove()" style="cursor:pointer;font-size:18px">✕</span>
+      </div>
+      <div style="padding:20px">${_construirHtmlEntregaSala(r, false)}</div>
+    </div>`;
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function exportarEntregaSalaPDF(codigo) {
+  const r = allEntregasSala.find(x => x.Codigo === codigo);
+  if (!r) return;
+  const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Entrega de Turno — ${esc(r.Codigo)}${OPERACIONES[operacionActual] ? ' — ' + esc(OPERACIONES[operacionActual].nombre) : ''}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
+  @media print{body{padding:0}}
+</style></head><body>
+${_construirHtmlEntregaSala(r)}
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+  _entregarDocumentoImprimible(html, ventana);
+}
+
+async function eliminarEntregaSala(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede eliminar entregas de turno.'); return; }
+  if (!(await confirmarAccion({ titulo: '¿Eliminar esta entrega de turno?', texto: 'Esta acción no se puede deshacer.', aceptar: 'Eliminar entrega', peligro: true }))) return;
+  const fila = allEntregasSala.find(r => r.Codigo === codigo);
+  if (!fila) return;
+  try {
+    const colsHoja = await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
+    const colEstado = numToCol(colsHoja.indexOf('Estado'));
+    await sheetsRequest('UPDATE', SH.entregaTurnoSala + '!' + colEstado + fila._row, [['Eliminada']]);
+    _invalidarCacheHoja(SH.entregaTurnoSala);
+    // Solo se recarga la lista: el formulario puede estar a medio llenar.
+    allEntregasSala = await _cargarReportesTecnicos('es', SH.entregaTurnoSala);
+    renderTablaEntregasSala();
+  } catch (e) {
+    alert('Error al eliminar: ' + e.message);
+  }
 }
 
 /* ══════════════════════════════════════════════
