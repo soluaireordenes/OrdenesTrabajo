@@ -1448,6 +1448,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       document.getElementById('rc_tecnicoOtro').value = 'Técnico Uno';
       out.camposBaja = llenar('JOY 2', '12.5', '45300');
       out.sinPdt = !document.getElementById('rc_pdtFiltroAire') && !/PDT/.test(document.getElementById('rc_camposMediciones').textContent);
+      out.sinEstator = ['A', 'B', 'C'].every(l => !document.getElementById('rc_tempEstator' + l)) && !/estator/i.test(document.getElementById('rc_camposMediciones').textContent);
       await guardarReporteCompresor();
       out.msgBaja = document.getElementById('rc_msg').textContent;
       // Alta: CA1, ya con el técnico en la lista
@@ -1483,7 +1484,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         horaFecha: getComputedStyle(document.getElementById('rc_estadoHoraFecha').closest('.field')).display !== 'none',
       };
       document.getElementById('rc_compresor').value = 'Compresor de Baja Presión #1'; _actualizarCamposMedicionesCompresor();
-      out.zipa1.pdt = !!document.getElementById('rc_pdtFiltroAire');
+      out.zipa1.pdt = !!document.getElementById('rc_pdtFiltroAire') && ['A', 'B', 'C'].every(l => !!document.getElementById('rc_tempEstator' + l));
       out.avisos = avisos;
       return out;
     });
@@ -1496,8 +1497,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores (Reportes arranca en la entrega de turno), sin franja horaria y con sus 18 compresores sin los IR',
       r.tecnicas === 'Compresores' && r.abreEn === 'entregasala' && r.horaOculta && r.horaFechaOculta && r.fechaEditable
       && r.grupos === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
-    check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá menos la PDT del filtro de aire y sin la pregunta de hora/fecha del compresor; se guardan sin hora y las horas pasan al Plan',
-      r.camposBaja === 38 && r.camposAlta === 34 && r.sinPdt && filaJoy[col(rep, 'EstadoHoraFecha')] === '' && filaJoy[col(rep, 'BPDTFiltroAire')] === '' && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
+    check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá menos la PDT del filtro de aire y las temperaturas de estator A, B y C, y sin la pregunta de hora/fecha del compresor; se guardan sin hora y las horas pasan al Plan',
+      r.camposBaja === 35 && r.camposAlta === 34 && r.sinPdt && r.sinEstator && filaJoy[col(rep, 'EstadoHoraFecha')] === '' && filaJoy[col(rep, 'BPDTFiltroAire')] === ''
+      && filaJoy[col(rep, 'BTempEstatorA')] === '' && filaJoy[col(rep, 'BTempEstatorC')] === '' && /Horas de JOY 2 actualizadas/.test(r.msgBaja) && /Horas de CA1 actualizadas/.test(r.msgAlta)
       && rep.length === 3 && filaJoy[col(rep, 'Hora')] === '' && filaJoy[col(rep, 'BHorasUso')] === '45300' && filaJoy[col(rep, 'TecnicoOtro')] === 'Técnico Uno'
       && filaCa[col(rep, 'HorasUso')] === '30100' && filaCa[col(rep, 'Tecnico')] === 'Técnico Uno' && filaCa[col(rep, 'BHorasUso')] === ''
       && horasDe('JOY 2') === '45300' && horasDe('CA1') === '30100' && r.tecnicoEnLista,
@@ -1506,7 +1508,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /^\d{1,2}:\d{2}/.test(r.tabla.split('/')[0]) && !/undefined|NaN/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.verReporte)
       && /El horómetro de JOY 2 no debería bajar/.test(r.preguntaHorometro) && /no puede ser posterior a hoy/.test(r.futura),
       { tabla: r.tabla, pregunta: r.preguntaHorometro, futura: r.futura });
-    check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores, su lista de técnicos, la pregunta de hora/fecha y la PDT',
+    check('Reporte de compresores: Zipaquirá 1 sigue con sus 7 reportes técnicos, la franja horaria, sus 7 compresores, su lista de técnicos, la pregunta de hora/fecha, la PDT y las temperaturas de estator',
       r.zipa1.tecnicas === 7 && r.zipa1.hora && r.zipa1.fechaFija && r.zipa1.compresores === 7 && r.zipa1.tecnicos > 10
       && r.zipa1.horaFecha && r.zipa1.pdt, r.zipa1);
     check('Reporte de compresores Zipaquirá 2: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });

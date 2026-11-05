@@ -11051,11 +11051,13 @@ const COMPRESORES_LISTA_REPORTE = [
 // Zipaquirá 2, por ahora, solo lleva el de los compresores de su sala: con
 // los campos de Zipaquirá 1 (los de Alta o los de Baja según el grupo del
 // compresor), sin los IR, sin franja horaria, sin la pregunta de si la hora
-// y la fecha del compresor están bien y sin la PDT del filtro de aire.
+// y la fecha del compresor están bien, y en los de Baja sin la PDT del filtro
+// de aire ni las temperaturas de estator A, B y C.
 // camposOmitidos: ids de REPORTE_COMPRESORES_CAMPOS(_BAJA) que la sede no lleva.
 const REPORTES_TECNICOS_POR_SEDE = {
   zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true },
-  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, camposOmitidos: ['pdtFiltroAire'] },
+  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true,
+    camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
