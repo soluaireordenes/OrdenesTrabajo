@@ -1075,7 +1075,7 @@ body.rol-operario .solo-admin { display: none !important; }
 #es_campos select[data-estado="ok"]       { background: var(--estado-ok-bg); color: var(--estado-ok-tx); border-color: var(--estado-ok-tx); }
 #es_campos select[data-estado="respaldo"] { background: var(--brand-light); color: var(--brand); border-color: var(--brand); }
 #es_campos select[data-estado="mal"]      { background: var(--estado-peligro-bg); color: var(--estado-peligro-tx); border-color: var(--estado-peligro-tx); }
-#cronSub-entregasala select.es-falta { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(198,40,40,.18); }
+#cronSub-entregasala .es-falta { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(198,40,40,.18); }
 
 /* ── Signature field ── */
 .sig-pad {
@@ -3111,10 +3111,8 @@ body.rol-operario .btn-principal-operario {
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin-bottom:12px">
             <div class="field"><label>Fecha del turno *</label><input type="date" id="es_fecha"></div>
             <div class="field"><label>Turno *</label><select id="es_turno"></select></div>
-            <div class="field"><label>Entregado por *</label><select id="es_entregadoPor" onchange="_esMostrarOtro('entregadoPor')"></select></div>
-            <div class="field" id="es_entregadoPorOtroWrap" style="display:none"><label>Nombre de quien entrega</label><input id="es_entregadoPorOtro" placeholder="Nombre completo"></div>
-            <div class="field"><label>Recibido por</label><select id="es_recibidoPor" onchange="_esMostrarOtro('recibidoPor')"></select></div>
-            <div class="field" id="es_recibidoPorOtroWrap" style="display:none"><label>Nombre de quien recibe</label><input id="es_recibidoPorOtro" placeholder="Nombre completo"></div>
+            <div class="field"><label>Entregado por *</label><input id="es_entregadoPor" aria-label="Entregado por" placeholder="Nombre de quien entrega" oninput="this.classList.remove('es-falta')"></div>
+            <div class="field"><label>Recibido por</label><input id="es_recibidoPor" aria-label="Recibido por" placeholder="Nombre de quien recibe"></div>
           </div>
           <div id="es_avisoPrevio" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:6px;background:var(--nota-bg);border:1px solid var(--nota-borde);color:var(--nota-tx);font-size:12px"></div>
           <div id="es_campos"></div>
@@ -11087,8 +11085,6 @@ const BOMBAS_AGUA_ZIPAQUIRA2 = {
   'Línea verde': ['Bomba 1', 'Bomba 2', 'Bomba 3'],
   'Línea roja':  ['Bomba Worthington 8', 'Bomba Worthington 9', 'Bomba Worthington 10', 'Bomba Worthington 11'],
 };
-// Temperaturas en °C, de grado en grado, para elegirlas de una lista.
-const TEMPERATURAS_TURNO = Array.from({ length: 61 }, (_, i) => String(i));
 const TURNOS_ENTREGA_SALA = [
   { id: 'manana', nombre: 'Mañana', horaInicio: '6:00',  horaFin: '14:00' },
   { id: 'tarde',  nombre: 'Tarde',  horaInicio: '14:00', horaFin: '22:00' },
@@ -11122,7 +11118,8 @@ function _seccionesEntregaSala(sede) {
     compresores('Compresores de Alta Presión', eq['Alta Presión']),
     ...Object.entries(BOMBAS_AGUA_ZIPAQUIRA2).map(([linea, bombas]) =>
       conEstado('Bombas de agua · ' + linea, bombas, ESTADOS_BOMBA_AGUA_TURNO, linea)),
-    { titulo: 'Temperaturas', tipo: 'temperatura', estados: TEMPERATURAS_TURNO, items: [
+    // Las temperaturas se escriben (°C): son las únicas que no van en lista.
+    { titulo: 'Temperaturas', tipo: 'temperatura', items: [
       { nombre: 'Temperatura de sala', etiqueta: 'Temperatura de sala', col: 'TemperaturaSala' },
       { nombre: 'Temperatura ambiente', etiqueta: 'Temperatura ambiente', col: 'TemperaturaAmbiente' },
     ] },
@@ -21906,9 +21903,10 @@ ${_construirHtmlReporteCompresor(r)}
    respaldo (y por qué subestación), las bombas
    habilitadas en las líneas de agua, las
    temperaturas y qué bombas de vacío y secadores
-   funcionan. Todo de listas, con los equipos de la
-   sede; arranca con lo de la última entrega para
-   cambiar solo lo que cambió.
+   funcionan. Los equipos van en listas, con los de
+   la sede, y arrancan con lo de la última entrega
+   para cambiar solo lo que cambió; quién entrega y
+   recibe y las temperaturas se escriben.
 ══════════════════════════════════════════════ */
 let allEntregasSala = [];
 
@@ -21941,11 +21939,13 @@ function _htmlCamposEntregaSala(previa) {
           <select data-col="${esc(it.colSub)}" aria-label="Subestación de ${esc(it.etiqueta)}" onchange="this.classList.remove('es-falta')">${_esOpciones(SUBESTACIONES_ZIPAQUIRA2, previa?.[it.colSub], null, 'Subestación...')}</select>
         </div>`).join('')}
       </div>`;
+    } else if (s.tipo === 'temperatura') {
+      // Se escriben y cambian de un turno a otro: no se llenan con la entrega anterior.
+      cuerpo = `<div class="es-rejilla">${s.items.map(it => `<div class="field"><label>${esc(it.nombre)} (°C)</label>
+        <input data-col="${esc(it.col)}" aria-label="${esc(it.etiqueta)}" inputmode="decimal" placeholder="Ej. 28" oninput="this.classList.remove('es-falta')"></div>`).join('')}</div>`;
     } else {
-      // Las temperaturas cambian de un turno a otro: no se llenan con la entrega anterior.
-      const esTemp = s.tipo === 'temperatura';
       cuerpo = `<div class="es-rejilla">${s.items.map(it => `<div class="field"><label>${esc(it.nombre)}</label>
-        <select data-col="${esc(it.col)}" aria-label="${esc(it.etiqueta)}" onchange="_esPintarEstado(this)">${_esOpciones(s.estados, esTemp ? '' : previa?.[it.col], esTemp ? v => v + ' °C' : null)}</select></div>`).join('')}</div>`;
+        <select data-col="${esc(it.col)}" aria-label="${esc(it.etiqueta)}" onchange="_esPintarEstado(this)">${_esOpciones(s.estados, previa?.[it.col])}</select></div>`).join('')}</div>`;
     }
     return `<div class="es-seccion"><div class="es-titulo">${esc(s.titulo)}</div>${cuerpo}</div>`;
   }).join('');
@@ -21967,39 +21967,6 @@ function _esActualizarResumen() {
 
 function _esTextoConteo(estados) {
   return ESTADOS_COMPRESOR_TURNO.map(e => `${e}: ${estados.filter(x => x === e).length}`).join(' · ');
-}
-
-/** Quienes ya entregaron o recibieron turno en la sede, más quien está en la
- *  app (sin nombres escritos en el código). Uno nuevo entra por "Otra persona". */
-function _nombresEntregaSala() {
-  const nombres = new Map();
-  const agregar = v => { const n = _normalizarNombreOperario(v); if (n && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n); };
-  agregar(currentUser?.name);
-  allEntregasSala.forEach(r => { agregar(r.EntregadoPor); agregar(r.RecibidoPor); });
-  return [...nombres.values()].sort((a, b) => a.localeCompare(b, 'es'));
-}
-
-function _esLlenarPersonas(valores) {
-  const nombres = _nombresEntregaSala();
-  ['entregadoPor', 'recibidoPor'].forEach(k => {
-    const sel = document.getElementById('es_' + k);
-    const valor = valores[k];
-    sel.innerHTML = '<option value="">Seleccionar...</option>'
-      + nombres.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
-      + '<option value="Otras">Otra persona...</option>';
-    sel.value = valor === 'Otras' || nombres.includes(valor) ? valor : '';
-    _esMostrarOtro(k);
-  });
-}
-
-function _esMostrarOtro(k) {
-  document.getElementById('es_' + k + 'OtroWrap').style.display = document.getElementById('es_' + k).value === 'Otras' ? '' : 'none';
-  document.getElementById('es_' + k).classList.remove('es-falta');
-}
-
-function _esPersona(k) {
-  const v = document.getElementById('es_' + k).value;
-  return v === 'Otras' ? _normalizarNombreOperario(document.getElementById('es_' + k + 'Otro').value) : v;
 }
 
 function _esPintarCampos(previa) {
@@ -22024,9 +21991,8 @@ async function inicializarEntregaTurnoSala() {
   fechaEl.value = fecha;
   fechaEl.max = _isoLocal(new Date());
   document.getElementById('es_novedades').value = '';
-  document.getElementById('es_entregadoPorOtro').value = '';
-  document.getElementById('es_recibidoPorOtro').value = '';
-  _esLlenarPersonas({ entregadoPor: currentUser?.name || '', recibidoPor: '' });
+  // Quién entrega y quién recibe se escriben en cada entrega (cambian de un turno a otro).
+  ['es_entregadoPor', 'es_recibidoPor'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('es-falta'); });
   // Los equipos se pintan cuando llega la última entrega, para no borrarle
   // a nadie lo que alcance a elegir mientras tanto.
   document.getElementById('es_campos').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3)">Cargando la última entrega...</div>';
@@ -22038,8 +22004,6 @@ async function inicializarEntregaTurnoSala() {
     await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
     allEntregasSala = await _cargarReportesTecnicos('es', SH.entregaTurnoSala);
     _esPintarCampos(allEntregasSala[0] || null);
-    _esLlenarPersonas({ entregadoPor: document.getElementById('es_entregadoPor').value || currentUser?.name || '',
-      recibidoPor: document.getElementById('es_recibidoPor').value });
     renderTablaEntregasSala();
   } catch (e) {
     _esPintarCampos(null);
@@ -22052,23 +22016,31 @@ async function guardarEntregaTurnoSala() {
   msg.style.color = 'var(--danger)';
   const fecha = document.getElementById('es_fecha').value;
   const turno = TURNOS_ENTREGA_SALA.find(t => t.id === document.getElementById('es_turno').value);
-  const entregadoPor = _esPersona('entregadoPor');
-  const recibidoPor = _esPersona('recibidoPor');
-  if (!fecha || !turno || !entregadoPor) {
-    if (!entregadoPor) document.getElementById('es_entregadoPor').classList.add('es-falta');
-    msg.textContent = 'Completa la fecha, el turno y quién entrega el turno.';
-    return;
-  }
+  const entregadoEl = document.getElementById('es_entregadoPor');
+  const entregadoPor = _normalizarNombreOperario(entregadoEl.value);
+  const recibidoPor = _normalizarNombreOperario(document.getElementById('es_recibidoPor').value);
+  if (!fecha || !turno) { msg.textContent = 'Completa la fecha y el turno.'; return; }
   if (fecha > _isoLocal(new Date())) { msg.textContent = 'La fecha del turno no puede ser posterior a hoy.'; return; }
 
-  const selects = [...document.querySelectorAll('#es_campos select[data-col]')];
-  if (!selects.length) { msg.textContent = 'Espera a que carguen los equipos.'; return; }
-  const faltan = selects.filter(s => !s.value);
-  selects.forEach(s => s.classList.toggle('es-falta', !s.value));
+  const campos = [...document.querySelectorAll('#es_campos [data-col]')];
+  if (!campos.length) { msg.textContent = 'Espera a que carguen los equipos.'; return; }
+  const revisar = [entregadoEl, ...campos];
+  const faltan = revisar.filter(c => !c.value.trim());
+  revisar.forEach(c => c.classList.toggle('es-falta', !c.value.trim()));
   if (faltan.length) {
-    const nombres = faltan.slice(0, 4).map(s => s.getAttribute('aria-label')).join(', ');
-    msg.textContent = `Falta elegir ${faltan.length === 1 ? '1 dato' : faltan.length + ' datos'}: ${nombres}${faltan.length > 4 ? '...' : ''}.`;
+    const nombres = faltan.slice(0, 4).map(c => c.getAttribute('aria-label')).join(', ');
+    msg.textContent = `Falta llenar ${faltan.length === 1 ? '1 dato' : faltan.length + ' datos'}: ${nombres}${faltan.length > 4 ? '...' : ''}.`;
     faltan[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  // Las temperaturas: solo el número en °C (acepta coma o punto para decimales).
+  const temperaturas = campos.filter(c => c.tagName === 'INPUT');
+  temperaturas.forEach(c => { c.value = c.value.trim().replace(',', '.'); });
+  const tempMala = temperaturas.find(c => !_esNumeroDecimal(c.value));
+  if (tempMala) {
+    tempMala.classList.add('es-falta');
+    msg.textContent = `${tempMala.getAttribute('aria-label')}: escribe solo el número en °C (por ejemplo 28 o 28.5).`;
+    tempMala.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -22088,7 +22060,7 @@ async function guardarEntregaTurnoSala() {
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
       FechaRegistro: new Date().toISOString(), Estado: 'Activo',
     };
-    selects.forEach(s => { porColumna[s.dataset.col] = s.value; });
+    campos.forEach(c => { porColumna[c.dataset.col] = c.value.trim(); });
     await appendHoja(SH.entregaTurnoSala, [colsHoja.map(c => porColumna[c] ?? '')]);
     _invalidarCacheHoja(SH.entregaTurnoSala);
     await inicializarEntregaTurnoSala();

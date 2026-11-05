@@ -1508,9 +1508,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Entrega de turno de la sala de Zipaquirá 2: todo con listas y con los
-    // equipos de la sede; una columna por equipo en la hoja, la siguiente
-    // entrega arranca con lo de la última y Zipaquirá 1 no la ve.
+    // Entrega de turno de la sala de Zipaquirá 2: los equipos con listas y
+    // los de la sede; quién entrega y recibe y las temperaturas se escriben.
+    // Una columna por equipo en la hoja, la siguiente entrega arranca con los
+    // equipos de la última y Zipaquirá 1 no la ve.
     const fake = sheetsEnMemoria();
     const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
     const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
@@ -1521,54 +1522,57 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
       operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
       await showPanel('cronograma'); await espera(800);
-      const sels = () => [...document.querySelectorAll('#es_campos select[data-col]')];
-      const de = c => sels().find(s => s.dataset.col === c);
+      const campos = () => [...document.querySelectorAll('#es_campos [data-col]')];
+      const sels = () => campos().filter(c => c.tagName === 'SELECT');
+      const de = c => campos().find(s => s.dataset.col === c);
       const opciones = s => [...s.options].map(o => o.value).filter(Boolean);
       const activa = () => document.querySelector('#panel-cronograma .inv-subtab.active')?.dataset.crontab;
+      const msg = () => document.getElementById('es_msg').textContent;
+      const entregaEl = document.getElementById('es_entregadoPor'), recibeEl = document.getElementById('es_recibidoPor');
       const out = {
         abreEn: activa(),
-        total: sels().length,
-        textoLibre: document.querySelectorAll('#es_campos input, #es_campos textarea').length,
+        listas: sels().length,
+        temperaturas: ['TemperaturaSala', 'TemperaturaAmbiente'].map(c => de(c).tagName).join(','),
+        personas: [entregaEl.tagName, recibeEl.tagName, entregaEl.value, recibeEl.value].join(','),
         estadosComp: opciones(de('JOY 2 · Estado')).join(','),
         subestaciones: opciones(de('JOY 2 · Subestación')).join(','),
         conIR12: !!de('IR 12 · Estado') && !!de('TA 18 · Subestación'),
         bombaVerde: opciones(de('Línea verde · Bomba 1')).join(','),
         bombas: ['verde', 'roja'].map(l => sels().filter(s => s.dataset.col.startsWith('Línea ' + l + ' · ')).map(s => s.dataset.col.split(' · ')[1]).join(',')).join(' | '),
-        temperaturas: opciones(de('TemperaturaSala')).length + '/' + opciones(de('TemperaturaAmbiente')).length,
         vacio: opciones(de('BOMBA DE VACIO PNEUMOFORE 3')).join(','),
         secadores: ['Secador Kaeser 1', 'Secador Pneumatic Products', 'Secador General Pneumatics'].every(n => !!de(n)),
         turnos: [...document.querySelectorAll('#es_turno option')].map(o => o.textContent).join(' | '),
-        entrega: document.getElementById('es_entregadoPor').value,
       };
-      // Sin elegir los equipos no se guarda, y se marca lo que falta
+      // Sin llenar nada no se guarda, y se marca lo que falta
       await guardarEntregaTurnoSala();
-      out.falta = document.getElementById('es_msg').textContent;
-      out.marcados = document.querySelectorAll('#es_campos select.es-falta').length;
-      // Todo elegido (temperaturas 30 °C y 14 °C)
-      sels().forEach((s, i) => {
-        const o = opciones(s);
-        s.value = s.dataset.col === 'TemperaturaSala' ? '30' : s.dataset.col === 'TemperaturaAmbiente' ? '14' : o[i % o.length];
-        s.dispatchEvent(new Event('change'));
-      });
+      out.falta = msg();
+      out.marcados = document.querySelectorAll('#cronSub-entregasala .es-falta').length;
+      // Los equipos elegidos de sus listas
+      sels().forEach((s, i) => { const o = opciones(s); s.value = o[i % o.length]; s.dispatchEvent(new Event('change')); });
       const elegir = (c, v) => { const s = de(c); s.value = v; s.dispatchEvent(new Event('change')); };
       elegir('JOY 2 · Estado', 'Operando'); elegir('JOY 2 · Subestación', 'SUB 4A'); elegir('CB1 · Estado', 'Respaldo');
       out.colores = [de('JOY 2 · Estado').dataset.estado, de('CB1 · Estado').dataset.estado].join(',');
       out.resumen = document.getElementById('es_resumenCompresores').textContent;
-      document.getElementById('es_recibidoPor').value = 'Otras'; _esMostrarOtro('recibidoPor');
-      document.getElementById('es_recibidoPorOtro').value = 'Técnico Dos';
+      entregaEl.value = 'Ana Prueba'; recibeEl.value = 'Técnico Dos';
+      // Una temperatura que no es un número no se acepta
+      de('TemperaturaSala').value = 'treinta'; de('TemperaturaAmbiente').value = '14';
+      await guardarEntregaTurnoSala();
+      out.tempMala = msg();
+      // Con coma también vale (se guarda con punto)
+      de('TemperaturaSala').value = '30,5';
       document.getElementById('es_novedades').value = 'Sin novedad';
       await guardarEntregaTurnoSala();
-      out.msg = document.getElementById('es_msg').textContent;
-      // La siguiente arranca con lo de la última, menos las temperaturas
+      out.msg = msg();
+      // La siguiente arranca con los equipos de la última; nombres y temperaturas van vacíos
       out.previa = { joy2: de('JOY 2 · Estado').value, sub: de('JOY 2 · Subestación').value, cb1: de('CB1 · Estado').value,
         temp: de('TemperaturaSala').value, aviso: document.getElementById('es_avisoPrevio').textContent,
-        recibe: [...document.getElementById('es_recibidoPor').options].some(o => o.value === 'Técnico Dos') };
+        personas: entregaEl.value + '|' + recibeEl.value };
       out.tabla = [...document.querySelectorAll('#es_tablaWrap tbody tr')].map(tr => [...tr.cells].slice(2, 6).map(c => c.textContent.trim()).join('/')).join(' | ');
       out.vista = _construirHtmlEntregaSala(allEntregasSala[0]);
       // Otra entrega del mismo turno pregunta antes (y aquí se cancela)
       document.getElementById('es_turno').value = allEntregasSala[0].TurnoId;
       document.getElementById('es_fecha').value = allEntregasSala[0].Fecha;
-      sels().forEach(s => { if (!s.value) s.value = opciones(s)[0]; });
+      entregaEl.value = 'Ana Prueba'; de('TemperaturaSala').value = '29'; de('TemperaturaAmbiente').value = '15';
       await guardarEntregaTurnoSala();
       out.preguntas = preguntas.join(' | ');
       // Zipaquirá 1 no tiene esta entrega (tiene la suya)
@@ -1584,27 +1588,29 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const col = n => hoja[0] ? hoja[0].indexOf(n) : -1;
     const fila = hoja[1] || [];
     const v = n => fila[col(n)];
-    check('Entrega de turno Zipaquirá 2: Reportes arranca en ella, todo con listas y con los equipos del sistema (22 compresores, bombas 1 a 3 de la línea verde y Worthington 8 a 11 de la roja, temperaturas, 14 bombas de vacío y 9 secadores)',
-      r.abreEn === 'entregasala' && r.total === 76 && r.textoLibre === 0
+    check('Entrega de turno Zipaquirá 2: Reportes arranca en ella; los equipos del sistema en listas (22 compresores, bombas 1 a 3 de la línea verde y Worthington 8 a 11 de la roja, 14 bombas de vacío y 9 secadores); quién entrega y recibe y las temperaturas, para escribir',
+      r.abreEn === 'entregasala' && r.listas === 74 && r.temperaturas === 'INPUT,INPUT' && r.personas === 'INPUT,INPUT,,'
       && r.estadosComp === 'Operando,Respaldo,Fuera de servicio'
       && r.subestaciones === 'SUB 1,SUB 2,SUB 3,SUB 4A,SUB 4B,SUB 5,SUB 6,SUB 7,SUB 8,SUB 9,Diésel,Térmica,115 kV,34,5 kV,Trafo Y,Trafo Z'
       && r.conIR12 && r.bombaVerde === 'Habilitada,No habilitada,Fuera de servicio'
-      && r.bombas === 'Bomba 1,Bomba 2,Bomba 3 | Bomba Worthington 8,Bomba Worthington 9,Bomba Worthington 10,Bomba Worthington 11' && r.temperaturas === '61/61'
+      && r.bombas === 'Bomba 1,Bomba 2,Bomba 3 | Bomba Worthington 8,Bomba Worthington 9,Bomba Worthington 10,Bomba Worthington 11'
       && r.vacio === 'En funcionamiento,Detenido,Fuera de servicio' && r.secadores
-      && r.turnos === 'Mañana (6:00–14:00) | Tarde (14:00–22:00) | Noche (22:00–6:00)' && r.entrega === 'Ana Prueba', r);
-    check('Entrega de turno Zipaquirá 2: sin elegir los equipos no se guarda y se marcan los 76 que faltan; los colores y el conteo siguen lo elegido',
-      /Falta elegir 76 datos/.test(r.falta) && r.marcados === 76 && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
-    check('Entrega de turno Zipaquirá 2: se guarda una fila con una columna por equipo (estado y subestación de cada compresor, bombas, temperaturas, bombas de vacío y secadores)',
+      && r.turnos === 'Mañana (6:00–14:00) | Tarde (14:00–22:00) | Noche (22:00–6:00)', r);
+    check('Entrega de turno Zipaquirá 2: sin llenar no se guarda y se marcan los 77 que faltan (quién entrega, equipos y temperaturas); una temperatura que no es número no se acepta; los colores y el conteo siguen lo elegido',
+      /Falta llenar 77 datos: Entregado por, Estado de JOY 2/.test(r.falta) && r.marcados === 77
+      && /Temperatura de sala: escribe solo el número/.test(r.tempMala)
+      && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
+    check('Entrega de turno Zipaquirá 2: se guarda una fila con una columna por equipo, los nombres escritos y la temperatura con coma queda con punto',
       /Entrega de turno ET-001.* guardada/.test(r.msg) && hoja.length === 2 && hoja[0].length === 86
       && v('JOY 2 · Estado') === 'Operando' && v('JOY 2 · Subestación') === 'SUB 4A' && v('CB1 · Estado') === 'Respaldo'
-      && v('TemperaturaSala') === '30' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba Worthington 11') && !!v('Línea verde · Bomba 3') && !!v('BOMBA DE VACIO IR 6')
+      && v('TemperaturaSala') === '30.5' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba Worthington 11') && !!v('Línea verde · Bomba 3') && !!v('BOMBA DE VACIO IR 6')
       && !!v('Secador General Pneumatics') && v('EntregadoPor') === 'Ana Prueba' && v('RecibidoPor') === 'Técnico Dos'
       && ['Mañana', 'Tarde', 'Noche'].includes(v('TurnoNombre')) && v('Novedades') === 'Sin novedad' && v('Estado') === 'Activo',
       { msg: r.msg, filas: hoja.length, columnas: hoja[0] && hoja[0].length, fila: fila.slice(0, 12) });
-    check('Entrega de turno Zipaquirá 2: la siguiente arranca con lo de la última (sin temperaturas), se ve en la lista y en la vista con la sede, y repetir el turno pregunta',
-      r.previa.joy2 === 'Operando' && r.previa.sub === 'SUB 4A' && r.previa.cb1 === 'Respaldo' && r.previa.temp === ''
-      && /Se llenó con la última entrega/.test(r.previa.aviso) && r.previa.recibe
-      && /Ana Prueba\/Técnico Dos\/Operando: \d+/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.vista) && /SUB 4A/.test(r.vista) && /30 °C/.test(r.vista)
+    check('Entrega de turno Zipaquirá 2: la siguiente arranca con los equipos de la última (nombres y temperaturas vacíos), se ve en la lista y en la vista con la sede, y repetir el turno pregunta',
+      r.previa.joy2 === 'Operando' && r.previa.sub === 'SUB 4A' && r.previa.cb1 === 'Respaldo' && r.previa.temp === '' && r.previa.personas === '|'
+      && /Se llenó con la última entrega/.test(r.previa.aviso)
+      && /Ana Prueba\/Técnico Dos\/Operando: \d+/.test(r.tabla) && /CO O-I ZIPAQUIRA 2/.test(r.vista) && /SUB 4A/.test(r.vista) && /30\.5 °C/.test(r.vista)
       && /Ese turno ya tiene entrega/.test(r.preguntas), { previa: r.previa, tabla: r.tabla, preguntas: r.preguntas });
     check('Entrega de turno Zipaquirá 2: Zipaquirá 1 no la ve ni la abre; sin errores de JS ni avisos',
       r.zipa1.tab === 'none' && r.zipa1.abre === 'temporal' && r.zipa1.forzada === 'temporal' && errs.length === 0 && r.avisos.length === 0,
