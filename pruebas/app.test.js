@@ -1655,6 +1655,179 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Variables en Zipaquirá 2: los compresores de su reporte (sin franja:
+    // cada lectura a la hora en que se guardó) y la entrega de turno de la
+    // sala (temperaturas, cuántos equipos en cada estado, el estado de cada
+    // uno y la subestación). Zipaquirá 1 sigue con sus 6 apartados.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    const preparar = await p.evaluate(() => {
+      operacionActual = 'zipaquira2';
+      const cols = _columnasEntregaSala('zipaquira2');
+      const baja = EQUIPOS_ZIPAQUIRA2['Baja Presión'];
+      const entrega = (fecha, turno, estadoBaja, extra) => cols.map(c => {
+        const valores = Object.assign({ Codigo: 'ET-' + fecha + turno, Fecha: fecha, TurnoId: turno, EntregadoPor: 'Ana', Estado: 'Activo' }, extra);
+        if (c in valores) return valores[c];
+        const i = baja.findIndex(e => c === e + ' · Estado');
+        return i >= 0 ? estadoBaja(i) : '';
+      });
+      const sub = baja[0] + ' · Subestación';
+      const filasEntrega = [cols,
+        entrega('2026-10-01', 'manana', i => i < 6 ? 'Operando' : i < 9 ? 'Respaldo' : 'Fuera de servicio',
+          { TemperaturaSala: '30.5', TemperaturaAmbiente: '14', [sub]: 'SUB 1', 'Línea verde · Bomba 1': 'Habilitada', 'Línea verde · Bomba 2': 'Habilitada', 'Línea verde · Bomba 3': 'No habilitada' }),
+        // Guardada antes que la de la tarde: el orden lo da el turno, no la fila
+        entrega('2026-10-01', 'noche', i => i < 5 ? 'Operando' : i < 9 ? 'Respaldo' : 'Fuera de servicio',
+          { TemperaturaSala: '32', TemperaturaAmbiente: '12', [sub]: 'SUB 3' }),
+        entrega('2026-10-01', 'tarde', i => i < 7 ? 'Operando' : 'Respaldo', { TemperaturaSala: '31', TemperaturaAmbiente: '16' }),
+        entrega('2026-10-02', 'manana', () => 'Operando', { TemperaturaSala: '99', Estado: 'Eliminada' }),
+        entrega('2026-10-05', 'manana', () => 'Operando', { TemperaturaSala: '20' }),
+      ];
+      const reg = (h, m) => new Date(2026, 9, 1, h, m).toISOString();
+      const filasRc = [['Codigo', 'Fecha', 'Hora', 'Compresor', 'BPresionSistema', 'BAmperajeArrancador', 'FechaRegistro', 'Estado'],
+        ['RC-1', '2026-10-01', '', baja[0], '95', '180', reg(15, 20), 'Activo'],
+        ['RC-2', '2026-10-01', '', baja[0], '90', '170', reg(8, 5), 'Activo'],
+        ['RC-3', '2026-10-01', '', baja[1], '70', '100', reg(9, 0), 'Activo'],
+        ['RC-4', '2026-10-01', '', baja[0], '10', '10', reg(10, 0), 'Eliminada'],
+      ];
+      return { filasEntrega, filasRc, baja: baja.slice(0, 2) };
+    });
+    fake.crear(id, 'ReporteCompresores', preparar.filasRc);
+    const r = await p.evaluate(async ({ filasEntrega }) => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      // Una librería de gráficas de mentira que guarda lo que se le pide
+      // dibujar (la real viene de internet y aquí puede no estar).
+      window.Chart = function (_c, cfg) { this.data = cfg.data; this.options = cfg.options; this.destroy = () => {}; this.resize = () => {}; };
+      sidebarGrupoExpandido.variables = true; renderSidebarOperaciones();
+      const out = {
+        menu: [...document.querySelectorAll('#sidebarOperaciones [onclick^="abrirVariables"]')].map(d => d.textContent.trim()).join(', '),
+      };
+      abrirVariables('secadores');   // no lo tiene: abre el primero que sí
+      const pestanas = () => [...document.querySelectorAll('#panel-variables .inv-subtab')].filter(x => x.offsetParent).map(x => x.dataset.vartab).join(',');
+      out.pestanas = pestanas();
+      out.abre = document.querySelector('#panel-variables .inv-subtab.active').dataset.vartab;
+      const grupos = sel => [...document.querySelectorAll(sel + ' optgroup')].map(g => g.label + ':' + g.children.length).join(' | ');
+      out.gruposEquipo = grupos('#varEquipo-compresores');
+      out.conIR = [...document.querySelectorAll('#varEquipo-compresores option')].some(o => /^IR\b/.test(o.value));
+      const graficar = async (key, equipo, desde, hasta) => {
+        document.getElementById('varEquipo-' + key).value = equipo;
+        document.getElementById('varDesde-' + key).value = desde;
+        document.getElementById('varHasta-' + key).value = hasta;
+        await variablesGraficar(key); await espera(100);
+        const c = document.getElementById('varGraficas-' + key);
+        const tarjeta = t => [...c.querySelectorAll('.var-grid > div')].find(d => d.firstElementChild.textContent.trim() === t);
+        return {
+          texto: c.textContent.replace(/\s+/g, ' ').trim(),
+          graficas: _variablesCharts.length,
+          etiquetas: _variablesCharts[0] ? _variablesCharts[0].data.labels.join(',') : '',
+          serie: t => { const i = [...c.querySelectorAll('.var-grid > div')].indexOf(tarjeta(t)); return i < 0 ? null : _variablesCharts[i].data.datasets[0].data.join(','); },
+          resumen: t => tarjeta(t)?.children[1].textContent.replace(/\s+/g, ' ').trim(),
+          titulos: [...c.querySelectorAll('.var-grid > div')].map(d => d.firstElementChild.textContent.trim()),
+          grupos: [...c.querySelectorAll('#varFiltroGrupo option')].map(o => o.value).filter(Boolean).join(' | '),
+          msg: document.getElementById('varMsg-' + key).textContent,
+        };
+      };
+      // Compresores: JOY 2 con sus dos lecturas en el orden en que se tomaron
+      const g1 = await graficar('compresores', EQUIPOS_ZIPAQUIRA2['Baja Presión'][0], '2026-10-01', '2026-10-01');
+      out.rc = { graficas: g1.graficas, campos: _camposReporteCompresor(EQUIPOS_ZIPAQUIRA2['Baja Presión'][0]).length, etiquetas: g1.etiquetas,
+        presion: g1.serie(_camposReporteCompresor(EQUIPOS_ZIPAQUIRA2['Baja Presión'][0]).find(c => c.col === 'BPresionSistema').label),
+        lecturas: /2 lecturas/.test(g1.texto), sinPdt: !g1.titulos.some(t => /PDT|estator de motor [ABC]/i.test(t)), msg: g1.msg };
+      // Entrega de turno sin hoja todavía: lo dice, sin error
+      abrirVariables('entregasala');
+      out.opciones = [...document.querySelectorAll('#varEquipo-entregasala option')].map(o => o.value).join(' | ');
+      out.etiquetaLista = document.querySelector('label[for="varEquipo-entregasala"]').textContent;
+      const g0 = await graficar('entregasala', 'Resumen del turno', '2026-10-01', '2026-10-03');
+      out.sinHoja = g0.texto + ' | ' + g0.msg;
+      return out;
+    }, preparar);
+    fake.crear(id, 'EntregaTurnoSala', preparar.filasEntrega);
+    const r2 = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      _invalidarCacheHoja(SH.entregaTurnoSala);
+      const c = () => document.getElementById('varGraficas-entregasala');
+      const graficar = async (parte) => {
+        document.getElementById('varEquipo-entregasala').value = parte;
+        await variablesGraficar('entregasala'); await espera(100);
+        const tarjetas = [...c().querySelectorAll('.var-grid > div')];
+        const de = t => tarjetas.findIndex(d => d.firstElementChild.textContent.trim() === t);
+        return {
+          graficas: _variablesCharts.length, titulos: tarjetas.map(d => d.firstElementChild.textContent.trim()),
+          etiquetas: _variablesCharts[0] ? _variablesCharts[0].data.labels.join(',') : '',
+          serie: t => { const i = de(t); return i < 0 ? null : _variablesCharts[i].data.datasets[0].data.map(v => v === null ? '-' : v).join(','); },
+          resumen: t => { const i = de(t); return i < 0 ? null : tarjetas[i].children[1].textContent.replace(/\s+/g, ' ').trim(); },
+          // Las marcas que pone el eje (una por valor de la lista) con su texto, y si va en escalones
+          eje: t => { const i = de(t); if (i < 0) return null; const y = _variablesCharts[i].options.scales.y; const eje = {}; y.afterBuildTicks(eje);
+            return eje.ticks.map(m => y.ticks.callback(m.value)).join(',') + '|' + _variablesCharts[i].data.datasets[0].stepped; },
+          grupos: [...c().querySelectorAll('#varFiltroGrupo option')].map(o => o.value).filter(Boolean).join(' | '),
+          texto: c().textContent.replace(/\s+/g, ' '),
+        };
+      };
+      const out = {};
+      const res = await graficar('Resumen del turno');
+      out.resumen = { graficas: res.graficas, titulos: res.titulos.join(' | '), etiquetas: res.etiquetas, grupos: res.grupos,
+        sala: res.serie('Temperatura de sala [°C]'), ambiente: res.serie('Temperatura ambiente [°C]'),
+        baja: res.serie('Compresores de Baja Presión: operando (de 10)'), alta: res.resumen('Compresores de Alta Presión: operando (de 12)'),
+        verde: res.serie('Bombas de agua · Línea verde: habilitadas (de 3)'), lecturas: /3 lecturas · 2026-10-01 a 2026-10-01/.test(res.texto) };
+      const bajaTit = EQUIPOS_ZIPAQUIRA2['Baja Presión'][0];
+      const sec = await graficar('Compresores de Baja Presión');
+      out.seccion = { graficas: sec.graficas, grupos: sec.grupos,
+        operando: sec.serie('Operando (de 10)'), respaldo: sec.serie('Respaldo (de 10)'), fuera: sec.serie('Fuera de servicio (de 10)'),
+        estado: sec.serie(bajaTit), eje: sec.eje(bajaTit),
+        ultimo: sec.serie(EQUIPOS_ZIPAQUIRA2['Baja Presión'][9]) };
+      // La subestación es la segunda tarjeta con el nombre del compresor
+      const tarjetasSub = [...c().querySelectorAll('.var-grupo[data-grupo="Subestación de cada compresor"] .var-grid > div')];
+      const iSub = [...c().querySelectorAll('.var-grid > div')].indexOf(tarjetasSub[0]);
+      out.seccion.sub = _variablesCharts[iSub].data.datasets[0].data.map(v => v === null ? '-' : v).join(',');
+      out.seccion.subResumen = tarjetasSub[0].children[1].textContent.replace(/\s+/g, ' ').trim();
+      out.seccion.subTitulo = tarjetasSub[0].firstElementChild.textContent.trim();
+      const temp = await graficar('Temperaturas');
+      out.temperaturas = temp.titulos.join(' | ');
+      const vacio = await graficar('Bombas de vacío');
+      out.vacio = { graficas: vacio.graficas, sinDatos: /sin datos/.test(vacio.resumen('En funcionamiento (de 14)')) };
+      // Zipaquirá 1: sus 6 apartados y sus compresores, sin la entrega de la sala
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      abrirVariables('entregasala');
+      out.zipa1 = {
+        pestanas: [...document.querySelectorAll('#panel-variables .inv-subtab')].filter(x => x.offsetParent).map(x => x.dataset.vartab).join(','),
+        abre: document.querySelector('#panel-variables .inv-subtab.active').dataset.vartab,
+        equipos: document.querySelectorAll('#varEquipo-compresores option').length,
+        grupos: document.querySelectorAll('#varEquipo-compresores optgroup').length,
+      };
+      const cat = _catalogoDeVariables();
+      out.zipa1.catalogo = { sinEntrega: cat.every(f => f.hoja !== SH.entregaTurnoSala), conPdt: cat.some(f => f.columna === 'BPDTFiltroAire') };
+      out.otraSede = _sedeConReportesTecnicos('montevideo') || _sedeConReportesTecnicos('valledupar');
+      return out;
+    });
+    check('Variables Zipaquirá 2: en el menú y el panel solo Compresores y Entrega de Turno; un apartado que no tiene abre el primero; los compresores de su reporte por grupo y sin los IR',
+      r.menu === 'Compresores, Entrega de Turno' && r.pestanas === 'compresores,entregasala' && r.abre === 'compresores'
+      && r.gruposEquipo === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
+    check('Variables Zipaquirá 2: un compresor grafica sus campos del formulario (sin PDT ni estator A/B/C), las lecturas ordenadas y rotuladas por la hora en que se guardaron, sin las eliminadas',
+      r.rc.graficas === r.rc.campos && r.rc.campos === 35 && r.rc.etiquetas === '01/10 8:05a.m.,01/10 3:20p.m.' && r.rc.presion === '90,95'
+      && r.rc.lecturas && r.rc.sinPdt && r.rc.msg === '', r.rc);
+    check('Variables Zipaquirá 2: la entrega de turno se elige por parte (resumen y cada sección); sin entregas todavía lo dice sin error',
+      r.etiquetaLista === 'Qué graficar'
+      && r.opciones === 'Resumen del turno | Compresores de Baja Presión | Compresores de Alta Presión | Bombas de agua · Línea verde | Bombas de agua · Línea roja | Temperaturas | Bombas de vacío | Secadores de Alta Presión | Secadores de Baja Presión'
+      && r.sinHoja === 'No hay entregas de turno en el rango de fechas elegido. | ', { opciones: r.opciones, sinHoja: r.sinHoja });
+    check('Variables Zipaquirá 2: el resumen grafica las temperaturas y cuántos equipos de cada sección quedaron en servicio, turno a turno y sin las eliminadas ni las de fuera del rango',
+      r2.resumen.graficas === 9 && r2.resumen.etiquetas === '01/10 6a.m.,01/10 2p.m.,01/10 10p.m.' && r2.resumen.lecturas
+      && r2.resumen.sala === '30.5,31,32' && r2.resumen.ambiente === '14,16,12' && r2.resumen.baja === '6,7,5'
+      && r2.resumen.verde === '2,-,-' && /sin datos/.test(r2.resumen.alta) && r2.resumen.grupos === 'Temperaturas | En servicio por sección', r2.resumen);
+    check('Variables Zipaquirá 2: una sección grafica cuántos hay en cada estado, el estado de cada equipo como escalón (con el nombre de cada estado en el eje) y la subestación de cada compresor (en cuál quedó y cuántas veces cambió)',
+      r2.seccion.graficas === 23 && r2.seccion.grupos === 'Cuántos en cada estado | Estado de cada equipo | Subestación de cada compresor'
+      && r2.seccion.operando === '6,7,5' && r2.seccion.respaldo === '3,3,4' && r2.seccion.fuera === '1,0,1'
+      && r2.seccion.estado === '3,3,3' && r2.seccion.eje === 'Fuera de servicio,Respaldo,Operando|after' && r2.seccion.ultimo === '1,2,1'
+      && r2.seccion.sub === '1,-,3' && r2.seccion.subResumen === 'última: SUB 3 · 1 cambio' && r2.seccion.subTitulo === preparar.baja[0]
+      && r2.temperaturas === 'Temperatura de sala [°C] | Temperatura ambiente [°C]' && r2.vacio.graficas === 17 && r2.vacio.sinDatos, r2.seccion);
+    check('Variables: Zipaquirá 1 sigue con sus 6 apartados y sus 7 compresores, el catálogo del bot no cambia y las demás sedes siguen sin Variables; sin errores de JS ni avisos',
+      r2.zipa1.pestanas === 'compresores,secadores,emergencia,decorado,drycoolers,auxiliares' && r2.zipa1.abre === 'compresores'
+      && r2.zipa1.equipos === 7 && r2.zipa1.grupos === 0 && r2.zipa1.catalogo.sinEntrega && r2.zipa1.catalogo.conPdt && !r2.otraSede
+      && errs.length === 0, { zipa1: r2.zipa1, otraSede: r2.otraSede, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
     // Plan de Mantenimiento: cada sede ve sus propios compresores
     const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"values":[],"sheets":[],"valueRanges":[],"replies":[]}' }) });
     const r = await p.evaluate(async () => {
@@ -2864,8 +3037,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
   }
   {
     // Lo que salió de revisar Zipaquirá 1 y 2: en celular la ficha del
-    // empalme se ve desde el primer toque; Variables solo en la sede con
-    // reportes técnicos; en Zipaquirá 2 el acceso de Inicio y el botón de
+    // empalme se ve desde el primer toque; Variables solo en las sedes con
+    // reportes que graficar; en Zipaquirá 2 el acceso de Inicio y el botón de
     // abajo llevan al empalme y Reportes no muestra formularios que no
     // sirven; el hallazgo queda Resuelto cuando su orden se cierra; y el
     // aviso de la hora de los reportes técnicos cabe en su recuadro.
@@ -3020,8 +3193,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Zipaquirá 2: el acceso de Inicio y el botón de abajo del celular llevan al empalme, no a un Reportes vacío',
       out.z2.acceso === 'Empalme de entrega | Recepción de equipos, hallazgos y repuestos' && out.z2.accesoAbre && out.z2.abajoAbre
       && out.z2.abajo === 'inicio:Inicio, pendientes:Órdenes, empalme:Empalme, novedades:Novedades', out.z2);
-    check('Zipaquirá 2: sin Variables (no tiene reportes técnicos) y Reportes sin "Consultar otro día" ni "Descargar informe"',
-      !out.z2.variables && !out.z2.variablesAbre && out.z2.tarjetas === 'none,none', out.z2);
+    check('Zipaquirá 2: con Variables (compresores y entrega de turno) y Reportes sin "Consultar otro día" ni "Descargar informe"',
+      out.z2.variables && out.z2.variablesAbre && out.z2.tarjetas === 'none,none', out.z2);
     check('Empalme: el hallazgo con su orden Realizada queda Resuelto (también en la hoja); los demás no cambian',
       out.z2.hallazgos === 'H-1:Resuelto, H-2:En orden, H-3:Abierto' && out.z2.hoja === out.z2.hallazgos, out.z2);
     check('Empalme en celular: el primer equipo tocado lleva hasta su ficha, visible debajo del encabezado', out.z2.fichaAlToque >= 56 && out.z2.fichaAlToque < 160, out.z2.fichaAlToque);
