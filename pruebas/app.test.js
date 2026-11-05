@@ -1533,7 +1533,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         subestaciones: opciones(de('JOY 2 · Subestación')).join(','),
         conIR12: !!de('IR 12 · Estado') && !!de('TA 18 · Subestación'),
         bombaVerde: opciones(de('Línea verde · Bomba 1')).join(','),
-        bombaRoja: !!de('Línea roja · Bomba 4'),
+        bombas: ['verde', 'roja'].map(l => sels().filter(s => s.dataset.col.startsWith('Línea ' + l + ' · ')).map(s => s.dataset.col.split(' · ')[1]).join(',')).join(' | '),
         temperaturas: opciones(de('TemperaturaSala')).length + '/' + opciones(de('TemperaturaAmbiente')).length,
         vacio: opciones(de('BOMBA DE VACIO PNEUMOFORE 3')).join(','),
         secadores: ['Secador Kaeser 1', 'Secador Pneumatic Products', 'Secador General Pneumatics'].every(n => !!de(n)),
@@ -1584,19 +1584,20 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const col = n => hoja[0] ? hoja[0].indexOf(n) : -1;
     const fila = hoja[1] || [];
     const v = n => fila[col(n)];
-    check('Entrega de turno Zipaquirá 2: Reportes arranca en ella, todo con listas y con los equipos del sistema (22 compresores, bombas de agua, temperaturas, 14 bombas de vacío y 9 secadores)',
-      r.abreEn === 'entregasala' && r.total === 77 && r.textoLibre === 0
+    check('Entrega de turno Zipaquirá 2: Reportes arranca en ella, todo con listas y con los equipos del sistema (22 compresores, bombas 1 a 3 de la línea verde y Worthington 8 a 11 de la roja, temperaturas, 14 bombas de vacío y 9 secadores)',
+      r.abreEn === 'entregasala' && r.total === 76 && r.textoLibre === 0
       && r.estadosComp === 'Operando,Respaldo,Fuera de servicio'
       && r.subestaciones === 'SUB 1,SUB 2,SUB 3,SUB 4A,SUB 4B,SUB 5,SUB 6,SUB 7,SUB 8,SUB 9,Diésel,Térmica,115 kV,34,5 kV,Trafo Y,Trafo Z'
-      && r.conIR12 && r.bombaVerde === 'Habilitada,No habilitada,Fuera de servicio' && r.bombaRoja && r.temperaturas === '61/61'
+      && r.conIR12 && r.bombaVerde === 'Habilitada,No habilitada,Fuera de servicio'
+      && r.bombas === 'Bomba 1,Bomba 2,Bomba 3 | Bomba Worthington 8,Bomba Worthington 9,Bomba Worthington 10,Bomba Worthington 11' && r.temperaturas === '61/61'
       && r.vacio === 'En funcionamiento,Detenido,Fuera de servicio' && r.secadores
       && r.turnos === 'Mañana (6:00–14:00) | Tarde (14:00–22:00) | Noche (22:00–6:00)' && r.entrega === 'Ana Prueba', r);
-    check('Entrega de turno Zipaquirá 2: sin elegir los equipos no se guarda y se marcan los 77 que faltan; los colores y el conteo siguen lo elegido',
-      /Falta elegir 77 datos/.test(r.falta) && r.marcados === 77 && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
+    check('Entrega de turno Zipaquirá 2: sin elegir los equipos no se guarda y se marcan los 76 que faltan; los colores y el conteo siguen lo elegido',
+      /Falta elegir 76 datos/.test(r.falta) && r.marcados === 76 && r.colores === 'ok,respaldo' && /^Operando: \d+ · Respaldo: \d+ · Fuera de servicio: \d+$/.test(r.resumen), r);
     check('Entrega de turno Zipaquirá 2: se guarda una fila con una columna por equipo (estado y subestación de cada compresor, bombas, temperaturas, bombas de vacío y secadores)',
-      /Entrega de turno ET-001.* guardada/.test(r.msg) && hoja.length === 2 && hoja[0].length === 87
+      /Entrega de turno ET-001.* guardada/.test(r.msg) && hoja.length === 2 && hoja[0].length === 86
       && v('JOY 2 · Estado') === 'Operando' && v('JOY 2 · Subestación') === 'SUB 4A' && v('CB1 · Estado') === 'Respaldo'
-      && v('TemperaturaSala') === '30' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba 4') && !!v('BOMBA DE VACIO IR 6')
+      && v('TemperaturaSala') === '30' && v('TemperaturaAmbiente') === '14' && !!v('Línea roja · Bomba Worthington 11') && !!v('Línea verde · Bomba 3') && !!v('BOMBA DE VACIO IR 6')
       && !!v('Secador General Pneumatics') && v('EntregadoPor') === 'Ana Prueba' && v('RecibidoPor') === 'Técnico Dos'
       && ['Mañana', 'Tarde', 'Noche'].includes(v('TurnoNombre')) && v('Novedades') === 'Sin novedad' && v('Estado') === 'Activo',
       { msg: r.msg, filas: hoja.length, columnas: hoja[0] && hoja[0].length, fila: fila.slice(0, 12) });

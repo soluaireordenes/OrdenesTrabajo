@@ -11080,12 +11080,12 @@ const SUBESTACIONES_ZIPAQUIRA2 = ['SUB 1', 'SUB 2', 'SUB 3', 'SUB 4A', 'SUB 4B',
 const ESTADOS_COMPRESOR_TURNO  = ['Operando', 'Respaldo', 'Fuera de servicio'];
 const ESTADOS_BOMBA_AGUA_TURNO = ['Habilitada', 'No habilitada', 'Fuera de servicio'];
 const ESTADOS_EQUIPO_TURNO     = ['En funcionamiento', 'Detenido', 'Fuera de servicio'];
-// Las bombas de agua de cada línea todavía no están en el sistema: mientras
-// tanto van numeradas. Cambiarlas es editar esta lista (las entregas ya
-// guardadas conservan sus columnas).
+// Las bombas de agua de cada línea de la sala (la roja son las Worthington).
+// Cambiarlas es editar esta lista: las entregas ya guardadas conservan sus
+// columnas y una bomba nueva agrega la suya al final.
 const BOMBAS_AGUA_ZIPAQUIRA2 = {
-  'Línea verde': ['Bomba 1', 'Bomba 2', 'Bomba 3', 'Bomba 4'],
-  'Línea roja':  ['Bomba 1', 'Bomba 2', 'Bomba 3', 'Bomba 4'],
+  'Línea verde': ['Bomba 1', 'Bomba 2', 'Bomba 3'],
+  'Línea roja':  ['Bomba Worthington 8', 'Bomba Worthington 9', 'Bomba Worthington 10', 'Bomba Worthington 11'],
 };
 // Temperaturas en °C, de grado en grado, para elegirlas de una lista.
 const TEMPERATURAS_TURNO = Array.from({ length: 61 }, (_, i) => String(i));
