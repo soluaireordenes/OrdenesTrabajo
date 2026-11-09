@@ -3109,8 +3109,8 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno · Sala de compresores</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin-bottom:12px">
-            <div class="field"><label>Fecha del turno *</label><input type="date" id="es_fecha"></div>
-            <div class="field"><label>Turno *</label><select id="es_turno"></select></div>
+            <div class="field"><label>Fecha del turno *</label><input type="date" id="es_fecha" onchange="this.dataset.manual='1'"></div>
+            <div class="field"><label>Turno *</label><select id="es_turno" onchange="this.dataset.manual='1'"></select></div>
             <div class="field"><label>Entregado por *</label><input id="es_entregadoPor" aria-label="Entregado por" placeholder="Nombre de quien entrega" oninput="this.classList.remove('es-falta')"></div>
             <div class="field"><label>Recibido por</label><input id="es_recibidoPor" aria-label="Recibido por" placeholder="Nombre de quien recibe"></div>
           </div>
@@ -3159,7 +3159,7 @@ body.rol-operario .btn-principal-operario {
               <label>Nombre del técnico</label>
               <input id="rc_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
+            <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha" readonly title="La fecha la pone la hora del reporte que elijas" onchange="this.dataset.manual='1'"></div>
             <div class="field">
               <label>Hora en la que se realiza el reporte *</label>
               <select id="rc_hora" onchange="_onCambioHoraReporte('rc')">
@@ -11222,6 +11222,37 @@ function _turnoEntregaSalaAhora(ahora = new Date()) {
   const inicio = new Date(ahora);
   if (h < 6) inicio.setDate(inicio.getDate() - 1);
   return { turno, fecha: _isoLocal(inicio) };
+}
+
+// La entrega la hace quien TERMINA el turno, y casi siempre justo en el
+// cambio: durante este rato después del cambio se propone el turno que acaba
+// de terminar. Pasado ese rato ese turno se cierra (si no se entregó, no se
+// pide completarlo) y se propone el turno en curso.
+const ENTREGA_SALA_MINUTOS_PARA_ENTREGAR = 120;
+
+/** El turno anterior (paso -1) o el siguiente (+1), con su fecha. */
+function _turnoEntregaSalaVecino(fecha, idTurno, paso) {
+  let i = TURNOS_ENTREGA_SALA.findIndex(t => t.id === idTurno) + paso;
+  const d = new Date(fecha + 'T12:00:00');
+  if (i < 0) { i = TURNOS_ENTREGA_SALA.length - 1; d.setDate(d.getDate() - 1); }
+  if (i >= TURNOS_ENTREGA_SALA.length) { i = 0; d.setDate(d.getDate() + 1); }
+  return { turno: TURNOS_ENTREGA_SALA[i], fecha: _isoLocal(d) };
+}
+
+/** El turno que se propone entregar ahora: el que acaba de terminar (hasta
+ *  ENTREGA_SALA_MINUTOS_PARA_ENTREGAR después del cambio) o el que está en
+ *  curso. Si ese ya tiene su entrega, el que sigue: lo que se entregó, se
+ *  entregó, y la pantalla queda lista para el próximo. */
+function _turnoEntregaSalaPropuesto(ahora = new Date(), entregas = allEntregasSala) {
+  const actual = _turnoEntregaSalaAhora(ahora);
+  const inicio = Number(actual.turno.horaInicio.split(':')[0]);
+  const minutosDesdeElCambio = ((ahora.getHours() - inicio + 24) % 24) * 60 + ahora.getMinutes();
+  const candidatos = [];
+  if (minutosDesdeElCambio < ENTREGA_SALA_MINUTOS_PARA_ENTREGAR) candidatos.push(_turnoEntregaSalaVecino(actual.fecha, actual.turno.id, -1));
+  candidatos.push(actual, _turnoEntregaSalaVecino(actual.fecha, actual.turno.id, +1));
+  const hoy = _isoLocal(ahora);
+  const entregado = c => (entregas || []).some(r => r.Fecha === c.fecha && r.TurnoId === c.turno.id);
+  return candidatos.find(c => c.fecha <= hoy && !entregado(c)) || actual;
 }
 
 /** Las secciones del formulario, en el orden de la entrega. Cada ítem es un
@@ -21814,6 +21845,7 @@ async function inicializarReporteCompresores() {
   const fechaEl = document.getElementById('rc_fecha');
   if (fechaEl) {
     fechaEl.value = _isoLocal(new Date());
+    delete fechaEl.dataset.manual;
     // Con franja, la fecha la pone la hora elegida; sin franja se escoge
     // (hasta hoy).
     fechaEl.readOnly = conHora;
@@ -21892,9 +21924,24 @@ function renderTablaReportesCompresores() {
  *  las instrucciones del formulario dicen explícitamente que un valor
  *  atípico no importa, que se debe registrar tal cual lo arroja el
  *  sistema). "Horas de uso" además debe ser un número entero. */
+/** En una sede sin franjas la fecha del reporte se escoge y arranca en hoy.
+ *  Si la pantalla quedó abierta de un día a otro (o el celular reabre la app
+ *  sin recargarla), "hoy" ya es otro día: se pone al día, y también el límite
+ *  del calendario, que si no, no dejaba escoger el día nuevo. Una fecha que
+ *  alguien escogió a mano se respeta. */
+function _rcActualizarFechaPropuesta() {
+  if (_reportesTecnicosDe(operacionActual).conHora) return;
+  const fechaEl = document.getElementById('rc_fecha');
+  if (!fechaEl) return;
+  const hoy = _isoLocal(new Date());
+  fechaEl.max = hoy;
+  if (fechaEl.dataset.manual !== '1') fechaEl.value = hoy;
+}
+
 async function guardarReporteCompresor() {
   const msg = document.getElementById('rc_msg');
   msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
+  _rcActualizarFechaPropuesta();
   const tecnico = document.getElementById('rc_tecnico').value;
   const tecnicoOtro = document.getElementById('rc_tecnicoOtro').value.trim();
   let fecha = document.getElementById('rc_fecha').value;
@@ -22146,16 +22193,44 @@ function _esPintarCampos(previa) {
     : '';
 }
 
+/** Pone la fecha y el turno propuestos de la entrega al día con el reloj. La
+ *  pantalla puede quedar abierta de un turno a otro (o el celular reabre la
+ *  app sin recargarla): antes seguía proponiendo el turno de cuando se abrió,
+ *  y la entrega de la tarde quedaba guardada como de la mañana. Si alguien
+ *  ya escogió a mano la fecha o el turno, se respeta. */
+function _esActualizarTurnoPropuesto() {
+  const selTurno = document.getElementById('es_turno');
+  const fechaEl = document.getElementById('es_fecha');
+  if (!selTurno || !fechaEl || !selTurno.options.length) return;
+  fechaEl.max = _isoLocal(new Date());
+  if (selTurno.dataset.manual === '1' || fechaEl.dataset.manual === '1') return;
+  const { turno, fecha } = _turnoEntregaSalaPropuesto();
+  selTurno.value = turno.id;
+  fechaEl.value = fecha;
+}
+
+/** La fecha y el turno propuestos de la entrega y del reporte de compresores
+ *  de las sedes sin franjas se ponen al día al volver a la app, cada minuto
+ *  y al guardar (cada función se cuida de no tocar lo escogido a mano). */
+function _actualizarFechasPropuestas() {
+  if (_entregaSalaDisponible(operacionActual)) _esActualizarTurnoPropuesto();
+  _rcActualizarFechaPropuesta();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _actualizarFechasPropuestas(); });
+window.addEventListener('focus', _actualizarFechasPropuestas);
+setInterval(_actualizarFechasPropuestas, 60 * 1000);
+
 /** Se llama al abrir la pestaña "Entrega de Turno". */
 async function inicializarEntregaTurnoSala() {
   document.getElementById('es_msg').textContent = '';
-  const { turno, fecha } = _turnoEntregaSalaAhora();
   const selTurno = document.getElementById('es_turno');
   selTurno.innerHTML = TURNOS_ENTREGA_SALA.map(t => `<option value="${esc(t.id)}">${esc(t.nombre)} (${esc(t.horaInicio)}–${esc(t.horaFin)})</option>`).join('');
-  selTurno.value = turno.id;
   const fechaEl = document.getElementById('es_fecha');
-  fechaEl.value = fecha;
-  fechaEl.max = _isoLocal(new Date());
+  delete selTurno.dataset.manual;
+  delete fechaEl.dataset.manual;
+  // Mientras llegan las entregas se propone con lo que ya se tenga; al llegar
+  // se vuelve a calcular (el turno que ya se entregó no se propone otra vez).
+  _esActualizarTurnoPropuesto();
   document.getElementById('es_novedades').value = '';
   // Quién entrega y quién recibe se escriben en cada entrega (cambian de un turno a otro).
   ['es_entregadoPor', 'es_recibidoPor'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('es-falta'); });
@@ -22169,6 +22244,7 @@ async function inicializarEntregaTurnoSala() {
   try {
     await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
     allEntregasSala = await _cargarReportesTecnicos('es', SH.entregaTurnoSala);
+    _esActualizarTurnoPropuesto();
     _esPintarCampos(allEntregasSala[0] || null);
     renderTablaEntregasSala();
   } catch (e) {
@@ -22180,6 +22256,9 @@ async function inicializarEntregaTurnoSala() {
 async function guardarEntregaTurnoSala() {
   const msg = document.getElementById('es_msg');
   msg.style.color = 'var(--danger)';
+  // Con la hora de ahora, no la de cuando se abrió la pantalla (salvo que
+  // la fecha o el turno se hayan escogido a mano).
+  _esActualizarTurnoPropuesto();
   const fecha = document.getElementById('es_fecha').value;
   const turno = TURNOS_ENTREGA_SALA.find(t => t.id === document.getElementById('es_turno').value);
   const entregadoEl = document.getElementById('es_entregadoPor');
@@ -22232,7 +22311,8 @@ async function guardarEntregaTurnoSala() {
     _invalidarCacheHoja(SH.entregaTurnoSala);
     await inicializarEntregaTurnoSala();
     msg.style.color = 'var(--estado-ok-tx)';
-    msg.textContent = `Entrega de turno ${porColumna.Codigo} guardada.`
+    // Dice qué turno quedó entregado: si la pantalla propuso uno, que se vea cuál.
+    msg.textContent = `Entrega de turno ${porColumna.Codigo} (${turno.nombre}, ${fmtFecha(fecha)}) guardada.`
       + (vacios ? ` Quedaron ${vacios === 1 ? '1 dato vacío' : vacios + ' datos vacíos'}.` : '');
   } catch (e) {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Error al guardar: ' + e.message;
