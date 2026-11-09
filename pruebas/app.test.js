@@ -1466,12 +1466,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.preguntaHorometro = preguntas.join(' | ');
       // Una fecha futura no se acepta
       const manana = new Date(); manana.setDate(manana.getDate() + 1);
-      document.getElementById('rc_fecha').value = _isoLocal(manana);
+      document.getElementById('rc_fecha').value = _isoLocal(manana); document.getElementById('rc_fecha').dispatchEvent(new Event('change'));
       llenar('JOY 3', '1', '100');
       await guardarReporteCompresor();
       out.futura = document.getElementById('rc_msg').textContent;
       // En Zipaquirá 2 se guarda aunque falten mediciones; lo que se escribe tiene que ser un número
-      document.getElementById('rc_fecha').value = _isoLocal(new Date());
+      document.getElementById('rc_fecha').value = _isoLocal(new Date()); document.getElementById('rc_fecha').dispatchEvent(new Event('change'));
       document.getElementById('rc_tecnico').value = 'Técnico Uno';
       document.getElementById('rc_compresor').value = 'JOY 4'; _actualizarCamposMedicionesCompresor();
       document.getElementById('rc_presionSistema').value = 'abc';
@@ -1594,14 +1594,16 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.tabla = [...document.querySelectorAll('#es_tablaWrap tbody tr')].map(tr => [...tr.cells].slice(2, 6).map(c => c.textContent.trim()).join('/')).join(' | ');
       out.vista = _construirHtmlEntregaSala(allEntregasSala[0]);
       // Otra entrega del mismo turno pregunta antes (y aquí se cancela)
-      document.getElementById('es_turno').value = allEntregasSala[0].TurnoId;
-      document.getElementById('es_fecha').value = allEntregasSala[0].Fecha;
+      // (escogidos a mano, como lo haría la persona)
+      document.getElementById('es_turno').value = allEntregasSala[0].TurnoId; document.getElementById('es_turno').dispatchEvent(new Event('change'));
+      document.getElementById('es_fecha').value = allEntregasSala[0].Fecha; document.getElementById('es_fecha').dispatchEvent(new Event('change'));
       entregaEl.value = 'Ana Prueba'; de('TemperaturaSala').value = '29'; de('TemperaturaAmbiente').value = '15';
       await guardarEntregaTurnoSala();
       out.preguntas = preguntas.join(' | ');
       // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno, ayer
       const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
       document.getElementById('es_fecha').value = _isoLocal(ayer); document.getElementById('es_turno').value = 'noche';
+      ['es_fecha', 'es_turno'].forEach(id => document.getElementById(id).dispatchEvent(new Event('change')));
       entregaEl.value = 'Técnico Tres'; de('TemperaturaSala').value = ''; de('TemperaturaAmbiente').value = '';
       de('JOY 3 · Estado').value = ''; de('JOY 3 · Subestación').value = ''; de('Línea verde · Bomba 1').value = '';
       await guardarEntregaTurnoSala();
@@ -1652,6 +1654,124 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Entrega de turno Zipaquirá 2: Zipaquirá 1 no la ve ni la abre; sin errores de JS ni avisos',
       r.zipa1.tab === 'none' && r.zipa1.abre === 'temporal' && r.zipa1.forzada === 'temporal' && errs.length === 0 && r.avisos.length === 0,
       { zipa1: r.zipa1, errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
+    // Zipaquirá 2 con el reloj: la entrega propone el turno que TERMINA
+    // (hasta 2 h después del cambio), lo que ya se entregó no se vuelve a
+    // proponer y lo que no se entregó a tiempo se cierra; si la pantalla queda
+    // abierta de un turno o de un día a otro, la fecha y el turno de la entrega
+    // y la fecha del reporte de compresores se ponen al día solos (al volver a
+    // la app, cada minuto y al guardar); lo escogido a mano se respeta.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext();
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    const D = (dia, h, m) => new Date(2026, 10, dia, h, m);   // noviembre de 2026
+    await p.clock.install({ time: D(9, 13, 50) });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    // Qué turno se propone a cada hora (la función sola)
+    const propuestas = await p.evaluate(() => {
+      const prop = (dia, h, m, entregas = []) => { const r = _turnoEntregaSalaPropuesto(new Date(2026, 10, dia, h, m), entregas); return r.turno.id + ' ' + r.fecha.slice(8); };
+      const ent = (f, t) => ({ Fecha: '2026-11-' + f, TurnoId: t });
+      return [
+        prop(9, 13, 55),                              // al final de la mañana: la mañana
+        prop(9, 14, 5),                               // recién cambia: la que terminó
+        prop(9, 14, 5, [ent('09', 'manana')]),        // ya se entregó: la siguiente
+        prop(9, 16, 30),                              // pasaron 2 h: la mañana se cerró
+        prop(10, 6, 30),                              // la noche del 9
+        prop(10, 0, 30),                              // de madrugada sigue la noche del 9
+        prop(9, 22, 40),                              // la tarde
+        prop(10, 8, 30),                              // la noche se cerró: la mañana del 10
+      ].join(' | ');
+    });
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const preguntas = []; window.confirmarAccion = async o => { preguntas.push(o.titulo); return false; };
+      googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      await showPanel('cronograma');
+      for (let i = 0; i < 60 && !document.querySelector('#es_campos [data-col]'); i++) await espera(100);
+      const out = { preguntas };
+      const form = () => document.getElementById('es_turno').value + ' ' + document.getElementById('es_fecha').value.slice(8);
+      out.abre = form();
+      document.getElementById('es_entregadoPor').value = 'Operario Mañana';
+      await guardarEntregaTurnoSala();
+      out.msg1 = document.getElementById('es_msg').textContent;
+      out.trasGuardar = form();
+      window._form = form;
+      return out;
+    });
+    // Al día siguiente, 6:20, la pantalla seguía abierta (sin que corra ningún reloj de la app): al volver a ella
+    await p.clock.setSystemTime(D(10, 6, 20));
+    const alVolver = await p.evaluate(() => { const antes = _form(); document.dispatchEvent(new Event('visibilitychange')); return antes + ' → ' + _form(); });
+    // 8:30 sin que nadie entregara la noche: se cerró (lo pone al día el repaso de cada minuto)
+    await p.clock.fastForward(130 * 60 * 1000);
+    const cerrada = await p.evaluate(() => _form());
+    // Escogida a mano (la noche del 9, tarde): se respeta aunque pase el tiempo, y se guarda así
+    await p.evaluate(() => { const t = document.getElementById('es_turno'), f = document.getElementById('es_fecha');
+      t.value = 'noche'; t.dispatchEvent(new Event('change')); f.value = '2026-11-09'; f.dispatchEvent(new Event('change')); });
+    await p.clock.fastForward(3 * 60 * 1000);
+    const manual = await p.evaluate(async () => {
+      const antes = _form();
+      document.getElementById('es_entregadoPor').value = 'Operario Noche';
+      await guardarEntregaTurnoSala();
+      return { antes, msg: document.getElementById('es_msg').textContent, despues: _form() };
+    });
+    // 22:30 del 10 con la pantalla quieta desde la mañana: al guardar se usa la hora de ahora (la tarde del 10)
+    await p.clock.setSystemTime(D(10, 22, 30));
+    const alGuardar = await p.evaluate(async () => {
+      const antes = _form();
+      document.getElementById('es_entregadoPor').value = 'Operario Tarde';
+      await guardarEntregaTurnoSala();
+      return { antes, msg: document.getElementById('es_msg').textContent };
+    });
+    // Reporte de compresores: abierto el 10 en la noche; el 11 a las 6:10 se vuelve a la app
+    const rc = await p.evaluate(async () => {
+      cronMostrarSubTab('compresores'); await new Promise(x => setTimeout(x, 400));
+      const f = document.getElementById('rc_fecha');
+      return { abre: f.value + ' / ' + f.max };
+    });
+    await p.clock.setSystemTime(D(11, 6, 10));
+    rc.alVolver = await p.evaluate(() => { const f = document.getElementById('rc_fecha'); const antes = f.value + ' / ' + f.max;
+      window.dispatchEvent(new Event('focus')); return antes + ' → ' + f.value + ' / ' + f.max; });
+    // El 12 a las 7:00, sin volver a la app, se guarda: queda con la fecha de ese día
+    await p.clock.setSystemTime(D(12, 7, 0));
+    rc.guardado = await p.evaluate(async () => {
+      const antes = document.getElementById('rc_fecha').value;
+      document.getElementById('rc_tecnico').value = 'Otras'; document.getElementById('rc_tecnico').dispatchEvent(new Event('change'));
+      document.getElementById('rc_tecnicoOtro').value = 'Técnico Uno';
+      document.getElementById('rc_compresor').value = 'JOY 2'; _actualizarCamposMedicionesCompresor();
+      document.getElementById('rc_presionSistema').value = '95';
+      await guardarReporteCompresor();
+      return { antes, msg: document.getElementById('rc_msg').textContent, despues: document.getElementById('rc_fecha').value };
+    });
+    // Una fecha escogida a mano no la cambia el repaso de cada minuto
+    rc.manual = await p.evaluate(() => { const f = document.getElementById('rc_fecha'); f.value = '2026-11-11'; f.dispatchEvent(new Event('change')); return f.value; });
+    await p.clock.fastForward(2 * 60 * 1000);
+    rc.manual += ' → ' + await p.evaluate(() => document.getElementById('rc_fecha').value);
+    const hoja = fake.hoja(id, 'EntregaTurnoSala');
+    const filas = hoja.slice(1).map(f => [f[hoja[0].indexOf('Fecha')], f[hoja[0].indexOf('TurnoNombre')], f[hoja[0].indexOf('EntregadoPor')]].join('/'));
+    const rep = fake.hoja(id, 'ReporteCompresores');
+    const fechaRc = rep[1] ? rep[1][rep[0].indexOf('Fecha')] : '';
+    check('Entrega de turno Zipaquirá 2: propone el turno que termina (hasta 2 h después del cambio), el siguiente si ya se entregó, y cierra el que no se entregó a tiempo',
+      propuestas === 'manana 09 | manana 09 | tarde 09 | tarde 09 | noche 09 | noche 09 | tarde 09 | manana 10', propuestas);
+    check('Entrega de turno Zipaquirá 2: al guardar la mañana queda lista para la tarde; con la pantalla abierta se pone al día al volver a la app, cada minuto y al guardar; lo escogido a mano se respeta',
+      r.abre === 'manana 09' && /\(Mañana, 09\/11\/2026\) guardada\./.test(r.msg1) && r.trasGuardar === 'tarde 09'
+      && alVolver === 'tarde 09 → noche 09' && cerrada === 'manana 10'
+      && manual.antes === 'noche 09' && /\(Noche, 09\/11\/2026\) guardada\./.test(manual.msg) && manual.despues === 'manana 10'
+      && alGuardar.antes === 'manana 10' && /\(Tarde, 10\/11\/2026\) guardada\./.test(alGuardar.msg)
+      && filas.join(' | ') === '2026-11-09/Mañana/Operario Mañana | 2026-11-09/Noche/Operario Noche | 2026-11-10/Tarde/Operario Tarde'
+      && r.preguntas.length === 0,
+      { r, alVolver, cerrada, manual, alGuardar, filas });
+    check('Reporte de compresores Zipaquirá 2: la fecha (y el límite del calendario) se pone al día al volver a la app y al guardar; la escogida a mano se respeta; sin errores de JS',
+      rc.abre === '2026-11-10 / 2026-11-10' && rc.alVolver === '2026-11-10 / 2026-11-10 → 2026-11-11 / 2026-11-11'
+      && rc.guardado.antes === '2026-11-11' && /Reporte guardado correctamente/.test(rc.guardado.msg) && fechaRc === '2026-11-12' && rc.guardado.despues === '2026-11-12'
+      && rc.manual === '2026-11-11 → 2026-11-11' && errs.length === 0,
+      { rc, fechaRc, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
