@@ -1532,6 +1532,114 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Horómetro imposible: si sube más de lo que el equipo pudo trabajar desde
+    // la última lectura (como el 31.832 que entró por 21.832 cuatro horas
+    // después), "Guardar de todas formas" ya no basta: hay que volver a
+    // escribirlo y solo se guarda si coincide. Un salto grande pero posible
+    // (semanas sin reportar) y uno que no se puede medir en el tiempo siguen
+    // con la pregunta de siempre.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId);
+    const [hace4h, hace60d] = await p.evaluate(() => [4, 60 * 24].map(h => new Date(Date.now() - h * 3600000).toLocaleString('es-CO')));
+    fake.crear(id, 'HorasEquipos', [
+      ['Equipo', 'HorasActuales', 'UltimaActualizacion', 'HoraBaseInformes'],
+      ['JOY 2', '21832', hace4h, ''],
+      ['JOY 3', '21832', hace4h, ''],
+      ['JOY 4', '20000', 'sin fecha', ''],
+      ['JOY 5', '20000', hace60d, ''],
+    ]);
+    await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window._avisos = []; window.alert = m => window._avisos.push(String(m));
+      window._preguntas = []; window.confirmarAccion = async o => { window._preguntas.push(o.titulo); return true; };
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira2'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      await showPanel('cronograma'); await espera(600);
+      cronMostrarSubTab('compresores'); await espera(600);
+      // Llena el reporte y lo empieza a guardar sin esperar: la ventana que
+      // pide el horómetro se contesta desde afuera, como un operario.
+      window._guardar = (compresor, horas) => {
+        document.getElementById('rc_fecha').value = _isoLocal(new Date()); document.getElementById('rc_fecha').dispatchEvent(new Event('change'));
+        document.getElementById('rc_tecnico').value = 'Otras';
+        document.getElementById('rc_tecnicoOtro').value = 'Técnico Uno';
+        document.getElementById('rc_compresor').value = compresor; _actualizarCamposMedicionesCompresor();
+        _camposReporteCompresor(compresor).forEach(c => { document.getElementById('rc_' + c.id).value = c.id.startsWith('horasUso') ? horas : '10'; });
+        window._preguntasAntes = window._preguntas.length;
+        window._guardado = guardarReporteCompresor();
+      };
+    });
+    const ventana = '.confirmar-fondo form';
+    const estado = () => p.evaluate(sel => {
+      const f = document.querySelector(sel);
+      return { abierta: !!f, titulo: f ? f.querySelector('.confirmar-titulo').textContent : '', texto: f ? f.querySelector('.confirmar-texto').textContent : '',
+        error: f ? f.querySelector('.confirmar-error').textContent : '', boton: f ? f.querySelector('[data-respuesta="si"]').textContent : '' };
+    }, ventana);
+    const terminar = () => p.evaluate(async () => {
+      await window._guardado;
+      return { msg: document.getElementById('rc_msg').textContent, preguntas: window._preguntas.slice(window._preguntasAntes) };
+    });
+    const r = {};
+    // 1) 31.832 cuatro horas después de 21.832: pide volver a escribirlo.
+    await p.evaluate(() => window._guardar('JOY 2', '31832'));
+    await p.waitForSelector(ventana, { timeout: 5000 }); await p.waitForTimeout(550); // la ventana ignora los toques del primer medio segundo
+    r.pide = await estado();
+    await p.fill(`${ventana} input`, '21832');
+    await p.click(`${ventana} [data-respuesta="si"]`);
+    r.noCoincide = await estado();
+    await p.click(`${ventana} [data-respuesta="no"]`);
+    r.corregir = { ...(await terminar()), abierta: (await estado()).abierta };
+    r.horasTrasCorregir = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'JOY 2') || [])[1];
+    r.filasTrasCorregir = fake.hoja(id, 'ReporteCompresores').filter(f => f.includes('JOY 2')).length;
+    // 2) Si de verdad marca eso, se escribe otra vez (con punto de miles) y se guarda.
+    await p.evaluate(() => window._guardar('JOY 2', '31832'));
+    await p.waitForSelector(ventana, { timeout: 5000 }); await p.waitForTimeout(550); // la ventana ignora los toques del primer medio segundo
+    await p.fill(`${ventana} input`, '31.832');
+    await p.click(`${ventana} [data-respuesta="si"]`);
+    r.confirmado = await terminar();
+    r.horasConfirmadas = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'JOY 2') || [])[1];
+    // 3) Lo normal (4 h más en 4 h) no pregunta nada.
+    await p.evaluate(() => window._guardar('JOY 3', '21836'));
+    r.normal = { ...(await terminar()), abierta: (await estado()).abierta };
+    // 4) Sin fecha legible de la última lectura, el salto grande pregunta como siempre.
+    await p.evaluate(() => window._guardar('JOY 4', '21500'));
+    r.sinFecha = { ...(await terminar()), abierta: (await estado()).abierta };
+    // 5) 1.200 h en 60 días sí son posibles: la pregunta de siempre, no la de escribirlo otra vez.
+    await p.evaluate(() => window._guardar('JOY 5', '21200'));
+    r.posible = { ...(await terminar()), abierta: (await estado()).abierta };
+    // La fecha que escribe la app (toLocaleString 'es-CO') se lee bien.
+    r.fechas = await p.evaluate(() => {
+      const iso = t => { const d = _fechaUltimaLecturaHoras(t); return d ? `${_isoLocal(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : null; };
+      const ahora = new Date(); ahora.setMilliseconds(0);
+      return {
+        ida: _fechaUltimaLecturaHoras(ahora.toLocaleString('es-CO'))?.getTime() === ahora.getTime(),
+        am: iso('9/11/2026, 2:05:12 a. m.'), pm: iso('9/11/2026, 2:05:12 p. m.'), medianoche: iso('9/11/2026, 12:05:00 a. m.'),
+        mediodia: iso('9/11/2026, 12:05:00 p. m.'), h24: iso('09/11/2026 14:05'), vacia: iso(''), otra: iso('2026-11-09'),
+      };
+    });
+    r.avisos = await p.evaluate(() => window._avisos);
+    const horas = fake.hoja(id, 'HorasEquipos');
+    const horasDe = e => (horas.find(f => f[0] === e) || [])[1];
+    check('Horómetro imposible: 31.832 cuatro horas después de 21.832 pide volver a escribirlo, y lo que no coincide no pasa',
+      r.pide.abierta && r.pide.titulo === 'El horómetro de JOY 2 no pudo subir tanto' && /21\.832 h \(hace 4 horas\)/.test(r.pide.texto)
+      && /10\.000 h más/.test(r.pide.texto) && /como mucho 28 h/.test(r.pide.texto) && /escríbelo otra vez/.test(r.pide.texto) && r.pide.boton === 'Confirmar y guardar'
+      && r.noCoincide.abierta && /No coincide con el del reporte \(31\.832 h\)/.test(r.noCoincide.error), { pide: r.pide, noCoincide: r.noCoincide });
+    check('Horómetro imposible: "Corregir el número" no guarda nada ni toca las horas; escrito otra vez igual (con punto de miles), se guarda',
+      !r.corregir.abierta && r.corregir.msg === '' && r.corregir.preguntas.length === 0 && r.horasTrasCorregir === '21832' && r.filasTrasCorregir === 0
+      && /Horas de JOY 2 actualizadas/.test(r.confirmado.msg) && r.confirmado.preguntas.length === 0 && r.horasConfirmadas === '31832',
+      { corregir: r.corregir, horas: r.horasTrasCorregir, filas: r.filasTrasCorregir, confirmado: r.confirmado, horasConfirmadas: r.horasConfirmadas });
+    check('Horómetro: lo normal no pregunta; sin fecha de la última lectura o con un salto grande pero posible, la pregunta de siempre',
+      !r.normal.abierta && r.normal.preguntas.length === 0 && /Horas de JOY 3 actualizadas/.test(r.normal.msg) && horasDe('JOY 3') === '21836'
+      && !r.sinFecha.abierta && r.sinFecha.preguntas.join() === 'El horómetro de JOY 4 subió 1.500 h de una vez' && horasDe('JOY 4') === '21500'
+      && !r.posible.abierta && r.posible.preguntas.join() === 'El horómetro de JOY 5 subió 1.200 h de una vez' && horasDe('JOY 5') === '21200',
+      { normal: r.normal, sinFecha: r.sinFecha, posible: r.posible, horas });
+    check('Horómetro: la fecha de la última lectura se lee como la escribe la app',
+      r.fechas.ida && r.fechas.am === '2026-11-09 02:05' && r.fechas.pm === '2026-11-09 14:05' && r.fechas.medianoche === '2026-11-09 00:05'
+      && r.fechas.mediodia === '2026-11-09 12:05' && r.fechas.h24 === '2026-11-09 14:05' && r.fechas.vacia === null && r.fechas.otra === null, r.fechas);
+    check('Horómetro imposible: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
     // Entrega de turno de la sala de Zipaquirá 2: los equipos con listas y
     // los de la sede; quién entrega y recibe y las temperaturas se escriben.
     // Una columna por equipo en la hoja, la siguiente entrega arranca con los

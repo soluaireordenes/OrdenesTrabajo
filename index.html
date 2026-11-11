@@ -22001,8 +22001,7 @@ async function guardarReporteCompresor() {
     // Antes de guardar: una lectura de horometro que baja o que pega un
     // salto enorme casi siempre es un tecleo malo, y estas horas mueven
     // las barras del cronograma y disparan las ordenes de trabajo.
-    const _avisoH = await _avisoHorometro(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
-    if (_avisoH && !(await confirmarAccion({ ..._avisoH, aceptar: 'Guardar de todas formas', cancelar: 'Revisar el número' }))) { msg.textContent = ''; return; }
+    if (!(await _confirmarHorometro(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']))) { msg.textContent = ''; return; }
 
     const colsHoja = await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
     const codigo = _siguienteCodigoReporteCompresor();
@@ -22680,8 +22679,7 @@ async function guardarReporteSecador() {
     // Antes de guardar: una lectura de horometro que baja o que pega un
     // salto enorme casi siempre es un tecleo malo, y estas horas mueven
     // las barras del cronograma y disparan las ordenes de trabajo.
-    const _avisoH = await _avisoHorometro(secador, porColumna.FHrS);
-    if (_avisoH && !(await confirmarAccion({ ..._avisoH, aceptar: 'Guardar de todas formas', cancelar: 'Revisar el número' }))) { msg.textContent = ''; return; }
+    if (!(await _confirmarHorometro(secador, porColumna.FHrS))) { msg.textContent = ''; return; }
 
     const colsHoja = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
     const codigo = _siguienteCodigoReporteSecador();
@@ -23230,8 +23228,7 @@ async function guardarReporteDecorado() {
     // Antes de guardar: una lectura de horometro que baja o que pega un
     // salto enorme casi siempre es un tecleo malo, y estas horas mueven
     // las barras del cronograma y disparan las ordenes de trabajo.
-    const _avisoH = await _avisoHorometro(compresor, porColumna.HorasTotales);
-    if (_avisoH && !(await confirmarAccion({ ..._avisoH, aceptar: 'Guardar de todas formas', cancelar: 'Revisar el número' }))) { msg.textContent = ''; return; }
+    if (!(await _confirmarHorometro(compresor, porColumna.HorasTotales))) { msg.textContent = ''; return; }
 
     const colsHoja = await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
     const codigo = _siguienteCodigoReporteDecorado();
@@ -23554,8 +23551,7 @@ async function guardarReporteEmergencia() {
     // Antes de guardar: una lectura de horometro que baja o que pega un
     // salto enorme casi siempre es un tecleo malo, y estas horas mueven
     // las barras del cronograma y disparan las ordenes de trabajo.
-    const _avisoH = await _avisoHorometro(compresor, porColumna.RunTime);
-    if (_avisoH && !(await confirmarAccion({ ..._avisoH, aceptar: 'Guardar de todas formas', cancelar: 'Revisar el número' }))) { msg.textContent = ''; return; }
+    if (!(await _confirmarHorometro(compresor, porColumna.RunTime))) { msg.textContent = ''; return; }
 
     const colsHoja = await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
     const codigo = _siguienteCodigoReporteEmergencia();
@@ -27185,26 +27181,56 @@ function _equipoDeHorasDelReporte(equipoReporte) {
  *  horometro que pasa de 15.821 a 166.881 por un digito de mas). */
 const HOROMETRO_SALTO_MAXIMO = 1000;
 
+/** Holgura (en horas) sobre lo que el equipo pudo trabajar desde la última
+ *  lectura: un horómetro no puede subir más que el tiempo que pasó (un
+ *  equipo trabaja como mucho una hora por hora), y la holgura cubre un
+ *  reporte guardado un rato después de leído o un reloj algo corrido. */
+const HOROMETRO_HOLGURA_HORAS = 24;
+
+/** Fecha de la última lectura guardada en "Horas de Operación de Equipos"
+ *  (UltimaActualizacion, escrita con toLocaleString('es-CO'), por ejemplo
+ *  "9/11/2026, 2:05:12 a. m."). null si no se reconoce. */
+function _fechaUltimaLecturaHoras(texto) {
+  const m = String(texto || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\D+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])?/i);
+  if (!m) return null;
+  let h = Number(m[4]);
+  const ap = (m[7] || '').toLowerCase();
+  if (ap === 'p' && h < 12) h += 12;
+  if (ap === 'a' && h === 12) h = 0;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), h, Number(m[5]), Number(m[6] || 0));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** "hace 4 horas", "hace 3 días"… para los avisos del horómetro. */
+function _haceCuanto(horas) {
+  if (horas < 1) return 'hace menos de una hora';
+  if (horas < 48) { const h = Math.round(horas); return `hace ${h} ${h === 1 ? 'hora' : 'horas'}`; }
+  const d = Math.round(horas / 24);
+  return `hace ${d} días`;
+}
+
 /** Revisa una lectura de horometro contra la ultima conocida del equipo y
- *  devuelve un aviso si no cuadra ({ titulo, texto }, para confirmarAccion),
+ *  devuelve un aviso si no cuadra ({ titulo, texto }, ver _confirmarHorometro),
  *  o null si esta bien.
  *
- *  Solo avisa: no bloquea. Un salto grande puede ser legitimo (un equipo
- *  que estuvo semanas sin reportar), asi que la decision la toma el
- *  operario; lo que no puede pasar es que un tecleo malo entre sin que
- *  nadie lo note, porque estas horas mueven las barras del cronograma y
- *  disparan las ordenes de trabajo. */
+ *  Un salto grande puede ser legitimo (un equipo que estuvo semanas sin
+ *  reportar), asi que la decision la toma el operario; lo que no puede
+ *  pasar es que un tecleo malo entre sin que nadie lo note, porque estas
+ *  horas mueven las barras del cronograma y disparan las ordenes de
+ *  trabajo. Si el salto es imposible para el tiempo que paso, el aviso
+ *  trae imposible: true y _confirmarHorometro pide escribirlo otra vez. */
 async function _avisoHorometro(equipoReporte, valor) {
   if (valor === undefined || valor === null || String(valor).trim() === '') return null; // sin horómetro no hay nada que comparar
   const clave = _equipoDeHorasDelReporte(equipoReporte);
   const nuevo = Number(String(valor).replace(',', '.'));
   if (!clave || !isFinite(nuevo)) return null;
-  let anterior = null;
+  let anterior = null, fechaAnterior = null;
   try {
     const filas = await cargarHorasEquipos();
     const fila = (filas || []).find(f => f.Equipo === clave);
     const n = fila ? Number(fila.HorasActuales) : NaN;
     if (isFinite(n) && n > 0) anterior = n;
+    fechaAnterior = fila ? _fechaUltimaLecturaHoras(fila.UltimaActualizacion) : null;
   } catch (_) { return null; }   // sin dato previo con que comparar, no se estorba
   if (anterior === null) return null;
 
@@ -27214,11 +27240,55 @@ async function _avisoHorometro(equipoReporte, valor) {
     return { titulo: `El horómetro de ${equipoReporte} no debería bajar`,
              texto: lecturas + 'Verifica el número en el equipo.' };
   }
+  // Un salto que el equipo no pudo haber trabajado en el tiempo que pasó
+  // desde la última lectura es, casi seguro, un dígito mal escrito (como el
+  // 31.832 que entró por 21.832 y creó una orden trimestral antes de
+  // tiempo). Con "Guardar de todas formas" se colaba igual; aquí hay que
+  // volver a escribir el número mirando el equipo.
+  if (fechaAnterior) {
+    const horasPasadas = Math.max(0, (Date.now() - fechaAnterior.getTime()) / 3600000);
+    const posible = Math.round(horasPasadas) + HOROMETRO_HOLGURA_HORAS;
+    const subio = nuevo - anterior;
+    if (subio > posible) {
+      return { imposible: true, nuevo,
+               titulo: `El horómetro de ${equipoReporte} no pudo subir tanto`,
+               texto: `Última lectura: ${fmt(anterior)} h (${_haceCuanto(horasPasadas)}). La que estás guardando: ${fmt(nuevo)} h, `
+                 + `${fmt(subio)} h más, y en ese tiempo el equipo pudo trabajar como mucho ${fmt(posible)} h.\n\n`
+                 + 'Mira el horómetro en el equipo y escríbelo otra vez para confirmarlo.' };
+    }
+  }
   if (nuevo - anterior > HOROMETRO_SALTO_MAXIMO) {
     return { titulo: `El horómetro de ${equipoReporte} subió ${fmt(nuevo - anterior)} h de una vez`,
              texto: lecturas + 'Si el equipo estuvo mucho tiempo sin reportarse puede ser correcto; si no, revisa que no sobre o falte un dígito.' };
   }
   return null;
+}
+
+/** Revisa el horómetro antes de guardar un reporte y pregunta lo que haga
+ *  falta. Devuelve true si se puede guardar.
+ *  - Que baja o que sube mucho (pero es posible): basta con aceptar.
+ *  - Que sube más de lo que el equipo pudo trabajar: hay que volver a
+ *    escribirlo, y solo se guarda si coincide con el del reporte. */
+async function _confirmarHorometro(equipoReporte, valor) {
+  const aviso = await _avisoHorometro(equipoReporte, valor);
+  if (!aviso) return true;
+  if (!aviso.imposible) {
+    return confirmarAccion({ titulo: aviso.titulo, texto: aviso.texto, aceptar: 'Guardar de todas formas', cancelar: 'Revisar el número' });
+  }
+  // Se acepta con punto o coma de miles ("21.832"), como se suele escribir.
+  const num = v => {
+    const t = String(v || '').trim().replace(/\s/g, '');
+    if (Number.isInteger(aviso.nuevo) && /^\d{1,3}([.,]\d{3})+$/.test(t)) return Number(t.replace(/[.,]/g, ''));
+    return Number(t.replace(',', '.'));
+  };
+  const respuesta = await pedirDatos({
+    titulo: aviso.titulo, texto: aviso.texto,
+    campos: [{ nombre: 'horometro', etiqueta: 'Horómetro que ves en el equipo', tipo: 'number', requerido: true, placeholder: 'Escríbelo otra vez' }],
+    aceptar: 'Confirmar y guardar', cancelar: 'Corregir el número',
+    validar: d => num(d.horometro) === aviso.nuevo ? null
+      : `No coincide con el del reporte (${aviso.nuevo.toLocaleString('es-CO')} h). Si el del equipo es otro, toca "Corregir el número" y cámbialo en el reporte.`,
+  });
+  return !!respuesta;
 }
 
 /** Empuja a "Horas de Operación de Equipos" el horómetro que acaba de
