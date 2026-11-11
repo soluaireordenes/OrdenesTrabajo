@@ -1776,7 +1776,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
   }
   {
     // Técnicos nuevos de Zipaquirá 1: salen en la lista de los 7 reportes
-    // técnicos, también en Presión Drycooler, que no tiene "Otras".
+    // técnicos, también en Presión Drycooler, que no tiene "Otras"; y el que
+    // salió de la lista ya no aparece en ninguno.
     // Zipaquirá 2 sigue armando la suya con los que ya reportaron allá.
     const fake = sheetsEnMemoria();
     const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
@@ -1786,20 +1787,21 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       operacionActual = 'zipaquira'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
       await showPanel('cronograma'); await espera(400);
       const nuevos = ['Cristofer Ardila', 'Carlos Peña', 'Jhonatan Jimenez', 'Daniel Alarcon'];
-      const faltan = {};
+      const faltan = {}, sobran = {};
       for (const [tab, prefijo] of [['compresores', 'rc'], ['formacion', 'rmf'], ['secadores', 'rs'], ['drycoolers', 'rd'], ['decorado', 'rdec'], ['emergencia', 're'], ['presiondrycooler', 'rpd']]) {
         cronMostrarSubTab(tab); await espera(150);
         const opciones = [...document.querySelectorAll('#' + prefijo + '_tecnico option')].map(o => o.value);
         const sinEllos = nuevos.filter(n => !opciones.includes(n));
         if (sinEllos.length) faltan[tab] = sinEllos;
+        if (opciones.some(o => /Mazuera/i.test(o))) sobran[tab] = 'George Mazuera';
       }
       operacionActual = 'zipaquira2'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
       Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
       await inicializarPanelCronograma(); cronMostrarSubTab('compresores'); await espera(400);
-      return { faltan, zipa2: [...document.querySelectorAll('#rc_tecnico option')].map(o => o.value).join(',') };
+      return { faltan, sobran, zipa2: [...document.querySelectorAll('#rc_tecnico option')].map(o => o.value).join(',') };
     });
-    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez y Daniel Alarcon en la lista de los 7 reportes técnicos (Presión Drycooler incluido); Zipaquirá 2 sigue con la suya',
-      Object.keys(r.faltan).length === 0 && r.zipa2 === ',Otras' && errs.length === 0, { r, errs: errs.slice(0, 2) });
+    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez y Daniel Alarcon en la lista de los 7 reportes técnicos (Presión Drycooler incluido), George Mazuera ya no; Zipaquirá 2 sigue con la suya',
+      Object.keys(r.faltan).length === 0 && Object.keys(r.sobran).length === 0 && r.zipa2 === ',Otras' && errs.length === 0, { r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {

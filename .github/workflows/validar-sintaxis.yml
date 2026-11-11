@@ -51,7 +51,15 @@ jobs:
       - name: Instalar Playwright y Chromium
         run: |
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # El navegador se baja del sitio de Playwright.
+          npx playwright install chromium
+          # Las librerías y fuentes del sistema vienen de los espejos de Ubuntu.
+          # Si esos espejos no responden (en noviembre de 2026 fallaron por
+          # horas: "Temporary failure resolving azure.archive.ubuntu.com"), la
+          # revisión no se cae por eso: la imagen de GitHub ya trae lo que
+          # necesita Chromium, y si algo faltara, las pruebas lo dirían.
+          timeout 240 npx playwright install-deps chromium \
+            || echo "::warning::No se pudieron instalar las dependencias del sistema de Chromium (espejos de Ubuntu); se sigue con las de la imagen."
 
       - name: Pruebas de la app
         run: node pruebas/app.test.js
