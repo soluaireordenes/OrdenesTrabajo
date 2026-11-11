@@ -1793,14 +1793,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         const opciones = [...document.querySelectorAll('#' + prefijo + '_tecnico option')].map(o => o.value);
         const sinEllos = nuevos.filter(n => !opciones.includes(n));
         if (sinEllos.length) faltan[tab] = sinEllos;
-        if (opciones.some(o => /Mazuera/i.test(o))) sobran[tab] = 'George Mazuera';
+        const quitados = opciones.filter(o => /Mazuera|Sebasti[aá]n Rodr[ií]guez/i.test(o));
+        if (quitados.length) sobran[tab] = quitados;
       }
       operacionActual = 'zipaquira2'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
       Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
       await inicializarPanelCronograma(); cronMostrarSubTab('compresores'); await espera(400);
       return { faltan, sobran, zipa2: [...document.querySelectorAll('#rc_tecnico option')].map(o => o.value).join(',') };
     });
-    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez y Daniel Alarcon en la lista de los 7 reportes técnicos (Presión Drycooler incluido), George Mazuera ya no; Zipaquirá 2 sigue con la suya',
+    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez y Daniel Alarcon en la lista de los 7 reportes técnicos (Presión Drycooler incluido), George Mazuera y Sebastián Rodríguez ya no; Zipaquirá 2 sigue con la suya',
       Object.keys(r.faltan).length === 0 && Object.keys(r.sobran).length === 0 && r.zipa2 === ',Otras' && errs.length === 0, { r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
