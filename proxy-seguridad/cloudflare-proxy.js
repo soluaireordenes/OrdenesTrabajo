@@ -29,13 +29,20 @@
    ---------
    • POST /login            body {documento, pin}
          → {ok:true, session, nombre, rol}  |  {ok:false, mensaje}
+         Con un PIN de menos de 6 números trae además cambiarPin:true y un
+         pase que solo sirve para POST /cambiar-pin.
+   • POST /cambiar-pin      body {pinActual, pinNuevo}  (con el pase)
+         → {ok:true, session} con un pase normal. PIN de 6 a 8 números, que
+         no sea repetido, seguido ni parte del documento.
    • /sheets/v4/spreadsheets/...   (mismo path/cuerpo que la API de Google)
          Requiere header  Authorization: Bearer <session>
+         y, para un operario, X-Pase-Sede: <pase de sede> (lo da /sede):
+         solo abre las hojas de la sede cuya clave escribió.
          El Worker valida sesión + rol, mete el token de la cuenta de
          servicio y reenvía a Google. Devuelve la respuesta tal cual.
    • POST /sede             body {spreadsheetId, clave}   (con el pase)
-         → {ok:true} si la clave coincide con el hash de Config!A1 de esa
-         hoja. El hash nunca sale del Worker; hay bloqueo por intentos.
+         → {ok:true, paseSede} si la clave coincide con el hash de Config!A1
+         de esa hoja. El hash nunca sale del Worker; hay bloqueo por intentos.
    • GET  /pase-fotos       (con el pase) → {ok, pase, exp} para los scripts
          de fotos de cada sede.
    • GET  /foto?id=<driveFileId>   (requiere Authorization: Bearer <session>)
@@ -60,6 +67,13 @@
      • USUARIOS_TAB           → (opcional) nombre de la pestaña; por defecto
                                  "Usuarios"
      • ALLOWED_ORIGIN         → https://soluaireordenes.github.io
+     • BLOQUEOS               → (opcional, recomendado) no es una variable:
+                                 es un "Espacio de nombres KV" enlazado con ese
+                                 nombre (Configuración → Enlaces → Agregar →
+                                 Espacio de nombres KV). Guarda los intentos
+                                 fallidos para que el bloqueo valga en todas
+                                 las copias del Worker. Sin él, el conteo queda
+                                 en la memoria de cada copia.
      • ALLOWED_SHEETS         → (opcional) lista de IDs de hojas permitidas,
                                  separados por coma. Si se deja vacío, se
                                  permiten todas las hojas que la cuenta de
@@ -74,6 +88,21 @@ const HOJAS_SOLO_ADMIN = [
   '1rICqEwDTOjA8cxFIEa7m5rIw0gs2fd7CB682dRUj0nk', // Proyectos (panel gerencial)
 ];
 const SESSION_TTL_SEG = 12 * 60 * 60; // el pase de sesión dura 12 horas
+
+// Las hojas de cada sede: [órdenes, inventario], las mismas de index.html
+// (OPERACIONES e INVENTARIO_SHEETS; una prueba revisa que coincidan). Un
+// operario solo abre las de la sede cuya clave escribió (ver _sede y
+// _hojasDelPaseSede); antes la clave la pedía solo la app, y con un pase de
+// sesión se podía leer y escribir en cualquier sede pidiéndole al proxy.
+const SEDES_HOJAS = [
+  ['1_gIoYzZIZeURojSemB5vTtSQ1k4vw4_YfN-G6AjtaYU', '1cqfk7gKRX4MfnHnPEZy7WGOunwT7kYLfJ14_W10Wh3s'], // Zipaquirá
+  ['1xM4UFaV1fZ5bEYVVNx55UjbPN9CldQ6ObaZl0EGlF8A', '14yHP8GGumzc6c4CfAlLjTtnqJoWU8ATfQ3d1DAAafUk'], // Zipaquirá 2
+  ['1Dv4veJWQPP2tZkYXRXLPo0MQmu8cR843TBO3D0uChP8', '1WpunyOSCJDDoIHgz-JKmJ_uNkHCloCQtIM36lm1RWdk'], // Soacha
+  ['1cqMzlHEBbzKy9d_GDkVTVarvzL0Es2J1_bSXeKpkHYs', '1Dj12a7g7s25A6bTb-oR54-FQY9qs0ffFHDtNq64q4fk'], // Antioquia
+  ['13kf6xZPfdnxDJmCyKJ0q-1z7ijRak7oMNhzemzq2KpI', '1TEwFSN-p-XcPiKHqiv-dqp8B2eefB-0Ecui5KcFU_VI'], // México
+  ['1UbN_mnzJZBxpaL0mZqE-z0U_CIA-MbGwPiokpmKRjvI', '15LoJbWh1aB2cJLLRDLTadbFjeU-U7nFW54K7eM5M6Fc'], // Perú
+];
+const PASE_SEDE_TTL_SEG = 7 * 24 * 60 * 60; // dura más que la sesión: volver a entrar no pide otra vez la clave
 
 // Token de la cuenta de servicio, cacheado entre peticiones del mismo isolate.
 let _saToken = null;      // { access_token, exp (epoch seg) }
@@ -121,6 +150,10 @@ export default {
         return _cors(await _foto(peticion, entorno, url), entorno, origen);
       }
 
+      if (url.pathname === '/cambiar-pin' && peticion.method === 'POST') {
+        return _cors(await _cambiarPin(peticion, entorno), entorno, origen);
+      }
+
       return _cors(_json({ ok: false, mensaje: 'Ruta no encontrada.' }, 404), entorno, origen);
     } catch (err) {
       return _cors(_json({ ok: false, mensaje: 'Error del proxy: ' + err.message }, 500), entorno, origen);
@@ -145,7 +178,7 @@ async function _login(peticion, entorno) {
   const ip = peticion.headers.get('CF-Connecting-IP') || '';
   const minIp = _revisarBloqueoIp(ip);
   if (minIp > 0) return _json({ ok: false, mensaje: `Demasiados intentos desde esta conexión. Intenta de nuevo en ${minIp} minuto(s).` }, 429);
-  const minBloqueo = _revisarBloqueo(documento);
+  const minBloqueo = await _revisarBloqueo(documento, entorno);
   if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
 
   if (!entorno.USUARIOS_SHEET_ID) return _json({ ok: false, mensaje: 'Falta configurar USUARIOS_SHEET_ID en el Worker.' }, 500);
@@ -166,7 +199,7 @@ async function _login(peticion, entorno) {
   if (u) pinBien = await _pinCoincide(pin, documento, u.pinHash, entorno);
   else await _firmaPinV2(pin, documento, '0', entorno.PIN_PEPPER || 'x'); // el mismo trabajo que un PIN equivocado
   if (!pinBien) {
-    _registrarFallo(documento);
+    await _registrarFallo(documento, entorno);
     _registrarFalloIp(ip, documento);
     return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
   }
@@ -175,9 +208,64 @@ async function _login(peticion, entorno) {
   // PIN todavía en el formato viejo: se pasa al nuevo ahora que se conoce.
   if (entorno.PIN_PEPPER && !/^v2\$/i.test(u.pinHash)) await _guardarPinV2(entorno, u, documento, pin);
 
-  _limpiarFallos(documento);
+  await _limpiarFallos(documento, entorno);
+  // PIN de menos de 6 números: entra, pero con un pase que solo sirve para
+  // crear el PIN nuevo (ver _cambiarPin); nada más funciona hasta entonces.
+  if (pin.length < PIN_MINIMO) {
+    const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede, cp: true }, entorno, 60 * 60);
+    return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede, cambiarPin: true });
+  }
   const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
   return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede });
+}
+
+/* ── CAMBIAR EL PIN ─────────────────────────────────────────────────────
+   POST /cambiar-pin  body {pinActual, pinNuevo}  (con el pase de sesión)
+   Un PIN de 4 números se adivina probando (son 10.000); uno de 6 son un
+   millón. Quien entra con un PIN corto tiene que crear uno nuevo antes de
+   seguir, y así además cada persona termina con el suyo (a los nuevos se
+   les da uno provisional). El PIN nuevo se guarda en su celda de la hoja
+   Usuarios en el formato con clave secreta (PIN_PEPPER). */
+const PIN_MINIMO = 6;
+
+function _motivoPinDebil(pin, documento, actual) {
+  if (!/^\d{6,8}$/.test(pin)) return 'El PIN nuevo debe tener de 6 a 8 números.';
+  if (pin === actual) return 'El PIN nuevo tiene que ser distinto al actual.';
+  if (/^(\d)\1+$/.test(pin)) return 'Ese PIN es muy fácil de adivinar: no repitas el mismo número.';
+  const subiendo = '01234567890123456789', bajando = '98765432109876543210';
+  if (subiendo.includes(pin) || bajando.includes(pin)) return 'Ese PIN es muy fácil de adivinar: no uses números seguidos.';
+  if (String(documento || '').includes(pin)) return 'No uses números de tu documento en el PIN.';
+  return null;
+}
+
+async function _cambiarPin(peticion, entorno) {
+  const sesion = await _sesionVigente(peticion, entorno);
+  if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  let cuerpo;
+  try { cuerpo = await peticion.json(); } catch { return _json({ ok: false, mensaje: 'Body inválido.' }, 400); }
+  const actual = String(cuerpo.pinActual || '').trim();
+  const nuevo = String(cuerpo.pinNuevo || '').trim();
+  const doc = String(sesion.doc || '');
+
+  const minBloqueo = await _revisarBloqueo(doc, entorno);
+  if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
+
+  let usuarios;
+  try { usuarios = await _leerUsuarios(entorno); } catch (err) { return _json({ ok: false, mensaje: err.message }, err.status || 502); }
+  const u = usuarios.get(doc);
+  if (!u || !u.activo) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (!(await _pinCoincide(actual, doc, u.pinHash, entorno))) {
+    await _registrarFallo(doc, entorno);
+    return _json({ ok: false, mensaje: 'El PIN actual no es correcto.' }, 401);
+  }
+  const debil = _motivoPinDebil(nuevo, doc, actual);
+  if (debil) return _json({ ok: false, mensaje: debil }, 400);
+
+  const valor = entorno.PIN_PEPPER ? await _pinV2(nuevo, doc, entorno.PIN_PEPPER) : await _sha256HexUpper(nuevo);
+  if (!(await _escribirPin(entorno, u, valor))) return _json({ ok: false, mensaje: 'No se pudo guardar el PIN nuevo. Intenta de nuevo en un momento.' }, 502);
+  await _limpiarFallos(doc, entorno);
+  const session = await _firmarSesion({ doc, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
+  return _json({ ok: true, session, nombre: u.nombre, rol: u.rol });
 }
 
 /* ── PIN ────────────────────────────────────────────────────────────────
@@ -214,10 +302,20 @@ async function _firmaPinV2(pin, documento, sal, pepper) {
  *  puede (Google no responde), no pasa nada: entra igual y se intenta la
  *  próxima vez. */
 async function _guardarPinV2(entorno, u, documento, pin) {
+  await _escribirPin(entorno, u, await _pinV2(pin, documento, entorno.PIN_PEPPER));
+}
+
+/** El valor que se guarda en la celda, en el formato con clave secreta. */
+async function _pinV2(pin, documento, pepper) {
+  const salBytes = crypto.getRandomValues(new Uint8Array(16));
+  const sal = Array.from(salBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'v2$' + sal + '$' + await _firmaPinV2(pin, documento, sal, pepper);
+}
+
+/** Escribe el PIN guardado en la celda de esa persona. Devuelve true si
+ *  Google lo aceptó. */
+async function _escribirPin(entorno, u, nuevo) {
   try {
-    const salBytes = crypto.getRandomValues(new Uint8Array(16));
-    const sal = Array.from(salBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    const nuevo = 'v2$' + sal + '$' + await _firmaPinV2(pin, documento, sal, entorno.PIN_PEPPER);
     const tab = entorno.USUARIOS_TAB || 'Usuarios';
     const celda = "'" + tab.replace(/'/g, "''") + "'!" + _letraColumna(u.colPin) + u.fila;
     const token = await _tokenCuentaServicio(entorno);
@@ -227,7 +325,8 @@ async function _guardarPinV2(entorno, u, documento, pin) {
       body: JSON.stringify({ values: [[nuevo]] }),
     });
     if (resp.ok) u.pinHash = nuevo;
-  } catch (_) { /* se reintenta en el próximo ingreso */ }
+    return resp.ok;
+  } catch (_) { return false; /* se reintenta en el próximo ingreso */ }
 }
 
 function _letraColumna(indice) {
@@ -246,6 +345,7 @@ function _letraColumna(indice) {
 async function _paseFotos(peticion, entorno) {
   const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (sesion.cp) return _debeCambiarPin();
   if (!entorno.FOTOS_SECRETO) return _json({ ok: false, mensaje: 'Falta configurar FOTOS_SECRETO en el Worker.' }, 501);
   const exp = Math.floor(Date.now() / 1000) + 6 * 60 * 60;
   const head = _b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
@@ -330,6 +430,11 @@ async function _usuarioVigente(doc, entorno) {
   return _usuariosCache.porDoc.get(String(doc || '')) || undefined;
 }
 
+/** Respuesta para un pase que solo sirve para cambiar el PIN (cp). */
+function _debeCambiarPin() {
+  return _json({ ok: false, cambiarPin: true, mensaje: 'Antes de seguir, crea tu PIN nuevo de 6 números.' }, 403);
+}
+
 /** Valida el pase y lo cruza con la hoja Usuarios. Devuelve la sesión con
  *  el rol vigente, o null si el pase no sirve o la persona ya no puede
  *  entrar. */
@@ -353,6 +458,7 @@ async function _sesionVigente(peticion, entorno) {
 async function _foto(peticion, entorno, url) {
   const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (sesion.cp) return _debeCambiarPin();
 
   const id = String(url.searchParams.get('id') || '');
   if (!/^[A-Za-z0-9_-]{10,200}$/.test(id)) return _json({ ok: false, mensaje: 'id de foto inválido.' }, 400);
@@ -398,6 +504,7 @@ function _esFotoOPdf(tipo) {
 async function _gatewaySheets(peticion, entorno, url) {
   const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (sesion.cp) return _debeCambiarPin();
 
   // Ruta destino en Google: todo lo que venga después de /sheets
   const rutaGoogle = url.pathname.replace(/^\/sheets/, '') + url.search;
@@ -407,6 +514,11 @@ async function _gatewaySheets(peticion, entorno, url) {
   const permitidas = String(entorno.ALLOWED_SHEETS || '').split(',').map(s => s.trim()).filter(Boolean);
   if (permitidas.length && !permitidas.includes(spreadsheetId)) {
     return _json({ ok: false, mensaje: 'Hoja no permitida por el proxy.' }, 403);
+  }
+
+  // Un operario solo abre las hojas de la sede cuya clave escribió.
+  if (sesion.rol !== 'admin' && !(await _hojasDelPaseSede(peticion, entorno, sesion)).includes(spreadsheetId)) {
+    return _json({ ok: false, sede: true, mensaje: 'Escribe la clave de la sede para abrir sus datos.' }, 403);
   }
 
   // Leer el cuerpo una sola vez (se usa para el chequeo de rol y para reenviar).
@@ -678,6 +790,7 @@ async function _nombresDePestanas(spreadsheetId, token) {
 async function _sede(peticion, entorno) {
   const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
+  if (sesion.cp) return _debeCambiarPin();
 
   let cuerpo;
   try { cuerpo = await peticion.json(); } catch { return _json({ ok: false, mensaje: 'Body inválido.' }, 400); }
@@ -688,7 +801,7 @@ async function _sede(peticion, entorno) {
   if (permitidas.length && !permitidas.includes(spreadsheetId)) return _json({ ok: false, mensaje: 'Hoja no permitida por el proxy.' }, 403);
 
   const llave = 'sede:' + sesion.doc + ':' + spreadsheetId;
-  const minBloqueo = _revisarBloqueo(llave);
+  const minBloqueo = await _revisarBloqueo(llave, entorno);
   if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
 
   const token = await _tokenCuentaServicio(entorno);
@@ -702,20 +815,56 @@ async function _sede(peticion, entorno) {
 
   const ingresada = (await _sha256HexUpper(clave)).toLowerCase();
   if (!_igualSeguro(ingresada, hash)) {
-    _registrarFallo(llave);
+    await _registrarFallo(llave, entorno);
     return _json({ ok: false, mensaje: 'Contraseña incorrecta.' }, 401);
   }
-  _limpiarFallos(llave);
-  return _json({ ok: true });
+  await _limpiarFallos(llave, entorno);
+  return _json({ ok: true, paseSede: await _firmarPaseSede(sesion.doc, _hojasDeSede(spreadsheetId), entorno) });
+}
+
+/* ── PASE DE SEDE ──
+   Lo da /sede con la clave correcta y la app lo manda en cada petición a
+   Sheets (cabecera X-Pase-Sede). Lleva las hojas de esa sede y el documento
+   de quien lo pidió, y va firmado con una clave distinta a la de la sesión
+   (derivada de SESSION_SECRET): no sirve como pase de sesión ni al revés. */
+function _hojasDeSede(spreadsheetId) {
+  const fila = SEDES_HOJAS.find(f => f.includes(spreadsheetId));
+  return fila ? fila.slice() : [spreadsheetId];
+}
+function _clavePaseSede(entorno) {
+  return 'pase-sede|' + _secretoSesion(entorno);
+}
+async function _firmarPaseSede(doc, hojas, entorno) {
+  const exp = Math.floor(Date.now() / 1000) + PASE_SEDE_TTL_SEG;
+  const head = _b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = _b64url(JSON.stringify({ tipo: 'sede', doc: String(doc), hojas, exp }));
+  return head + '.' + body + '.' + await _hmac(head + '.' + body, _clavePaseSede(entorno));
+}
+async function _hojasDelPaseSede(peticion, entorno, sesion) {
+  const partes = String(peticion.headers.get('X-Pase-Sede') || '').split('.');
+  if (partes.length !== 3) return [];
+  if (!_igualSeguro(partes[2], await _hmac(partes[0] + '.' + partes[1], _clavePaseSede(entorno)))) return [];
+  let d;
+  try { d = JSON.parse(_deB64url(partes[1])); } catch { return []; }
+  if (!d || d.tipo !== 'sede' || String(d.doc) !== String(sesion.doc) || !(d.exp > Math.floor(Date.now() / 1000))) return [];
+  return Array.isArray(d.hojas) ? d.hojas.map(String) : [];
 }
 
 /* ── SESIÓN (pase firmado con HMAC-SHA256, tipo JWT) ──────────────────── */
-async function _firmarSesion(datos, entorno) {
+/** SESSION_SECRET firma los pases: sin ella, cualquiera podría fabricar
+ *  uno (la firma con una clave vacía se calcula en cualquier lado). Si
+ *  falta, el proxy no entrega ni acepta pases. */
+function _secretoSesion(entorno) {
+  if (!entorno.SESSION_SECRET) throw new Error('Falta configurar SESSION_SECRET en el Worker.');
+  return entorno.SESSION_SECRET;
+}
+
+async function _firmarSesion(datos, entorno, ttlSeg) {
   const ahora = Math.floor(Date.now() / 1000);
-  const payload = { ...datos, iat: ahora, exp: ahora + SESSION_TTL_SEG };
+  const payload = { ...datos, iat: ahora, exp: ahora + (ttlSeg || SESSION_TTL_SEG) };
   const head = _b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = _b64url(JSON.stringify(payload));
-  const firma = await _hmac(head + '.' + body, entorno.SESSION_SECRET);
+  const firma = await _hmac(head + '.' + body, _secretoSesion(entorno));
   return head + '.' + body + '.' + firma;
 }
 
@@ -726,7 +875,7 @@ async function _sesionDeLaPeticion(peticion, entorno) {
   const partes = m[1].split('.');
   if (partes.length !== 3) return null;
   const [head, body, firma] = partes;
-  const esperada = await _hmac(head + '.' + body, entorno.SESSION_SECRET);
+  const esperada = await _hmac(head + '.' + body, _secretoSesion(entorno));
   if (!_igualSeguro(firma, esperada)) return null;
   let payload;
   try { payload = JSON.parse(_deB64url(body)); } catch { return null; }
@@ -806,23 +955,51 @@ async function _sha256HexUpper(texto) {
   return hex.toUpperCase();
 }
 
-/* ── Bloqueo por intentos fallidos ────────────────────────────────────── */
-function _revisarBloqueo(documento) {
-  const d = _intentos.get(documento);
+/* ── Bloqueo por intentos fallidos ──────────────────────────────────────
+   Cloudflare reparte las peticiones entre muchas copias del Worker, cada
+   una con su memoria: un contador solo en memoria se evadía repartiendo los
+   intentos (así se sacó un PIN de 4 dígitos en la auditoría). Si el Worker
+   tiene enlazado un espacio KV con el nombre BLOQUEOS (Configuración →
+   Enlaces → Espacio de nombres KV), el conteo se guarda ahí y vale para
+   todas las copias. Sin él, o si KV falla (sin cupo, caído), sigue en
+   memoria como antes: nunca deja a nadie por fuera por culpa de KV. */
+function _kv(entorno) {
+  return entorno && entorno.BLOQUEOS && typeof entorno.BLOQUEOS.get === 'function' ? entorno.BLOQUEOS : null;
+}
+async function _leerIntentos(llave, entorno) {
+  const enMemoria = _intentos.get(llave) || null;
+  const kv = _kv(entorno);
+  let enKv = null;
+  if (kv) { try { enKv = await kv.get('intentos:' + llave, 'json'); } catch (_) { /* KV caído */ } }
+  if (!enKv) return enMemoria;
+  if (!enMemoria) return enKv;
+  // Las dos: manda la que va más adelante (KV tarda unos segundos en verse igual en todas partes).
+  return (enKv.bloqueadoHasta || 0) > (enMemoria.bloqueadoHasta || 0) || (enKv.intentos || 0) > (enMemoria.intentos || 0) ? enKv : enMemoria;
+}
+async function _revisarBloqueo(llave, entorno) {
+  const d = await _leerIntentos(llave, entorno);
   if (d && d.bloqueadoHasta && Date.now() < d.bloqueadoHasta) {
     return Math.ceil((d.bloqueadoHasta - Date.now()) / 60000);
   }
   return 0;
 }
-function _registrarFallo(documento) {
-  let d = _intentos.get(documento) || { intentos: 0 };
+async function _registrarFallo(llave, entorno) {
+  let d = { ...((await _leerIntentos(llave, entorno)) || { intentos: 0 }) };
   if (d.bloqueadoHasta && Date.now() >= d.bloqueadoHasta) d = { intentos: 0 };
   d.intentos = (d.intentos || 0) + 1;
   if (d.intentos >= MAX_INTENTOS) { d.bloqueadoHasta = Date.now() + BLOQUEO_MS; d.intentos = 0; }
-  _intentos.set(documento, d);
+  _intentos.set(llave, d);
+  const kv = _kv(entorno);
+  if (kv) {
+    try { await kv.put('intentos:' + llave, JSON.stringify(d), { expirationTtl: Math.ceil(BLOQUEO_MS / 1000) }); }
+    catch (_) { /* sin cupo de escrituras o caído: queda en memoria */ }
+  }
 }
-function _limpiarFallos(documento) {
-  _intentos.delete(documento);
+async function _limpiarFallos(llave, entorno) {
+  const habia = _intentos.delete(llave);
+  const kv = _kv(entorno);
+  if (!kv) return;
+  try { if (habia || await kv.get('intentos:' + llave)) await kv.delete('intentos:' + llave); } catch (_) { /* nada */ }
 }
 
 /* Por conexión: quien falla con muchos documentos distintos en poco tiempo
@@ -894,7 +1071,7 @@ function _cors(resp, entorno, origen) {
   const h = new Headers(resp.headers);
   h.set('Access-Control-Allow-Origin', allow);
   h.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-  h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  h.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Pase-Sede');
   h.set('Access-Control-Max-Age', '86400');
   h.set('Vary', 'Origin');
   return new Response(resp.body, { status: resp.status, headers: h });
