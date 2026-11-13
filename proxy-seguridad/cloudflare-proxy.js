@@ -431,7 +431,8 @@ async function _gatewaySheets(peticion, entorno, url) {
    dirección— y quedaban caminos por fuera (escrituras en lote con el rango
    en el cuerpo, ediciones estructurales que borran pestañas enteras).
 
-     • Leer los datos de la hoja (metadatos de las pestañas).
+     • Leer los datos de la hoja (metadatos de las pestañas), sin el
+       contenido de las celdas (ver _pideCeldasEnMetadatos).
      • Leer un rango, o varios en una lectura en lote.
      • Escribir, anexar o borrar el contenido de UN rango que va en la
        dirección, o escribir varios rangos en lote (cada uno revisado).
@@ -455,7 +456,10 @@ async function _motivoNoPermitido(metodo, rutaGoogle, cuerpoTexto, spreadsheetId
   const ruta = destino.pathname;
   const base = '/v4/spreadsheets/' + spreadsheetId;
 
-  if (ruta === base) return metodo === 'GET' ? null : 'operación no permitida';
+  if (ruta === base) {
+    if (metodo !== 'GET') return 'operación no permitida';
+    return _pideCeldasEnMetadatos(destino.searchParams) ? 'operación no permitida' : null;
+  }
 
   if (ruta === base + '/values:batchGet') {
     if (metodo !== 'GET') return 'operación no permitida';
@@ -496,6 +500,20 @@ async function _motivoNoPermitido(metodo, rutaGoogle, cuerpoTexto, spreadsheetId
     return _motivoRango(rango);
   }
   return 'operación no permitida';
+}
+
+/** ¿La lectura de la información de la hoja (nombres de pestañas, tamaños)
+ *  pide también el contenido de las celdas? Google lo entrega con
+ *  includeGridData o con una máscara de campos que nombre "data" (o "*"),
+ *  y por ahí no pasa la revisión de pestañas de las lecturas normales. La
+ *  app nunca lo pide: un operario solo lee celdas con /values. */
+function _pideCeldasEnMetadatos(params) {
+  for (const [nombre, valor] of params) {
+    const n = nombre.toLowerCase(), v = String(valor || '');
+    if (n === 'includegriddata' && v.trim().toLowerCase() !== 'false') return true;
+    if (n === 'fields' && (v.includes('*') || v.split(/[^A-Za-z0-9_]+/).some(t => t.toLowerCase() === 'data'))) return true;
+  }
+  return false;
 }
 
 /** Pestaña y celdas de un rango A1: "'Hoja 2'!A1:B2" → { pestana: 'Hoja 2',

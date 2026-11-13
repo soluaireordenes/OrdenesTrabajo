@@ -1640,6 +1640,42 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Inventario: el tipo de un movimiento se escribe en la hoja y la app lo
+    // pasa a mayúsculas. Si alguien deja ahí código (con entidades, que las
+    // mayúsculas no rompen), se muestra como texto en el tablero y en el
+    // historial, y no se ejecuta.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const ids = await p.evaluate(() => ({ inv: INVENTARIO_SHEETS.zipaquira, prod: INV_PRODUCTOS_COLS, mov: INV_MOVIMIENTOS_COLS }));
+    const hoy = new Date().toISOString().slice(0, 10);
+    const codigo = '<img src=x onerror="&#119;&#105;&#110;&#100;&#111;&#119;.__&#120;&#120;&#115;=1">';
+    const mov = (tipo, cant) => ids.mov.map(c => ({ 'Código': 'P1', Fecha: hoy, Tipo: tipo, Cantidad: cant, Usuario: 'u', Responsable: 'Ana' }[c] ?? ''));
+    fake.crear(ids.inv, 'Productos', [ids.prod, ids.prod.map(c => ({ 'Código': 'P1', Nombre: 'Filtro', Unidad: 'und', 'Stock Mínimo': '1', 'Precio Unitario': '100', Tipo: 'Repuestos' }[c] ?? ''))]);
+    fake.crear(ids.inv, 'Movimientos', [ids.mov, mov('INGRESO', '10'), mov(codigo, '1'), mov('SALIDA', '2')]);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      abrirInventario('zipaquira'); await espera(1200);
+      const reciente = document.getElementById('invActividadReciente');
+      const out = { recienteImg: reciente.querySelectorAll('img').length, recienteTexto: reciente.textContent };
+      invMostrarSubTab('reportes'); await espera(400);
+      document.getElementById('invr_desde').value = ''; document.getElementById('invr_hasta').value = '';
+      document.getElementById('invr_tipo').value = ''; document.getElementById('invr_codigo').value = '';
+      await invCargarHistorial(); await espera(300);
+      const hist = document.getElementById('invHistorialTabla');
+      Object.assign(out, { histImg: hist.querySelectorAll('img').length, histTexto: hist.textContent, ejecutado: window.__xxs === 1, avisos });
+      return out;
+    });
+    check('Inventario: el tipo de un movimiento con código se muestra como texto en el tablero y el historial, sin ejecutarse; los tipos normales siguen con su nombre',
+      !r.ejecutado && r.recienteImg === 0 && r.histImg === 0 && r.recienteTexto.includes('<IMG SRC=X') && r.histTexto.includes('<IMG SRC=X')
+      && /Ingreso/.test(r.histTexto) && /Salida/.test(r.histTexto) && /Salida/.test(r.recienteTexto),
+      { ejecutado: r.ejecutado, recienteImg: r.recienteImg, histImg: r.histImg, reciente: r.recienteTexto.slice(0, 200), hist: r.histTexto.slice(0, 300) });
+    check('Inventario con datos raros: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
     // Entrega de turno de la sala de Zipaquirá 2: los equipos con listas y
     // los de la sede; quién entrega y recibe y las temperaturas se escriben.
     // Una columna por equipo en la hoja, la siguiente entrega arranca con los
