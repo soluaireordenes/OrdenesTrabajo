@@ -58,6 +58,9 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes('HOJASEDE') && decodeURIComponent(url).includes('Config!A1:A1')) return new Response(JSON.stringify({ values: [[h('clave-sede').toLowerCase()]] }));
   if (url.includes('/drive/v3/files/')) {
     if (url.includes('NOEXISTEXXXXXX')) return new Response('{}', { status: 404 });
+    if (url.includes('TEXTOXXXXXXXXX')) return new Response('secreto', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    if (url.includes('SVGIMGXXXXXXXX')) return new Response('<svg onload="x()"/>', { status: 200, headers: { 'Content-Type': 'image/svg+xml' } });
+    if (url.includes('PDFDOCXXXXXXXX')) return new Response('%PDF-1.4', { status: 200, headers: { 'Content-Type': 'application/pdf' } });
     return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
   }
   return new Response('{"values":[["ok"]]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -74,6 +77,21 @@ check('Usuario inactivo rechazado', !(await login('333', '3333')).ok);
 for (let i = 0; i < 5; i++) await login('999', 'x');
 const bloq = await req('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ documento: '999', pin: 'x' }) });
 check('Bloqueo tras 5 intentos fallidos (429)', bloq.status === 429);
+// Un documento que no existe, uno inactivo con PIN malo y un PIN malo responden igual:
+// no se puede averiguar qué documentos están registrados. "Inactivo" solo con el PIN bueno.
+const loginR = async (d, p, ip) => { const x = await req('/login', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(ip ? { 'CF-Connecting-IP': ip } : {}) },
+  body: JSON.stringify({ documento: d, pin: p }) }); return { status: x.status, ...(await x.json()) }; };
+const noExiste = await loginR('8888', '1111'), inactivoMal = await loginR('333', '0000'), pinMal = await loginR('444', '0000'), inactivoBien = await loginR('333', '3333');
+check('Ingreso: documento inexistente, inactivo con PIN malo y PIN malo responden igual (401); "inactivo" solo con el PIN correcto',
+  [noExiste, inactivoMal, pinMal].every(x => x.status === 401 && x.mensaje === 'Documento o PIN incorrecto.')
+  && inactivoBien.status === 403 && inactivoBien.mensaje === 'Usuario inactivo.', { noExiste, inactivoMal, pinMal, inactivoBien });
+// Rociado: el mismo PIN contra muchos documentos desde una conexión la bloquea; las demás siguen.
+for (let i = 0; i < 10; i++) await loginR(String(7000 + i), '1234', '203.0.113.9');
+const rociado = await loginR('111', '1111', '203.0.113.9'), otraIp = await loginR('111', '1111', '203.0.113.10');
+for (let i = 0; i < 4; i++) await loginR('7100', '0000', '203.0.113.11');
+const mismoDoc = await loginR('111', '1111', '203.0.113.11');
+check('Ingreso: una conexión que falla con 10 documentos distintos queda bloqueada (429); otra conexión entra, y equivocarse con un mismo documento no bloquea la conexión',
+  rociado.status === 429 && otraIp.ok && mismoDoc.ok, { rociado, otraIp, mismoDoc });
 
 const H = s => ({ Authorization: 'Bearer ' + s });
 check('/ping responde', (await req('/ping')).status === 200);
@@ -144,6 +162,36 @@ for (const c of camposApp) estadosApp.push(await pedir(op.session, '?fields=' + 
 estadosApp.push(await pedir(op.session, ''), await pedir(op.session, '?includeGridData=false'));
 check('Operario SÍ lee la información que usa la app (nombres y tamaños de pestañas)', estadosApp.every(s => s === 200), estadosApp);
 check('Admin SÍ lee celdas por la información de la hoja', (await pedir(ad.session, conCeldas[0])) === 200);
+// Escrituras grandes: la app escribe y borra fila por fila; de un golpe no.
+const filas = n => Array.from({ length: n }, (_, i) => ['v' + i]);
+const put = (s, rango, cuerpo) => pedir(s, '/values/' + enc(rango) + '?valueInputOption=RAW', 'PUT', JSON.stringify(cuerpo));
+const lotePut = (s, data) => pedir(s, '/values:batchUpdate', 'POST', JSON.stringify({ valueInputOption: 'RAW', data }));
+const borrarN = (s, pedidos) => pedir(s, ':batchUpdate', 'POST', JSON.stringify({ requests: pedidos }));
+const filaSuelta = i => ({ deleteDimension: { range: { sheetId: 7, dimension: 'ROWS', startIndex: i, endIndex: i + 1 } } });
+llamadas = [];
+const grandes = [
+  await put(op.session, 'Ordenes!A2:A3', { values: filas(2) }),
+  await put(op.session, 'Ordenes!A2:A500', { majorDimension: 'COLUMNS', values: [filas(499).map(f => f[0])] }),
+  await lotePut(op.session, [{ range: 'HorasEquipos!A3:F4', values: filas(2) }]),
+  await lotePut(op.session, Array.from({ length: 201 }, (_, i) => ({ range: 'HorasEquipos!A' + (i + 2), values: [['x']] }))),
+  await pedir(op.session, '/values/' + enc('Ordenes!A2:ZZ') + ':clear', 'POST', '{}'),
+  await borrarN(op.session, [{ deleteDimension: { range: { sheetId: 7, dimension: 'ROWS', startIndex: 1, endIndex: 1000000 } } }]),
+  await borrarN(op.session, Array.from({ length: 201 }, (_, i) => filaSuelta(201 - i))),
+];
+check('Operario NO sobrescribe, vacía ni borra muchas filas de un golpe (403) y nada llega a Google', grandes.every(x => x === 403) && llamadas.length === 0, { grandes, llamadas: llamadas.length });
+const normales = [
+  await put(op.session, 'Ordenes!A5:C5', { values: [['a', 'b', 'c']] }),
+  await put(op.session, 'CamposReportes!A2:C4', { values: filas(3) }),
+  await lotePut(op.session, Array.from({ length: 200 }, (_, i) => ({ range: 'HorasEquipos!A' + (i + 2) + ':F' + (i + 2), values: [['x']] }))),
+  await borrarN(op.session, [filaSuelta(9), filaSuelta(5), filaSuelta(3)]),
+];
+check('Operario SÍ escribe una fila, el catálogo de variables entero, 200 filas sueltas en lote y borra varias filas de a una', normales.every(x => x === 200), normales);
+const admin = [
+  await put(ad.session, 'Ordenes!A2:A3', { values: filas(2) }),
+  await pedir(ad.session, '/values/' + enc('Ordenes!A2:ZZ') + ':clear', 'POST', '{}'),
+  await borrarN(ad.session, [{ deleteDimension: { range: { sheetId: 7, dimension: 'ROWS', startIndex: 1, endIndex: 50 } } }]),
+];
+check('Admin SÍ escribe, vacía y borra en bloque', admin.every(x => x === 200), admin);
 check('Admin SÍ puede escrituras en lote y borrar pestañas', (await pedir(ad.session, '/values:batchUpdate', 'POST', '{"data":[]}')) === 200
   && (await pedir(ad.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ deleteSheet: { sheetId: 7 } }] }))) === 200);
 
@@ -213,6 +261,13 @@ check('/foto entrega la imagen con sesión', f1.status === 200 && f1.headers.get
 check('/foto sin sesión → 401', (await req('/foto?id=FOTOIDXXXXXXXXXX1')).status === 401);
 check('/foto id inválido → 400', (await req('/foto?id=../../etc', { headers: H(op.session) })).status === 400);
 check('/foto inexistente → 404', (await req('/foto?id=NOEXISTEXXXXXX', { headers: H(op.session) })).status === 404);
+const fTexto = await req('/foto?id=TEXTOXXXXXXXXX', { headers: H(op.session) });
+const fSvg = await req('/foto?id=SVGIMGXXXXXXXX', { headers: H(op.session) });
+const fPdf = await req('/foto?id=PDFDOCXXXXXXXX', { headers: H(op.session) });
+const cuerpoTexto = await fTexto.text();
+check('/foto solo entrega fotos y PDF: otro archivo o un SVG → 403 sin su contenido; el PDF sí, y nada se adivina por el tipo (nosniff)',
+  fTexto.status === 403 && !cuerpoTexto.includes('secreto') && fSvg.status === 403 && fPdf.status === 200 && fPdf.headers.get('Content-Type') === 'application/pdf'
+  && f1.headers.get('X-Content-Type-Options') === 'nosniff', { texto: fTexto.status, svg: fSvg.status, pdf: fPdf.status });
 
 let ok = 0;
 for (const r of resultados) { console.log((r.ok ? 'PASS ' : 'FAIL ') + r.n + (r.ok ? '' : '  → ' + JSON.stringify(r.d))); if (r.ok) ok++; }

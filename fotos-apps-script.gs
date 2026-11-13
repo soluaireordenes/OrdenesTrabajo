@@ -17,7 +17,8 @@
      • Solo se borran archivos que estén dentro de la carpeta de fotos.
      • Solo se suben imágenes y PDF, de hasta 15 MB.
      • Solo se entregan imágenes y PDF (nunca hojas de cálculo ni
-       documentos de Google).
+       documentos de Google), y solo los de la carpeta de fotos o los que
+       ya están compartidos por enlace.
 
    ── CONTRATO QUE ESPERA EL SISTEMA (no cambiar nombres de campos) ──────
    • Subir   (POST, body JSON):
@@ -128,10 +129,24 @@ function _estaEnCarpetaDeFotos(archivo) {
 }
 
 /** Solo se entregan imágenes y PDF: nunca hojas de cálculo, documentos ni
- *  otros archivos de la cuenta, aunque alguien conozca su ID. */
+ *  otros archivos de la cuenta, aunque alguien conozca su ID. Y solo los
+ *  de la carpeta de fotos o, si están fuera (fotos viejas, de antes de la
+ *  carpeta), los que ya están compartidos por enlace, como las que sube
+ *  este script: así no sale nada privado de la cuenta (un contrato, una
+ *  hoja de vida en PDF) que no pudiera ver ya quien tuviera el enlace. */
 function _esEntregable(archivo) {
   var tipo = String(archivo.getMimeType() || '').toLowerCase();
-  return tipo.indexOf('image/') === 0 || tipo === 'application/pdf';
+  if (!((tipo.indexOf('image/') === 0 && tipo.indexOf('svg') < 0) || tipo === 'application/pdf')) return false;
+  return _compartidoPorEnlace(archivo) || _estaEnCarpetaDeFotos(archivo);
+}
+
+function _compartidoPorEnlace(archivo) {
+  try {
+    var acceso = archivo.getSharingAccess();
+    return acceso === DriveApp.Access.ANYONE_WITH_LINK || acceso === DriveApp.Access.ANYONE;
+  } catch (e) {
+    return false;
+  }
 }
 
 // ── Mostrar fotos ──
@@ -208,7 +223,7 @@ function _subirFoto(datos) {
   if (!datos.base64) return _json({ ok: false, mensaje: 'No llegó el contenido de la imagen.' });
 
   var mimeType = String(datos.mimeType || 'image/jpeg').toLowerCase();
-  if (mimeType.indexOf('image/') !== 0 && mimeType !== 'application/pdf') {
+  if ((mimeType.indexOf('image/') !== 0 || mimeType.indexOf('svg') >= 0) && mimeType !== 'application/pdf') {
     return _json({ ok: false, mensaje: 'Solo se pueden subir fotos o PDF.' });
   }
   var bytes = Utilities.base64Decode(datos.base64);

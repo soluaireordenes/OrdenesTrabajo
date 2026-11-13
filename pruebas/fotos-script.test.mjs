@@ -5,7 +5,8 @@
 // Utilities, Propiedades) y con pases generados por el código real del
 // proxy (/pase-fotos), para comprobar que los dos se entienden. Revisa que
 // sin pase válido no se haga nada, que solo se borre lo que está en la
-// carpeta de fotos, que solo se suban y entreguen imágenes y PDF.
+// carpeta de fotos, que solo se suban y entreguen imágenes y PDF (sin SVG), y
+// que fuera de la carpeta solo se entregue lo que ya está compartido por enlace.
 //
 // Cómo correrlas:  node pruebas/fotos-script.test.mjs   (Node 18 o más reciente)
 // ══════════════════════════════════════════════════════════════════════
@@ -36,9 +37,10 @@ function carpeta(id, nombre, padre) {
     createFile: blob => archivo('NUEVO' + (drive.archivos.size + 1) + 'XXXXXXXXXX', blob.getContentType(), id, blob) };
   drive.carpetas.set(id, c); return c;
 }
-function archivo(id, tipo, padre, blob) {
-  const a = { id, tipo, padre, papelera: false, compartido: false,
+function archivo(id, tipo, padre, blob, compartido = false) {
+  const a = { id, tipo, padre, papelera: false, compartido,
     getId: () => id, getMimeType: () => tipo,
+    getSharingAccess: () => (a.compartido ? 'link' : 'private'),
     getParents: () => iterador(padre ? [drive.carpetas.get(padre)] : []),
     getBlob: () => blob || nuevoBlob(aBytes(Buffer.from('contenido de ' + id)), tipo, id),
     getThumbnail: () => null,
@@ -50,7 +52,10 @@ carpeta('MIDRIVE', 'Mi unidad', null);
 carpeta('CARP-FOTOSOT', 'FOTOS OT', 'RAIZFOTOS');
 archivo('FOTO1', 'image/jpeg', 'CARP-FOTOSOT');
 archivo('PDF1', 'application/pdf', 'RAIZFOTOS');
-archivo('FOTOVIEJA', 'image/jpeg', 'MIDRIVE');                          // foto vieja fuera de la carpeta
+archivo('FOTOVIEJA', 'image/jpeg', 'MIDRIVE', null, true);              // foto vieja fuera de la carpeta, compartida por enlace como las sube el script
+archivo('PRIVADO1', 'application/pdf', 'MIDRIVE');                      // PDF privado de la cuenta (un contrato, una hoja de vida)
+archivo('FOTOPRIVADA', 'image/png', 'MIDRIVE');                         // imagen privada de la cuenta
+archivo('SVG1', 'image/svg+xml', 'CARP-FOTOSOT');                       // un SVG puede llevar código
 archivo('HOJA1', 'application/vnd.google-apps.spreadsheet', 'MIDRIVE'); // hoja de cálculo de la cuenta
 
 const propiedades = {};
@@ -67,7 +72,7 @@ const contexto = vm.createContext({
     newBlob: (bytes, tipo, nombre) => nuevoBlob(bytes, tipo, nombre),
   },
   DriveApp: {
-    Access: { ANYONE_WITH_LINK: 'link' }, Permission: { VIEW: 'view' },
+    Access: { ANYONE_WITH_LINK: 'link', ANYONE: 'anyone', PRIVATE: 'private' }, Permission: { VIEW: 'view' },
     getFileById: id => { const a = drive.archivos.get(id); if (!a) throw new Error('No existe ' + id); return a; },
     getFolderById: id => { const c = drive.carpetas.get(id); if (!c) throw new Error('No existe la carpeta ' + id); return c; },
   },
@@ -119,9 +124,11 @@ check('Sin pase no se sube ni se borra', post({ accion: 'subirFoto', base64: 'AA
 
 // ── Leer ──
 check('No entrega hojas de cálculo aunque se conozca su ID', !get({ id: 'HOJA1', pase: PASE }).ok);
-check('Entrega PDF y fotos viejas fuera de la carpeta (compatibilidad)', get({ id: 'PDF1', pase: PASE }).ok && get({ id: 'FOTOVIEJA', pase: PASE }).ok);
-const lote = get({ ids: 'FOTO1,HOJA1,NOEXISTE', pase: PASE });
-check('Lectura en lote: solo fotos, sin tumbarse por una mala', lote.ok && Object.keys(lote.fotos).join() === 'FOTO1', lote);
+check('Entrega PDF de la carpeta y fotos viejas fuera de ella que ya estaban compartidas por enlace (compatibilidad)', get({ id: 'PDF1', pase: PASE }).ok && get({ id: 'FOTOVIEJA', pase: PASE }).ok);
+check('No entrega imágenes ni PDF privados de la cuenta fuera de la carpeta, ni SVG', !get({ id: 'PRIVADO1', pase: PASE }).ok && !get({ id: 'FOTOPRIVADA', pase: PASE }).ok
+  && !get({ id: 'SVG1', pase: PASE }).ok);
+const lote = get({ ids: 'FOTO1,HOJA1,NOEXISTE,PRIVADO1,FOTOVIEJA,SVG1', pase: PASE });
+check('Lectura en lote: solo fotos de la carpeta o compartidas, sin tumbarse por una mala', lote.ok && Object.keys(lote.fotos).sort().join() === 'FOTO1,FOTOVIEJA', lote);
 
 // ── Borrar ──
 check('Borra una foto de la carpeta (subcarpeta incluida)', post({ accion: 'eliminarFoto', pase: PASE, driveFileId: 'FOTO1' }).ok && drive.archivos.get('FOTO1').papelera);
@@ -137,7 +144,8 @@ check('Sube una foto a su subcarpeta, compartida por enlace', sub.ok && nuevo &&
   && sub.urlVer === 'https://drive.google.com/file/d/' + sub.driveFileId + '/view', sub);
 const subPdf = post({ accion: 'subirFoto', pase: PASE, tipo: 'novedad', mimeType: 'application/pdf', base64: Buffer.from('%PDF').toString('base64') });
 check('Sube un PDF (crea la subcarpeta de novedades si no existe)', subPdf.ok && drive.archivos.get(subPdf.driveFileId).padre === 'CARP-FOTOSNOVEDADES', subPdf);
-check('No sube archivos que no son fotos ni PDF', !post({ accion: 'subirFoto', pase: PASE, mimeType: 'text/html', base64: Buffer.from('<script>').toString('base64') }).ok);
+check('No sube archivos que no son fotos ni PDF (ni SVG)', !post({ accion: 'subirFoto', pase: PASE, mimeType: 'text/html', base64: Buffer.from('<script>').toString('base64') }).ok
+  && !post({ accion: 'subirFoto', pase: PASE, mimeType: 'image/svg+xml', base64: Buffer.from('<svg onload=x>').toString('base64') }).ok);
 check('No sube archivos de más de 15 MB', !post({ accion: 'subirFoto', pase: PASE, mimeType: 'image/jpeg', base64: Buffer.alloc(16 * 1024 * 1024).toString('base64') }).ok);
 check('Acción desconocida: no', !post({ accion: 'borrarTodo', pase: PASE }).ok);
 
