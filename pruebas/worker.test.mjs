@@ -126,6 +126,24 @@ check('Operario SÍ lee metadatos, rango con espacios y lectura en lote normal',
   && (await pedir(op.session, '/values:batchGet?ranges=' + enc('Ordenes!A:Z') + '&ranges=' + enc('Tareas!A:H'))) === 200
   && (await pedir(op.session, '/values/' + enc('Ordenes!A:Z') + ':append?valueInputOption=RAW', 'POST', '{"values":[["x"]]}')) === 200
   && (await pedir(op.session, '/values/' + enc('CamposReportes!A5:ZZ') + ':clear', 'POST', '{}')) === 200);
+// La información de la hoja no puede traer el contenido de las celdas: por ahí
+// se saltaba la revisión de pestañas (Config, Operarios, llamados de atención).
+llamadas = [];
+const conCeldas = ['?includeGridData=true&ranges=' + enc('Config!A1'), '?includeGridData=TRUE&ranges=' + enc('ObservacionesOperarios!A:H'),
+  '?includeGridData=1', '?ranges=' + enc('Operarios!A:E') + '&fields=' + enc('sheets.data.rowData.values.formattedValue'),
+  '?fields=' + enc('sheets(properties,data(rowData))'), '?fields=' + enc('sheets/data'), '?fields=*', '?fields=sheets(*)',
+  '?includeGridData=false&includeGridData=true', '?fields=' + enc('sheets.properties') + '&fields=' + enc('sheets.data')];
+const estadosCeldas = [];
+for (const q of conCeldas) estadosCeldas.push(await pedir(op.session, q));
+check('Operario NO lee celdas por la información de la hoja (includeGridData o máscara con data, 403) y no llega nada a Google',
+  estadosCeldas.every(s => s === 403) && llamadas.length === 0, { estadosCeldas, llamadas: llamadas.length });
+const camposApp = ['sheets.properties.title', 'sheets.properties', 'properties.title,sheets(properties(title,gridProperties(rowCount,columnCount)))',
+  'sheets(properties(title,gridProperties(rowCount)))', 'sheets(properties(sheetId,title))', 'sheets.properties(sheetId,title)'];
+const estadosApp = [];
+for (const c of camposApp) estadosApp.push(await pedir(op.session, '?fields=' + enc(c)));
+estadosApp.push(await pedir(op.session, ''), await pedir(op.session, '?includeGridData=false'));
+check('Operario SÍ lee la información que usa la app (nombres y tamaños de pestañas)', estadosApp.every(s => s === 200), estadosApp);
+check('Admin SÍ lee celdas por la información de la hoja', (await pedir(ad.session, conCeldas[0])) === 200);
 check('Admin SÍ puede escrituras en lote y borrar pestañas', (await pedir(ad.session, '/values:batchUpdate', 'POST', '{"data":[]}')) === 200
   && (await pedir(ad.session, ':batchUpdate', 'POST', JSON.stringify({ requests: [{ deleteSheet: { sheetId: 7 } }] }))) === 200);
 
