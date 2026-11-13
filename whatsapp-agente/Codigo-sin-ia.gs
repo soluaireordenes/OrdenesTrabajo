@@ -1153,6 +1153,6 @@ function probarRespuestas() {
     console.log('════════════════════════════════');
     console.log('El operario escribe: ' + t);
     console.log('--------------------------------');
-    console.log(_responder('Alex Prieto', t));
+    console.log(_responder('Operario de prueba', t));
   });
 }
