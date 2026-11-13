@@ -140,7 +140,11 @@ async function _login(peticion, entorno) {
   const pin = String(cuerpo.pin || '').trim();
   if (!documento || !pin) return _json({ ok: false, mensaje: 'Falta documento o PIN.' }, 400);
 
-  // Bloqueo por intentos fallidos (anti fuerza bruta).
+  // Bloqueo por intentos fallidos (anti fuerza bruta): por documento, y por
+  // conexión para quien prueba un mismo PIN contra muchos documentos.
+  const ip = peticion.headers.get('CF-Connecting-IP') || '';
+  const minIp = _revisarBloqueoIp(ip);
+  if (minIp > 0) return _json({ ok: false, mensaje: `Demasiados intentos desde esta conexión. Intenta de nuevo en ${minIp} minuto(s).` }, 429);
   const minBloqueo = _revisarBloqueo(documento);
   if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
 
@@ -153,18 +157,21 @@ async function _login(peticion, entorno) {
     return _json({ ok: false, mensaje: err.message }, err.status || 502);
   }
 
+  // Un documento que no existe y un PIN equivocado responden igual (y
+  // tardan lo mismo): así no se puede averiguar qué documentos están
+  // registrados. Que la persona está inactiva solo se le dice a quien
+  // escribió el PIN correcto.
   const u = usuarios.get(documento);
-  if (!u) {
+  let pinBien = false;
+  if (u) pinBien = await _pinCoincide(pin, documento, u.pinHash, entorno);
+  else await _firmaPinV2(pin, documento, '0', entorno.PIN_PEPPER || 'x'); // el mismo trabajo que un PIN equivocado
+  if (!pinBien) {
     _registrarFallo(documento);
+    _registrarFalloIp(ip, documento);
     return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
   }
   // Usuario inactivo/deshabilitado no entra.
   if (!u.activo) return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
-
-  if (!(await _pinCoincide(pin, documento, u.pinHash, entorno))) {
-    _registrarFallo(documento);
-    return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
-  }
   // PIN todavía en el formato viejo: se pasa al nuevo ahora que se conoce.
   if (entorno.PIN_PEPPER && !/^v2\$/i.test(u.pinHash)) await _guardarPinV2(entorno, u, documento, pin);
 
@@ -359,15 +366,28 @@ async function _foto(peticion, entorno, url) {
     const detalle = (await respDrive.text()).slice(0, 300);
     return _json({ ok: false, mensaje: 'Drive respondió ' + respDrive.status, detalle }, respDrive.status === 404 ? 404 : 502);
   }
+  // Solo fotos y PDF: la cuenta de servicio puede abrir más archivos que
+  // esos, y conociendo el id de cualquiera se lo llevaba quien tuviera
+  // sesión. Un SVG tampoco, porque puede llevar código.
+  const tipo = String(respDrive.headers.get('Content-Type') || '').toLowerCase();
+  if (!_esFotoOPdf(tipo)) {
+    try { await respDrive.body?.cancel(); } catch (_) { /* nada que cerrar */ }
+    return _json({ ok: false, mensaje: 'Ese archivo no es una foto ni un PDF.' }, 403);
+  }
   // Una foto nunca cambia (mismo id = misma imagen): el navegador puede
   // guardarla en caché mucho tiempo y no volver a pedirla.
   return new Response(respDrive.body, {
     status: 200,
     headers: {
-      'Content-Type': respDrive.headers.get('Content-Type') || 'image/jpeg',
+      'Content-Type': tipo,
+      'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'private, max-age=31536000, immutable',
     },
   });
+}
+
+function _esFotoOPdf(tipo) {
+  return (/^image\//.test(tipo) && !/svg/.test(tipo)) || /^application\/pdf\b/.test(tipo);
 }
 
 /* ── GATEWAY A GOOGLE SHEETS ────────────────────────────────────────────
@@ -435,9 +455,10 @@ async function _gatewaySheets(peticion, entorno, url) {
        contenido de las celdas (ver _pideCeldasEnMetadatos).
      • Leer un rango, o varios en una lectura en lote.
      • Escribir, anexar o borrar el contenido de UN rango que va en la
-       dirección, o escribir varios rangos en lote (cada uno revisado).
+       dirección, o escribir varios rangos en lote (cada uno revisado),
+       sin escrituras grandes (ver _motivoEscritura).
      • Edición estructural, solo para agregar una pestaña nueva o borrar
-       filas (nunca la de encabezados).
+       filas de a una (nunca la de encabezados).
    Siempre con el nombre de la pestaña escrito, y nunca sobre:
      • la hoja de Usuarios ni la de Proyectos (ni para leer),
      • las pestañas de personal "Operarios" y "ObservacionesOperarios",
@@ -478,9 +499,10 @@ async function _motivoNoPermitido(metodo, rutaGoogle, cuerpoTexto, spreadsheetId
     try { cuerpo = JSON.parse(cuerpoTexto || '{}'); } catch (_) { return 'cuerpo inválido'; }
     const datos = Array.isArray(cuerpo.data) ? cuerpo.data : [];
     if (!datos.length) return 'operación no permitida';
+    if (datos.length > MAX_FILAS_POR_PETICION_OPERARIO) return 'demasiadas filas de una vez';
     for (const d of datos) {
       if (!d || typeof d.range !== 'string') return 'operación no permitida';
-      const motivo = _motivoRango(d.range);
+      const motivo = _motivoEscritura(d.range, d);
       if (motivo) return motivo;
     }
     return null;
@@ -497,9 +519,55 @@ async function _motivoNoPermitido(metodo, rutaGoogle, cuerpoTexto, spreadsheetId
     if (!permitido) return 'operación no permitida';
     let rango;
     try { rango = decodeURIComponent(m[1]); } catch (_) { return 'rango inválido'; }
-    return _motivoRango(rango);
+    const motivo = _motivoRango(rango);
+    if (motivo) return motivo;
+    // Vaciar un rango solo en las pestañas que la app limpia (el catálogo
+    // de variables); en las demás, un rango abierto se lleva todo.
+    if (accion === ':clear' && !PESTANAS_EN_BLOQUE.includes(_pestanaDe(rango))) return 'vaciar datos';
+    if (metodo === 'PUT') {
+      let cuerpo;
+      try { cuerpo = JSON.parse(cuerpoTexto || '{}'); } catch (_) { return 'cuerpo inválido'; }
+      return _motivoEscritura(rango, cuerpo);
+    }
+    return null;
   }
   return 'operación no permitida';
+}
+
+/* ── Escrituras grandes de un operario ──
+   Un operario puede escribir y borrar (la app lo necesita), pero la app
+   siempre lo hace fila por fila: un registro, una celda de estado, una fila
+   de horas. Una sola petición que sobrescribe, vacía o borra cientos de
+   filas no la manda nunca, y con ella alguien con un pase de operario se
+   llevaba de un golpe todas las órdenes. Aquí se pone el tope:
+     • cada rango que se escribe trae una sola fila (salvo el catálogo de
+       variables, que la app reescribe entero),
+     • vaciar (:clear) solo en ese catálogo,
+     • cada borrado de filas es de una fila, y
+     • como mucho MAX_FILAS_POR_PETICION_OPERARIO por petición.
+   Esto no impide escribir encima fila por fila: para deshacer cualquier
+   daño está el historial de versiones de cada hoja de Google. */
+const MAX_FILAS_POR_PETICION_OPERARIO = 200;
+const PESTANAS_EN_BLOQUE = ['camposreportes'];
+
+function _pestanaDe(rango) {
+  return String(_partesRango(rango).pestana || '').trim().toLowerCase();
+}
+
+/** Filas que ocupa lo que se escribe (por filas o, si así viene, por columnas). */
+function _filasEscritas(valores) {
+  const v = Array.isArray(valores && valores.values) ? valores.values : [];
+  if (String((valores && valores.majorDimension) || '').toUpperCase() === 'COLUMNS') {
+    return v.reduce((max, col) => Math.max(max, Array.isArray(col) ? col.length : 1), 0);
+  }
+  return v.length;
+}
+
+function _motivoEscritura(rango, valores) {
+  const motivo = _motivoRango(rango);
+  if (motivo) return motivo;
+  if (_filasEscritas(valores) > 1 && !PESTANAS_EN_BLOQUE.includes(_pestanaDe(rango))) return 'demasiadas filas de una vez';
+  return null;
 }
 
 /** ¿La lectura de la información de la hoja (nombres de pestañas, tamaños)
@@ -563,6 +631,7 @@ async function _motivoEdicionEstructural(cuerpoTexto, spreadsheetId, token) {
   try { cuerpo = JSON.parse(cuerpoTexto || '{}'); } catch (_) { return 'cuerpo inválido'; }
   const pedidos = Array.isArray(cuerpo.requests) ? cuerpo.requests : [];
   if (!pedidos.length) return 'operación no permitida';
+  if (pedidos.length > MAX_FILAS_POR_PETICION_OPERARIO) return 'demasiadas filas de una vez';
   let nombres = null;
   for (const pedido of pedidos) {
     const tipos = Object.keys(pedido || {});
@@ -577,6 +646,8 @@ async function _motivoEdicionEstructural(cuerpoTexto, spreadsheetId, token) {
       if (r.dimension !== 'ROWS' || !(Number(r.startIndex) >= 1) || !(Number(r.endIndex) > Number(r.startIndex))) {
         return 'operación no permitida';
       }
+      // La app borra fila por fila (varias en una petición, de abajo hacia arriba).
+      if (Number(r.endIndex) - Number(r.startIndex) !== 1) return 'demasiadas filas de una vez';
       if (!nombres) nombres = await _nombresDePestanas(spreadsheetId, token);
       const nombre = nombres.get(Number(r.sheetId));
       if (nombre === undefined || PESTANAS_SOLO_ADMIN.includes(nombre.trim().toLowerCase())) return 'operación no permitida';
@@ -752,6 +823,31 @@ function _registrarFallo(documento) {
 }
 function _limpiarFallos(documento) {
   _intentos.delete(documento);
+}
+
+/* Por conexión: quien falla con muchos documentos distintos en poco tiempo
+   está probando un PIN contra la lista de personas (en una planta, los
+   que se equivocan de PIN son pocos y casi siempre los mismos). Igual que
+   el bloqueo por documento, vive en la memoria de esta instancia. */
+const IP_MAX_DOCUMENTOS = 10;
+const IP_VENTANA_MS = 15 * 60 * 1000;
+const _fallosPorIp = new Map(); // ip -> { desde, documentos: Set, bloqueadoHasta }
+
+function _revisarBloqueoIp(ip) {
+  const d = ip && _fallosPorIp.get(ip);
+  if (d && d.bloqueadoHasta && Date.now() < d.bloqueadoHasta) return Math.ceil((d.bloqueadoHasta - Date.now()) / 60000);
+  return 0;
+}
+function _registrarFalloIp(ip, documento) {
+  if (!ip) return;
+  if (_fallosPorIp.size > 5000) _fallosPorIp.clear(); // que la memoria no crezca sin fin
+  let d = _fallosPorIp.get(ip);
+  if (!d || Date.now() - d.desde > IP_VENTANA_MS || (d.bloqueadoHasta && Date.now() >= d.bloqueadoHasta)) {
+    d = { desde: Date.now(), documentos: new Set(), bloqueadoHasta: 0 };
+  }
+  d.documentos.add(documento);
+  if (d.documentos.size >= IP_MAX_DOCUMENTOS) d.bloqueadoHasta = Date.now() + BLOQUEO_MS;
+  _fallosPorIp.set(ip, d);
 }
 
 /* ── Utilidades ───────────────────────────────────────────────────────── */
