@@ -92,11 +92,11 @@ const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }
 globalThis.fetch = async url => {
   url = String(url);
   if (url.includes('oauth2')) return new Response(JSON.stringify({ access_token: 'T', expires_in: 3600 }));
-  return new Response(JSON.stringify({ values: [['Documento', 'PINHash', 'Rol'], ['111', h('1111'), 'operario']] }));
+  return new Response(JSON.stringify({ values: [['Documento', 'PINHash', 'Rol'], ['111', h('111111'), 'operario']] }));
 };
 const pase = async secreto => {
   const env = { GOOGLE_SA_EMAIL: 'sa@x', GOOGLE_SA_PRIVATE_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' }), SESSION_SECRET: 's', USUARIOS_SHEET_ID: 'HU', FOTOS_SECRETO: secreto };
-  const ses = (await (await worker.fetch(new Request('https://w/login', { method: 'POST', body: '{"documento":"111","pin":"1111"}' }), env)).json()).session;
+  const ses = (await (await worker.fetch(new Request('https://w/login', { method: 'POST', body: '{"documento":"111","pin":"111111"}' }), env)).json()).session;
   return (await (await worker.fetch(new Request('https://w/pase-fotos', { headers: { Authorization: 'Bearer ' + ses } }), env)).json()).pase;
 };
 const PASE = await pase('secreto-fotos');

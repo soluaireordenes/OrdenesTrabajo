@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v157';
+const CACHE_VERSION = 'v159';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -37,6 +37,9 @@ const APP_SHELL = [
   './icon-512.png',
   './icon-512-maskable.png',
   './favicon.png',
+  // Chart.js (las gráficas del Dashboard y de Variables), servido desde el
+  // propio sitio: así también hay gráficas sin señal.
+  './vendor/chart-4.4.0.umd.js',
 ];
 
 // ── Instalación: guarda en caché la interfaz de la app ──
@@ -83,21 +86,6 @@ self.addEventListener('fetch', (event) => {
     url.includes('accounts.google.com')
   ) {
     return; // deja pasar la petición sin tocarla
-  }
-
-  // Chart.js (las gráficas del Dashboard) viene de un CDN con la versión
-  // fija en la dirección, así que su contenido nunca cambia: se guarda la
-  // primera vez y después se sirve del caché. Sin esto, sin señal el
-  // Dashboard quedaba sin gráficas aunque la app sí abriera.
-  if (event.request.method === 'GET' && url.startsWith('https://cdn.jsdelivr.net/npm/chart.js@')) {
-    event.respondWith(caches.open(CACHE_NAME).then(async (cache) => {
-      const guardada = await cache.match(event.request);
-      if (guardada) return guardada;
-      const respuesta = await fetch(event.request);
-      if (respuesta.ok) cache.put(event.request, respuesta.clone());
-      return respuesta;
-    }));
-    return;
   }
 
   // Solo nos interesa cachear peticiones del mismo sitio (la app en sí)

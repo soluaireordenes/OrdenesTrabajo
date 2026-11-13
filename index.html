@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Qué puede cargar y a quién le puede hablar la página. La app es un solo
+     archivo con su código adentro (por eso 'unsafe-inline'), pero así un
+     código metido en un dato no puede traer scripts de afuera ni mandar
+     datos a otros servidores: solo al proxy y a los scripts de fotos de
+     Google. Si se agrega un servicio nuevo, va aquí en connect-src. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://solucionaire-proxy.soluaire-ordenes.workers.dev https://script.google.com https://script.googleusercontent.com; media-src 'self' data: blob:; frame-src 'self' data: blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
 <title>Órdenes de Trabajo — SolucionAIRE</title>
 <!-- Aplica el tema guardado ANTES de pintar, para que no haya destello claro
      al abrir en modo oscuro. Por defecto queda en claro (el modo oscuro es
@@ -4866,11 +4872,12 @@ body.rol-operario .btn-principal-operario {
 <!-- ════════════════════════════════════════════════════
      CHART.JS (mini dashboard)
 ════════════════════════════════════════════════════ -->
-<!-- defer: sin él, el navegador frena el pintado de TODA la página hasta que
-     el CDN responda. Nada dibuja gráficas antes de tiempo — la app arranca
-     desde el callback de Google (que ya es async defer), muy después de que
-     un script defer se haya ejecutado. -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous" defer></script>
+<!-- Servido desde el propio sitio (vendor/), el mismo archivo publicado por
+     Chart.js 4.4.0, en vez de un CDN: así ningún servidor de afuera puede
+     cambiar el código que corre en la app, y hay gráficas sin señal.
+     defer: no frena el pintado de la página; nada dibuja gráficas antes de
+     que el script haya corrido. -->
+<script src="vendor/chart-4.4.0.umd.js" defer></script>
 
 <!-- ════════════════════════════════════════════════════
      JSVECTORMAP (mapa "Dónde Operamos" en Inicio) — MIT License,
@@ -5149,14 +5156,26 @@ const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleap
 // responde 429, la petición NO se procesó, así que reintentarla es seguro:
 // se espera 2 s, 4 s, 8 s y 16 s (con algo de azar para no chocar entre
 // pestañas) antes de rendirse. Aplica solo a llamadas a SHEETS_API.
+//
+// Además, cada petición a Sheets lleva el pase de sede (X-Pase-Sede): el
+// proxy solo deja a un operario abrir las hojas de la sede cuya clave
+// escribió. Y si el proxy responde que falta la clave de la sede o que hay
+// que crear el PIN nuevo, aquí se le pide a la persona.
 (function instalarReintentoCuotaSheets() {
   const fetchOriginal = window.fetch.bind(window);
   window.fetch = async function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
     if (!url.startsWith(SHEETS_API)) return fetchOriginal(input, init);
+    const pase = typeof input === 'string' ? _paseSedeActual() : '';
+    if (pase) {
+      const cabeceras = new Headers((init && init.headers) || undefined);
+      cabeceras.set('X-Pase-Sede', pase);
+      init = Object.assign({}, init, { headers: cabeceras });
+    }
     let resp;
     for (let intento = 0; intento <= 4; intento++) {
       resp = await fetchOriginal(input, init);
+      if (resp.status === 403) _revisarAvisoDelProxy(resp.clone(), url);
       if (resp.status !== 429 || intento === 4) return resp;
       const espera = 2000 * Math.pow(2, intento) + Math.random() * 1000;
       await new Promise(r => setTimeout(r, espera));
@@ -6250,10 +6269,45 @@ async function validarClaveSedeDirecto(sede, clave) {
   // Proxy todavía sin la ruta /sede (se publica a mano en Cloudflare): se
   // usa la comprobación anterior hasta que esté.
   if (resp.status === 404 && /Ruta no encontrada/i.test(datos.mensaje || '')) return _validarClaveSedeLocal(spreadsheetId, clave);
-  if (resp.ok && datos.ok) return true;
+  if (resp.ok && datos.ok) {
+    if (datos.paseSede) { try { sessionStorage.setItem('paseSede', JSON.stringify({ sede, pase: datos.paseSede })); } catch (_) {} }
+    return true;
+  }
   if (resp.status === 401 && /Contraseña incorrecta/i.test(datos.mensaje || '')) return false;
   if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('La sesión venció — vuelve a iniciar sesión'); }
   throw new Error(datos.mensaje || ('el proxy respondió ' + resp.status));
+}
+
+/** El pase de sede guardado, si es de la sede en la que se está trabajando. */
+function _paseSedeActual() {
+  try {
+    const p = JSON.parse(sessionStorage.getItem('paseSede') || 'null');
+    return p && p.sede === operacionActual && operacionAutenticada ? String(p.pase || '') : '';
+  } catch (_) { return ''; }
+}
+
+/** Un 403 del proxy puede pedir la clave de la sede (sede: true) o el PIN
+ *  nuevo (cambiarPin: true). Se pregunta una sola vez, aunque fallen varias
+ *  peticiones juntas. La clave solo se vuelve a pedir si la hoja era de la
+ *  sede en la que se está trabajando. */
+async function _revisarAvisoDelProxy(resp, url) {
+  let datos = {};
+  try { datos = await resp.json(); } catch (_) { return; }
+  if (datos.cambiarPin) { _crearPinNuevo(''); return; }
+  if (!datos.sede) return;
+  const hoja = (url.match(/\/v4\/spreadsheets\/([^/?:]+)/) || [])[1];
+  const deEstaSede = [GOOGLE_CONFIG.spreadsheetId, INVENTARIO_SHEETS[operacionActual]].includes(hoja);
+  if (deEstaSede) _volverAPedirClaveSede();
+}
+
+let _pidiendoClaveSede = false;
+async function _volverAPedirClaveSede() {
+  if (_pidiendoClaveSede || !operacionAutenticada) return;
+  _pidiendoClaveSede = true;
+  operacionAutenticada = false;
+  try { sessionStorage.removeItem('operacionAutenticada'); sessionStorage.removeItem('paseSede'); } catch (_) {}
+  aviso('Por seguridad, escribe otra vez la clave de la sede.', 'info', { guardar: false });
+  try { await seleccionarOperacion(operacionActual); } finally { _pidiendoClaveSede = false; }
 }
 
 /** Comprobación anterior (el navegador lee el hash). Solo se usa mientras
@@ -7420,7 +7474,7 @@ function cerrarSesion(salir) {
     sessionStorage.removeItem('gToken');
     sessionStorage.removeItem('docPinDocumento');
     sessionStorage.removeItem('docPinPin');
-    if (salir === true) sessionStorage.removeItem('operacionAutenticada');
+    if (salir === true) { sessionStorage.removeItem('operacionAutenticada'); sessionStorage.removeItem('paseSede'); }
   } catch (_) {}
   googleAccessToken = null;
   location.reload();
@@ -7593,6 +7647,12 @@ window.addEventListener('load', async () => {
   if (!googleAccessToken) {
     mostrarLoginOverlay();
     _ocultarPantallaCarga();
+    return;
+  }
+  if (_paseDebeCambiarPin(googleAccessToken)) {
+    mostrarLoginOverlay();
+    _ocultarPantallaCarga();
+    _crearPinNuevo('');
     return;
   }
 
@@ -13256,6 +13316,62 @@ async function _loginPorProxy(documento, pin) {
   return resp.json();
 }
 
+/** ¿El pase de sesión es de los que solo sirven para crear el PIN nuevo? */
+function _paseDebeCambiarPin(pase) {
+  try {
+    const datos = String(pase || '').split('.')[1] || '';
+    return JSON.parse(atob(datos.replace(/-/g, '+').replace(/_/g, '/'))).cp === true;
+  } catch (_) { return false; }
+}
+
+/** El PIN de 4 números se adivina probando: quien entra con uno así crea
+ *  uno nuevo de 6 a 8 números antes de usar la app (el proxy no deja hacer
+ *  nada más hasta entonces). pinActual es el que acaba de escribir al
+ *  entrar; si no se sabe, se le pide. */
+let _creandoPin = false;
+async function _crearPinNuevo(pinActual) {
+  if (_creandoPin) return;
+  _creandoPin = true;
+  let error = '';
+  try {
+    for (;;) {
+      const campos = [];
+      if (!pinActual) campos.push({ nombre: 'actual', etiqueta: 'Tu PIN actual', tipo: 'pin', requerido: true });
+      campos.push({ nombre: 'nuevo', etiqueta: 'PIN nuevo (de 6 a 8 números)', tipo: 'pin', requerido: true },
+        { nombre: 'repetir', etiqueta: 'Escribe otra vez el PIN nuevo', tipo: 'pin', requerido: true });
+      const d = await pedirDatos({
+        titulo: 'Crea tu PIN nuevo',
+        texto: (error ? error + '\n\n' : '') + 'Por seguridad, el PIN ahora es de 6 a 8 números. Escoge uno que solo tú sepas: '
+          + 'que no sea parte de tu documento ni números seguidos o repetidos.',
+        campos, aceptar: 'Guardar PIN', cancelar: 'Salir',
+        validar: x => !/^\d{6,8}$/.test(String(x.nuevo).trim()) ? 'El PIN nuevo debe tener de 6 a 8 números.'
+          : String(x.nuevo).trim() !== String(x.repetir).trim() ? 'Los dos PIN nuevos no son iguales.' : null,
+      });
+      if (!d) { cerrarSesion(true); return; }
+      let resp, datos = {};
+      try {
+        resp = await fetch(PROXY_URL + '/cambiar-pin', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pinActual: pinActual || String(d.actual).trim(), pinNuevo: String(d.nuevo).trim() }),
+        });
+        try { datos = await resp.json(); } catch (_) {}
+      } catch (e) { error = 'No se pudo guardar el PIN (' + e.message + '). Revisa la conexión e intenta de nuevo.'; continue; }
+      if (resp.ok && datos.ok && datos.session) {
+        try { sessionStorage.setItem('gToken', datos.session); } catch (_) {}
+        aviso('PIN nuevo guardado. Desde ahora entras con él.', 'exito');
+        location.reload();
+        return;
+      }
+      if (resp.status === 401 && /actual/i.test(datos.mensaje || '')) pinActual = '';
+      else if (resp.status === 401) { cerrarSesion(true); return; }
+      error = datos.mensaje || ('No se pudo guardar el PIN (error ' + resp.status + ').');
+    }
+  } finally {
+    _creandoPin = false;
+  }
+}
+
 async function loginConDocumentoPinClick() {
   const documento = document.getElementById('loginDocumento').value.trim();
   const pin       = document.getElementById('loginPin').value.trim();
@@ -13282,6 +13398,11 @@ async function loginConDocumentoPinClick() {
       // (firmado, con el rol), no un token de Google.
       sessionStorage.setItem('gToken', data.session);
       sessionStorage.setItem('gRol', usuarioRol);
+      if (data.cambiarPin) {
+        googleAccessToken = data.session;
+        await _crearPinNuevo(pin);
+        return;
+      }
     } catch (_) {
       errorEl.textContent = 'Este navegador tiene bloqueado guardar datos de este sitio (navegación privada estricta o cookies bloqueadas). Ábrelo en una ventana normal para poder entrar.';
       return;
@@ -14870,10 +14991,11 @@ function pedirDatos({ titulo, texto = '', campos = [], aceptar = 'Aceptar', canc
         });
       } else {
         control = document.createElement('input');
-        control.type = 'text';
+        control.type = c.tipo === 'pin' ? 'password' : 'text';
         if (c.tipo === 'number') control.inputMode = 'decimal';
+        if (c.tipo === 'pin') { control.inputMode = 'numeric'; control.maxLength = 8; }
         if (c.placeholder) control.placeholder = c.placeholder;
-        control.autocomplete = 'off';
+        control.autocomplete = c.tipo === 'pin' ? 'new-password' : 'off';
       }
       control.id = id;
       control.value = c.valor ?? '';

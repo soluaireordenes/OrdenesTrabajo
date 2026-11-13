@@ -58,7 +58,8 @@
       operario en el sistema. Si responde "Este número no está registrado",
       el bot funciona: solo falta agregar ese celular en la pestaña
       "Operarios" del libro de Órdenes Zipaquirá (HOJA_SISTEMA, abajo):
-      una fila con Nombre, Numero y Activo = SI.
+      una fila con Nombre, Numero y Activo = SI. El número de Colombia se
+      puede escribir con o sin el 57; uno de otro país, con su indicativo.
 
    Antes de conectar nada, corre desde el editor las funciones de prueba
    del final: probarLectura, probarOperario y probarRespuestas.
@@ -140,7 +141,8 @@ function _extraerMensaje(cuerpo) {
  *
  *  Devuelve el nombre del operario, o null si el número no está. */
 function _operarioDe(numero) {
-  const soloDigitos = String(numero).replace(/\D/g, '');
+  const quien = _numeroCompleto(numero);
+  if (!quien) return null;
   const filas = SpreadsheetApp.openById(HOJA_SISTEMA)
     .getSheetByName('Operarios').getDataRange().getValues();
   const encabezado = filas[0].map(c => String(c).trim());
@@ -150,18 +152,27 @@ function _operarioDe(numero) {
   if (iNombre < 0 || iNumero < 0) return null;
 
   for (let i = 1; i < filas.length; i++) {
-    const registrado = String(filas[i][iNumero]).replace(/\D/g, '');
+    const registrado = _numeroCompleto(filas[i][iNumero]);
     if (!registrado) continue;
     // Un operario marcado como inactivo ya no recibe respuestas, igual que
     // si se hubiera borrado (antes la columna Activo se ignoraba).
     if (iActivo >= 0 && /^(no|inactivo|false|0)$/i.test(String(filas[i][iActivo]).trim())) continue;
-    // Comparar por el final: unos guardan el número con indicativo y otros
-    // sin él, y WhatsApp siempre lo entrega con indicativo.
-    if (soloDigitos.slice(-10) === registrado.slice(-10)) {
-      return String(filas[i][iNombre]).trim() || 'Operario';
-    }
+    if (quien === registrado) return String(filas[i][iNombre]).trim() || 'Operario';
   }
   return null;
+}
+
+/** El número con su indicativo, solo dígitos, para comparar entero.
+ *  WhatsApp lo entrega siempre con indicativo (573001234567); en la hoja
+ *  unos lo escriben con él y otros sin él. Un número de 10 dígitos sin
+ *  indicativo se toma como de Colombia (57). Antes se comparaban solo los
+ *  últimos 10 dígitos, y un número de otro país que terminara igual (un
+ *  +1 305… frente a un 305… de Colombia) pasaba por el operario. Un número
+ *  de otro país se escribe en la hoja con su indicativo. */
+function _numeroCompleto(numero) {
+  let d = String(numero == null ? '' : numero).replace(/\D/g, '');
+  if (d.length === 10) d = '57' + d;
+  return d.length >= 11 ? d : '';
 }
 
 
