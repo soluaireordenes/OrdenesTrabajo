@@ -3836,7 +3836,23 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       abrirPlanMantenimiento('peru'); pmMostrarSubTab('configinformes');
       for (let i = 0; i < 50 && !document.querySelector('#pmHoraBaseContenido .pm-hora-base'); i++) await new Promise(x => setTimeout(x, 100));
       const plan = [...document.querySelectorAll('#pmHoraBaseContenido .pm-hora-base')].map(x => x.dataset.equipo);
-      return { orden, inv, hvd, plan };
+      // Su Programa de Mantenimiento 2026 (192 actividades del Excel), sin
+      // las pestañas de los informes por horas de Zipaquirá.
+      pmMostrarSubTab('programa2026');
+      for (let i = 0; i < 50 && !document.querySelector('#pmPrograma2026Contenido table'); i++) await new Promise(x => setTimeout(x, 100));
+      const filas = [...document.querySelectorAll('#pmPrograma2026Contenido tbody tr')];
+      const iCA1 = filas.findIndex(tr => tr.querySelector('strong')?.textContent === 'CA1');
+      const filtros = filas.slice(iCA1).find(tr => tr.cells[0].textContent.trim() === 'Cambio de filtros primarios');
+      const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+      const programa = {
+        pestanas: [...document.querySelectorAll('#panel-planmantenimiento .inv-subtab')].filter(x => getComputedStyle(x).display !== 'none').map(x => x.dataset.pmtab).join(','),
+        activa: document.getElementById('pmSub-programa2026').classList.contains('active'),
+        sede: document.querySelector('#pmSub-programa2026 .pm-programa-sede').textContent,
+        cabeceras: [...document.querySelectorAll('#pmPrograma2026Contenido thead th')].slice(0, 4).map(th => th.textContent.trim()).join(','),
+        filas: filas.length, ca1: filas[iCA1]?.cells[0].textContent.trim(),
+        mesesFiltros: filtros ? [...filtros.cells].slice(-12).map((td, i) => td.style.background.includes('pm-verde') ? MESES[i] : '').filter(Boolean).join(',') : null,
+      };
+      return { orden, inv, hvd, plan, programa };
     }, '(' + grupos.toString() + ')');
     const GRUPOS = 'Compresores de Alta,Compresores de Baja,Compresores de Emergencia,Compresores de Decorado,Secadores de Alta,Secadores de Baja,'
       + 'Secadores de Emergencia,Secadores de Decorado,Drycoolers,Bombas de Vacío,Sistema de Recirculación';
@@ -3846,6 +3862,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.inv.grupos.join(',') === GRUPOS + ',Sedes' && out.inv.tieneCE1 && out.hvd === 11
       && out.plan.length === 36 && out.plan.includes('V1') && out.plan.includes('B5') && !out.plan.includes('COMPRESOR DE EMERGENCIA NX200'),
       { inv: out.inv, hvd: out.hvd, plan: out.plan.slice(0, 6).join(',') + ' … ' + out.plan.length });
+    // 11 grupos + 36 equipos + 192 actividades; el Excel no trae responsable.
+    check('Perú: el Plan muestra su Programa de Mantenimiento 2026 (192 actividades por equipo y mes), sin las pestañas de Zipaquirá',
+      out.programa.pestanas === 'registro,programa2026,configinformes' && out.programa.activa && out.programa.sede === 'O-I PERU'
+      && out.programa.cabeceras === 'Actividad,Documento / Registro,Frecuencia,ENE' && out.programa.filas === 11 + 36 + 192
+      && out.programa.ca1 === 'CA1 — Hanwha 900 HP' && out.programa.mesesFiltros === 'ENE,JUL', out.programa);
     check('Perú: sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
