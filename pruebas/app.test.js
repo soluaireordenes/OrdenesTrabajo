@@ -3894,7 +3894,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Reporte de compresores de Perú: sus CA y CB, con las variables de su
+    // Reporte de compresores de Perú: sus Hanwha (CA1, CA2, CB3 y CB4), con las variables de su
     // lista de lecturas (estado y nivel de aceite de lista, observaciones de
     // texto), en su propia hoja sin las columnas de Zipaquirá; el horómetro
     // ("Compresor en marcha") alimenta las horas del Plan y Variables grafica
@@ -3945,8 +3945,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const hoja = fake.hoja(id, 'ReporteCompresores');
     const fila = Object.fromEntries((hoja[0] || []).map((c, i) => [c, (hoja[1] || [])[i]]));
     const horas = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'CB3') || [])[1];
-    check('Perú: el reporte de compresores lista sus CA y CB por grupo, sin franja horaria, con sus 35 variables',
-      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2,CA3 | Baja Presión:CB1,CB2,CB3,CB4' && !r.pideHora && r.campos === 35
+    check('Perú: el reporte de compresores lista solo sus Hanwha por grupo (CA1, CA2, CB3, CB4), sin franja horaria, con sus 35 variables',
+      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2 | Baja Presión:CB3,CB4' && !r.pideHora && r.campos === 35
       && r.opcionesNivel === 'Alto,Medio alto,Medio,Medio bajo,Bajo', r);
     check('Perú: pide el estado del compresor y que el horómetro sea un número entero',
       r.sinEstado === 'Completa el campo "Estado del compresor".' && r.horasDecimal === 'El campo "Compresor en marcha [h]" debe ser un número entero.', r);

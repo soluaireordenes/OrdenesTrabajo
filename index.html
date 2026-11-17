@@ -11287,7 +11287,7 @@ const REPORTES_TECNICOS_POR_SEDE = {
   // que sí se escriba tiene que ser un número).
   zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
-  // Perú: el de sus compresores de alta y de baja (CA y CB), con sus propias
+  // Perú: el de sus compresores Hanwha (CA1, CA2, CB3 y CB4), con sus propias
   // variables (REPORTE_COMPRESORES_CAMPOS_PERU), como Zipaquirá 2: a
   // cualquier hora y con las mediciones opcionales.
   peru: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru' },
@@ -11298,9 +11298,12 @@ function _reportesTecnicosDe(sede) {
 /** Los compresores del reporte de la sede, por grupo (sin grupo en
  *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
 function _gruposCompresoresReporte(sede) {
+  // Perú: solo los Hanwha (CA1, CA2, CB3 y CB4), que son los de este panel;
+  // los Ingersoll Rand (CA3, CB1 y CB2) no llevan este reporte.
+  const hanwha = grupo => EQUIPOS_PERU[grupo].filter(e => /Hanwha/.test(e[1])).map(e => e[0]);
   if (sede === 'peru') return [
-    { grupo: 'Alta Presión', equipos: EQUIPOS_PERU['Compresores de Alta'].map(e => e[0]) },
-    { grupo: 'Baja Presión', equipos: EQUIPOS_PERU['Compresores de Baja'].map(e => e[0]) },
+    { grupo: 'Alta Presión', equipos: hanwha('Compresores de Alta') },
+    { grupo: 'Baja Presión', equipos: hanwha('Compresores de Baja') },
   ];
   if (sede === 'zipaquira2') return [
     { grupo: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
