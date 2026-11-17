@@ -1246,9 +1246,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       // pero su horómetro también queda en el Plan de Mantenimiento.
       empSeleccionarEquipo('BOMBA DE VACIO IR 6');
       out.bombaSinEvaluacion = !document.querySelector('.emp-tabla-evaluacion');
-      // Sus datos de placa: marca, modelo, serial y año (no los de compresor).
-      out.placaBomba = ['Marca', 'Modelo', 'NumeroSerie', 'AnioFabricacion', 'TipoControl', 'NumeroEtapas']
-        .map(c => document.getElementById('empf_' + c) ? document.getElementById('empf_' + c).value : 'no').join(' | ');
+      // Sin datos de placa por ahora (quedan pendientes las bombas).
+      out.bombaSinPlaca = !document.getElementById('empf_Marca') && !document.getElementById('empfPrecargados');
       document.getElementById('empf_estado').value = 'Operativo';
       document.getElementById('empf_horometro').value = '12800';
       await empGuardarFicha();
@@ -1383,12 +1382,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Empalme: las fotos van primero en la ficha, debajo del nombre, grandes y sin recortar (se lee la placa)',
       r.fotosFicha.primera === 'Fotos (placa y estado general)' && r.fotosFicha.ancho >= 250 && r.fotosFicha.alto >= 300
       && r.fotosFicha.ajuste === 'contain' && r.fotosFicha.agregar, r.fotosFicha);
-    check('Empalme: los compresores traen en Recepción marca, modelo, serial, tipo de control, año, etapas, presión y capacidad del listado de equipos a recibir; las bombas, marca, modelo, serial y año; se guardan y salen en el acta',
+    check('Empalme: los compresores traen en Recepción marca, modelo, serial, tipo de control, año, etapas, presión y capacidad del listado de equipos a recibir (las bombas todavía no); se guardan y salen en el acta',
       r.placaCompresor === 'Cameron | TA48 | X0-8166 | Quad 3 | 1997 | 2 | 48 | 5000 | Recepción'
-      && r.placaBomba === 'IR | Reciprocante 50 HP |  |  | no | no'
+      && r.bombaSinPlaca
       && ficha[1][col(ficha, 'Marca')] === 'Cameron' && ficha[1][col(ficha, 'Modelo')] === 'TA50HH' && ficha[1][col(ficha, 'NumeroSerie')] === 'BF6273'
       && ficha[1][col(ficha, 'CapacidadCfm')] === '5000' && /Tipo de control<\/th><td[^>]*>Quad 2000/.test(r.acta) && /Capacidad teórica \(cfm\)<\/th><td[^>]*>5000/.test(r.acta),
-      { compresor: r.placaCompresor, bomba: r.placaBomba, ficha: ficha[1] });
+      { compresor: r.placaCompresor, bomba: r.bombaSinPlaca, ficha: ficha[1] });
     const filaSecador = ficha.find(f => f[0] === 'Secador #1 - Hankinson') || [];
     check('Empalme: la ficha de los secadores trae los datos de su hoja de vida (placa, eléctricos y de refrigeración, kits y contactos); los Hankinson #1 a #5, los Kaeser 1 y 2, el General Pneumatics y el de adsorción Pneumatic Products ya vienen llenos (#3, #4 y Pneumatic Products en alta presión; #1, #2, #5 y General Pneumatics en baja; sin los SPX), se guarda y sale en el acta',
       r.secadorSecciones === 'Fotos (placa y estado general) | Recepción | Identificación del equipo | Datos técnicos de placa | Datos eléctricos y de refrigeración | Historial y documentos | Repuestos | Contactos de fabricante y servicio | Operación'

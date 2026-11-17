@@ -26125,23 +26125,23 @@ const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha',
   'CapacidadNominal','CapacidadMetrica','PresionMaxima','TempMaxEntrada','PresionPrueba','Certificacion',
   'Tension','AmpacidadMinima','ProteccionMaxima','CompresorRLA','CompresorLRA','VentiladorCondensador','CalentadorCarter','RefrigeranteTipo','RefrigeranteCarga',
   'KitsMantenimiento','ContactoFabricante','ServicioTecnicoLocal',
-  // Datos de placa de compresores y bombas (van en Recepción)
+  // Datos de placa de los compresores (van en Recepción)
   'Marca','TipoControl','AnioFabricacion','NumeroEtapas','PresionTrabajo','CapacidadCfm'];
 // Información de cada equipo al recibirlo (Parte 1 del formato de empalme).
 // largo: se escribe en un cuadro de varias líneas.
 const EMPALME_CAMPOS_FICHA = {
-  // Datos de placa del listado de equipos a recibir, en Recepción. Los de
-  // soloCompresor no van en las bombas de vacío. Modelo y serial usan las
-  // mismas columnas que la ficha de los secadores.
+  // Datos de placa del listado de equipos a recibir, en Recepción. Por
+  // ahora solo los compresores (las bombas de vacío quedan pendientes).
+  // Modelo y serial usan las mismas columnas que la ficha de los secadores.
   placa: [
     { col: 'Marca', label: 'Marca' },
     { col: 'Modelo', label: 'Modelo' },
     { col: 'NumeroSerie', label: 'Serial' },
-    { col: 'TipoControl', label: 'Tipo de control', ayuda: 'Ej: Intellisys, Quad 2000, Maestro, Vantage', soloCompresor: true },
+    { col: 'TipoControl', label: 'Tipo de control', ayuda: 'Ej: Intellisys, Quad 2000, Maestro, Vantage' },
     { col: 'AnioFabricacion', label: 'Año de manufactura' },
-    { col: 'NumeroEtapas', label: 'Número de etapas', soloCompresor: true },
-    { col: 'PresionTrabajo', label: 'Presión (psig)', soloCompresor: true },
-    { col: 'CapacidadCfm', label: 'Capacidad teórica (cfm)', soloCompresor: true },
+    { col: 'NumeroEtapas', label: 'Número de etapas' },
+    { col: 'PresionTrabajo', label: 'Presión (psig)' },
+    { col: 'CapacidadCfm', label: 'Capacidad teórica (cfm)' },
   ],
   equipo: [
     { col: 'Identificacion', label: 'Identificación', ayuda: 'Marca / modelo / N.° de serie / año' },
@@ -26429,31 +26429,15 @@ const _EMPALME_PLACA_COMPRESORES_Z2 = [
   ['CB4',    'IR',      'TA6000',       'CB20161',      'Quad 2000',  '',     '2', '50',   '5000'],
   ['TA 18',  '',        '',             '',             'Quad 3',     '',     '',  '',     '2200'],
 ];
-// Bombas de vacío: el cuadro solo trae marca y modelo por tipo (Sullair
-// VS-20, Kaeser CVS 150, Ingersoll Rand reciprocante de 50 HP). De las
-// Pneumofore hay dos modelos (UC-30 VS 55 y UV 30 VS 55) sin decir cuál es
-// cuál: solo va la marca.
-const _EMPALME_PLACA_BOMBAS_Z2 = [
-  ['BOMBA DE VACIO SULLAIR 1', 'Sullair', 'VS-20'], ['BOMBA DE VACIO SULLAIR 2', 'Sullair', 'VS-20'],
-  ['BOMBA DE VACIO SULLAIR 3', 'Sullair', 'VS-20'], ['BOMBA DE VACIO SULLAIR 8', 'Sullair', 'VS-20'],
-  ['BOMBA DE VACIO KAESER 7', 'Kaeser', 'CVS 150'],
-  ...['4', '5', '6', '7', '9'].map(n => ['BOMBA DE VACIO IR ' + n, 'IR', 'Reciprocante 50 HP']),
-  ...['1', '2', '3', '10'].map(n => ['BOMBA DE VACIO PNEUMOFORE ' + n, 'Pneumofore', '']),
-];
 _EMPALME_PLACA_COMPRESORES_Z2.forEach(([equipo, Marca, Modelo, NumeroSerie, TipoControl, AnioFabricacion, NumeroEtapas, PresionTrabajo, CapacidadCfm]) => {
   EMPALME_DATOS_FIJOS[equipo] = { ...EMPALME_DATOS_FIJOS[equipo], Marca, Modelo, NumeroSerie, TipoControl, AnioFabricacion, NumeroEtapas, PresionTrabajo, CapacidadCfm };
 });
-_EMPALME_PLACA_BOMBAS_Z2.forEach(([equipo, Marca, Modelo]) => {
-  EMPALME_DATOS_FIJOS[equipo] = { ...EMPALME_DATOS_FIJOS[equipo], Marca, Modelo };
-});
 function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
-/** Los datos de placa de Recepción de un equipo: ninguno en un secador (su
- *  ficha trae los suyos), marca, modelo, serial y año en una bomba, y todos
- *  en un compresor. */
+/** Los datos de placa de Recepción de un equipo: solo los compresores los
+ *  llevan (los secadores traen los suyos en su ficha; las bombas de vacío
+ *  quedan pendientes). */
 function _empCamposPlaca(equipo) {
-  if (_empEsSecador(equipo)) return [];
-  const esCompresor = _pmCompresores(operacionActual).includes(equipo);
-  return EMPALME_CAMPOS_FICHA.placa.filter(c => esCompresor || !c.soloCompresor);
+  return _pmCompresores(operacionActual).includes(equipo) ? EMPALME_CAMPOS_FICHA.placa : [];
 }
 /** Todos los campos de texto de la ficha de un equipo, en el orden de la
  *  ficha. En un secador van al final los de "Información del equipo": no se
