@@ -3,7 +3,8 @@
 //
 // Carga el Worker real con Apps Script SIMULADO (no se conecta a nada) y
 // revisa la verificación del webhook y la firma de Meta: con APP_SECRET solo
-// pasa lo que Meta firmó; sin APP_SECRET todo sigue como antes.
+// pasa lo que Meta firmó; sin APP_SECRET todo sigue como antes. Y del bot
+// (Codigo-sin-ia.gs), que reconozca a los operarios por el número completo.
 //
 // Cómo correrlas:  node pruebas/whatsapp-worker.test.mjs   (Node 18 o más reciente)
 // ══════════════════════════════════════════════════════════════════════
@@ -11,6 +12,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // El Worker es un módulo ES con extensión .js: se copia como .mjs temporal
@@ -57,6 +59,17 @@ check('Sin firma → 401', (await post({})) === 401 && reenviados.length === 0);
 reenviados = [];
 check('Sin APP_SECRET se reenvía como antes', (await post({}, sinSecreto)) === 200 && reenviados.length === 1);
 check('Faltan variables → 500 con aviso', (await worker.fetch(new Request('https://bot.workers.dev/', { method: 'POST', body: '{}' }), {}, ctx)).status === 500);
+
+// El bot (Codigo-sin-ia.gs): quién es operario. Se corre el código real del
+// Apps Script con la hoja "Operarios" simulada.
+const filasOperarios = [['Nombre', 'Numero', 'Activo'], ['Ana', '300 111 2233', 'SI'], ['Beto', '+57 310 444 5566', 'SI'],
+  ['Caro', '3205556677', 'NO'], ['Dani', '+1 (305) 777-8899', 'SI'], ['Sin número', '', 'SI']];
+const bot = vm.createContext({ console, SpreadsheetApp: { openById: () => ({ getSheetByName: () => ({ getDataRange: () => ({ getValues: () => filasOperarios }) }) }) } });
+vm.runInContext(fs.readFileSync(path.join(aqui, '..', 'whatsapp-agente', 'Codigo-sin-ia.gs'), 'utf8'), bot);
+const quien = n => bot._operarioDe(n);
+check('Bot: reconoce al operario con o sin indicativo en la hoja (WhatsApp siempre lo trae)', quien('573001112233') === 'Ana' && quien('573104445566') === 'Beto');
+check('Bot: un número de otro país que termina igual que uno de Colombia NO pasa por el operario', quien('13001112233') === null && quien('573057778899') === null && quien('13057778899') === 'Dani');
+check('Bot: el inactivo, el desconocido y el vacío no son operarios', quien('573205556677') === null && quien('573009999999') === null && quien('') === null);
 
 let total = 0;
 for (const r of resultados) { console.log((r.ok ? 'PASS ' : 'FAIL ') + r.n + (r.ok ? '' : '  → ' + JSON.stringify(r.d))); if (r.ok) total++; }
