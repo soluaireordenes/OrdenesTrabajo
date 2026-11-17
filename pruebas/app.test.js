@@ -3894,7 +3894,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Reporte de compresores de Perú: sus CA y CB, con las variables de su
+    // Reporte de compresores de Perú: sus Hanwha (CA1, CA2, CB3 y CB4), con las variables de su
     // lista de lecturas (estado y nivel de aceite de lista, observaciones de
     // texto), en su propia hoja sin las columnas de Zipaquirá; el horómetro
     // ("Compresor en marcha") alimenta las horas del Plan y Variables grafica
@@ -3945,8 +3945,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const hoja = fake.hoja(id, 'ReporteCompresores');
     const fila = Object.fromEntries((hoja[0] || []).map((c, i) => [c, (hoja[1] || [])[i]]));
     const horas = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'CB3') || [])[1];
-    check('Perú: el reporte de compresores lista sus CA y CB por grupo, sin franja horaria, con sus 35 variables',
-      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2,CA3 | Baja Presión:CB1,CB2,CB3,CB4' && !r.pideHora && r.campos === 35
+    check('Perú: el reporte de compresores lista solo sus Hanwha por grupo (CA1, CA2, CB3, CB4), sin franja horaria, con sus 35 variables',
+      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2 | Baja Presión:CB3,CB4' && !r.pideHora && r.campos === 35
       && r.opcionesNivel === 'Alto,Medio alto,Medio,Medio bajo,Bajo', r);
     check('Perú: pide el estado del compresor y que el horómetro sea un número entero',
       r.sinEstado === 'Completa el campo "Estado del compresor".' && r.horasDecimal === 'El campo "Compresor en marcha [h]" debe ser un número entero.', r);
@@ -3960,6 +3960,67 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       /Nivel de aceite\s*Medio alto/.test(r.vista) && /Presión del sistema \[PSI\]\s*64/.test(r.vista) && r.variables === 31,
       { vista: r.vista.slice(0, 200), variables: r.variables });
     check('Perú (reporte de compresores): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Importar las lecturas de la lista de SharePoint de Perú: se agregan como
+    // reportes, en orden de fecha y con su hora real (IDEJECUCION), los valores
+    // limpios y los encabezados con tildes y comillas reconocidos. Lo que no es
+    // de los Hanwha se salta, y volver a importar el mismo archivo no repite
+    // nada. El horómetro más reciente de cada compresor pasa al Plan.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.peru.spreadsheetId);
+    const csv = [
+      'IDEJECUCION,TecnicoFinalizacion,Sistema,Equipo,Estado,Fecha,Presiòn del sistema ,"Cojinete motor  ""de"" Temperatura",Vibracion Etapa 1, Comprensor en marcha,NivelAceite,Observaciones,LOAD %,Tipo de elemento',
+      '20261117061302,Técnico Uno,Baja,CB4,OPERANDO,2026-11-17,64,57,0.28999999999999998,10686,MEDIO ALTO,Ninguno,0,Elemento',
+      '20261117060344,Técnico Uno,Alta,CA2,NO OPERANDO,2026-11-17,74,54,0.23,10544,ALTO,,0,Elemento',
+      '20261116180000,Técnico Dos,Alta,CA3,OPERANDO,2026-11-16,70,50,0.3,9000,ALTO,,0,Elemento',
+      '20261116170000,Técnico Dos,Baja,CB4,OPERANDO,2026-11-16,63,56,0.27,10670,MEDIO,"trabajando, sin novedad",0,Elemento',
+    ].join('\n');
+    const r = await p.evaluate(async csv => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window.alert = m => { window._alertas = (window._alertas || []).concat(String(m)); };
+      window._preguntas = []; window.confirmarAccion = async o => { window._preguntas.push(o.titulo + ' | ' + o.texto); return true; };
+      window._avisos = []; window.aviso = m => { window._avisos.push(String(m)); };
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'peru'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.peru.spreadsheetId;
+      await showPanel('cronograma'); await espera(600);
+      cronMostrarSubTab('compresores'); await espera(800);
+      const out = { boton: document.getElementById('rc_importarWrap').style.display !== 'none' };
+      const archivo = new File([csv], 'query.csv', { type: 'text/csv' });
+      await rcImportarSharePoint(archivo);
+      out.primera = { preguntas: window._preguntas.slice(), avisos: window._avisos.slice(), alertas: window._alertas || [] };
+      window._preguntas = []; window._avisos = [];
+      await rcImportarSharePoint(archivo);
+      out.segunda = { preguntas: window._preguntas.slice(), avisos: window._avisos.slice() };
+      out.horaEsperada = new Date(2026, 10, 17, 6, 13, 2).toISOString();
+      out.lista = allReportesCompresores.map(x => x.Codigo.replace(/^(RC-\d+)-.*/, '$1') + ' ' + x.Compresor).sort().join(', ');
+      return out;
+    }, csv);
+    const hoja = fake.hoja(id, 'ReporteCompresores');
+    const filas = hoja.slice(1).map(f => Object.fromEntries(hoja[0].map((c, i) => [c, f[i]])));
+    const de = cod => filas.find(f => String(f.Codigo).startsWith(cod + '-')) || {};
+    const horas = eq => (fake.hoja(id, 'HorasEquipos').find(f => f[0] === eq) || [])[1];
+    check('Perú: importar de SharePoint agrega las lecturas de los Hanwha en orden, con su hora real, y salta las de otros equipos',
+      r.boton && filas.length === 3 && r.primera.preguntas.length === 1 && /^¿Importar 3 lecturas\?/.test(r.primera.preguntas[0]) && /CA3/.test(r.primera.preguntas[0])
+      && de('RC-0001').Compresor === 'CB4' && de('RC-0002').Compresor === 'CA2' && de('RC-0003').Compresor === 'CB4'
+      && de('RC-0003').FechaRegistro === r.horaEsperada && de('RC-0003').Fecha === '2026-11-17' && de('RC-0003').IdOrigen === '20261117061302'
+      && de('RC-0003').Tecnico === 'Técnico Uno' && /^SharePoint/.test(de('RC-0003').RegistradoPor),
+      { primera: r.primera, filas: filas.map(f => [f.Codigo, f.Compresor, f.Fecha, f.FechaRegistro, f.IdOrigen].join(' ')) });
+    check('Perú: los valores importados quedan limpios (estado y nivel de aceite de la lista, decimales sin cola, encabezados con tilde y comillas)',
+      de('RC-0003').EstadoCompresor === 'Operando' && de('RC-0002').EstadoCompresor === 'No operando'
+      && de('RC-0003').NivelAceite === 'Medio alto' && de('RC-0003').VibracionEtapa1 === '0.29' && de('RC-0003').PresionSistema === '64'
+      && de('RC-0003').TempCojineteDE === '57' && de('RC-0003').HorasEnMarcha === '10686' && de('RC-0003').LoadPorcentaje === '0'
+      && de('RC-0001').Observaciones === 'trabajando, sin novedad' && de('RC-0002').Observaciones === '',
+      { 'RC-0003': de('RC-0003'), 'RC-0001': de('RC-0001').Observaciones });
+    check('Perú: el horómetro más reciente de cada compresor pasa al Plan, y volver a importar el mismo archivo no repite nada',
+      horas('CB4') === '10686' && horas('CA2') === '10544' && !horas('CA3')
+      && /Se importaron 3 lecturas/.test(r.primera.avisos.join(' ')) && /Horas de (CB4, CA2|CA2, CB4) actualizadas/.test(r.primera.avisos.join(' '))
+      && !r.segunda.preguntas.length && /No hay lecturas nuevas/.test(r.segunda.avisos.join(' ')) && /3 ya estaban/.test(r.segunda.avisos.join(' '))
+      && r.lista === 'RC-0001 CB4, RC-0002 CA2, RC-0003 CB4',
+      { horas: [horas('CB4'), horas('CA2')], primera: r.primera.avisos, segunda: r.segunda, lista: r.lista });
+    check('Perú (importar de SharePoint): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
 

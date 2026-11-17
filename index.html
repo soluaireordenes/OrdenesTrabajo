@@ -3197,7 +3197,11 @@ body.rol-operario .btn-principal-operario {
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados
+          <span id="rc_importarWrap" class="solo-admin" style="display:none;margin-left:auto">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('rc_importarArchivo').click()" title="Agrega las lecturas del Excel exportado de la lista de SharePoint, sin repetir las que ya están">Importar de SharePoint</button>
+            <input type="file" id="rc_importarArchivo" accept=".xlsx,.csv" style="display:none" onchange="rcImportarSharePoint(this.files[0]); this.value=''">
+          </span></div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
             <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
@@ -11287,10 +11291,12 @@ const REPORTES_TECNICOS_POR_SEDE = {
   // que sí se escriba tiene que ser un número).
   zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
-  // Perú: el de sus compresores de alta y de baja (CA y CB), con sus propias
+  // Perú: el de sus compresores Hanwha (CA1, CA2, CB3 y CB4), con sus propias
   // variables (REPORTE_COMPRESORES_CAMPOS_PERU), como Zipaquirá 2: a
   // cualquier hora y con las mediciones opcionales.
-  peru: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru' },
+  // importarSharePoint: el admin puede agregar las lecturas de la lista de
+  // SharePoint que se usaba antes (ver rcImportarSharePoint).
+  peru: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru', importarSharePoint: true },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
@@ -11298,9 +11304,12 @@ function _reportesTecnicosDe(sede) {
 /** Los compresores del reporte de la sede, por grupo (sin grupo en
  *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
 function _gruposCompresoresReporte(sede) {
+  // Perú: solo los Hanwha (CA1, CA2, CB3 y CB4), que son los de este panel;
+  // los Ingersoll Rand (CA3, CB1 y CB2) no llevan este reporte.
+  const hanwha = grupo => EQUIPOS_PERU[grupo].filter(e => /Hanwha/.test(e[1])).map(e => e[0]);
   if (sede === 'peru') return [
-    { grupo: 'Alta Presión', equipos: EQUIPOS_PERU['Compresores de Alta'].map(e => e[0]) },
-    { grupo: 'Baja Presión', equipos: EQUIPOS_PERU['Compresores de Baja'].map(e => e[0]) },
+    { grupo: 'Alta Presión', equipos: hanwha('Compresores de Alta') },
+    { grupo: 'Baja Presión', equipos: hanwha('Compresores de Baja') },
   ];
   if (sede === 'zipaquira2') return [
     { grupo: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
@@ -11563,6 +11572,9 @@ const REPORTE_COMPRESORES_CAMPOS_PERU = [
 const REPORTE_COMPRESORES_COLS_PERU = [
   'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor', 'EstadoHoraFecha',
   ...REPORTE_COMPRESORES_CAMPOS_PERU.map(c => c.col),
+  // IdOrigen: el IDEJECUCION de una lectura importada de SharePoint, para no
+  // importarla dos veces. Vacío en los reportes hechos en la app.
+  'IdOrigen',
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 /** Las columnas de la hoja de reportes de compresores de la sede. */
@@ -22126,6 +22138,7 @@ async function inicializarReporteCompresores() {
   document.getElementById('rc_tecnicoOtro').value = '';
   document.getElementById('rc_estadoHoraFecha').value = '';
   document.getElementById('rc_estadoHoraFecha').closest('.field').style.display = _reportesTecnicosDe(operacionActual).sinHoraFechaCompresor ? 'none' : '';
+  document.getElementById('rc_importarWrap').style.display = _reportesTecnicosDe(operacionActual).importarSharePoint ? '' : 'none';
   document.getElementById('rc_msg').textContent = '';
   document.getElementById('rc_compresor').value = '';
   _actualizarCamposMedicionesCompresor();
@@ -22391,6 +22404,131 @@ ${_construirHtmlReporteCompresor(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
   _entregarDocumentoImprimible(html, ventana);
+}
+
+/* ══════════════════════════════════════════════
+   IMPORTAR LECTURAS DE SHAREPOINT (Perú)
+   Perú anotaba las lecturas de sus compresores en una lista de SharePoint
+   (LECTURA_COMP_HANWHA). El admin exporta esa lista a Excel y aquí se
+   agregan a la hoja del reporte, como reportes normales: con su código
+   RC, su fecha y hora reales y los valores tal cual (punto decimal, sin que
+   Google los convierta). IDEJECUCION queda en IdOrigen, así que volver a
+   importar el mismo archivo, o uno más nuevo, solo agrega lo que falta.
+══════════════════════════════════════════════ */
+// Encabezado de la lista (sin tildes, espacios ni signos) → columna de la hoja.
+const SHAREPOINT_A_COLUMNA_PERU = {
+  tecnicofinalizacion: 'Tecnico', equipo: 'Compresor', estado: 'EstadoCompresor',
+  entrfintemp: 'EntradaFinTemp', presiondelsistema: 'PresionSistema', presiondedescarga: 'PresionDescarga',
+  valvulaadmisionigv: 'ValvulaIGV', valvuladealiviobov: 'ValvulaBOV',
+  presionaceite: 'PresionAceite', temperaturaaceite: 'TempAceite', temperaturadereservadeaceite: 'TempReservaAceite',
+  vaciotanquedeaceite: 'VacioTanqueAceite', nivelaceite: 'NivelAceite',
+  vibracionetapa1: 'VibracionEtapa1', vibracionetapa2: 'VibracionEtapa2', vibracionetapa3: 'VibracionEtapa3',
+  cojinetemotordetemperatura: 'TempCojineteDE', bobinadodemotorrtemperatura: 'TempBobinadoR',
+  cojinetemotorndetemperatura: 'TempCojineteNDE', amperajeactuala: 'AmperajeActual',
+  comprensorenmarcha: 'HorasEnMarcha', compresorenmarcha: 'HorasEnMarcha',
+  comprensorencarga: 'HorasEnCarga', compresorencarga: 'HorasEnCarga',
+  reemplazodeaceiterestante: 'ReemplazoAceiteRestante',
+  operacionesdelcomprensor: 'OperacionesCompresor', operacionesdelcompresor: 'OperacionesCompresor',
+  saturaciondefiltrodeaire: 'SaturacionFiltroAire', presion: 'PresionAire', temperaturadesalidadeaire: 'TempSalidaAire',
+  presiondeentrada: 'PresionEntrada', tempdeentrada: 'TempEntrada', presiondesalida: 'PresionSalida', temperaturadesalida: 'TempSalida',
+  ip: 'IP', op: 'OP', load: 'LoadPorcentaje', vdc: 'VDC',
+  observaciones: 'Observaciones', informacioncomplementaria: 'InfoComplementaria',
+};
+const _claveEncabezadoSharePoint = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Las filas del archivo → reportes de la hoja de Perú, con lo que se salta. */
+function _lecturasSharePointAReportes(filas) {
+  const enc = (filas[0] || []).map(_claveEncabezadoSharePoint);
+  const iId = enc.indexOf('idejecucion'), iFecha = enc.indexOf('fecha');
+  if (enc.indexOf('equipo') < 0 || (iId < 0 && iFecha < 0)) {
+    throw new Error('Este archivo no parece la lista de lecturas de los compresores: le falta la columna "Equipo" o la de la fecha (IDEJECUCION).');
+  }
+  const permitidos = new Set(_gruposCompresoresReporte('peru').flatMap(g => g.equipos));
+  const opcion = (lista, v) => lista.find(o => o.toLowerCase() === String(v || '').trim().toLowerCase()) || '';
+  const textos = new Set(REPORTE_COMPRESORES_CAMPOS_PERU.filter(c => c.texto || c.opciones).map(c => c.col));
+  const lecturas = [], otros = new Set();
+  let sinFecha = 0;
+  filas.slice(1).forEach(f => {
+    const r = {};
+    enc.forEach((clave, i) => { const col = SHAREPOINT_A_COLUMNA_PERU[clave]; if (col && f[i] !== undefined && String(f[i]).trim() !== '') r[col] = String(f[i]).trim(); });
+    r.Compresor = String(r.Compresor || '').toUpperCase();
+    if (!permitidos.has(r.Compresor)) { if (r.Compresor) otros.add(r.Compresor); return; }
+    // IDEJECUCION es la fecha y hora de la lectura: AAAAMMDDhhmmss.
+    const id = iId >= 0 ? String(f[iId] || '').trim() : '';
+    const m = id.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    const fechaCol = iFecha >= 0 ? String(f[iFecha] || '').trim() : '';
+    let cuando;
+    if (m) cuando = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(fechaCol)) cuando = new Date(fechaCol + 'T12:00:00');
+    if (!cuando || isNaN(cuando)) { sinFecha++; return; }
+    r.EstadoCompresor = opcion(ESTADOS_COMPRESOR_REPORTE_PERU, r.EstadoCompresor);
+    if (r.NivelAceite) r.NivelAceite = opcion(NIVELES_ACEITE_PERU, r.NivelAceite) || r.NivelAceite;
+    // Los números de Excel traen la cola del redondeo (0.28999999999999998).
+    Object.keys(r).forEach(col => {
+      if (textos.has(col) || col === 'Tecnico' || col === 'Compresor') return;
+      const n = Number(r[col]);
+      if (r[col] !== '' && isFinite(n)) r[col] = String(Number(n.toFixed(4)));
+    });
+    r.IdOrigen = id || (r.Compresor + '|' + cuando.toISOString());
+    r.Fecha = _isoLocal(cuando);
+    r.FechaRegistro = cuando.toISOString();
+    lecturas.push(r);
+  });
+  lecturas.sort((a, b) => a.FechaRegistro.localeCompare(b.FechaRegistro));
+  return { lecturas, otros: [...otros].sort(), sinFecha };
+}
+
+async function rcImportarSharePoint(file) {
+  if (!file) return;
+  if (!esAdmin()) { alert('Solo un administrador puede importar lecturas.'); return; }
+  if (!_reportesTecnicosDe(operacionActual).importarSharePoint) return;
+  try {
+    const hojas = await _leerHojasDeArchivo(file);
+    const hoja = hojas.find(h => (h.filas[0] || []).some(c => _claveEncabezadoSharePoint(c) === 'equipo')) || hojas[0];
+    const { lecturas, otros, sinFecha } = _lecturasSharePointAReportes(hoja ? hoja.filas : []);
+    const colsHoja = await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
+    _invalidarCacheHoja(SH.reporteCompresores);
+    const existentes = await leerHojaGenerica(SH.reporteCompresores) || [];
+    const yaEstan = new Set(existentes.map(r => r.IdOrigen).filter(Boolean));
+    const vistos = new Set();
+    const nuevas = lecturas.filter(r => { if (yaEstan.has(r.IdOrigen) || vistos.has(r.IdOrigen)) return false; vistos.add(r.IdOrigen); return true; });
+    const repetidas = lecturas.length - nuevas.length;
+    const notas = [
+      repetidas ? `${repetidas} ya estaban y no se repiten.` : '',
+      otros.length ? `Se saltan las lecturas de ${otros.join(', ')}: este reporte es de ${[...new Set(_gruposCompresoresReporte('peru').flatMap(g => g.equipos))].join(', ')}.` : '',
+      sinFecha ? `${sinFecha} sin fecha se saltan.` : '',
+    ].filter(Boolean).join(' ');
+    if (!nuevas.length) { aviso('No hay lecturas nuevas en ese archivo. ' + notas, 'info'); return; }
+    const desde = fmtFecha(nuevas[0].Fecha), hasta = fmtFecha(nuevas[nuevas.length - 1].Fecha);
+    if (!(await confirmarAccion({
+      titulo: `¿Importar ${nuevas.length} lecturas?`,
+      texto: `Del ${desde} al ${hasta}, a los reportes de compresores de ${OPERACIONES[operacionActual].nombre}. ${notas}`.trim(),
+      aceptar: 'Importar',
+    }))) return;
+    const codigos = existentes.slice();
+    const quien = 'SharePoint (importó ' + (currentUser?.name || currentUser?.email || 'admin') + ')';
+    const filasNuevas = nuevas.map(r => {
+      const codigo = _codigoConsecutivoUnico('RC', codigos, 4);
+      codigos.push({ Codigo: codigo });
+      const fila = { ...r, Codigo: codigo, Hora: '', TecnicoOtro: '', EstadoHoraFecha: '', RegistradoPor: quien, Estado: 'Activo' };
+      return colsHoja.map(col => fila[col] ?? '');
+    });
+    await appendHoja(SH.reporteCompresores, filasNuevas);
+    _invalidarCacheHoja(SH.reporteCompresores);
+    // El horómetro del Plan: el de la lectura más reciente de cada compresor,
+    // si es de las importadas (si ya hay un reporte más nuevo, ese manda).
+    const horas = [];
+    for (const comp of new Set(nuevas.map(r => r.Compresor))) {
+      const ultimaImportada = nuevas.filter(r => r.Compresor === comp && r.HorasEnMarcha).pop();
+      const masNueva = existentes.filter(r => r.Compresor === comp && r.Estado !== 'Eliminada')
+        .some(r => String(r.FechaRegistro || '') > (ultimaImportada ? ultimaImportada.FechaRegistro : ''));
+      if (ultimaImportada && !masNueva && await _sincronizarHorasDesdeReporte(comp, ultimaImportada.HorasEnMarcha)) horas.push(comp);
+    }
+    await inicializarReporteCompresores();
+    aviso(`Se importaron ${nuevas.length} lecturas (${desde} a ${hasta}).` + (horas.length ? ` Horas de ${horas.join(', ')} actualizadas.` : '') + (notas ? ' ' + notas : ''), 'exito');
+  } catch (e) {
+    alert('No se pudieron importar las lecturas: ' + e.message);
+  }
 }
 
 /* ══════════════════════════════════════════════
