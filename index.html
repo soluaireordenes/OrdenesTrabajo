@@ -403,6 +403,7 @@ body::before {
    sin él, y ahí van sus propios textos (abrirPlanMantenimiento). */
 #panel-planmantenimiento.sin-programa .pm-programa,
 #panel-planmantenimiento:not(.sin-programa) .pm-sin-programa { display: none; }
+#panel-planmantenimiento.sin-programa.con-programa-anual .inv-subtab[data-pmtab="programa2026"] { display: inline-flex; }
 .emp-tabla-evaluacion td:first-child { min-width: 240px; }
 .emp-docs { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 /* Dentro de un .field, las etiquetas van en mayúscula pequeña y los inputs a
@@ -4434,7 +4435,7 @@ body.rol-operario .btn-principal-operario {
             <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa de Mantenimiento <span class="pm-programa-anio">2026</span></span></span>
             <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderPrograma2026()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica completa del Programa de Mantenimiento <span class="pm-programa-anio">2026</span> real de Zipaquirá: cada actividad por equipo, con responsable, documento/registro, frecuencia y los meses en que está programada.</div>
+          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica completa del Programa de Mantenimiento <span class="pm-programa-anio">2026</span> real de <span class="pm-programa-sede">Zipaquirá</span>: cada actividad por equipo, con su documento/registro, frecuencia y los meses en que está programada.</div>
           <div class="card-body" style="padding:18px" id="pmPrograma2026Contenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
       </div>
@@ -10705,14 +10706,226 @@ const PROGRAMA_2026_COMPLETO_ZIPAQUIRA = [
  *  el mismo formato) y la pestaña lo toma sola desde el 1 de enero. */
 const PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA = { 2026: PROGRAMA_2026_COMPLETO_ZIPAQUIRA };
 
-/** El programa que toca mostrar: el del año en curso si ya está cargado; si
- *  no, el más reciente que haya, avisando que es de otro año (enero de 2027
- *  sin el programa nuevo). */
-function _pmProgramaVigente(hoy = new Date()) {
+/** Hoja "Programa 2026" del Programa de Mantenimiento Preventivo Anual de
+ *  Perú: cada actividad por equipo, con su documento/registro, frecuencia
+ *  tal como está escrita y los meses marcados "P" (Programada). Los
+ *  equipos van con el código de su lista (EQUIPOS_PERU) y en sus grupos.
+ *  El Excel no trae responsable por actividad. Sin meses: las que van por
+ *  horas o "según requerimiento" y no tienen mes fijo este año. Por ahora
+ *  es solo la tabla de referencia: Perú no genera órdenes automáticas. */
+const PROGRAMA_2026_PERU = [
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ENE", "JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["AGO"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Limpieza aerodinamica", documento:"informe generado por solucionAIRE", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Limpieza Coolers aire", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Alta", equipo:"CA1", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ENE", "JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["AGO"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Limpieza aerodinamica", documento:"informe generado por solucionAIRE", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Limpieza Coolers aire", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Alta", equipo:"CA2", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ABR", "NOV"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["ABR"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Limpieza aerodinamica", documento:"informe generado por solucionAIRE", frecuencia:"Anual", meses:["ABR"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Limpieza Coolers aire", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["ABR"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Alta", equipo:"CA3", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ABR", "OCT"] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"Informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Limpieza aerodinamica", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Limpieza Coolers aire", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB1", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"Informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Limpieza aerodinamica", documento:"Informe generado por solucionAIRE.", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Limpieza Coolers aire", documento:"", frecuencia:"Anual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB2", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"Informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ENE", "JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["AGO"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Limpieza aerodinamica", documento:"Informe generado por solucionAIRE.", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Limpieza Coolers aire", documento:"", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Baja", equipo:"CB3", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Mantenimiento preventivo (recomendado por fabricante)", documento:"Informe generado por el proveedor", frecuencia:"Cada 2 años", meses:[] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Cambio de filtros primarios", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["ENE", "JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Cambio filtros secundarios", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["AGO"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Cambio filtros de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Cambio de filtro separador", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["JUL"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Limpieza aerodinamica", documento:"Informe generado por solucionAIRE.", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Limpieza Coolers aire", documento:"", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Baja", equipo:"CB4", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Cambio filtro de aire", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["AGO"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Cambio de filtro de aceite", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["AGO"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Cambios de filtro separador", documento:"hoja de vida de equipos", frecuencia:"4.000 horas", meses:["SEP"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Cambio de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["DIC"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Engrase de Rodamiento", documento:"hoja de vida de equipos", frecuencia:"Cuando es requerido por el equipo", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Cambio de valvula termostatica", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["DIC"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE1", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["JUL"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Cambio filtro de aire", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Cambio de filtro de aceite", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Cambios de filtro separador", documento:"hoja de vida de equipos", frecuencia:"4.000 horas", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Cambio de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Engrase de Rodamiento", documento:"hoja de vida de equipos", frecuencia:"Cuando es requerido por el equipo", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Cambio de valvula termostatica", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:[] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Emergencia", equipo:"CE2", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["AGO"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Cambio filtro de aire", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["MAR", "JUL", "NOV"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Cambio de filtro de aceite", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["MAR", "JUL", "NOV"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Cambios de filtro separador", documento:"hoja de vida de equipos", frecuencia:"4.000 horas", meses:[] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Cambio de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["NOV"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Engrase de Rodamiento", documento:"hoja de vida de equipos", frecuencia:"Cuando es requerido por el equipo", meses:[] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Cambio de valvula terrmostatica", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["NOV"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Decorado", equipo:"CD1", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["AGO"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Cambio filtro de aire", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["AGO"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Cambio de filtro de aceite", documento:"hoja de vida de equipos", frecuencia:"2.000 horas", meses:["AGO"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Cambios de filtro separador", documento:"hoja de vida de equipos", frecuencia:"4.000 horas", meses:["OCT"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Cambio de aceite", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["OCT"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Engrase de Rodamiento", documento:"hoja de vida de equipos", frecuencia:"Cuando es requerido por el equipo", meses:[] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Cambio de valvula terrmostatica", documento:"hoja de vida de equipos", frecuencia:"8.000 horas", meses:["OCT"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"Informe generado por solucionAIRE.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Compresores de Decorado", equipo:"CD2", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"Informe generado por solucionAIRE.", frecuencia:"Semestral", meses:["ABR", "OCT"] },
+  { categoria:"Secadores de Alta", equipo:"SCA1", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA2", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA3A", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA3A", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA3B", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Alta", equipo:"SCA3B", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1A", actividad:"Revisión de drenaje de condensado", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1A", actividad:"Revisión de tubos, mangueras y accesorios del circuito de agua para descartar fugas", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1A", actividad:"Revisión del circuito refrigerante y del monitor de presion", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1A", actividad:"Revise en la pantalla del equipo (Sigma Control Smart) si hay aviso sobre el Drenaje de condensado: Cambiar la unidad de servicio Limpiar el condensador del gas refrigerante", documento:"", frecuencia:"Según requerimiento", meses:[] },
+  { categoria:"Secadores de Baja", equipo:"SCB1A", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1B", actividad:"Revisión de drenaje de condensado", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1B", actividad:"Revisión de tubos, mangueras y accesorios del circuito de agua para descartar fugas", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1B", actividad:"Revisión del circuito refrigerante y del monitor de presion", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB1B", actividad:"Revise en la pantalla del equipo (Sigma Control Smart) si hay aviso sobre el Drenaje de condensado: Cambiar la unidad de servicio Limpiar el condensador del gas refrigerante", documento:"", frecuencia:"Según requerimiento", meses:[] },
+  { categoria:"Secadores de Baja", equipo:"SCB1B", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2A", actividad:"Revisión de drenaje de condensado", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2A", actividad:"Revisión de tubos, mangueras y accesorios del circuito de agua para descartar fugas", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2A", actividad:"Revisión del circuito refrigerante y del monitor de presion", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2A", actividad:"Revise en la pantalla del equipo (Sigma Control Smart) si hay aviso sobre el Drenaje de condensado: Cambiar la unidad de servicio Limpiar el condensador del gas refrigerante", documento:"", frecuencia:"Según requerimiento", meses:[] },
+  { categoria:"Secadores de Baja", equipo:"SCB2A", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2B", actividad:"Revisión de drenaje de condensado", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2B", actividad:"Revisión de tubos, mangueras y accesorios del circuito de agua para descartar fugas", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2B", actividad:"Revisión del circuito refrigerante y del monitor de presion", documento:"", frecuencia:"Anual", meses:["OCT"] },
+  { categoria:"Secadores de Baja", equipo:"SCB2B", actividad:"Revise en la pantalla del equipo (Sigma Control Smart) si hay aviso sobre el Drenaje de condensado: Cambiar la unidad de servicio Limpiar el condensador del gas refrigerante", documento:"", frecuencia:"Según requerimiento", meses:[] },
+  { categoria:"Secadores de Baja", equipo:"SCB2B", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB3", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB3", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB4", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Baja", equipo:"SCB4", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Emergencia", equipo:"SCE1", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Emergencia", equipo:"SCE1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Emergencia", equipo:"SCE2", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Emergencia", equipo:"SCE2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Decorado", equipo:"SCDA", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Decorado", equipo:"SCDA", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Secadores de Decorado", equipo:"SCDB", actividad:"Inspeccion niveles de refrigerante, funcionamiento de drenajes", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Secadores de Decorado", equipo:"SCDB", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Limpieza de filtros de entrada de agua sistema adiabatico", documento:"Reporte al personal a cargo", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Limpieza general de drycooler de adentro hacia afuera", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Limpieza de filtros de circuito cerrado de agua", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Mantenimiento de Motores", documento:"hoja de vida de equipos", frecuencia:"Anual o según determine inspección vibracional", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Inspeccion y limpieza de desaireadores", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Lavado de rediador con quimico desincrustante.", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D1", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Limpieza de filtros de entrada de agua sistema adiabatico", documento:"Reporte al personal a cargo", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Limpieza general de drycooler de adentro hacia afuera", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Limpieza de filtros de circuito cerrado de agua", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Mantenimiento de Motores", documento:"hoja de vida de equipos", frecuencia:"Anual o según determine inspección vibracional", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Inspeccion y limpieza de desaireadores", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Lavado de rediador con quimico desincrustante.", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D2", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Limpieza de filtros de entrada de agua sistema adiabatico", documento:"Reporte al personal a cargo", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Limpieza general de drycooler de adentro hacia afuera", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Limpieza de filtros de circuito cerrado de agua", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Mantenimiento de Motores", documento:"hoja de vida de equipos", frecuencia:"Anual o según determine inspección vibracional", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Inspeccion y limpieza de desaireadores", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Lavado de rediador con quimico desincrustante.", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D3", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Limpieza de filtros de entrada de agua sistema adiabatico", documento:"Reporte al personal a cargo", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Limpieza general de drycooler de adentro hacia afuera", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Limpieza de filtros de circuito cerrado de agua", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Mantenimiento de Motores", documento:"hoja de vida de equipos", frecuencia:"Anual o según determine inspección vibracional", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Inspeccion y limpieza de desaireadores", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Lavado de rediador con quimico desincrustante.", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Drycoolers", equipo:"D4", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
+  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
+  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
+  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
+  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
+  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
+  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
+  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
+  { categoria:"Sistema de Recirculación", equipo:"B2", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B2", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
+  { categoria:"Sistema de Recirculación", equipo:"B3", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B3", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B3", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
+  { categoria:"Sistema de Recirculación", equipo:"B4", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B4", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B4", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
+  { categoria:"Sistema de Recirculación", equipo:"B5", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B5", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Sistema de Recirculación", equipo:"B5", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
+];
+
+/** Los Programas de Mantenimiento cargados de cada sede, por año. Cuando
+ *  llegue el de 2027 se agrega con el mismo formato y la pestaña lo toma
+ *  sola desde el 1 de enero. */
+const PROGRAMAS_MANTENIMIENTO_POR_SEDE = {
+  zipaquira: PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA,
+  peru: { 2026: PROGRAMA_2026_PERU },
+};
+
+/** El programa de la sede que toca mostrar: el del año en curso si ya está
+ *  cargado; si no, el más reciente que haya, avisando que es de otro año
+ *  (enero de 2027 sin el programa nuevo). null si la sede no tiene. */
+function _pmProgramaVigente(hoy = new Date(), sede = 'zipaquira') {
+  const programas = PROGRAMAS_MANTENIMIENTO_POR_SEDE[sede];
+  if (!programas) return null;
   const anioActual = hoy.getFullYear();
-  const anios = Object.keys(PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA).map(Number).sort((a, b) => a - b);
+  const anios = Object.keys(programas).map(Number).sort((a, b) => a - b);
   const anio = anios.includes(anioActual) ? anioActual : (anios.filter(a => a < anioActual).pop() ?? anios[anios.length - 1]);
-  return { anio, anioActual, actividades: PROGRAMAS_MANTENIMIENTO_ZIPAQUIRA[anio], esDelAnio: anio === anioActual };
+  return { anio, anioActual, actividades: programas[anio], esDelAnio: anio === anioActual };
 }
 
 /** Checklist del "Informe Cada Trimestral" del cliente — un formulario de
@@ -16373,9 +16586,15 @@ function abrirPlanMantenimiento(opKey) {
  *  en vez de cinco pestañas que decían "todavía no disponible". */
 function _pmAjustarASede(opKey) {
   const sinPrograma = !_pmGeneraOrdenesAutomaticas(opKey);
-  document.getElementById('panel-planmantenimiento').classList.toggle('sin-programa', sinPrograma);
+  const panel = document.getElementById('panel-planmantenimiento');
+  panel.classList.toggle('sin-programa', sinPrograma);
+  // Una sede sin órdenes automáticas pero con su Programa anual cargado
+  // (Perú) igual ve la pestaña del Programa.
+  const programa = _pmProgramaVigente(new Date(), opKey);
+  panel.classList.toggle('con-programa-anual', !!programa);
   // La pestaña dice el año del programa que va a mostrar (ver _pmProgramaVigente).
-  document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = _pmProgramaVigente().anio; });
+  if (programa) document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = programa.anio; });
+  document.querySelectorAll('.pm-programa-sede').forEach(el => { el.textContent = OPERACIONES[opKey]?.nombre || opKey; });
   if (!sinPrograma) return;
   const conEmpalme = _empalmeDisponible(opKey);
   const conReporteCompresores = _reportesTecnicosDe(opKey).pestanas.includes('compresores');
@@ -16871,8 +17090,10 @@ async function pmGuardarActividades() {
 
 function pmMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-planmantenimiento');
-  // Una pestaña del programa de Zipaquirá en una sede sin él: a Registro.
-  if (panel.classList.contains('sin-programa') && panel.querySelector(`.inv-subtab[data-pmtab="${nombre}"]`)?.classList.contains('pm-programa')) nombre = 'registro';
+  // Una pestaña del programa de Zipaquirá en una sede sin él: a Registro
+  // (menos la del Programa anual, si la sede tiene el suyo).
+  const programaPropio = nombre === 'programa2026' && panel.classList.contains('con-programa-anual');
+  if (panel.classList.contains('sin-programa') && !programaPropio && panel.querySelector(`.inv-subtab[data-pmtab="${nombre}"]`)?.classList.contains('pm-programa')) nombre = 'registro';
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
   document.getElementById('pmSub-' + nombre).classList.add('active');
@@ -17014,21 +17235,25 @@ async function pmRenderHorasMantenimiento() {
     </div>`;
 }
 
-/** Pinta la réplica completa de la hoja "Programa_2026" del cliente
- *  (ver PROGRAMA_2026_COMPLETO_ZIPAQUIRA): categoría → equipo → cada
- *  actividad con su responsable, documento/registro, frecuencia (tal
- *  como está escrita en el Excel) y los meses en que está programada. */
+/** Pinta la réplica completa de la hoja "Programa 2026" del cliente de la
+ *  sede (ver PROGRAMAS_MANTENIMIENTO_POR_SEDE): categoría → equipo → cada
+ *  actividad con su responsable (si el Excel lo trae), documento/registro,
+ *  frecuencia (tal como está escrita) y los meses en que está programada. */
 async function pmRenderPrograma2026(hoy = new Date()) {
   const cont = document.getElementById('pmPrograma2026Contenido');
   if (!cont) return;
   cont.innerHTML = '<div style="color:var(--text3);font-size:13px">Cargando…</div>';
-  const programa = _pmProgramaVigente(hoy);
-  document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = programa.anio; });
-
-  if (planMantOperacionActual !== 'zipaquira') {
-    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Esta tabla replica el Programa de Mantenimiento real de Zipaquirá — todavía no está disponible para esta sede.</div>';
+  const sede = planMantOperacionActual;
+  const programa = _pmProgramaVigente(hoy, sede);
+  if (!programa) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Esta sede todavía no tiene cargado su Programa de Mantenimiento.</div>';
     return;
   }
+  document.querySelectorAll('.pm-programa-anio').forEach(el => { el.textContent = programa.anio; });
+  const conResponsable = programa.actividades.some(a => a.responsable);
+  // "CA1 — Hanwha 900 HP" si la lista de equipos de la sede trae el modelo.
+  const modeloDe = {};
+  Object.values(EQUIPOS_POR_SEDE[sede] || {}).flat().forEach(i => { if (Array.isArray(i) && i[1]) modeloDe[i[0]] = i[1]; });
 
   let horasEquipos;
   try {
@@ -17047,7 +17272,7 @@ async function pmRenderPrograma2026(hoy = new Date()) {
 
   const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   const BORDE = '1px solid var(--pm-borde)';
-  const COLS_TOTALES = 4 + MESES.length;
+  const COLS_TOTALES = (conResponsable ? 4 : 3) + MESES.length;
 
   // Agrupa el listado plano por categoría → equipo, preservando el orden
   // en que aparecen en el Excel.
@@ -17077,7 +17302,7 @@ async function pmRenderPrograma2026(hoy = new Date()) {
     cat.equipos.forEach(eq => {
       const horasActuales = horasDe(eq.equipo);
       filas += `<tr style="background:var(--surface2)">
-        <td colspan="${COLS_TOTALES}" style="padding:6px 10px;border:${BORDE}"><strong style="font-size:13px">${esc(eq.equipo)}</strong>${horasActuales === null ? '' : ` <span style="font-size:11px;color:var(--text3)">— ${horasActuales.toLocaleString('es-CO')} h</span>`}</td>
+        <td colspan="${COLS_TOTALES}" style="padding:6px 10px;border:${BORDE}"><strong style="font-size:13px">${esc(eq.equipo)}</strong>${modeloDe[eq.equipo] ? ` <span style="font-size:12px;color:var(--text2)">— ${esc(modeloDe[eq.equipo])}</span>` : ''}${horasActuales === null ? '' : ` <span style="font-size:11px;color:var(--text3)">— ${horasActuales.toLocaleString('es-CO')} h</span>`}</td>
       </tr>`;
 
       eq.actividades.forEach(a => {
@@ -17085,7 +17310,7 @@ async function pmRenderPrograma2026(hoy = new Date()) {
         const celdasMes = MESES.map(m => `<td style="background:${marcasMes.has(m) ? 'var(--pm-verde)' : 'transparent'};border:${BORDE}"></td>`).join('');
         filas += `<tr>
           <td style="padding:6px 10px;font-size:12px;color:var(--text2);border:${BORDE}">${esc(a.actividad)}</td>
-          <td style="padding:6px 10px;font-size:11px;color:var(--text3);border:${BORDE}">${esc(a.responsable)}</td>
+          ${conResponsable ? `<td style="padding:6px 10px;font-size:11px;color:var(--text3);border:${BORDE}">${esc(a.responsable)}</td>` : ''}
           <td style="padding:6px 10px;font-size:11px;color:var(--text3);border:${BORDE}">${esc(a.documento)}</td>
           <td style="padding:6px 10px;font-size:11px;color:var(--text2);white-space:nowrap;border:${BORDE}">${esc(a.frecuencia)}</td>
           ${celdasMes}
@@ -17105,7 +17330,7 @@ async function pmRenderPrograma2026(hoy = new Date()) {
       <table style="border-collapse:collapse;width:auto;font-size:12px">
         <thead><tr>
           <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);white-space:nowrap;min-width:240px;border:${BORDE}">Actividad</th>
-          <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);white-space:nowrap;min-width:200px;border:${BORDE}">Responsable</th>
+          ${conResponsable ? `<th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);white-space:nowrap;min-width:200px;border:${BORDE}">Responsable</th>` : ''}
           <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);white-space:nowrap;min-width:180px;border:${BORDE}">Documento / Registro</th>
           <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--text3);white-space:nowrap;min-width:120px;border:${BORDE}">Frecuencia</th>
           ${thMeses}
@@ -25899,10 +26124,25 @@ const EMPALME_RECEPCION_COLS = ['Equipo','Estado','Horometro','UltimoMantFecha',
   'TipoEquipo','IdentificacionPlanta','Fabricante','Modelo','NumeroSerie','LugarFabricacion','Ubicacion','PresionOperacion','FechaInstalacion','CodigoActivo',
   'CapacidadNominal','CapacidadMetrica','PresionMaxima','TempMaxEntrada','PresionPrueba','Certificacion',
   'Tension','AmpacidadMinima','ProteccionMaxima','CompresorRLA','CompresorLRA','VentiladorCondensador','CalentadorCarter','RefrigeranteTipo','RefrigeranteCarga',
-  'KitsMantenimiento','ContactoFabricante','ServicioTecnicoLocal'];
+  'KitsMantenimiento','ContactoFabricante','ServicioTecnicoLocal',
+  // Datos de placa de los compresores (van en Recepción)
+  'Marca','TipoControl','AnioFabricacion','NumeroEtapas','PresionTrabajo','CapacidadCfm'];
 // Información de cada equipo al recibirlo (Parte 1 del formato de empalme).
 // largo: se escribe en un cuadro de varias líneas.
 const EMPALME_CAMPOS_FICHA = {
+  // Datos de placa del listado de equipos a recibir, en Recepción. Por
+  // ahora solo los compresores (las bombas de vacío quedan pendientes).
+  // Modelo y serial usan las mismas columnas que la ficha de los secadores.
+  placa: [
+    { col: 'Marca', label: 'Marca' },
+    { col: 'Modelo', label: 'Modelo' },
+    { col: 'NumeroSerie', label: 'Serial' },
+    { col: 'TipoControl', label: 'Tipo de control', ayuda: 'Ej: Intellisys, Quad 2000, Maestro, Vantage' },
+    { col: 'AnioFabricacion', label: 'Año de manufactura' },
+    { col: 'NumeroEtapas', label: 'Número de etapas' },
+    { col: 'PresionTrabajo', label: 'Presión (psig)' },
+    { col: 'CapacidadCfm', label: 'Capacidad teórica (cfm)' },
+  ],
   equipo: [
     { col: 'Identificacion', label: 'Identificación', ayuda: 'Marca / modelo / N.° de serie / año' },
     { col: 'CapacidadTipo', label: 'Capacidad y tipo', ayuda: 'CFM, kW; centrífugo, tornillo o reciprocante' },
@@ -26158,7 +26398,47 @@ const EMPALME_DATOS_FIJOS = {
     KitsMantenimiento: _kitSegunPlaca('Hankison', 'H-22'),
   },
 };
+// Datos de placa de los compresores de Zipaquirá 2, del listado de equipos
+// a recibir del informe de empalme (tal como vienen en el cuadro; lo que
+// el cuadro trae en blanco queda vacío para llenarlo en sitio):
+// equipo, marca, modelo, serial, tipo de control, año de manufactura,
+// número de etapas, presión (psig) y capacidad teórica (cfm).
+const _EMPALME_PLACA_COMPRESORES_Z2 = [
+  // Alta presión
+  ['IR 12',  'IR',      'SSR-XF100',    'CK1077U98212', 'Intellisys', '',     '1', '100',  '453'],
+  ['IR 15',  'IR',      'SSR-XF150',    'F35663U97307', 'Intellisys', '1997', '1', '100',  '739'],
+  ['IR 16',  'IR',      'SSR-XF150',    'F36007U98106', 'Intellisys', '1998', '1', '100',  '739'],
+  ['IR 20',  'IR',      'SSR-XFE300S',  'E1831U02197',  'Intellisys', '2002', '1', '100',  '1506'],
+  ['JOY 23', 'Cameron', 'TA2000',       '',             'Maestro',    '',     '',  '',     '1600'],
+  ['JOY 14', 'Joy',     'TA2000',       'X10365',       'Quad 2000',  '1995', '3', '',     '2000'],
+  ['JOY 21', 'Joy',     'TA3000',       'P13412',       'Vantage',    '2003', '3', '125',  '3000'],
+  ['JOY 22', 'Cameron', 'TA6000',       'CB18565',      'Maestro',    '2013', '3', '81.4', '5800'],
+  ['JOY 6',  'Cameron', 'TA6000',       'CB14996',      'Vantage',    '2004', '3', '',     '5800'],
+  ['CA3',    'IR',      'TA6000',       'CB20162',      'Quad 2000',  '',     '3', '100',  '5800'],
+  ['CA2',    'Joy',     'TA6000',       'X12496',       'Quad 2000',  '1996', '3', '100',  '5800'],
+  ['CA1',    'IR',      'TA6000',       '20156',        'Maestro',    '2018', '3', '81.6', '5800'],
+  // Baja presión
+  ['JOY 4',  'Cameron', 'Turbo Air 18', 'X0-8370',      'Quad 2000',  '',     '3', '60',   '2200'],
+  ['JOY 3',  'Cameron', 'TA48',         'X0-8166',      'Quad 3',     '1997', '2', '48',   '5000'],
+  ['JOY 7',  'Cameron', 'TA48',         'x115305',      'Quad 2000',  '1998', '2', '47',   '5000'],
+  ['JOY 5',  'Cameron', 'TA48',         'X09474',       'Quad 3',     '',     '2', '',     '5000'],
+  ['CB3',    'Joy',     'TA48',         'XD12496',      'Quad 3',     '',     '2', '53',   '5000'],
+  ['CB1',    'Joy',     'TA48',         'X10367',       'Quad 2000',  '1996', '2', '',     '5000'],
+  ['JOY 2',  'Cameron', 'TA50HH',       'BF6273',       'Quad 2000',  '',     '3', '60',   '5000'],
+  ['CB2',    'Cameron', 'TA-50HH',      'X12496',       'Maestro',    '1978', '3', '60',   '5000'],
+  ['CB4',    'IR',      'TA6000',       'CB20161',      'Quad 2000',  '',     '2', '50',   '5000'],
+  ['TA 18',  '',        '',             '',             'Quad 3',     '',     '',  '',     '2200'],
+];
+_EMPALME_PLACA_COMPRESORES_Z2.forEach(([equipo, Marca, Modelo, NumeroSerie, TipoControl, AnioFabricacion, NumeroEtapas, PresionTrabajo, CapacidadCfm]) => {
+  EMPALME_DATOS_FIJOS[equipo] = { ...EMPALME_DATOS_FIJOS[equipo], Marca, Modelo, NumeroSerie, TipoControl, AnioFabricacion, NumeroEtapas, PresionTrabajo, CapacidadCfm };
+});
 function _empEsSecador(equipo) { return /^secador/i.test(String(equipo || '').trim()); }
+/** Los datos de placa de Recepción de un equipo: solo los compresores los
+ *  llevan (los secadores traen los suyos en su ficha; las bombas de vacío
+ *  quedan pendientes). */
+function _empCamposPlaca(equipo) {
+  return _pmCompresores(operacionActual).includes(equipo) ? EMPALME_CAMPOS_FICHA.placa : [];
+}
 /** Todos los campos de texto de la ficha de un equipo, en el orden de la
  *  ficha. En un secador van al final los de "Información del equipo": no se
  *  muestran, pero si se llenaron antes siguen saliendo en el acta. */
@@ -26166,7 +26446,7 @@ function _empCamposFicha(equipo) {
   const F = EMPALME_CAMPOS_FICHA, S = EMPALME_CAMPOS_SECADOR;
   return _empEsSecador(equipo)
     ? [...S.identificacion, ...S.placa, ...S.electrico, ...F.historial, ...F.documentos, ...F.repuestos, ...S.repuestos, ...S.contactos, ...F.operacion, ...F.equipo]
-    : [...F.equipo, ...F.historial, ...F.documentos, ...F.repuestos, ...F.operacion];
+    : [..._empCamposPlaca(equipo), ...F.equipo, ...F.historial, ...F.documentos, ...F.repuestos, ...F.operacion];
 }
 // Evaluación técnica de los compresores (Parte 2, A. Compresores). El id es
 // la clave en la hoja: si se reescribe el texto, lo guardado no se pierde.
@@ -26408,6 +26688,9 @@ function empRenderFicha() {
   const avisoPrecargados = precargados
     ? `<div id="empfPrecargados" style="margin-top:14px;padding:8px 12px;font-size:13px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px">Los datos de placa, kits y contactos ya vienen llenos con la hoja de vida de este equipo. Revísalos y toca <b>Guardar ficha</b> para dejarlos registrados.</div>`
     : '';
+  const avisoPlaca = precargados
+    ? `<div id="empfPrecargados" style="grid-column:1/-1;padding:8px 12px;font-size:13px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px">Los datos de placa ya vienen llenos con el listado de equipos a recibir. Revísalos y toca <b>Guardar ficha</b> para dejarlos registrados.</div>`
+    : '';
   const infoEquipo = esSecador
     ? `${avisoPrecargados}
       ${seccion('Identificación del equipo', [...S.identificacion, ...anteriores].map(campo).join(''))}
@@ -26430,7 +26713,8 @@ function empRenderFicha() {
       <div class="field" style="margin:0"><label for="empf_estado">Estado al recibir *</label>
         <select id="empf_estado"><option value="">Elegir…</option>${EMPALME_ESTADOS_EQUIPO.map(e => `<option${e.valor === f.Estado ? ' selected' : ''}>${e.valor}</option>`).join('')}</select></div>
       <div class="field" style="margin:0"><label for="empf_horometro">Horómetro / horas al momento de entrega</label>
-        <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>`)}
+        <input id="empf_horometro" type="number" min="0" step="1" inputmode="numeric" value="${esc(f.Horometro || '')}" placeholder="Si tiene"></div>
+      ${esSecador ? '' : avisoPlaca}${_empCamposPlaca(equipo).map(campo).join('')}`)}
     ${infoEquipo}
     ${seccion('Historial y documentos', `
       ${EMPALME_CAMPOS_FICHA.historial.map(campo).join('')}
