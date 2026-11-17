@@ -9482,6 +9482,49 @@ const EQUIPOS_ZIPAQUIRA2 = {
                                   'BOMBA DE VACIO PNEUMOFORE 2','BOMBA DE VACIO PNEUMOFORE 3'],
 };
 
+// Lista de equipos activos exclusiva de O-I Perú, sacada del inventario de
+// equipos de su Programa de Mantenimiento 2026 (36 equipos). Va como la de
+// México: [código, marca y modelo]. En las órdenes se guarda el código, que
+// es el mismo que usa su plan de mantenimiento por horas.
+const EQUIPOS_PERU = {
+  'Compresores de Alta': [
+    ['CA1', 'Hanwha 900 HP'], ['CA2', 'Hanwha 900 HP'], ['CA3', 'Ingersoll Rand ex Centac 7, 800 HP'],
+  ],
+  'Compresores de Baja': [
+    ['CB1', 'Ingersoll Rand ex Centac 2, 800 HP'], ['CB2', 'Ingersoll Rand ex Centac 3, 800 HP'],
+    ['CB3', 'Hanwha 1000 HP'], ['CB4', 'Hanwha 1000 HP'],
+  ],
+  'Compresores de Emergencia': [
+    ['CE1', 'Kaishan KRSP2-300 VSD, 300 HP'], ['CE2', 'FS Curtis NxD220A, 220 kW'],
+  ],
+  'Compresores de Decorado': [
+    ['CD1', 'FS Curtis NxV55A, 55 kW'], ['CD2', 'Ingersoll Rand R751-A125'],
+  ],
+  'Secadores de Alta': [
+    ['SCA1', 'Fusheng FR1200WP'], ['SCA2', 'Fusheng FR1200WP'],
+    ['SCA3A', 'Ingersoll Rand NVC4800W400'], ['SCA3B', 'Ingersoll Rand NVC4800W400'],
+  ],
+  'Secadores de Baja': [
+    ['SCB1A', 'Kaeser TG980'], ['SCB1B', 'Kaeser TG980'], ['SCB2A', 'Kaeser TG980'], ['SCB2B', 'Kaeser TG980'],
+    ['SCB3', 'Fusheng FR2000WP'], ['SCB4', 'Fusheng FR2000WP'],
+  ],
+  'Secadores de Emergencia': [
+    ['SCE1', 'FS Curtis CR1560'], ['SCE2', 'Ingersoll Rand NVC'],
+  ],
+  'Secadores de Decorado': [
+    ['SCDA', 'Risheng RSLF-100-PD'], ['SCDB', 'Risheng RSLF-100-PD'],
+  ],
+  'Drycoolers': [
+    ['D1', 'Güntner S-GFD 090'], ['D2', 'Güntner S-GFD 090'], ['D3', 'Güntner S-GFD 090'], ['D4', 'Güntner S-GFD 090'],
+  ],
+  'Bombas de Vacío': [
+    ['V1', 'Pneumofore UV50 VS90, 90 kW'], ['V2', 'Pneumofore UV50 VS90, 90 kW'],
+  ],
+  'Sistema de Recirculación': [
+    ['B1', 'Bomba WEG 30 HP'], ['B2', 'Bomba WEG 30 HP'], ['B3', 'Bomba WEG 30 HP'], ['B4', 'Bomba WEG 30 HP'], ['B5', 'Bomba WEG 30 HP'],
+  ],
+};
+
 // Lista de equipos activos exclusiva de PAVISA México (no afecta a las demás sedes)
 // Agrupada por área real de la planta; cada opción muestra el código y el tipo de equipo.
 const EQUIPOS_MEXICO = {
@@ -9595,7 +9638,7 @@ const EQUIPOS_POR_SEDE = {
   zipaquira: EQUIPOS_ZIPAQUIRA,
   zipaquira2: EQUIPOS_ZIPAQUIRA2,
   // soacha:    EQUIPOS_SOACHA,     // ← pendiente: agregar cuando tengamos su lista real
-  // peru:      EQUIPOS_PERU,       // ← pendiente: agregar cuando tengamos su lista real
+  peru: EQUIPOS_PERU,
 };
 
 /* ══════════════════════════════════════════════
@@ -10852,6 +10895,12 @@ const PM_GRUPOS_POR_SEDE = {
     { nombre: 'Alta Presión', equipos: EQUIPOS_ZIPAQUIRA2['Alta Presión'] },
     { nombre: 'Bombas de Vacío', equipos: EQUIPOS_ZIPAQUIRA2['Bombas de Vacío'], sinEvaluacionTecnica: true },
   ],
+  // Perú lleva horas de todos sus equipos (hoja "MTTO HRS" de su plan), con
+  // los mismos grupos y códigos de su lista de equipos. Solo los compresores
+  // llevarían la evaluación técnica de un empalme.
+  peru: Object.entries(EQUIPOS_PERU).map(([nombre, items]) => ({
+    nombre, equipos: items.map(i => i[0]), ...(nombre.startsWith('Compresores') ? {} : { sinEvaluacionTecnica: true }),
+  })),
 };
 function _pmGruposEquipos(sede) {
   return PM_GRUPOS_POR_SEDE[sede] || INFORME_TIPOS_EQUIPO.map(t => ({ nombre: t.nombreTipo, equipos: INFORME_EQUIPOS_POR_TIPO[t.tipo] }));
