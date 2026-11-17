@@ -3849,6 +3849,50 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Perú: sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // "¡Toca ya!" que no se quitaba: CA2 con 13.482 h mostraba el informe
+    // anual en 8.000 h porque su estado quedó atrás aunque la orden de esa
+    // marca ya existía; CA3, porque su hora base (10.000) ya cubría la marca.
+    // La pantalla tiene que decir 16.000 h y la revisión automática tiene que
+    // adelantar el estado a 8.000 sin crear órdenes. CB1 sigue normal.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.zipaquira.spreadsheetId);
+    fake.crear(id, 'HorasEquipos', [
+      ['Equipo', 'HorasActuales', 'UltimaActualizacion', 'HoraBaseInformes'],
+      ['CA2', '13482', 'hoy', ''],
+      ['CA3', '13845', 'hoy', '10000'],
+      ['CB1', '26877', 'hoy', ''],
+    ]);
+    fake.crear(id, 'InformeAnualEstado', [['Equipo', 'UltimaGeneracionHoras'], ['CA2', '5000'], ['CA3', ''], ['CB1', '24000']]);
+    const proxima = () => p.evaluate(async () => {
+      abrirPlanMantenimiento('zipaquira'); pmMostrarSubTab('informeanual'); await pmRenderInformeAnual();
+      const filas = [...document.querySelectorAll('#pmInformeAnualContenido tbody tr')].map(tr => [...tr.cells].map(c => c.textContent.trim()));
+      const de = eq => { const f = filas.find(x => x[0] === eq); return f ? f[2] + ' · ' + f[3] : 'no está'; };
+      return { CA2: de('CA2'), CA3: de('CA3'), CB1: de('CB1') };
+    });
+    await p.evaluate(() => {
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      allOrdenes = [{ id: 'ORD-77', NumeroOrden: 'ORD-77', Equipo: 'CA2', Estado: 'Pendiente', OrigenInforme: 'anual|CA2|8000' }];
+    });
+    const antes = await proxima();
+    const res = await p.evaluate(async () => {
+      Object.keys(_cacheLecturasHojas).forEach(k => delete _cacheLecturasHojas[k]);
+      const r = await verificarInformeAnualYGenerar(new Set());
+      return { creadas: r.creadas, error: r.error, ordenes: allOrdenes.length };
+    });
+    const estado = Object.fromEntries(fake.hoja(id, 'InformeAnualEstado').slice(1).map(f => [f[0], f[1]]));
+    await p.evaluate(() => Object.keys(_cacheLecturasHojas).forEach(k => delete _cacheLecturasHojas[k]));
+    const despues = await proxima();
+    check('Plan: el informe anual ya no muestra "¡Toca ya!" en una marca que tiene su orden (CA2) o que cubre la hora base (CA3)',
+      antes.CA2 === '16.000 h · faltan 2.518 h' && antes.CA3 === '16.000 h · faltan 2.155 h' && antes.CB1 === '32.000 h · faltan 5.123 h', antes);
+    check('Plan: la revisión automática adelanta esos estados a 8.000 sin crear órdenes, y la pantalla sigue igual',
+      !res.error && res.creadas === 0 && res.ordenes === 1 && estado.CA2 === '8000' && estado.CA3 === '8000' && estado.CB1 === '24000'
+      && JSON.stringify(despues) === JSON.stringify(antes), { res, estado, despues });
+    check('Plan: sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();

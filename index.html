@@ -17035,6 +17035,15 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecu
     const n = fila ? Number(fila.HorasActuales) : 0;
     return isNaN(n) ? 0 : n;
   }
+  // La hora base que definió el usuario en Configuración: igual que en la
+  // revisión automática, las marcas hasta ella no generan orden.
+  function horaBaseDe(equipo) {
+    const fila = horasEquipos.find(f => f.Equipo === equipo);
+    const n = fila ? Number(fila.HoraBaseInformes) : 0;
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+  // Las órdenes automáticas que ya existen ("trimestral|CA2|8000").
+  const yaGeneradas = new Set((allOrdenes || []).map(o => o && o.OrigenInforme).filter(Boolean));
 
   const tipoSel = _pmInformeTipoSel[informeId] || 'compresores';
   // Se muestran las actividades configuradas por el usuario (o las de por
@@ -17061,11 +17070,16 @@ async function _pmRenderInformePeriodico(contId, informeId, { nombreCorto, frecu
     // igual que la siembra del generador y que muestran los demás equipos.
     const marcaCumplida = _ultimaMarcaCumplida(horasActuales, marcas);
     if (marcaCumplida !== null && baseHoras < marcaCumplida - marcas.cadaHoras) baseHoras = marcaCumplida;
-    // La proxima orden cae en la siguiente marca DE ESTA frecuencia. Tiene
-    // que coincidir con lo que decide la generacion automatica: si aqui se
-    // sumara un intervalo fijo, la pantalla anunciaria una meta distinta de
-    // la que realmente dispara la orden.
-    const proximo = _proximaMarca(baseHoras, marcas);
+    // Una marca que ya tiene su orden no vuelve a tocar, aunque el estado se
+    // haya quedado atrás (por ejemplo, por una hora base guardada después):
+    // la revisión automática tampoco crea otra y adelanta el estado.
+    if (marcaCumplida !== null && yaGeneradas.has(informeId + '|' + equipo + '|' + marcaCumplida)) baseHoras = Math.max(baseHoras, marcaCumplida);
+    // La proxima orden cae en la siguiente marca DE ESTA frecuencia despues
+    // de la base y de la hora base. Tiene que coincidir con lo que decide la
+    // generacion automatica: si aqui se sumara un intervalo fijo, o se
+    // ignorara la hora base, la pantalla anunciaria una meta distinta de la
+    // que realmente dispara la orden (y un "¡Toca ya!" que nunca se quita).
+    const proximo = _proximaMarca(Math.max(baseHoras, horaBaseDe(equipo)), marcas);
     const vencido = horasActuales >= proximo;
     const restante = Math.max(0, proximo - horasActuales);
     return `<tr>
@@ -27791,16 +27805,29 @@ async function _verificarInformePeriodicoYGenerar({ nombre, frecuencia, tituloCo
       // Nunca por debajo de la hora base que definio el usuario, ni de la
       // ultima marca ya generada.
       const desde = Math.max(baseHoras, horaBaseUsuario);
-      if (meta === null || meta <= desde) continue;
+      if (meta === null) continue;
+      if (meta <= desde) {
+        // La hora base ya cubre esta marca: no toca orden, pero el estado
+        // tiene que quedar en ella. Si se queda atrás, Plan muestra
+        // "¡Toca ya!" en una marca que nunca va a generar orden.
+        if (baseHoras < meta) cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
+        continue;
+      }
 
       // Segundo candado, independiente del estado: si ya existe una orden
       // para esta frecuencia, este equipo y esta marca, no se crea otra.
       // Sin esto, cualquier fallo despues de escribir la orden (por
       // ejemplo al guardar sus tareas) dejaba el estado sin avanzar y el
       // siguiente arranque creaba un duplicado — y asi cada vez, hasta que
-      // una corrida lograra terminar completa.
+      // una corrida lograra terminar completa. El estado sí avanza a esa
+      // marca: la orden ya está hecha. Antes se quedaba atrás (por ejemplo,
+      // si después se guardaba una hora base menor) y Plan seguía mostrando
+      // "¡Toca ya!" en una marca ya atendida.
       const origen = frecuencia + '|' + equipo + '|' + meta;
-      if (yaGeneradas.has(origen)) continue;
+      if (yaGeneradas.has(origen)) {
+        cambiosEstado[equipo] = { UltimaGeneracionHoras: String(meta) };
+        continue;
+      }
       yaGeneradas.add(origen);
 
       // Este equipo cumplió una marca nueva de esta frecuencia: su estado
@@ -27952,10 +27979,17 @@ function _huellaDeHoras(filas) {
     .join('|');
 }
 
+// Sube este número cuando cambie cómo decide la revisión, para que cada
+// equipo la vuelva a correr una vez aunque las horas no hayan cambiado.
+// 2: la revisión adelanta el estado de las marcas que ya tienen orden o que
+// cubre la hora base (los "¡Toca ya!" que no se quitaban).
+const VERSION_REVISION_INFORMES = 2;
+
 async function _revisionInformesPendiente() {
   try {
-    const huella = _huellaDeHoras(await leerHojaGenericaCacheada(SH.horasEquipos));
-    if (!huella) return { revisar: true, huella: null };  // sin datos: revisar
+    const horas = _huellaDeHoras(await leerHojaGenericaCacheada(SH.horasEquipos));
+    if (!horas) return { revisar: true, huella: null };  // sin datos: revisar
+    const huella = 'v' + VERSION_REVISION_INFORMES + '#' + horas;
     const guardada = localStorage.getItem(HUELLA_HORAS_CLAVE + ':' + operacionActual);
     return { revisar: huella !== guardada, huella };
   } catch (e) {
