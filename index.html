@@ -5382,7 +5382,7 @@ async function publicarCatalogoVariablesSiCambio() {
  *  esta lista y el HTML del panel. `sedes` dice en cuáles se ve: cada sede
  *  grafica solo los reportes que de verdad tiene. */
 const VARIABLES_APARTADOS = [
-  { key: 'compresores', label: 'Compresores', sedes: ['zipaquira', 'zipaquira2'],
+  { key: 'compresores', label: 'Compresores', sedes: ['zipaquira', 'zipaquira2', 'peru'],
     // Los compresores del reporte de la sede (en Zipaquirá 2, por grupo y
     // sin los IR, igual que su formulario).
     lista: () => _gruposCompresoresReporte(operacionActual).flatMap(g => g.equipos),
@@ -5400,7 +5400,9 @@ const VARIABLES_APARTADOS = [
       // Alta y Baja comparten hoja pero miden cosas distintas, asi que el
       // juego de campos depende del equipo elegido. Son los mismos campos
       // del formulario de la sede (Zipaquirá 2 no lleva PDT ni estator A/B/C).
-      campos: (equipo) => _camposReporteCompresor(equipo),
+      // Solo se grafican números: no el estado, el nivel de aceite ni las
+      // observaciones de Perú.
+      campos: (equipo) => _camposReporteCompresor(equipo).filter(c => !c.opciones && !c.texto),
     }] },
   { key: 'secadores',   label: 'Secadores', sedes: ['zipaquira'], lista: () => SECADORES_LISTA_REPORTE,
     fuentes: [{
@@ -11285,6 +11287,10 @@ const REPORTES_TECNICOS_POR_SEDE = {
   // que sí se escriba tiene que ser un número).
   zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
+  // Perú: el de sus compresores de alta y de baja (CA y CB), con sus propias
+  // variables (REPORTE_COMPRESORES_CAMPOS_PERU), como Zipaquirá 2: a
+  // cualquier hora y con las mediciones opcionales.
+  peru: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru' },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
@@ -11292,6 +11298,10 @@ function _reportesTecnicosDe(sede) {
 /** Los compresores del reporte de la sede, por grupo (sin grupo en
  *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
 function _gruposCompresoresReporte(sede) {
+  if (sede === 'peru') return [
+    { grupo: 'Alta Presión', equipos: EQUIPOS_PERU['Compresores de Alta'].map(e => e[0]) },
+    { grupo: 'Baja Presión', equipos: EQUIPOS_PERU['Compresores de Baja'].map(e => e[0]) },
+  ];
   if (sede === 'zipaquira2') return [
     { grupo: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
     { grupo: 'Alta Presión', equipos: EQUIPOS_ZIPAQUIRA2['Alta Presión'].filter(e => !/^IR\b/.test(e)) },
@@ -11498,6 +11508,71 @@ const REPORTE_COMPRESORES_CAMPOS_BAJA = [
   { grupo: 'Descarga y uso (Baja Presión)', id: 'tempDescargaAire', label: 'Temperatura descarga aire [°C]', col: 'BTempDescargaAire' },
   { grupo: 'Descarga y uso (Baja Presión)', id: 'horasUsoBaja', label: 'Horas de uso del equipo', col: 'BHorasUso', hint: 'Número entero' },
 ];
+
+// Perú: los compresores Hanwha de alta y de baja tienen el mismo panel, así
+// que llevan las mismas variables. Salen de la lista de lecturas que ya se
+// usaba en la operación (LECTURA_COMP_HANWHA, en SharePoint), con sus mismos
+// nombres para que el técnico los reconozca. Van sin rango normal: se
+// agregan como hint cuando se conozcan. "Horas de encendido CPU" no va: casi
+// nunca se anotaba. Algunos campos no son números: el estado y el nivel de
+// aceite se eligen de una lista (opciones) y las observaciones son texto.
+// requerido: se pide aunque la sede deje las mediciones opcionales.
+// horometro: sus horas alimentan "Horas de Operación" del Plan.
+const ESTADOS_COMPRESOR_REPORTE_PERU = ['Operando', 'No operando'];
+const NIVELES_ACEITE_PERU = ['Alto', 'Medio alto', 'Medio', 'Medio bajo', 'Bajo'];
+const REPORTE_COMPRESORES_CAMPOS_PERU = [
+  { grupo: 'Estado', id: 'peEstado', label: 'Estado del compresor', col: 'EstadoCompresor', opciones: ESTADOS_COMPRESOR_REPORTE_PERU, requerido: true },
+  { grupo: 'Sistema', id: 'peEntradaFinTemp', label: 'Entr. fin temp. [°C]', col: 'EntradaFinTemp' },
+  { grupo: 'Sistema', id: 'pePresionSistema', label: 'Presión del sistema [PSI]', col: 'PresionSistema' },
+  { grupo: 'Sistema', id: 'pePresionDescarga', label: 'Presión de descarga [PSI]', col: 'PresionDescarga' },
+  { grupo: 'Sistema', id: 'peValvulaIGV', label: 'Válvula de admisión IGV [%]', col: 'ValvulaIGV', hint: 'Ingresar entre 0 y 100' },
+  { grupo: 'Sistema', id: 'peValvulaBOV', label: 'Válvula de alivio BOV [%]', col: 'ValvulaBOV', hint: 'Ingresar entre 0 y 100' },
+  { grupo: 'Aceite', id: 'pePresionAceite', label: 'Presión de aceite [PSI]', col: 'PresionAceite' },
+  { grupo: 'Aceite', id: 'peTempAceite', label: 'Temperatura de aceite [°C]', col: 'TempAceite' },
+  { grupo: 'Aceite', id: 'peTempReservaAceite', label: 'Temperatura de reserva de aceite [°C]', col: 'TempReservaAceite' },
+  { grupo: 'Aceite', id: 'peVacioTanqueAceite', label: 'Vacío tanque de aceite', col: 'VacioTanqueAceite' },
+  { grupo: 'Aceite', id: 'peNivelAceite', label: 'Nivel de aceite', col: 'NivelAceite', opciones: NIVELES_ACEITE_PERU },
+  { grupo: 'Vibración', id: 'peVibracionEtapa1', label: 'Vibración etapa 1', col: 'VibracionEtapa1' },
+  { grupo: 'Vibración', id: 'peVibracionEtapa2', label: 'Vibración etapa 2', col: 'VibracionEtapa2' },
+  { grupo: 'Vibración', id: 'peVibracionEtapa3', label: 'Vibración etapa 3', col: 'VibracionEtapa3' },
+  { grupo: 'Motor', id: 'peTempCojineteDE', label: 'Temperatura cojinete motor "DE" [°C]', col: 'TempCojineteDE' },
+  { grupo: 'Motor', id: 'peTempBobinadoR', label: 'Temperatura bobinado de motor "R" [°C]', col: 'TempBobinadoR' },
+  { grupo: 'Motor', id: 'peTempCojineteNDE', label: 'Temperatura cojinete motor "NDE" [°C]', col: 'TempCojineteNDE' },
+  { grupo: 'Motor', id: 'peAmperaje', label: 'Amperaje actual [A]', col: 'AmperajeActual' },
+  { grupo: 'Horas y operación', id: 'peHorasMarcha', label: 'Compresor en marcha [h]', col: 'HorasEnMarcha', hint: 'Número entero · es el horómetro', horometro: true },
+  { grupo: 'Horas y operación', id: 'peHorasCarga', label: 'Compresor en carga [h]', col: 'HorasEnCarga' },
+  { grupo: 'Horas y operación', id: 'peReemplazoAceite', label: 'Reemplazo de aceite restante [h]', col: 'ReemplazoAceiteRestante' },
+  { grupo: 'Horas y operación', id: 'peOperaciones', label: 'Operaciones del compresor', col: 'OperacionesCompresor' },
+  { grupo: 'Filtro y aire', id: 'peSaturacionFiltro', label: 'Saturación de filtro de aire', col: 'SaturacionFiltroAire' },
+  { grupo: 'Filtro y aire', id: 'pePresionAire', label: 'Presión', col: 'PresionAire' },
+  { grupo: 'Filtro y aire', id: 'peTempSalidaAire', label: 'Temperatura de salida de aire [°C]', col: 'TempSalidaAire' },
+  { grupo: 'Entrada y salida', id: 'pePresionEntrada', label: 'Presión de entrada', col: 'PresionEntrada' },
+  { grupo: 'Entrada y salida', id: 'peTempEntrada', label: 'Temperatura de entrada [°C]', col: 'TempEntrada' },
+  { grupo: 'Entrada y salida', id: 'pePresionSalida', label: 'Presión de salida', col: 'PresionSalida' },
+  { grupo: 'Entrada y salida', id: 'peTempSalida', label: 'Temperatura de salida [°C]', col: 'TempSalida' },
+  { grupo: 'I/P, O/P, LOAD y VDC', id: 'peIP', label: 'I/P', col: 'IP' },
+  { grupo: 'I/P, O/P, LOAD y VDC', id: 'peOP', label: 'O/P', col: 'OP' },
+  { grupo: 'I/P, O/P, LOAD y VDC', id: 'peLoad', label: 'LOAD [%]', col: 'LoadPorcentaje' },
+  { grupo: 'I/P, O/P, LOAD y VDC', id: 'peVDC', label: 'VDC', col: 'VDC' },
+  { grupo: 'Observaciones', id: 'peObservaciones', label: 'Observaciones', col: 'Observaciones', texto: true },
+  { grupo: 'Observaciones', id: 'peInfoComplementaria', label: 'Información complementaria', col: 'InfoComplementaria', texto: true },
+];
+// Las columnas de la hoja de Perú: las mismas de cabecera y cierre que las
+// de Zipaquirá, con sus variables en medio (no las de Zipaquirá, que en su
+// hoja quedarían siempre vacías).
+const REPORTE_COMPRESORES_COLS_PERU = [
+  'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor', 'EstadoHoraFecha',
+  ...REPORTE_COMPRESORES_CAMPOS_PERU.map(c => c.col),
+  'RegistradoPor', 'FechaRegistro', 'Estado',
+];
+/** Las columnas de la hoja de reportes de compresores de la sede. */
+function _colsReporteCompresores(sede = operacionActual) {
+  return _reportesTecnicosDe(sede).campos === 'peru' ? REPORTE_COMPRESORES_COLS_PERU : REPORTE_COMPRESORES_COLS;
+}
+/** El campo del reporte que trae el horómetro de ese compresor. */
+function _campoHorometroCompresor(compresor) {
+  return _camposReporteCompresor(compresor).find(c => c.horometro || c.id.startsWith('horasUso')) || null;
+}
 /** true si el nombre de compresor seleccionado es de Baja Presión: en
  *  Zipaquirá lo dice el nombre; en Zipaquirá 2, el grupo del compresor. */
 function esCompresorBaja(compresor) {
@@ -20849,7 +20924,7 @@ function _renderTodosCumplimientosReportesTecnicos() {
   const desde = document.getElementById('cronDashDesde')?.value;
   const hasta = document.getElementById('cronDashHasta')?.value;
   if (!desde || !hasta || desde > hasta) return;
-  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, REPORTE_COMPRESORES_COLS, HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta, 'Compresor');
+  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, _colsReporteCompresores(), HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta, 'Compresor');
   _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', desde, hasta, 'Secador');
   _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', desde, hasta, 'Drycooler');
   _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', desde, hasta, 'Compresor');
@@ -21962,8 +22037,10 @@ function _htmlCamposReporteCompresor(existente, campos) {
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)}</label>
-          <input id="rc_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
+          <label for="rc_${c.id}">${esc(c.label)}${c.requerido ? ' *' : ''}</label>
+          ${c.opciones
+            ? `<select id="rc_${c.id}">${_esOpciones(c.opciones, existente?.[c.col])}</select>`
+            : `<input id="rc_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">`}
           ${c.hint ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
         </div>`).join('')}
       </div>
@@ -21980,8 +22057,12 @@ function _actualizarCamposMedicionesCompresor() {
 /** Los campos de medición de ese compresor (los de Alta o los de Baja) que
  *  lleva el reporte de la sede: sin los que la sede omite. */
 function _camposReporteCompresor(compresor) {
-  const omitidos = _reportesTecnicosDe(operacionActual).camposOmitidos || [];
-  return (esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS).filter(c => !omitidos.includes(c.id));
+  const cfg = _reportesTecnicosDe(operacionActual);
+  const omitidos = cfg.camposOmitidos || [];
+  // Perú: las mismas variables para alta y baja (paneles Hanwha iguales).
+  const lista = cfg.campos === 'peru' ? REPORTE_COMPRESORES_CAMPOS_PERU
+    : esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
+  return lista.filter(c => !omitidos.includes(c.id));
 }
 
 function _siguienteCodigoReporteCompresor() {
@@ -22054,7 +22135,7 @@ async function inicializarReporteCompresores() {
   const wrap = document.getElementById('rc_tablaWrap');
   wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Cargando reportes...</div>';
   try {
-    await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
+    await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
     allReportesCompresores = await _cargarReportesTecnicos('rc', SH.reporteCompresores);
     _llenarTecnicosReporteCompresores();
     renderTablaReportesCompresores();
@@ -22167,18 +22248,32 @@ async function guardarReporteCompresor() {
   let vacios = 0;
   for (const c of campos) {
     const valor = document.getElementById('rc_' + c.id).value.trim();
+    if (!valor && c.requerido) {
+      msg.textContent = `Completa el campo "${c.label}".`;
+      return;
+    }
+    // Las observaciones son texto libre y pueden quedar vacías.
+    if (c.texto) { if (valor) porColumna[c.col] = valor; continue; }
     // En las sedes con mediciones opcionales, la que quede vacía se guarda vacía.
     if (!valor && cfgSede.medicionesOpcionales) { vacios++; continue; }
+    // Lo que se elige de una lista no es un número.
+    if (c.opciones) {
+      if (!c.opciones.includes(valor)) { msg.textContent = `Elige una opción de la lista en "${c.label}".`; return; }
+      porColumna[c.col] = valor;
+      continue;
+    }
     if (!valor || !_esNumeroDecimal(valor)) {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
-    if (c.id.startsWith('horasUso') && !Number.isInteger(Number(valor))) {
-      msg.textContent = 'El campo "Horas de uso del equipo" debe ser un número entero.';
+    if ((c.horometro || c.id.startsWith('horasUso')) && !Number.isInteger(Number(valor))) {
+      msg.textContent = `El campo "${c.horometro ? c.label : 'Horas de uso del equipo'}" debe ser un número entero.`;
       return;
     }
     porColumna[c.col] = valor;
   }
+  const campoHoras = _campoHorometroCompresor(compresor);
+  const horasReporte = campoHoras ? porColumna[campoHoras.col] : '';
 
   msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando...';
 
@@ -22186,9 +22281,9 @@ async function guardarReporteCompresor() {
     // Antes de guardar: una lectura de horometro que baja o que pega un
     // salto enorme casi siempre es un tecleo malo, y estas horas mueven
     // las barras del cronograma y disparan las ordenes de trabajo.
-    if (!(await _confirmarHorometro(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']))) { msg.textContent = ''; return; }
+    if (!(await _confirmarHorometro(compresor, horasReporte))) { msg.textContent = ''; return; }
 
-    const colsHoja = await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
+    const colsHoja = await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
     const codigo = _siguienteCodigoReporteCompresor();
     Object.assign(porColumna, {
       Codigo: codigo, Fecha: fecha, Hora: conHora ? hora : '', Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
@@ -22201,7 +22296,7 @@ async function guardarReporteCompresor() {
     _invalidarCacheHoja(SH.reporteCompresores);
 
     // Las horas del reporte alimentan "Horas de Operación de Equipos".
-    const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, porColumna[esCompresorBaja(compresor) ? 'BHorasUso' : 'HorasUso']);
+    const _eqHoras = await _sincronizarHorasDesdeReporte(compresor, horasReporte);
     await inicializarReporteCompresores();
     msg.style.color = 'var(--estado-ok-tx)';
     msg.textContent = 'Reporte guardado correctamente.' + (_eqHoras ? ` Horas de ${_eqHoras} actualizadas.` : '')
@@ -22217,7 +22312,7 @@ async function eliminarReporteCompresor(codigo) {
   const fila = allReportesCompresores.find(r => r.Codigo === codigo);
   if (!fila) return;
   try {
-    const colsHoja = await asegurarHoja(SH.reporteCompresores, REPORTE_COMPRESORES_COLS);
+    const colsHoja = await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
     const colEstado = numToCol(colsHoja.indexOf('Estado'));
     await sheetsRequest('UPDATE', SH.reporteCompresores + '!' + colEstado + fila._row, [['Eliminada']]);
     _invalidarCacheHoja(SH.reporteCompresores);
@@ -22232,7 +22327,7 @@ async function eliminarReporteCompresor(codigo) {
  *  cada fila solo trae lleno el bloque del tipo de compresor que se reportó. */
 function _construirHtmlReporteCompresor(r, conTitulo) {
   if (conTitulo === undefined) conTitulo = true;
-  const todosLosCampos = REPORTE_COMPRESORES_CAMPOS.concat(REPORTE_COMPRESORES_CAMPOS_BAJA);
+  const todosLosCampos = REPORTE_COMPRESORES_CAMPOS.concat(REPORTE_COMPRESORES_CAMPOS_BAJA, REPORTE_COMPRESORES_CAMPOS_PERU);
   const grupos = [];
   todosLosCampos.forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);

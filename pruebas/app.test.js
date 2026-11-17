@@ -3893,6 +3893,75 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Plan: sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Reporte de compresores de Perú: sus CA y CB, con las variables de su
+    // lista de lecturas (estado y nivel de aceite de lista, observaciones de
+    // texto), en su propia hoja sin las columnas de Zipaquirá; el horómetro
+    // ("Compresor en marcha") alimenta las horas del Plan y Variables grafica
+    // solo los números.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.peru.spreadsheetId);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window.alert = () => {}; window.confirmarAccion = async () => true;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'peru'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.peru.spreadsheetId;
+      await showPanel('cronograma'); await espera(600);
+      cronMostrarSubTab('compresores'); await espera(800);
+      const out = {};
+      const sel = document.getElementById('rc_compresor');
+      out.grupos = [...sel.querySelectorAll('optgroup')].map(g => g.label + ':' + [...g.children].map(o => o.value).join(','));
+      out.pideHora = document.getElementById('rc_hora').closest('.field').style.display !== 'none';
+      sel.value = 'CB3'; _actualizarCamposMedicionesCompresor();
+      const cont = document.getElementById('rc_camposMediciones');
+      out.campos = cont.querySelectorAll('input, select').length;
+      out.opcionesNivel = [...document.querySelectorAll('#rc_peNivelAceite option')].map(o => o.value).filter(Boolean).join(',');
+      document.getElementById('rc_tecnico').value = 'Otras';
+      document.getElementById('rc_tecnicoOtro').value = 'Técnico Perú';
+      // Sin el estado no se guarda.
+      await guardarReporteCompresor();
+      out.sinEstado = document.getElementById('rc_msg').textContent;
+      document.getElementById('rc_peEstado').value = 'Operando';
+      document.getElementById('rc_pePresionSistema').value = '64';
+      document.getElementById('rc_peHorasMarcha').value = '10490.5';
+      await guardarReporteCompresor();
+      out.horasDecimal = document.getElementById('rc_msg').textContent;
+      document.getElementById('rc_peHorasMarcha').value = '10490';
+      document.getElementById('rc_peNivelAceite').value = 'Medio alto';
+      document.getElementById('rc_peObservaciones').value = 'Sin novedad';
+      await guardarReporteCompresor();
+      out.guardado = document.getElementById('rc_msg').textContent;
+      const rep = allReportesCompresores.find(x => x.Compresor === 'CB3');
+      verReporteCompresor(rep && rep.Codigo);
+      out.codigo = rep && rep.Codigo;
+      const vista = [...document.querySelectorAll('body > div')].filter(d => /Reporte de Compresor —/.test(d.textContent)).pop();
+      out.vista = vista ? vista.textContent : '';
+      if (vista) vista.remove();
+      const ap = _apartadosVariablesDe('peru').find(a => a.key === 'compresores');
+      out.variables = ap ? ap.fuentes[0].campos('CA1').length : 0;
+      return out;
+    });
+    const hoja = fake.hoja(id, 'ReporteCompresores');
+    const fila = Object.fromEntries((hoja[0] || []).map((c, i) => [c, (hoja[1] || [])[i]]));
+    const horas = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'CB3') || [])[1];
+    check('Perú: el reporte de compresores lista sus CA y CB por grupo, sin franja horaria, con sus 35 variables',
+      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2,CA3 | Baja Presión:CB1,CB2,CB3,CB4' && !r.pideHora && r.campos === 35
+      && r.opcionesNivel === 'Alto,Medio alto,Medio,Medio bajo,Bajo', r);
+    check('Perú: pide el estado del compresor y que el horómetro sea un número entero',
+      r.sinEstado === 'Completa el campo "Estado del compresor".' && r.horasDecimal === 'El campo "Compresor en marcha [h]" debe ser un número entero.', r);
+    check('Perú: guarda en su propia hoja (sin columnas de Zipaquirá) y las horas de CB3 pasan al Plan',
+      /^Reporte guardado correctamente\. Horas de CB3 actualizadas\./.test(r.guardado)
+      && !(hoja[0] || []).includes('DPT') && !(hoja[0] || []).includes('BHorasUso')
+      && fila.Compresor === 'CB3' && fila.EstadoCompresor === 'Operando' && fila.PresionSistema === '64' && fila.HorasEnMarcha === '10490'
+      && fila.NivelAceite === 'Medio alto' && fila.Observaciones === 'Sin novedad' && horas === '10490',
+      { msg: r.guardado, cols: (hoja[0] || []).length, fila, horas });
+    check('Perú: el reporte se ve con sus variables y Variables grafica solo las 31 numéricas',
+      /Nivel de aceite\s*Medio alto/.test(r.vista) && /Presión del sistema \[PSI\]\s*64/.test(r.vista) && r.variables === 31,
+      { vista: r.vista.slice(0, 200), variables: r.variables });
+    check('Perú (reporte de compresores): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
