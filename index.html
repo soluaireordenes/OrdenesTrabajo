@@ -11291,7 +11291,8 @@ const REPORTES_TECNICOS_POR_SEDE = {
   // que sí se escriba tiene que ser un número).
   zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
-  // Perú: el de sus compresores Hanwha (CA1, CA2, CB3 y CB4), con sus propias
+  // Perú: el de sus 7 compresores, cada uno con las variables de su panel
+  // (Hanwha o Centac), con sus propias
   // variables (REPORTE_COMPRESORES_CAMPOS_PERU), como Zipaquirá 2: a
   // cualquier hora y con las mediciones opcionales.
   // importarSharePoint: el admin puede agregar las lecturas de la lista de
@@ -11304,12 +11305,13 @@ function _reportesTecnicosDe(sede) {
 /** Los compresores del reporte de la sede, por grupo (sin grupo en
  *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
 function _gruposCompresoresReporte(sede) {
-  // Perú: solo los Hanwha (CA1, CA2, CB3 y CB4), que son los de este panel;
-  // los Ingersoll Rand (CA3, CB1 y CB2) no llevan este reporte.
-  const hanwha = grupo => EQUIPOS_PERU[grupo].filter(e => /Hanwha/.test(e[1])).map(e => e[0]);
+  // Perú: sus 7 compresores. Los Hanwha (CA1, CA2, CB3 y CB4) y los Centac
+  // (CA3, CB1 y CB2) tienen paneles distintos y cada uno lleva sus variables
+  // (ver _camposReporteCompresor).
+  const codigos = grupo => EQUIPOS_PERU[grupo].map(e => e[0]);
   if (sede === 'peru') return [
-    { grupo: 'Alta Presión', equipos: hanwha('Compresores de Alta') },
-    { grupo: 'Baja Presión', equipos: hanwha('Compresores de Baja') },
+    { grupo: 'Alta Presión', equipos: codigos('Compresores de Alta') },
+    { grupo: 'Baja Presión', equipos: codigos('Compresores de Baja') },
   ];
   if (sede === 'zipaquira2') return [
     { grupo: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
@@ -11548,7 +11550,7 @@ const REPORTE_COMPRESORES_CAMPOS_PERU = [
   { grupo: 'Motor', id: 'peTempBobinadoR', label: 'Temperatura bobinado de motor "R" [°C]', col: 'TempBobinadoR' },
   { grupo: 'Motor', id: 'peTempCojineteNDE', label: 'Temperatura cojinete motor "NDE" [°C]', col: 'TempCojineteNDE' },
   { grupo: 'Motor', id: 'peAmperaje', label: 'Amperaje actual [A]', col: 'AmperajeActual' },
-  { grupo: 'Horas y operación', id: 'peHorasMarcha', label: 'Compresor en marcha [h]', col: 'HorasEnMarcha', hint: 'Número entero · es el horómetro', horometro: true },
+  { grupo: 'Horas y operación', id: 'peHorasMarcha', label: 'Compresor en marcha [h]', col: 'HorasEnMarcha', hint: 'Número entero · es el horómetro', horometro: true, entero: true },
   { grupo: 'Horas y operación', id: 'peHorasCarga', label: 'Compresor en carga [h]', col: 'HorasEnCarga' },
   { grupo: 'Horas y operación', id: 'peReemplazoAceite', label: 'Reemplazo de aceite restante [h]', col: 'ReemplazoAceiteRestante' },
   { grupo: 'Horas y operación', id: 'peOperaciones', label: 'Operaciones del compresor', col: 'OperacionesCompresor' },
@@ -11569,9 +11571,44 @@ const REPORTE_COMPRESORES_CAMPOS_PERU = [
 // Las columnas de la hoja de Perú: las mismas de cabecera y cierre que las
 // de Zipaquirá, con sus variables en medio (no las de Zipaquirá, que en su
 // hoja quedarían siempre vacías).
+// Los Centac de Perú (CA3, CB1 y CB2, Ingersoll Rand) tienen otro panel y
+// otra lista de lecturas en SharePoint (LECT_COMP_CENTAC), con sus propias
+// variables. Sus columnas llevan "C" adelante para no confundirse con las de
+// los Hanwha; el nivel de aceite es el mismo dato y comparte columna. El
+// horómetro ("En marcha") trae decimales en este panel.
+const REPORTE_COMPRESORES_CAMPOS_PERU_CENTAC = [
+  { grupo: 'Presiones', id: 'pcPresionSP', label: 'Presión SP [PSI]', col: 'CPresionSP' },
+  { grupo: 'Presiones', id: 'pcPresionSistema', label: 'Presión sistema [PSI]', col: 'CPresionSistema' },
+  { grupo: 'Válvulas', id: 'pcAspiracion', label: 'Aspiración [% abierto]', col: 'CAspiracion', hint: 'Ingresar entre 0 y 100' },
+  { grupo: 'Válvulas', id: 'pcBypass', label: 'Bypass [% abierto]', col: 'CBypass', hint: 'Ingresar entre 0 y 100' },
+  { grupo: 'Motor', id: 'pcCorriente', label: 'Corriente', col: 'CCorriente' },
+  { grupo: 'Motor', id: 'pcPotencia', label: 'Potencia', col: 'CPotencia' },
+  { grupo: 'Horas y arranques', id: 'pcEnMarcha', label: 'En marcha [h]', col: 'CHorasEnMarcha', hint: 'Es el horómetro', horometro: true },
+  { grupo: 'Horas y arranques', id: 'pcCargMin', label: 'Carg. mín.', col: 'CCargMin' },
+  { grupo: 'Horas y arranques', id: 'pcCarg', label: 'Carg.', col: 'CCarg' },
+  { grupo: 'Horas y arranques', id: 'pcArranques', label: 'Arranques', col: 'CArranques' },
+  { grupo: 'Etapa 1', id: 'pcEtapa1Presion', label: 'Etapa 1 · presión', col: 'CEtapa1Presion' },
+  { grupo: 'Etapa 1', id: 'pcEtapa1Temp', label: 'Etapa 1 · temperatura [°C]', col: 'CEtapa1Temp' },
+  { grupo: 'Etapa 1', id: 'pcEtapa1Vib', label: 'Etapa 1 · vibración', col: 'CEtapa1Vib' },
+  { grupo: 'Etapa 2', id: 'pcEtapa2Presion', label: 'Etapa 2 · presión', col: 'CEtapa2Presion' },
+  { grupo: 'Etapa 2', id: 'pcEtapa2Temp', label: 'Etapa 2 · temperatura [°C]', col: 'CEtapa2Temp' },
+  { grupo: 'Etapa 2', id: 'pcEtapa2Vib', label: 'Etapa 2 · vibración', col: 'CEtapa2Vib' },
+  { grupo: 'Etapa 3', id: 'pcEtapa3Presion', label: 'Etapa 3 · presión', col: 'CEtapa3Presion' },
+  { grupo: 'Etapa 3', id: 'pcEtapa3Temp', label: 'Etapa 3 · temperatura [°C]', col: 'CEtapa3Temp' },
+  { grupo: 'Etapa 3', id: 'pcEtapa3Vib', label: 'Etapa 3 · vibración', col: 'CEtapa3Vib' },
+  { grupo: 'Aceite', id: 'pcPresionAceite', label: 'Presión del aceite [PSI]', col: 'CPresionAceite' },
+  { grupo: 'Aceite', id: 'pcTempAceite', label: 'Temperatura del aceite [°C]', col: 'CTempAceite' },
+  { grupo: 'Aceite', id: 'pcNivelAceite', label: 'Nivel de aceite', col: 'NivelAceite', opciones: NIVELES_ACEITE_PERU },
+  { grupo: 'Otros', id: 'pcValorTransformacion', label: 'Valor de transformación', col: 'CValorTransformacion' },
+];
+/** true si el compresor de Perú es un Centac (su descripción lo dice). */
+function _esCentacPeru(compresor) {
+  return Object.values(EQUIPOS_PERU).some(g => g.some(e => e[0] === compresor && /Centac/i.test(e[1])));
+}
 const REPORTE_COMPRESORES_COLS_PERU = [
   'Codigo', 'Fecha', 'Hora', 'Tecnico', 'TecnicoOtro', 'Compresor', 'EstadoHoraFecha',
   ...REPORTE_COMPRESORES_CAMPOS_PERU.map(c => c.col),
+  ...REPORTE_COMPRESORES_CAMPOS_PERU_CENTAC.map(c => c.col).filter(c => !REPORTE_COMPRESORES_CAMPOS_PERU.some(h => h.col === c)),
   // IdOrigen: el IDEJECUCION de una lectura importada de SharePoint, para no
   // importarla dos veces. Vacío en los reportes hechos en la app.
   'IdOrigen',
@@ -22071,8 +22108,9 @@ function _actualizarCamposMedicionesCompresor() {
 function _camposReporteCompresor(compresor) {
   const cfg = _reportesTecnicosDe(operacionActual);
   const omitidos = cfg.camposOmitidos || [];
-  // Perú: las mismas variables para alta y baja (paneles Hanwha iguales).
-  const lista = cfg.campos === 'peru' ? REPORTE_COMPRESORES_CAMPOS_PERU
+  // Perú: las de su panel. Los Hanwha llevan las mismas en alta y en baja;
+  // los Centac, las suyas.
+  const lista = cfg.campos === 'peru' ? (_esCentacPeru(compresor) ? REPORTE_COMPRESORES_CAMPOS_PERU_CENTAC : REPORTE_COMPRESORES_CAMPOS_PERU)
     : esCompresorBaja(compresor) ? REPORTE_COMPRESORES_CAMPOS_BAJA : REPORTE_COMPRESORES_CAMPOS;
   return lista.filter(c => !omitidos.includes(c.id));
 }
@@ -22279,8 +22317,8 @@ async function guardarReporteCompresor() {
       msg.textContent = `El campo "${c.label}" debe tener un número (usa punto para decimales, no coma).`;
       return;
     }
-    if ((c.horometro || c.id.startsWith('horasUso')) && !Number.isInteger(Number(valor))) {
-      msg.textContent = `El campo "${c.horometro ? c.label : 'Horas de uso del equipo'}" debe ser un número entero.`;
+    if ((c.entero || c.id.startsWith('horasUso')) && !Number.isInteger(Number(valor))) {
+      msg.textContent = `El campo "${c.entero ? c.label : 'Horas de uso del equipo'}" debe ser un número entero.`;
       return;
     }
     porColumna[c.col] = valor;
@@ -22340,7 +22378,10 @@ async function eliminarReporteCompresor(codigo) {
  *  cada fila solo trae lleno el bloque del tipo de compresor que se reportó. */
 function _construirHtmlReporteCompresor(r, conTitulo) {
   if (conTitulo === undefined) conTitulo = true;
-  const todosLosCampos = REPORTE_COMPRESORES_CAMPOS.concat(REPORTE_COMPRESORES_CAMPOS_BAJA, REPORTE_COMPRESORES_CAMPOS_PERU);
+  // En Perú, los del panel de ese compresor (Hanwha o Centac comparten el
+  // nivel de aceite y saldría dos veces).
+  const todosLosCampos = _reportesTecnicosDe(operacionActual).campos === 'peru' ? _camposReporteCompresor(r.Compresor)
+    : REPORTE_COMPRESORES_CAMPOS.concat(REPORTE_COMPRESORES_CAMPOS_BAJA);
   const grupos = [];
   todosLosCampos.forEach(c => {
     let g = grupos.find(x => x.nombre === c.grupo);
@@ -22408,8 +22449,9 @@ ${_construirHtmlReporteCompresor(r)}
 
 /* ══════════════════════════════════════════════
    IMPORTAR LECTURAS DE SHAREPOINT (Perú)
-   Perú anotaba las lecturas de sus compresores en una lista de SharePoint
-   (LECTURA_COMP_HANWHA). El admin exporta esa lista a Excel y aquí se
+   Perú anotaba las lecturas de sus compresores en dos listas de SharePoint:
+   LECTURA_COMP_HANWHA y LECT_COMP_CENTAC, cada una con los encabezados de
+   su panel. El admin exporta una de ellas a Excel o CSV y aquí se
    agregan a la hoja del reporte, como reportes normales: con su código
    RC, su fecha y hora reales y los valores tal cual (punto decimal, sin que
    Google los convierta). IDEJECUCION queda en IdOrigen, así que volver a
@@ -22434,6 +22476,17 @@ const SHAREPOINT_A_COLUMNA_PERU = {
   ip: 'IP', op: 'OP', load: 'LoadPorcentaje', vdc: 'VDC',
   observaciones: 'Observaciones', informacioncomplementaria: 'InfoComplementaria',
 };
+// La lista de los Centac (LECT_COMP_CENTAC) tiene otros encabezados.
+const SHAREPOINT_A_COLUMNA_CENTAC = {
+  tecnicofinalizacion: 'Tecnico', equipo: 'Compresor',
+  presionsp: 'CPresionSP', presionsistema: 'CPresionSistema', aspiracionabierto: 'CAspiracion', bypassabierto: 'CBypass',
+  corriente: 'CCorriente', potencia: 'CPotencia', enmarchahrs: 'CHorasEnMarcha', cargmin: 'CCargMin', carg: 'CCarg', arranque: 'CArranques',
+  etapa1presion: 'CEtapa1Presion', etapa1temp: 'CEtapa1Temp', etapa1vib: 'CEtapa1Vib',
+  etapa2presion: 'CEtapa2Presion', etapa2temp: 'CEtapa2Temp', etapa2vib: 'CEtapa2Vib',
+  etapa3presion: 'CEtapa3Presion', etapa3temp: 'CEtapa3Temp', etapa3vib: 'CEtapa3Vib',
+  presiondelaceite: 'CPresionAceite', tempdeaceite: 'CTempAceite', valordetransformacionde: 'CValorTransformacion',
+  nivelaceite: 'NivelAceite',
+};
 const _claveEncabezadoSharePoint = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** Las filas del archivo → reportes de la hoja de Perú, con lo que se salta. */
@@ -22443,14 +22496,19 @@ function _lecturasSharePointAReportes(filas) {
   if (enc.indexOf('equipo') < 0 || (iId < 0 && iFecha < 0)) {
     throw new Error('Este archivo no parece la lista de lecturas de los compresores: le falta la columna "Equipo" o la de la fecha (IDEJECUCION).');
   }
-  const permitidos = new Set(_gruposCompresoresReporte('peru').flatMap(g => g.equipos));
+  // Cada lista es de un panel: la de los Centac trae "EN MARCHA HRS"; la de
+  // los Hanwha, no. Solo entran las lecturas de los compresores de ese panel.
+  const esCentac = enc.includes('enmarchahrs');
+  const mapa = esCentac ? SHAREPOINT_A_COLUMNA_CENTAC : SHAREPOINT_A_COLUMNA_PERU;
+  const campos = esCentac ? REPORTE_COMPRESORES_CAMPOS_PERU_CENTAC : REPORTE_COMPRESORES_CAMPOS_PERU;
+  const permitidos = new Set(_gruposCompresoresReporte('peru').flatMap(g => g.equipos).filter(e => _esCentacPeru(e) === esCentac));
   const opcion = (lista, v) => lista.find(o => o.toLowerCase() === String(v || '').trim().toLowerCase()) || '';
-  const textos = new Set(REPORTE_COMPRESORES_CAMPOS_PERU.filter(c => c.texto || c.opciones).map(c => c.col));
+  const textos = new Set(campos.filter(c => c.texto || c.opciones).map(c => c.col));
   const lecturas = [], otros = new Set();
   let sinFecha = 0;
   filas.slice(1).forEach(f => {
     const r = {};
-    enc.forEach((clave, i) => { const col = SHAREPOINT_A_COLUMNA_PERU[clave]; if (col && f[i] !== undefined && String(f[i]).trim() !== '') r[col] = String(f[i]).trim(); });
+    enc.forEach((clave, i) => { const col = mapa[clave]; if (col && f[i] !== undefined && String(f[i]).trim() !== '') r[col] = String(f[i]).trim(); });
     r.Compresor = String(r.Compresor || '').toUpperCase();
     if (!permitidos.has(r.Compresor)) { if (r.Compresor) otros.add(r.Compresor); return; }
     // IDEJECUCION es la fecha y hora de la lectura: AAAAMMDDhhmmss.
@@ -22461,7 +22519,7 @@ function _lecturasSharePointAReportes(filas) {
     if (m) cuando = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
     else if (/^\d{4}-\d{2}-\d{2}$/.test(fechaCol)) cuando = new Date(fechaCol + 'T12:00:00');
     if (!cuando || isNaN(cuando)) { sinFecha++; return; }
-    r.EstadoCompresor = opcion(ESTADOS_COMPRESOR_REPORTE_PERU, r.EstadoCompresor);
+    if (!esCentac) r.EstadoCompresor = opcion(ESTADOS_COMPRESOR_REPORTE_PERU, r.EstadoCompresor);
     if (r.NivelAceite) r.NivelAceite = opcion(NIVELES_ACEITE_PERU, r.NivelAceite) || r.NivelAceite;
     // Los números de Excel traen la cola del redondeo (0.28999999999999998).
     Object.keys(r).forEach(col => {
@@ -22475,7 +22533,7 @@ function _lecturasSharePointAReportes(filas) {
     lecturas.push(r);
   });
   lecturas.sort((a, b) => a.FechaRegistro.localeCompare(b.FechaRegistro));
-  return { lecturas, otros: [...otros].sort(), sinFecha };
+  return { lecturas, otros: [...otros].sort(), sinFecha, permitidos: [...permitidos], panel: esCentac ? 'Centac' : 'Hanwha' };
 }
 
 async function rcImportarSharePoint(file) {
@@ -22485,7 +22543,7 @@ async function rcImportarSharePoint(file) {
   try {
     const hojas = await _leerHojasDeArchivo(file);
     const hoja = hojas.find(h => (h.filas[0] || []).some(c => _claveEncabezadoSharePoint(c) === 'equipo')) || hojas[0];
-    const { lecturas, otros, sinFecha } = _lecturasSharePointAReportes(hoja ? hoja.filas : []);
+    const { lecturas, otros, sinFecha, permitidos, panel } = _lecturasSharePointAReportes(hoja ? hoja.filas : []);
     const colsHoja = await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
     _invalidarCacheHoja(SH.reporteCompresores);
     const existentes = await leerHojaGenerica(SH.reporteCompresores) || [];
@@ -22495,14 +22553,14 @@ async function rcImportarSharePoint(file) {
     const repetidas = lecturas.length - nuevas.length;
     const notas = [
       repetidas ? `${repetidas} ya estaban y no se repiten.` : '',
-      otros.length ? `Se saltan las lecturas de ${otros.join(', ')}: este reporte es de ${[...new Set(_gruposCompresoresReporte('peru').flatMap(g => g.equipos))].join(', ')}.` : '',
+      otros.length ? `Se saltan las lecturas de ${otros.join(', ')}: este archivo es de los ${panel} (${permitidos.join(', ')}).` : '',
       sinFecha ? `${sinFecha} sin fecha se saltan.` : '',
     ].filter(Boolean).join(' ');
     if (!nuevas.length) { aviso('No hay lecturas nuevas en ese archivo. ' + notas, 'info'); return; }
     const desde = fmtFecha(nuevas[0].Fecha), hasta = fmtFecha(nuevas[nuevas.length - 1].Fecha);
     if (!(await confirmarAccion({
       titulo: `¿Importar ${nuevas.length} lecturas?`,
-      texto: `Del ${desde} al ${hasta}, a los reportes de compresores de ${OPERACIONES[operacionActual].nombre}. ${notas}`.trim(),
+      texto: `De los compresores ${panel}, del ${desde} al ${hasta}, a los reportes de compresores de ${OPERACIONES[operacionActual].nombre}. ${notas}`.trim(),
       aceptar: 'Importar',
     }))) return;
     const codigos = existentes.slice();
@@ -22519,10 +22577,11 @@ async function rcImportarSharePoint(file) {
     // si es de las importadas (si ya hay un reporte más nuevo, ese manda).
     const horas = [];
     for (const comp of new Set(nuevas.map(r => r.Compresor))) {
-      const ultimaImportada = nuevas.filter(r => r.Compresor === comp && r.HorasEnMarcha).pop();
+      const colHoras = (_campoHorometroCompresor(comp) || {}).col;
+      const ultimaImportada = nuevas.filter(r => r.Compresor === comp && colHoras && r[colHoras]).pop();
       const masNueva = existentes.filter(r => r.Compresor === comp && r.Estado !== 'Eliminada')
         .some(r => String(r.FechaRegistro || '') > (ultimaImportada ? ultimaImportada.FechaRegistro : ''));
-      if (ultimaImportada && !masNueva && await _sincronizarHorasDesdeReporte(comp, ultimaImportada.HorasEnMarcha)) horas.push(comp);
+      if (ultimaImportada && !masNueva && await _sincronizarHorasDesdeReporte(comp, ultimaImportada[colHoras])) horas.push(comp);
     }
     await inicializarReporteCompresores();
     aviso(`Se importaron ${nuevas.length} lecturas (${desde} a ${hasta}).` + (horas.length ? ` Horas de ${horas.join(', ')} actualizadas.` : '') + (notas ? ' ' + notas : ''), 'exito');

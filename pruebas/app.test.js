@@ -3894,7 +3894,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Reporte de compresores de Perú: sus Hanwha (CA1, CA2, CB3 y CB4), con las variables de su
+    // Reporte de compresores de Perú: sus 7 compresores, cada uno con las variables de su panel
+    // (Hanwha o Centac); los Hanwha, con las de su
     // lista de lecturas (estado y nivel de aceite de lista, observaciones de
     // texto), en su propia hoja sin las columnas de Zipaquirá; el horómetro
     // ("Compresor en marcha") alimenta las horas del Plan y Variables grafica
@@ -3917,6 +3918,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       const cont = document.getElementById('rc_camposMediciones');
       out.campos = cont.querySelectorAll('input, select').length;
       out.opcionesNivel = [...document.querySelectorAll('#rc_peNivelAceite option')].map(o => o.value).filter(Boolean).join(',');
+      // Los Centac (CA3, CB1, CB2) llevan las variables de su panel.
+      sel.value = 'CA3'; _actualizarCamposMedicionesCompresor();
+      out.camposCentac = cont.querySelectorAll('input, select').length;
+      out.centacTieneEtapa = !!document.getElementById('rc_pcEtapa3Vib') && !document.getElementById('rc_peEstado');
+      sel.value = 'CB3'; _actualizarCamposMedicionesCompresor();
       document.getElementById('rc_tecnico').value = 'Otras';
       document.getElementById('rc_tecnicoOtro').value = 'Técnico Perú';
       // Sin el estado no se guarda.
@@ -3945,8 +3951,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const hoja = fake.hoja(id, 'ReporteCompresores');
     const fila = Object.fromEntries((hoja[0] || []).map((c, i) => [c, (hoja[1] || [])[i]]));
     const horas = (fake.hoja(id, 'HorasEquipos').find(f => f[0] === 'CB3') || [])[1];
-    check('Perú: el reporte de compresores lista solo sus Hanwha por grupo (CA1, CA2, CB3, CB4), sin franja horaria, con sus 35 variables',
-      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2 | Baja Presión:CB3,CB4' && !r.pideHora && r.campos === 35
+    check('Perú: el reporte de compresores lista sus 7 por grupo, sin franja horaria; un Hanwha con sus 35 variables y un Centac con sus 23',
+      r.grupos.join(' | ') === 'Alta Presión:CA1,CA2,CA3 | Baja Presión:CB1,CB2,CB3,CB4' && !r.pideHora && r.campos === 35
+      && r.camposCentac === 23 && r.centacTieneEtapa
       && r.opcionesNivel === 'Alto,Medio alto,Medio,Medio bajo,Bajo', r);
     check('Perú: pide el estado del compresor y que el horómetro sea un número entero',
       r.sinEstado === 'Completa el campo "Estado del compresor".' && r.horasDecimal === 'El campo "Compresor en marcha [h]" debe ser un número entero.', r);
@@ -3994,6 +4001,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       window._preguntas = []; window._avisos = [];
       await rcImportarSharePoint(archivo);
       out.segunda = { preguntas: window._preguntas.slice(), avisos: window._avisos.slice() };
+      // La lista de los Centac: otros encabezados; sus lecturas van a sus columnas.
+      window._preguntas = []; window._avisos = [];
+      const centac = [
+        '"Fecha","IDEJECUCION","Equipo","TecnicoFinalizacion","Sistema","PRESION SP","PRESION SISTEMA","ASPIRACION % ABIERTO","BYPASS % ABIERTO","CORRIENTE","POTENCIA","EN MARCHA HRS","CARGMIN","CARG","ARRANQUE","ETAPA 1 PRESION","ETAPA 1 TEMP","ETAPA 1 VIB","ETAPA 2 PRESION","ETAPA 2 TEMP","ETAPA 2 VIB","ETAPA 3 PRESION","ETAPA 3 VIB","ETAPA 3 TEMP","PRESION DEL ACEITE","TEMP DE ACEITE","Valor de transformacion de","NivelAceite"',
+        '"30/10/2026 05:16","20261030051336","CA3","Técnico Tres","ALTA","79","81.5","100","100","472","94825","88959","14617","88309","242","-1","32","0.39","9","29","0.27","9","0.24","34","27.5","57","2.38","ALTO"',
+        '"30/10/2026 06:00","20261030060000","CB4","Técnico Tres","BAJA","79","81.5","100","100","472","94825","88959","14617","88309","242","-1","32","0.39","9","29","0.27","9","0.24","34","27.5","57","2.38","ALTO"',
+      ].join('\n');
+      await rcImportarSharePoint(new File([centac], 'LECT_COMP_CENTAC.csv', { type: 'text/csv' }));
+      out.centac = { preguntas: window._preguntas.slice(), avisos: window._avisos.slice() };
       out.horaEsperada = new Date(2026, 10, 17, 6, 13, 2).toISOString();
       out.lista = allReportesCompresores.map(x => x.Codigo.replace(/^(RC-\d+)-.*/, '$1') + ' ' + x.Compresor).sort().join(', ');
       return out;
@@ -4003,7 +4019,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const de = cod => filas.find(f => String(f.Codigo).startsWith(cod + '-')) || {};
     const horas = eq => (fake.hoja(id, 'HorasEquipos').find(f => f[0] === eq) || [])[1];
     check('Perú: importar de SharePoint agrega las lecturas de los Hanwha en orden, con su hora real, y salta las de otros equipos',
-      r.boton && filas.length === 3 && r.primera.preguntas.length === 1 && /^¿Importar 3 lecturas\?/.test(r.primera.preguntas[0]) && /CA3/.test(r.primera.preguntas[0])
+      r.boton && filas.filter(f => f.Compresor !== 'CA3').length === 3 && r.primera.preguntas.length === 1 && /^¿Importar 3 lecturas\?/.test(r.primera.preguntas[0]) && /CA3/.test(r.primera.preguntas[0])
       && de('RC-0001').Compresor === 'CB4' && de('RC-0002').Compresor === 'CA2' && de('RC-0003').Compresor === 'CB4'
       && de('RC-0003').FechaRegistro === r.horaEsperada && de('RC-0003').Fecha === '2026-11-17' && de('RC-0003').IdOrigen === '20261117061302'
       && de('RC-0003').Tecnico === 'Técnico Uno' && /^SharePoint/.test(de('RC-0003').RegistradoPor),
@@ -4015,11 +4031,18 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && de('RC-0001').Observaciones === 'trabajando, sin novedad' && de('RC-0002').Observaciones === '',
       { 'RC-0003': de('RC-0003'), 'RC-0001': de('RC-0001').Observaciones });
     check('Perú: el horómetro más reciente de cada compresor pasa al Plan, y volver a importar el mismo archivo no repite nada',
-      horas('CB4') === '10686' && horas('CA2') === '10544' && !horas('CA3')
+      horas('CB4') === '10686' && horas('CA2') === '10544'
       && /Se importaron 3 lecturas/.test(r.primera.avisos.join(' ')) && /Horas de (CB4, CA2|CA2, CB4) actualizadas/.test(r.primera.avisos.join(' '))
       && !r.segunda.preguntas.length && /No hay lecturas nuevas/.test(r.segunda.avisos.join(' ')) && /3 ya estaban/.test(r.segunda.avisos.join(' '))
-      && r.lista === 'RC-0001 CB4, RC-0002 CA2, RC-0003 CB4',
+      && r.lista === 'RC-0001 CB4, RC-0002 CA2, RC-0003 CB4, RC-0004 CA3',
       { horas: [horas('CB4'), horas('CA2')], primera: r.primera.avisos, segunda: r.segunda, lista: r.lista });
+    const centac = filas.find(f => f.Compresor === 'CA3') || {};
+    check('Perú: la lista de los Centac se importa a sus columnas (CA3), salta los Hanwha y su horómetro con decimales pasa al Plan',
+      filas.length === 4 && /^¿Importar 1 lecturas\?/.test(r.centac.preguntas[0] || '') && /compresores Centac/.test(r.centac.preguntas[0] || '')
+      && /Se saltan las lecturas de CB4: este archivo es de los Centac \(CA3, CB1, CB2\)/.test(r.centac.preguntas[0] || '')
+      && centac.CHorasEnMarcha === '88959' && centac.CEtapa1Vib === '0.39' && centac.CTempAceite === '57' && centac.NivelAceite === 'Alto'
+      && centac.CValorTransformacion === '2.38' && centac.HorasEnMarcha === '' && centac.IdOrigen === '20261030051336' && horas('CA3') === '88959',
+      { centac: r.centac, fila: centac, horas: horas('CA3') });
     check('Perú (importar de SharePoint): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
