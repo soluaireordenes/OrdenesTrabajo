@@ -3807,6 +3807,48 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       { z2: [out.z2msg, out.z2hora, out.z2informes], z1: [out.z1msg, out.z1reinicio] });
     check('Zipaquirá 2 (tercera revisión): sin errores de JS', !out.z2errs.length && !out.z1errs.length, [...out.z2errs, ...out.z1errs].slice(0, 2));
   }
+  {
+    // Perú con su propia lista de equipos (36, de su plan de mantenimiento):
+    // en la orden nueva, la salida de inventario, la Hoja de Vida y el Plan
+    // de mantenimiento, en vez de la lista general o la de Zipaquirá.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 900 } });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false,"mensaje":"Ruta no encontrada."}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    await ctx.addInitScript(() => {
+      sessionStorage.setItem('gUser', JSON.stringify({ name: 'Ana Prueba', email: 'ana@x', initials: 'AP' }));
+      sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', 'admin');
+      sessionStorage.setItem('operacionAutenticada', 'peru'); try { localStorage.setItem('operacionActual', 'peru'); } catch (e) {}
+    });
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(2500);
+    const grupos = sel => [...document.querySelectorAll(sel + ' optgroup')].map(g => g.label);
+    const out = await p.evaluate(async gruposSrc => {
+      const grupos = eval(gruposSrc);
+      showPanel('nueva'); inicializarCampoEquipo();
+      const orden = { grupos: grupos('#f_equipo'), opciones: document.querySelectorAll('#f_equipo option[value]:not([value=""])').length,
+        primera: (document.querySelector('#f_equipo optgroup option') || {}).textContent, valor: (document.querySelector('#f_equipo optgroup option') || {}).value };
+      inventarioOperacionActual = 'peru'; invPoblarEquipos();
+      const inv = { grupos: grupos('#invm_equipo'), tieneCE1: !!document.querySelector('#invm_equipo option[value="CE1"]') };
+      showPanel('historico'); document.getElementById('histSelectorVista').value = 'hvd'; histCambiarVista();
+      for (let i = 0; i < 50 && !document.querySelector('#hvdListaEquipos .hvd-grupo'); i++) await new Promise(x => setTimeout(x, 100));
+      const hvd = [...document.querySelectorAll('#hvdListaEquipos .hvd-grupo')].length;
+      abrirPlanMantenimiento('peru'); pmMostrarSubTab('configinformes');
+      for (let i = 0; i < 50 && !document.querySelector('#pmHoraBaseContenido .pm-hora-base'); i++) await new Promise(x => setTimeout(x, 100));
+      const plan = [...document.querySelectorAll('#pmHoraBaseContenido .pm-hora-base')].map(x => x.dataset.equipo);
+      return { orden, inv, hvd, plan };
+    }, '(' + grupos.toString() + ')');
+    const GRUPOS = 'Compresores de Alta,Compresores de Baja,Compresores de Emergencia,Compresores de Decorado,Secadores de Alta,Secadores de Baja,'
+      + 'Secadores de Emergencia,Secadores de Decorado,Drycoolers,Bombas de Vacío,Sistema de Recirculación';
+    check('Perú: la orden nueva lista sus 36 equipos por grupo, con el código como valor (CA1 — Hanwha 900 HP)',
+      out.orden.grupos.join(',') === GRUPOS && out.orden.opciones === 36 && out.orden.primera === 'CA1 — Hanwha 900 HP' && out.orden.valor === 'CA1', out.orden);
+    check('Perú: la salida de inventario, la Hoja de Vida y el Plan de mantenimiento usan los mismos equipos',
+      out.inv.grupos.join(',') === GRUPOS + ',Sedes' && out.inv.tieneCE1 && out.hvd === 11
+      && out.plan.length === 36 && out.plan.includes('V1') && out.plan.includes('B5') && !out.plan.includes('COMPRESOR DE EMERGENCIA NX200'),
+      { inv: out.inv, hvd: out.hvd, plan: out.plan.slice(0, 6).join(',') + ' … ' + out.plan.length });
+    check('Perú: sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
