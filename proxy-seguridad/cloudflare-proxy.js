@@ -100,7 +100,7 @@ const SEDES_HOJAS = [
   ['1Dv4veJWQPP2tZkYXRXLPo0MQmu8cR843TBO3D0uChP8', '1WpunyOSCJDDoIHgz-JKmJ_uNkHCloCQtIM36lm1RWdk'], // Soacha
   ['1cqMzlHEBbzKy9d_GDkVTVarvzL0Es2J1_bSXeKpkHYs', '1Dj12a7g7s25A6bTb-oR54-FQY9qs0ffFHDtNq64q4fk'], // Antioquia
   ['13kf6xZPfdnxDJmCyKJ0q-1z7ijRak7oMNhzemzq2KpI', '1TEwFSN-p-XcPiKHqiv-dqp8B2eefB-0Ecui5KcFU_VI'], // México
-  ['1UbN_mnzJZBxpaL0mZqE-z0U_CIA-MbGwPiokpmKRjvI', '15LoJbWh1aB2cJLLRDLTadbFjeU-U7nFW54K7eM5M6Fc'], // Perú
+  ['1UbN_mnzJZBxpaL0mZqE-z0U_CIA-MbGwPiokpmKRjvI', '1CsrOhNBFQN_6vpbo-QqzbJJIx2qtY1CdQeTGwR3EPDQ'], // Perú
 ];
 const PASE_SEDE_TTL_SEG = 7 * 24 * 60 * 60; // dura más que la sesión: volver a entrar no pide otra vez la clave
 
