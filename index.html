@@ -11559,22 +11559,15 @@ function _opcionesEquiposReporte(tipo) {
     : g.equipos.map(opcion).join('')).join('');
 }
 /** Técnicos para elegir en un reporte técnico: en Zipaquirá, la lista de su
- *  formulario; en las demás sedes, los que ya hicieron ese reporte ahí (sin
- *  nombres escritos en el código; uno nuevo entra por "Otras"). */
+ *  formulario; en las demás sedes, los fijos de la sede
+ *  (TECNICOS_REPORTES_POR_SEDE) y los que ya hicieron ese reporte ahí (uno
+ *  nuevo entra por "Otras"). */
 function _llenarTecnicosReporte(prefijo, listaZipaquira, reportes, otrasEnZipaquira) {
   const sel = document.getElementById(prefijo + '_tecnico');
   if (!sel) return;
   const elegido = sel.value;
   const esZipaquira = operacionActual === 'zipaquira';
-  let nombres = listaZipaquira;
-  if (!esZipaquira) {
-    const vistos = new Map();
-    (reportes || []).forEach(r => {
-      const n = _normalizarNombreOperario(r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico);
-      if (n && n !== 'Otras' && !vistos.has(n.toLowerCase())) vistos.set(n.toLowerCase(), n);
-    });
-    nombres = [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-  }
+  const nombres = esZipaquira ? listaZipaquira : _nombresTecnicosSede(reportes);
   sel.innerHTML = '<option value="">Seleccionar...</option>' + nombres.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('')
     + (!esZipaquira || otrasEnZipaquira ? '<option value="Otras">Otras</option>' : '');
   sel.value = elegido;
@@ -22460,11 +22453,23 @@ function _siguienteCodigoReporteCompresor() {
  *  "Otras"), sin nombres escritos en el código. */
 function _tecnicosReporteCompresores() {
   if (operacionActual === 'zipaquira') return TECNICOS_REPORTE_COMPRESORES;
+  return _nombresTecnicosSede(allReportesCompresores);
+}
+
+// Técnicos fijos de los reportes técnicos de cada sede (todos los
+// formularios). Se suman a los que ya hicieron reportes ahí. Zipaquirá usa
+// las listas de sus formularios.
+const TECNICOS_REPORTES_POR_SEDE = {
+  peru: ['Richard Irrazabal', 'Deyssi Chavez', 'Delmi Barreto', 'Ricardo Porras', 'Jimmy Chavarry',
+    'Hernando Delgado', 'Jhon Ramirez', 'Christian Jimenez', 'Carlos Delgado'],
+};
+/** Los técnicos de la sede (fuera de Zipaquirá): los fijos de la sede y los
+ *  que ya hicieron ese reporte, sin repetir, en orden alfabético. */
+function _nombresTecnicosSede(reportes) {
   const nombres = new Map();
-  allReportesCompresores.forEach(r => {
-    const n = _normalizarNombreOperario(r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico);
-    if (n && n !== 'Otras' && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n);
-  });
+  const sumar = n => { n = _normalizarNombreOperario(n); if (n && n !== 'Otras' && !nombres.has(n.toLowerCase())) nombres.set(n.toLowerCase(), n); };
+  (TECNICOS_REPORTES_POR_SEDE[operacionActual] || []).forEach(sumar);
+  (reportes || []).forEach(r => sumar(r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico));
   return [...nombres.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
