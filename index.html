@@ -130,7 +130,7 @@
    insignias y avisos. En oscuro el fondo es translúcido y el texto más
    claro, para que no queden parches brillantes sobre el fondo. */
 :root {
-  --estado-ok-bg: #e6f4ea;      --estado-ok-tx: #15803d;      --estado-ok-borde: #9ad3ab;
+  --estado-ok-bg: #e6f4ea;      --estado-ok-tx: #137638;      --estado-ok-borde: #9ad3ab;
   --estado-alerta-bg: #fff4e0;  --estado-alerta-tx: #b45309;  --estado-alerta-borde: #f2c27d;
   --estado-peligro-bg: #fde8e8; --estado-peligro-tx: #b91c1c; --estado-peligro-borde: #f0a3a3;
   --estado-info-bg: #e0f2fe;    --estado-info-tx: #0369a1;
@@ -1190,7 +1190,9 @@ body.rol-operario .solo-admin { display: none !important; }
 .btn-primary { background: linear-gradient(135deg, #018ABE 0%, #02457A 100%); color: #fff; box-shadow: 0 2px 8px rgba(1,138,190,.3); }
 .btn-primary:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(1,138,190,.4); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-.btn-success { background: var(--accent2); color: #fff; box-shadow: 0 2px 8px rgba(16,124,16,.28); }
+/* Verde de fondo más oscuro que --accent2: con letra blanca, el de antes daba
+   3,4:1 (mínimo 4,5:1). Es el mismo en claro y oscuro. */
+.btn-success { background: #267d43; color: #fff; box-shadow: 0 2px 8px rgba(16,124,16,.28); }
 .btn-success:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(16,124,16,.36); }
 .btn-ghost   { background: var(--brand-light); color: var(--brand); border: 1px solid var(--brand-mid); }
 .btn-ghost:hover:not(:disabled) { background: var(--brand-mid); }
@@ -1613,12 +1615,12 @@ body.rol-operario .btn-principal-operario {
   --proy-rojo: #B23A3A;
   --proy-line: rgba(16, 35, 59, .10);
   --proy-text: #1B2733;
-  --proy-muted: #69758A;
+  --proy-muted: #5b6577;
   /* La tinta sirve de fondo (portada, botones) y de letra (cifras, títulos):
      en modo oscuro el fondo sigue oscuro y la letra se aclara, así que la
      letra usa su propia variable. Igual el dorado oscuro de los textos. */
   --proy-ink-tx: var(--proy-ink);
-  --proy-gold-tx: #8A6314;
+  --proy-gold-tx: #7a5810;
   max-width: 1320px;
   margin: 0 auto;
   width: 100%;
@@ -1718,7 +1720,7 @@ body.rol-operario .btn-principal-operario {
 .proy-sec { margin-bottom: 28px; }
 .proy-sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
 .proy-sec-head h2 { font-size: 16px; margin: 0; color: var(--proy-ink-tx); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.proy-sec-head h2 .tag { font-size: 10px; color: var(--proy-gold); background: rgba(184, 137, 43, .1); padding: 2px 8px; border-radius: 12px; letter-spacing: .03em; font-weight: 500; }
+.proy-sec-head h2 .tag { font-size: 10px; color: var(--proy-gold-tx); background: rgba(184, 137, 43, .1); padding: 2px 8px; border-radius: 12px; letter-spacing: .03em; font-weight: 500; }
 .proy-sec-head p { margin: 0; font-size: 12px; color: var(--proy-muted); max-width: 430px; text-align: right; }
 
 .proy-panel { background: var(--proy-panel); border-radius: 12px; border: 1px solid var(--proy-line); padding: 18px; box-shadow: 0 8px 24px -20px rgba(16, 35, 59, .3); }
@@ -1811,6 +1813,62 @@ body.rol-operario .btn-principal-operario {
   .proy-subpanel { display: block !important; }
   .proy-panel { box-shadow: none; border: 1px solid #ccc; }
   .proy-sec { page-break-inside: avoid; }
+}
+
+/* ── Casilla de las actividades del cronograma ──
+   La casilla se ve de 22 px, pero la etiqueta que la envuelve mide 44 px y
+   es la que recibe el toque. Los márgenes negativos la dejan en el mismo
+   sitio de antes. "No realizado" va aparte, con su propio alto. */
+.casilla-toque {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 44px; height: 44px; margin: -10px -10px -10px -12px; cursor: pointer;
+}
+.casilla-toque input { width: 22px; height: 22px; margin: 0; }
+.cron-btn-no-realizado {
+  font-size: 12px; font-weight: 700; padding: 4px 10px; margin-top: 6px;
+  border-radius: 6px; border: 1px solid var(--danger); color: var(--danger);
+  background: var(--surface); cursor: pointer; font-family: inherit;
+}
+
+/* ── Pantallas táctiles: todo lo que se toca mide al menos 44 px ──
+   En planta se trabaja con guantes, de pie y con prisa. Con controles de
+   20 a 37 px se tocaba el vecino ("Realizado" en vez de "No realizado").
+   44 px es el mínimo que piden las guías de Apple, Google y WCAG 2.5.5.
+   Solo en pantallas táctiles: en computador, con mouse, no cambia nada.
+   Los campos van a 16 px de letra: con menos, el iPhone agranda la página
+   cada vez que se toca un campo y no la devuelve. */
+@media screen and (pointer: coarse) {
+  .panel button, .panel .btn, .panel [role="button"], .btn-add-row, .sig-clear,
+  #loginOverlay button { min-height: 44px; }
+  .panel button:not(.inv-subtab):not(.proy-tab), .panel .btn { min-width: 44px; }
+  .panel input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+  .panel select, .panel textarea, #loginOverlay input {
+    min-height: 44px; font-size: 16px;
+  }
+  .panel input[type="checkbox"], .panel input[type="radio"] { min-width: 22px; min-height: 22px; }
+  .panel label:has(> input[type="checkbox"]), .panel label:has(> input[type="radio"]) { min-height: 44px; }
+  .panel summary { padding-block: 14px; }
+  .sig-clear { padding: 0 10px; }
+  .cron-btn-no-realizado { padding: 8px 14px; font-size: 13px; }
+}
+
+/* ── Celular: letra de 12 px como mínimo ──
+   Los títulos de los campos, los encabezados de tarjeta, las etiquetas y
+   los datos de apoyo estaban en 10 y 11 px: en planta, con sol o a un
+   brazo de distancia, no se leían. En computador siguen igual. Lo que
+   tiene la letra escrita a mano dentro de los paneles sube también (sin
+   tocar los documentos para imprimir, que van fuera de los paneles). */
+@media screen and (max-width: 720px) {
+  .field label, .card-head, .cron-grupo-titulo, .kpi-label, .kpi-sub, .order-meta,
+  .badge, .inv-badge, .detail-field-label, .inicio-banner-eyebrow, .buscar-chip,
+  .emp-chip, .cap-chip, .emp-grupo, .hvd-grupo, .hvd-de-baja, .hvd-recarga,
+  .hvd-recargas-cab .hvd-recarga, .es-fila-comp.es-cab, .sig-clear,
+  .inv-table th, .dyn-table th, .cap-tabla th, .emp-tabla th,
+  .proy-eyebrow, .proy-selector label, .proy-kpi .l, .proy-kpi .s, .proy-sec-head h2 .tag,
+  .proy-tfecha, .proy-tmonto, .proy-tgap, .proy-tgap .inicio, .proy-table thead th,
+  .proy-chip, .proy-primero, .proy-estado, .proy-badge { font-size: 12px; }
+  .panel [style*="font-size:10px"], .panel [style*="font-size: 10px"],
+  .panel [style*="font-size:11px"], .panel [style*="font-size: 11px"] { font-size: 12px !important; }
 }
 </style>
 </head>
@@ -1962,15 +2020,15 @@ body.rol-operario .btn-principal-operario {
       <div class="card-body">
         <div class="grid-2" style="margin-bottom:14px">
           <div class="field">
-            <label>Descripción *</label>
+            <label for="f_descripcion">Descripción *</label>
             <input type="text" id="f_descripcion" placeholder="Descripción general del trabajo">
           </div>
           <div class="field" id="campoEquipoWrap">
-            <label>Equipo / Activo *</label>
+            <label for="f_equipo">Equipo / Activo *</label>
             <select id="f_equipo"></select>
           </div>
           <div class="field">
-            <label>Tipo de mantenimiento</label>
+            <label for="f_tipo">Tipo de mantenimiento</label>
             <select id="f_tipo">
               <option value="">Seleccionar...</option>
               <option value="Preventivo">Preventivo</option>
@@ -1980,7 +2038,7 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field">
-            <label>Prioridad</label>
+            <label for="f_prioridad">Prioridad</label>
             <select id="f_prioridad">
               <option value="Media">Media</option>
               <option value="Alta">Alta</option>
@@ -1989,11 +2047,11 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field">
-            <label>Solicitada por</label>
+            <label for="f_solicitadaPor">Solicitada por</label>
             <input type="text" id="f_solicitadaPor" placeholder="Nombre del solicitante">
           </div>
           <div class="field">
-            <label>Autorizada por</label>
+            <label for="f_autorizadaPor">Autorizada por</label>
             <input type="text" id="f_autorizadaPor" placeholder="Nombre del autorizador">
           </div>
         </div>
@@ -2006,19 +2064,19 @@ body.rol-operario .btn-principal-operario {
       <div class="card-body">
         <div class="grid-4">
           <div class="field">
-            <label>Responsable ejecución</label>
+            <label for="f_responsable">Responsable ejecución</label>
             <input type="text" id="f_responsable" placeholder="Nombre">
           </div>
           <div class="field">
-            <label>Fecha inicio</label>
+            <label for="f_fechaInicio">Fecha inicio</label>
             <input type="date" id="f_fechaInicio">
           </div>
           <div class="field">
-            <label>Supervisor</label>
+            <label for="f_supervisor">Supervisor</label>
             <input type="text" id="f_supervisor" placeholder="Nombre">
           </div>
           <div class="field">
-            <label>Fecha fin estimada</label>
+            <label for="f_fechaFin">Fecha fin estimada</label>
             <input type="date" id="f_fechaFin">
           </div>
         </div>
@@ -2106,11 +2164,11 @@ body.rol-operario .btn-principal-operario {
       <div class="card-body">
         <div class="grid-2">
           <div class="field">
-            <label>Medidas de seguridad (LOTO, EPP, etc.)</label>
+            <label for="f_seguridad">Medidas de seguridad (LOTO, EPP, etc.)</label>
             <textarea id="f_seguridad" placeholder="Ej: Bloqueo y etiquetado LOTO&#10;Uso de casco y guantes&#10;Permiso de trabajo en altura"></textarea>
           </div>
           <div class="field">
-            <label>Observaciones</label>
+            <label for="f_observaciones">Observaciones</label>
             <textarea id="f_observaciones" placeholder="Observaciones adicionales..."></textarea>
           </div>
         </div>
@@ -2160,7 +2218,7 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:0">
           <div class="filter-bar" style="margin:14px 14px 0;border-bottom:none">
             <input type="text" id="filtroPendTxt" placeholder="Buscar por número, equipo..." oninput="renderPendientes()">
-            <select id="filtroPendTipo" onchange="renderPendientes()">
+            <select id="filtroPendTipo" aria-label="Filtrar por tipo de mantenimiento" onchange="renderPendientes()">
               <option value="">Todos los tipos</option>
               <option value="Preventivo">Preventivo</option>
               <option value="Correctivo">Correctivo</option>
@@ -2210,17 +2268,17 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body">
           <div class="grid-2" style="margin-bottom:14px">
             <div class="field">
-              <label>Descripción *</label>
+              <label for="e_descripcion">Descripción *</label>
               <input type="text" id="e_descripcion" placeholder="Descripción general del trabajo">
             </div>
             <div class="field">
-              <label>Equipo / Activo *</label>
+              <label for="e_equipo">Equipo / Activo *</label>
               <select id="e_equipo">
               <option value="">Seleccionar equipo...</option>
               </select>
             </div>
             <div class="field">
-              <label>Tipo de mantenimiento</label>
+              <label for="e_tipo">Tipo de mantenimiento</label>
               <select id="e_tipo">
                 <option value="">Seleccionar...</option>
                 <option value="Preventivo">Preventivo</option>
@@ -2230,7 +2288,7 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
             <div class="field">
-              <label>Prioridad</label>
+              <label for="e_prioridad">Prioridad</label>
               <select id="e_prioridad">
                 <option value="Media">Media</option>
                 <option value="Alta">Alta</option>
@@ -2239,11 +2297,11 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
             <div class="field">
-              <label>Solicitada por</label>
+              <label for="e_solicitadaPor">Solicitada por</label>
               <input type="text" id="e_solicitadaPor" placeholder="Nombre del solicitante">
             </div>
             <div class="field">
-              <label>Autorizada por</label>
+              <label for="e_autorizadaPor">Autorizada por</label>
               <input type="text" id="e_autorizadaPor" placeholder="Nombre del autorizador">
             </div>
           </div>
@@ -2256,19 +2314,19 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body">
           <div class="grid-4">
             <div class="field">
-              <label>Responsable ejecución</label>
+              <label for="e_responsable">Responsable ejecución</label>
               <input type="text" id="e_responsable" placeholder="Nombre">
             </div>
             <div class="field">
-              <label>Fecha inicio</label>
+              <label for="e_fechaInicio">Fecha inicio</label>
               <input type="date" id="e_fechaInicio">
             </div>
             <div class="field">
-              <label>Supervisor</label>
+              <label for="e_supervisor">Supervisor</label>
               <input type="text" id="e_supervisor" placeholder="Nombre">
             </div>
             <div class="field">
-              <label>Fecha fin estimada</label>
+              <label for="e_fechaFin">Fecha fin estimada</label>
               <input type="date" id="e_fechaFin">
             </div>
           </div>
@@ -2370,11 +2428,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body">
           <div class="grid-2">
             <div class="field">
-              <label>Medidas de seguridad (LOTO, EPP, etc.)</label>
+              <label for="e_seguridad">Medidas de seguridad (LOTO, EPP, etc.)</label>
               <textarea id="e_seguridad" placeholder="Ej: Bloqueo y etiquetado LOTO&#10;Uso de casco y guantes"></textarea>
             </div>
             <div class="field">
-              <label>Observaciones generales</label>
+              <label for="e_observaciones">Observaciones generales</label>
               <textarea id="e_observaciones" placeholder="Observaciones adicionales..."></textarea>
             </div>
           </div>
@@ -2407,28 +2465,28 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body">
           <div class="grid-2" style="margin-bottom:14px">
             <div class="field">
-              <label>Fecha de ejecución *</label>
+              <label for="mFechaEjecucion">Fecha de ejecución *</label>
               <input type="date" id="mFechaEjecucion">
             </div>
             <div class="field">
-              <label>Ejecutado por *</label>
+              <label for="mEjecutadoPor">Ejecutado por *</label>
               <input type="text" id="mEjecutadoPor" placeholder="Nombre del técnico">
             </div>
             <div class="field">
-              <label>Tiempo real empleado</label>
+              <label for="mTiempoReal">Tiempo real empleado</label>
               <input type="text" id="mTiempoReal" placeholder="Ej: 3h 30min">
             </div>
             <div class="field">
-              <label>Costo real total</label>
+              <label for="mCostoReal">Costo real total</label>
               <input type="number" id="mCostoReal" placeholder="0.00" min="0" step="0.01">
             </div>
             <div class="field">
-              <label>Horas de operación del equipo</label>
+              <label for="mHorasEquipo">Horas de operación del equipo</label>
               <input type="number" id="mHorasEquipo" placeholder="Ej: 1250" min="0" step="0.1">
             </div>
           </div>
           <div class="field" style="margin-bottom:14px">
-            <label>Observaciones de cierre *</label>
+            <label for="mObsCierre">Observaciones de cierre *</label>
             <textarea id="mObsCierre" placeholder="Describe el trabajo realizado, hallazgos, recomendaciones..." style="min-height:90px"></textarea>
           </div>
           <div class="field">
@@ -2460,7 +2518,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card-body" style="padding:0">
         <div class="filter-bar" style="margin:14px 14px 0;border-bottom:none">
           <input type="text" id="filtroRealTxt" placeholder="Buscar por número, equipo..." oninput="renderRealizadas()">
-          <select id="filtroRealTipo" onchange="renderRealizadas()">
+          <select id="filtroRealTipo" aria-label="Filtrar por tipo de mantenimiento" onchange="renderRealizadas()">
             <option value="">Todos los tipos</option>
             <option value="Preventivo">Preventivo</option>
             <option value="Correctivo">Correctivo</option>
@@ -2485,13 +2543,13 @@ body.rol-operario .btn-principal-operario {
     <!-- Filtros -->
     <div class="filter-bar">
       <input type="text" id="filtroTexto" placeholder="Buscar por número, equipo, descripción..." oninput="filtrarOrdenes()">
-      <select id="filtroEstado" onchange="filtrarOrdenes()">
+      <select id="filtroEstado" aria-label="Filtrar por estado" onchange="filtrarOrdenes()">
         <option value="">Todos los estados</option>
         <option value="Pendiente">Pendiente</option>
         <option value="En ejecución">En ejecución</option>
         <option value="Cerrada">Cerradas</option>
       </select>
-      <select id="filtroTipo" onchange="filtrarOrdenes()">
+      <select id="filtroTipo" aria-label="Filtrar por tipo de mantenimiento" onchange="filtrarOrdenes()">
         <option value="">Todos los tipos</option>
         <option value="Preventivo">Preventivo</option>
         <option value="Correctivo">Correctivo</option>
@@ -2514,7 +2572,7 @@ body.rol-operario .btn-principal-operario {
     <div class="card" style="margin-bottom:16px">
       <div class="card-body" style="padding:14px 18px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:160px">
-          <label style="margin-bottom:4px;display:block">Filtrar por mes</label>
+          <label for="dash_mes" style="margin-bottom:4px;display:block">Filtrar por mes</label>
           <select id="dash_mes" onchange="cargarDashboard()" style="margin:0">
             <option value="">Todos los meses</option>
             <option value="01">Enero</option><option value="02">Febrero</option>
@@ -2526,7 +2584,7 @@ body.rol-operario .btn-principal-operario {
           </select>
         </div>
         <div class="field" style="margin:0;min-width:120px">
-          <label style="margin-bottom:4px;display:block">Año</label>
+          <label for="dash_anio" style="margin-bottom:4px;display:block">Año</label>
           <select id="dash_anio" onchange="cargarDashboard()" style="margin:0">
             <option value="">Todos</option>
             <option value="2026">2026</option>
@@ -2678,7 +2736,7 @@ body.rol-operario .btn-principal-operario {
     <div class="card" style="margin-bottom:16px">
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:180px">
-          <label style="margin-bottom:4px;display:block">Fecha de la novedad</label>
+          <label for="novRachaFecha" style="margin-bottom:4px;display:block">Fecha de la novedad</label>
           <input type="date" id="novRachaFecha" style="margin:0">
         </div>
         <button class="btn btn-primary solo-admin" onclick="registrarNovedadRacha()">Registrar y reiniciar contador</button>
@@ -2692,14 +2750,14 @@ body.rol-operario .btn-principal-operario {
     <div class="card" style="margin-bottom:14px">
       <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px">
         <input id="novBuscar" placeholder="Buscar por código, título o descripción..." oninput="filtrarNovedadesUI()" style="flex:1;min-width:200px">
-        <select id="novFiltroMes" onchange="filtrarNovedadesUI()" style="min-width:140px">
+        <select id="novFiltroMes" aria-label="Filtrar por mes" onchange="filtrarNovedadesUI()" style="min-width:140px">
           <option value="">Todos los meses</option>
           <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
           <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
           <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
           <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
         </select>
-        <select id="novFiltroAnio" onchange="filtrarNovedadesUI()" style="min-width:110px">
+        <select id="novFiltroAnio" aria-label="Filtrar por año" onchange="filtrarNovedadesUI()" style="min-width:110px">
           <option value="">Todos los años</option>
           <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
           <option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option>
@@ -2761,7 +2819,7 @@ body.rol-operario .btn-principal-operario {
     <div class="card">
       <div class="card-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="display:flex;align-items:center;gap:8px;flex:1"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informes Registrados</span>
-        <select id="novFiltroTipo" onchange="filtrarNovedadesUI()" style="min-width:190px">
+        <select id="novFiltroTipo" aria-label="Filtrar por tipo de novedad" onchange="filtrarNovedadesUI()" style="min-width:190px">
           <option value="">Todos los tipos</option>
           <option value="INF-OI">INF-OI</option>
           <option value="INF-SA">INF-SA</option>
@@ -2781,7 +2839,7 @@ body.rol-operario .btn-principal-operario {
     <div class="seccion-encabezado">
       <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Histórico de Órdenes por Equipo</h2>
       <div class="seccion-acciones">
-        <select id="histSelectorVista" onchange="histCambiarVista()" style="min-width:220px;font-weight:600">
+        <select id="histSelectorVista" aria-label="Qué historial ver" onchange="histCambiarVista()" style="min-width:220px;font-weight:600">
           <option value="equipos">Equipos</option>
           <option value="inventario">Inventario de Equipos</option>
           <option value="hvd">HVD — Hoja de Vida</option>
@@ -2795,14 +2853,14 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="margin-bottom:14px">
         <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px">
           <input id="histBuscarEquipo" placeholder="Buscar equipo..." oninput="filtrarListaEquiposHistorico()" style="flex:1;min-width:180px">
-          <select id="histFiltroMes" onchange="renderHistoricoEquipoSeleccionado()" style="min-width:140px">
+          <select id="histFiltroMes" aria-label="Filtrar por mes" onchange="renderHistoricoEquipoSeleccionado()" style="min-width:140px">
             <option value="">Todos los meses</option>
             <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
             <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
             <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
             <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
           </select>
-          <select id="histFiltroAnio" onchange="renderHistoricoEquipoSeleccionado()" style="min-width:110px">
+          <select id="histFiltroAnio" aria-label="Filtrar por año" onchange="renderHistoricoEquipoSeleccionado()" style="min-width:110px">
             <option value="">Todos los años</option>
             <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
             <option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option>
@@ -2839,18 +2897,18 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Equipo <span style="font-weight:400;text-transform:none;opacity:.85">— solo una vez por equipo</span></div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-            <div class="field"><label>Tipo de equipo *</label>
+            <div class="field"><label for="ie_tipo">Tipo de equipo *</label>
               <select id="ie_tipo" onchange="ieActualizarVisibilidadSerial()">
                 <option value="operacion">Equipos Operación</option>
                 <option value="seguridad">Otros equipos</option>
               </select>
             </div>
-            <div class="field"><label>Codificación *</label><input id="ie_codificacion" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Ej: CA1"></div>
-            <div class="field"><label>Equipo *</label><input id="ie_equipo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del equipo"></div>
-            <div class="field"><label>Marca</label><input id="ie_marca" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-            <div class="field"><label>Descripción Específica</label><input id="ie_descripcion" placeholder="Descripción del equipo"></div>
-            <div class="field"><label>Ubicación</label><input id="ie_ubicacion" placeholder="Ej: Sala de compresores primer piso"></div>
-            <div class="field" id="ie_serial_wrap" style="display:none"><label>Serial</label><input id="ie_serial" placeholder="Serial del fabricante"></div>
+            <div class="field"><label for="ie_codificacion">Codificación *</label><input id="ie_codificacion" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Ej: CA1"></div>
+            <div class="field"><label for="ie_equipo">Equipo *</label><input id="ie_equipo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del equipo"></div>
+            <div class="field"><label for="ie_marca">Marca</label><input id="ie_marca" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field"><label for="ie_descripcion">Descripción Específica</label><input id="ie_descripcion" placeholder="Descripción del equipo"></div>
+            <div class="field"><label for="ie_ubicacion">Ubicación</label><input id="ie_ubicacion" placeholder="Ej: Sala de compresores primer piso"></div>
+            <div class="field" id="ie_serial_wrap" style="display:none"><label for="ie_serial">Serial</label><input id="ie_serial" placeholder="Serial del fabricante"></div>
           </div>
           <button class="btn btn-primary" onclick="registrarInventarioEquipo()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Registrar Equipo</button>
           <div id="ieMsg" style="margin-top:10px;font-size:13px"></div>
@@ -2861,11 +2919,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Agregar Observación Anual <span style="font-weight:400;text-transform:none;opacity:.85">— sin repetir los datos del equipo</span></div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-            <div class="field" style="grid-column:span 2"><label>Equipo *</label>
+            <div class="field" style="grid-column:span 2"><label for="ieobs_codificacion">Equipo *</label>
               <select id="ieobs_codificacion"><option value="">Selecciona un equipo ya registrado...</option></select>
             </div>
-            <div class="field"><label>Año</label><select id="ieobs_anio"></select></div>
-            <div class="field" style="grid-column:span 2"><label>Observaciones</label><textarea id="ieobs_observaciones" rows="2" placeholder="Observaciones del mantenimiento de ese año..."></textarea></div>
+            <div class="field"><label for="ieobs_anio">Año</label><select id="ieobs_anio"></select></div>
+            <div class="field" style="grid-column:span 2"><label for="ieobs_observaciones">Observaciones</label><textarea id="ieobs_observaciones" rows="2" placeholder="Observaciones del mantenimiento de ese año..."></textarea></div>
           </div>
           <button class="btn btn-primary" onclick="agregarObservacionEquipo()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Agregar Observación</button>
           <div id="ieObsMsg" style="margin-top:10px;font-size:13px"></div>
@@ -2980,14 +3038,14 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
-            <div class="field"><label>Fecha *</label><input type="date" id="et_fecha"></div>
-            <div class="field"><label>Turno *</label><select id="et_turno"></select></div>
-            <div class="field"><label>Entregado por *</label><input id="et_entregadoPor" placeholder="Nombre"></div>
-            <div class="field"><label>Recibido por</label><input id="et_recibidoPor" placeholder="Nombre"></div>
+            <div class="field"><label for="et_fecha">Fecha *</label><input type="date" id="et_fecha"></div>
+            <div class="field"><label for="et_turno">Turno *</label><select id="et_turno"></select></div>
+            <div class="field"><label for="et_entregadoPor">Entregado por *</label><input id="et_entregadoPor" placeholder="Nombre"></div>
+            <div class="field"><label for="et_recibidoPor">Recibido por</label><input id="et_recibidoPor" placeholder="Nombre"></div>
           </div>
           <div id="et_camposEquipos"></div>
           <div class="field" style="margin-top:6px;margin-bottom:14px">
-            <label>Novedades de turno <span style="color:var(--text3);font-weight:400">(cualquier situación adicional a reportar)</span></label>
+            <label for="et_novedadesTurno">Novedades de turno <span style="color:var(--text3);font-weight:400">(cualquier situación adicional a reportar)</span></label>
             <textarea id="et_novedadesTurno" rows="4" placeholder="Escribe aquí cualquier novedad del turno..."></textarea>
           </div>
           <div id="et_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
@@ -3002,7 +3060,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:180px">
-          <label style="margin-bottom:4px;display:block">Fecha</label>
+          <label for="cronConsultaFecha" style="margin-bottom:4px;display:block">Fecha</label>
           <input type="date" id="cronConsultaFecha" onchange="consultarCronogramaFecha()" style="margin:0">
         </div>
       </div>
@@ -3014,15 +3072,15 @@ body.rol-operario .btn-principal-operario {
       <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:160px">
-          <label style="margin-bottom:4px;display:block">Desde</label>
+          <label for="cronInformeDesde" style="margin-bottom:4px;display:block">Desde</label>
           <input type="date" id="cronInformeDesde" style="margin:0">
         </div>
         <div class="field" style="margin:0;min-width:160px">
-          <label style="margin-bottom:4px;display:block">Hasta</label>
+          <label for="cronInformeHasta" style="margin-bottom:4px;display:block">Hasta</label>
           <input type="date" id="cronInformeHasta" style="margin:0">
         </div>
         <div class="field" style="margin:0;min-width:160px">
-          <label style="margin-bottom:4px;display:block">Turno</label>
+          <label for="cronInformeTurno" style="margin-bottom:4px;display:block">Turno</label>
           <select id="cronInformeTurno" style="margin:0">
             <option value="">Todos los turnos</option>
           </select>
@@ -3040,8 +3098,8 @@ body.rol-operario .btn-principal-operario {
         <!-- Por defecto solo las 5 últimas; con el filtro de fechas se ven las
              anteriores. -->
         <div style="padding:12px 16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-          <div class="field" style="margin:0;min-width:150px"><label style="margin-bottom:4px;display:block">Desde</label><input type="date" id="et_filtroDesde" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
-          <div class="field" style="margin:0;min-width:150px"><label style="margin-bottom:4px;display:block">Hasta</label><input type="date" id="et_filtroHasta" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
+          <div class="field" style="margin:0;min-width:150px"><label for="et_filtroDesde" style="margin-bottom:4px;display:block">Desde</label><input type="date" id="et_filtroDesde" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
+          <div class="field" style="margin:0;min-width:150px"><label for="et_filtroHasta" style="margin-bottom:4px;display:block">Hasta</label><input type="date" id="et_filtroHasta" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('et_filtroDesde').value='';document.getElementById('et_filtroHasta').value='';renderTablaEntregasTurno()">Limpiar filtro</button>
         </div>
         <div class="card-body" style="padding:0;overflow-x:auto">
@@ -3060,11 +3118,11 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="margin-bottom:16px">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Desde</label>
+            <label for="cronDashDesde" style="margin-bottom:4px;display:block">Desde</label>
             <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Hasta</label>
+            <label for="cronDashHasta" style="margin-bottom:4px;display:block">Hasta</label>
             <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
         </div>
@@ -3142,15 +3200,15 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno · Sala de compresores</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin-bottom:12px">
-            <div class="field"><label>Fecha del turno *</label><input type="date" id="es_fecha" onchange="this.dataset.manual='1'"></div>
-            <div class="field"><label>Turno *</label><select id="es_turno" onchange="this.dataset.manual='1'"></select></div>
-            <div class="field"><label>Entregado por *</label><input id="es_entregadoPor" aria-label="Entregado por" placeholder="Nombre de quien entrega" oninput="this.classList.remove('es-falta')"></div>
-            <div class="field"><label>Recibido por</label><input id="es_recibidoPor" aria-label="Recibido por" placeholder="Nombre de quien recibe"></div>
+            <div class="field"><label for="es_fecha">Fecha del turno *</label><input type="date" id="es_fecha" onchange="this.dataset.manual='1'"></div>
+            <div class="field"><label for="es_turno">Turno *</label><select id="es_turno" onchange="this.dataset.manual='1'"></select></div>
+            <div class="field"><label for="es_entregadoPor">Entregado por *</label><input id="es_entregadoPor" aria-label="Entregado por" placeholder="Nombre de quien entrega" oninput="this.classList.remove('es-falta')"></div>
+            <div class="field"><label for="es_recibidoPor">Recibido por</label><input id="es_recibidoPor" aria-label="Recibido por" placeholder="Nombre de quien recibe"></div>
           </div>
           <div id="es_avisoPrevio" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:6px;background:var(--nota-bg);border:1px solid var(--nota-borde);color:var(--nota-tx);font-size:12px"></div>
           <div id="es_campos"></div>
           <div class="field" style="margin-top:6px;margin-bottom:14px">
-            <label>Novedades del turno <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+            <label for="es_novedades">Novedades del turno <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
             <textarea id="es_novedades" rows="3" placeholder="Cualquier situación adicional que deba saber quien recibe..."></textarea>
           </div>
           <div id="es_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
@@ -3162,11 +3220,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="es_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="es_filtroDesde" onchange="renderTablaEntregasSala()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="es_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="es_filtroHasta" onchange="renderTablaEntregasSala()" style="margin:0">
           </div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('es_filtroDesde').value='';document.getElementById('es_filtroHasta').value='';renderTablaEntregasSala()">Limpiar filtro</button>
@@ -3183,31 +3241,31 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Técnico que realiza el reporte *</label>
+              <label for="rc_tecnico">Técnico que realiza el reporte *</label>
               <select id="rc_tecnico" onchange="document.getElementById('rc_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'">
                 <option value="">Seleccionar...</option>
               </select>
             </div>
             <div class="field" id="rc_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rc_tecnicoOtro">Nombre del técnico</label>
               <input id="rc_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rc_fecha" readonly title="La fecha la pone la hora del reporte que elijas" onchange="this.dataset.manual='1'"></div>
+            <div class="field"><label for="rc_fecha">Fecha *</label><input type="date" id="rc_fecha" readonly title="La fecha la pone la hora del reporte que elijas" onchange="this.dataset.manual='1'"></div>
             <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
+              <label for="rc_hora">Hora en la que se realiza el reporte *</label>
               <select id="rc_hora" onchange="_onCambioHoraReporte('rc')">
                 <option value="">Seleccionar...</option>
               </select>
               <div id="rc_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
-              <label>Compresor *</label>
+              <label for="rc_compresor">Compresor *</label>
               <select id="rc_compresor" onchange="_actualizarCamposMedicionesCompresor()">
                 <option value="">Seleccionar...</option>
               </select>
             </div>
             <div class="field">
-              <label>¿Hora y fecha del compresor están bien? *</label>
+              <label for="rc_estadoHoraFecha">¿Hora y fecha del compresor están bien? *</label>
               <select id="rc_estadoHoraFecha">
                 <option value="">Seleccionar...</option>
                 <option value="SI">SI</option>
@@ -3231,11 +3289,11 @@ body.rol-operario .btn-principal-operario {
           </span></div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rc_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rc_filtroDesde" onchange="renderTablaReportesCompresores()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rc_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rc_filtroHasta" onchange="renderTablaReportesCompresores()" style="margin:0">
           </div>
         </div>
@@ -3253,25 +3311,25 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Técnico que realiza el reporte *</label>
+              <label for="rs_tecnico">Técnico que realiza el reporte *</label>
               <select id="rs_tecnico" onchange="document.getElementById('rs_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rs_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rs_tecnicoOtro">Nombre del técnico</label>
               <input id="rs_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rs_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
+            <div class="field"><label for="rs_fecha">Fecha *</label><input type="date" id="rs_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
+              <label for="rs_hora">Hora en la que se realiza el reporte *</label>
               <select id="rs_hora" onchange="_onCambioHoraReporte('rs')"><option value="">Seleccionar...</option></select>
               <div id="rs_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
-              <label>Secador *</label>
+              <label for="rs_secador">Secador *</label>
               <select id="rs_secador" onchange="_actualizarBloqueSecador()"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rs_modoCicloWrap" style="display:none">
-              <label>Modo del ciclo (Cycle mode) *</label>
+              <label for="rs_modoCiclo">Modo del ciclo (Cycle mode) *</label>
               <select id="rs_modoCiclo">
                 <option value="">Seleccionar...</option>
                 <option value="LDCS">LDCS</option>
@@ -3288,11 +3346,11 @@ body.rol-operario .btn-principal-operario {
               <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Torre derecha</div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
                 <div class="field">
-                  <label>Además de S0, seleccione el otro parámetro (control Smart Line) *</label>
+                  <label for="rs_torreDerechaParametro">Además de S0, seleccione el otro parámetro (control Smart Line) *</label>
                   <select id="rs_torreDerechaParametro" onchange="document.getElementById('rs_torreDerechaValorSecundarioLabel').textContent=(this.value||'Otro parámetro')+' [min]'"><option value="">Seleccionar...</option></select>
                 </div>
-                <div class="field"><label>S0 Adsorption [min] *</label><input id="rs_s0Adsorption" placeholder="S0 Adsorption [min]"></div>
-                <div class="field"><label id="rs_torreDerechaValorSecundarioLabel">Otro parámetro [min] *</label><input id="rs_torreDerechaValorSecundario" placeholder="Valor"></div>
+                <div class="field"><label for="rs_s0Adsorption">S0 Adsorption [min] *</label><input id="rs_s0Adsorption" placeholder="S0 Adsorption [min]"></div>
+                <div class="field"><label for="rs_torreDerechaValorSecundario" id="rs_torreDerechaValorSecundarioLabel">Otro parámetro [min] *</label><input id="rs_torreDerechaValorSecundario" placeholder="Valor"></div>
               </div>
             </div>
 
@@ -3311,11 +3369,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rs_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rs_filtroDesde" onchange="renderTablaReportesSecadores()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rs_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rs_filtroHasta" onchange="renderTablaReportesSecadores()" style="margin:0">
           </div>
         </div>
@@ -3333,25 +3391,25 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Técnico que realiza el reporte *</label>
+              <label for="rd_tecnico">Técnico que realiza el reporte *</label>
               <select id="rd_tecnico" onchange="document.getElementById('rd_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rd_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rd_tecnicoOtro">Nombre del técnico</label>
               <input id="rd_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rd_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
+            <div class="field"><label for="rd_fecha">Fecha *</label><input type="date" id="rd_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
+              <label for="rd_hora">Hora en la que se realiza el reporte *</label>
               <select id="rd_hora" onchange="_onCambioHoraReporte('rd')"><option value="">Seleccionar...</option></select>
               <div id="rd_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
-              <label>Drycooler a reportar *</label>
+              <label for="rd_drycooler">Drycooler a reportar *</label>
               <select id="rd_drycooler"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field">
-              <label>Adiabático *</label>
+              <label for="rd_adiabatico">Adiabático *</label>
               <select id="rd_adiabatico">
                 <option value="">Seleccionar...</option>
                 <option value="On">On</option>
@@ -3359,7 +3417,7 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
             <div class="field">
-              <label>Entálpico *</label>
+              <label for="rd_entalpico">Entálpico *</label>
               <select id="rd_entalpico">
                 <option value="">Seleccionar...</option>
                 <option value="On">On</option>
@@ -3367,7 +3425,7 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
             <div class="field">
-              <label>Bomba de recirculación en operación *</label>
+              <label for="rd_bombaRecirculacion">Bomba de recirculación en operación *</label>
               <select id="rd_bombaRecirculacion">
                 <option value="">Seleccionar...</option>
                 <option value="Bomba N°1">Bomba N°1</option>
@@ -3377,7 +3435,7 @@ body.rol-operario .btn-principal-operario {
           </div>
           <div id="rd_camposMediciones"></div>
           <div class="field" style="margin-top:6px">
-            <label>Observaciones <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+            <label for="rd_observaciones">Observaciones <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
             <textarea id="rd_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
           </div>
           <div id="rd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
@@ -3390,11 +3448,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rd_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rd_filtroDesde" onchange="renderTablaReportesDrycoolers()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rd_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rd_filtroHasta" onchange="renderTablaReportesDrycoolers()" style="margin:0">
           </div>
         </div>
@@ -3412,25 +3470,25 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Técnico que realiza el reporte *</label>
+              <label for="rdec_tecnico">Técnico que realiza el reporte *</label>
               <select id="rdec_tecnico" onchange="document.getElementById('rdec_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rdec_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rdec_tecnicoOtro">Nombre del técnico</label>
               <input id="rdec_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rdec_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
+            <div class="field"><label for="rdec_fecha">Fecha *</label><input type="date" id="rdec_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
+              <label for="rdec_hora">Hora en la que se realiza el reporte *</label>
               <select id="rdec_hora" onchange="_onCambioHoraReporte('rdec')"><option value="">Seleccionar...</option></select>
               <div id="rdec_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
-              <label>Seleccione compresor *</label>
+              <label for="rdec_compresor">Seleccione compresor *</label>
               <select id="rdec_compresor"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field">
-              <label>Nivel de aceite *</label>
+              <label for="rdec_nivelAceite">Nivel de aceite *</label>
               <select id="rdec_nivelAceite"><option value="">Seleccionar...</option></select>
             </div>
           </div>
@@ -3448,7 +3506,7 @@ body.rol-operario .btn-principal-operario {
 
           <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
             <div class="field" style="margin:0">
-              <label>Observaciones</label>
+              <label for="rdec_observaciones">Observaciones</label>
               <textarea id="rdec_observaciones" rows="2" placeholder="Opcional — cualquier novedad del turno"></textarea>
             </div>
           </div>
@@ -3463,11 +3521,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rdec_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rdec_filtroDesde" onchange="renderTablaReportesDecorado()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rdec_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rdec_filtroHasta" onchange="renderTablaReportesDecorado()" style="margin:0">
           </div>
         </div>
@@ -3485,29 +3543,29 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Técnico que realiza el reporte *</label>
+              <label for="re_tecnico">Técnico que realiza el reporte *</label>
               <select id="re_tecnico" onchange="document.getElementById('re_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="re_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="re_tecnicoOtro">Nombre del técnico</label>
               <input id="re_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="re_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
+            <div class="field"><label for="re_fecha">Fecha *</label><input type="date" id="re_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
-              <label>Hora en la que se realiza el reporte *</label>
+              <label for="re_hora">Hora en la que se realiza el reporte *</label>
               <select id="re_hora" onchange="_onCambioHoraReporte('re')"><option value="">Seleccionar...</option></select>
               <div id="re_cronTimer" class="cron-timer" data-hora="" style="margin-top:6px;font-size:14px;font-weight:800;padding:7px 12px;border-radius:8px;background:var(--surface2);color:var(--brand);align-self:flex-start;max-width:100%"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"></path><path d="M5 2h14"></path><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"></path><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"></path></svg> Selecciona la hora del reporte</div>
             </div>
             <div class="field">
-              <label>Seleccionar compresor *</label>
+              <label for="re_compresor">Seleccionar compresor *</label>
               <select id="re_compresor" onchange="_actualizarCamposMedicionesEmergencia()"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field">
-              <label id="re_estadoEquipoLabel">¿El equipo se encuentra encendido? *</label>
+              <label for="re_estadoEquipo" id="re_estadoEquipoLabel">¿El equipo se encuentra encendido? *</label>
               <select id="re_estadoEquipo"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="re_nivelAceiteWrap">
-              <label>Nivel de aceite *</label>
+              <label for="re_nivelAceite">Nivel de aceite *</label>
               <select id="re_nivelAceite"><option value="">Seleccionar...</option></select>
             </div>
           </div>
@@ -3530,15 +3588,15 @@ body.rol-operario .btn-principal-operario {
 
           <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
             <div class="field" style="margin:0">
-              <label>Insumos utilizados</label>
+              <label for="re_insumosUtilizados">Insumos utilizados</label>
               <input id="re_insumosUtilizados" placeholder="Opcional">
             </div>
             <div class="field" style="margin:0">
-              <label>Observaciones — Compresor</label>
+              <label for="re_observaciones">Observaciones — Compresor</label>
               <input id="re_observaciones" placeholder="Opcional">
             </div>
             <div class="field" style="margin:0">
-              <label>Observaciones — Secador</label>
+              <label for="re_observacionesSecador">Observaciones — Secador</label>
               <input id="re_observacionesSecador" placeholder="Opcional">
             </div>
           </div>
@@ -3553,11 +3611,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="re_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="re_filtroDesde" onchange="renderTablaReportesEmergencia()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="re_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="re_filtroHasta" onchange="renderTablaReportesEmergencia()" style="margin:0">
           </div>
         </div>
@@ -3576,40 +3634,40 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
-              <label>Quien realiza el reporte *</label>
+              <label for="rmf_tecnico">Quien realiza el reporte *</label>
               <select id="rmf_tecnico" onchange="document.getElementById('rmf_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rmf_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rmf_tecnicoOtro">Nombre del técnico</label>
               <input id="rmf_tecnicoOtro" placeholder="Nombre completo">
             </div>
-            <div class="field"><label>Fecha *</label><input type="date" id="rmf_fecha"></div>
-            <div class="field"><label>Hora *</label><input type="time" id="rmf_hora"></div>
+            <div class="field"><label for="rmf_fecha">Fecha *</label><input type="date" id="rmf_fecha"></div>
+            <div class="field"><label for="rmf_hora">Hora *</label><input type="time" id="rmf_hora"></div>
           </div>
           <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
             <div class="field">
-              <label>Máquina *</label>
+              <label for="rmf_maquina">Máquina *</label>
               <div id="rmf_maquinaWrap"><select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()"><option value="">Seleccionar...</option></select></div>
             </div>
             <div class="field">
-              <label>Referencia de botella *</label>
+              <label for="rmf_referencia">Referencia de botella *</label>
               <input id="rmf_referencia" placeholder="Referencia de botella">
             </div>
             <div class="field">
-              <label>Sección *</label>
+              <label for="rmf_seccion">Sección *</label>
               <div id="rmf_seccionWrap"></div>
             </div>
             <div class="field">
-              <label>Cavidades *</label>
+              <label for="rmf_cavidades">Cavidades *</label>
               <select id="rmf_cavidades"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field">
-              <label>Velocidad *</label>
+              <label for="rmf_velocidad">Velocidad *</label>
               <input id="rmf_velocidad" placeholder="Velocidad">
             </div>
           </div>
           <div class="field" style="margin-bottom:12px">
-            <label>Observaciones</label>
+            <label for="rmf_observaciones">Observaciones</label>
             <input id="rmf_observaciones" placeholder="Opcional">
           </div>
           <div id="rmf_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
@@ -3621,11 +3679,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rmf_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rmf_filtroDesde" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rmf_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rmf_filtroHasta" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
           </div>
         </div>
@@ -3642,13 +3700,13 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presiones y Temperatura de Drycooler</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
-            <div class="field"><label>Fecha *</label><input type="date" id="rpd_fecha"></div>
+            <div class="field"><label for="rpd_fecha">Fecha *</label><input type="date" id="rpd_fecha"></div>
             <div class="field">
-              <label>Quien realiza el reporte *</label>
+              <label for="rpd_tecnico">Quien realiza el reporte *</label>
               <select id="rpd_tecnico" onchange="document.getElementById('rpd_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
             </div>
             <div class="field" id="rpd_tecnicoOtroWrap" style="display:none">
-              <label>Nombre del técnico</label>
+              <label for="rpd_tecnicoOtro">Nombre del técnico</label>
               <input id="rpd_tecnicoOtro" placeholder="Nombre completo">
             </div>
           </div>
@@ -3662,11 +3720,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
         <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
+            <label for="rpd_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
             <input type="date" id="rpd_filtroDesde" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:150px">
-            <label style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
+            <label for="rpd_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
             <input type="date" id="rpd_filtroHasta" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
           </div>
         </div>
@@ -3684,16 +3742,16 @@ body.rol-operario .btn-principal-operario {
         <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</div>
         <div class="card-body" style="padding:18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
-            <div class="field"><label>Fecha *</label><input type="date" id="obs_fecha"></div>
-            <div class="field"><label>Hora *</label><input type="time" id="obs_hora"></div>
+            <div class="field"><label for="obs_fecha">Fecha *</label><input type="date" id="obs_fecha"></div>
+            <div class="field"><label for="obs_hora">Hora *</label><input type="time" id="obs_hora"></div>
             <div class="field">
-              <label>Operario *</label>
+              <label for="obs_operario">Operario *</label>
               <select id="obs_operario">
                 <option value="">Seleccionar operario...</option>
               </select>
             </div>
             <div class="field">
-              <label>Tipo de observación *</label>
+              <label for="obs_tipo">Tipo de observación *</label>
               <select id="obs_tipo">
                 <option value="">Seleccionar...</option>
                 <option value="Amarilla">Amarilla</option>
@@ -3702,7 +3760,7 @@ body.rol-operario .btn-principal-operario {
             </div>
           </div>
           <div class="field" style="margin-bottom:14px">
-            <label>Observación / llamado de atención *</label>
+            <label for="obs_texto">Observación / llamado de atención *</label>
             <textarea id="obs_texto" rows="3" placeholder="Describe el llamado de atención..."></textarea>
           </div>
           <div id="obs_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
@@ -3735,7 +3793,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="margin-bottom:16px">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Mes</label>
+            <label for="obs_filtroMes" style="margin-bottom:4px;display:block">Mes</label>
             <select id="obs_filtroMes" onchange="aplicarFiltroObservaciones()" style="margin:0">
               <option value="">Todos los meses</option>
               <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
@@ -3745,7 +3803,7 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field" style="margin:0;min-width:140px">
-            <label style="margin-bottom:4px;display:block">Año</label>
+            <label for="obs_filtroAnio" style="margin-bottom:4px;display:block">Año</label>
             <select id="obs_filtroAnio" onchange="aplicarFiltroObservaciones()" style="margin:0">
               <option value="">Todos los años</option>
             </select>
@@ -3755,14 +3813,14 @@ body.rol-operario .btn-principal-operario {
 
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">Conteo por operario</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body" style="padding:0;overflow-x:auto" tabindex="0" role="region" aria-label="Conteo por operario">
           <div id="obs_conteoWrap"></div>
         </div>
       </div>
 
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">Historial de observaciones</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body" style="padding:0;overflow-x:auto" tabindex="0" role="region" aria-label="Historial de observaciones">
           <div id="obs_historialWrap"></div>
         </div>
       </div>
@@ -3775,7 +3833,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="margin-bottom:16px">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:160px">
-            <label style="margin-bottom:4px;display:block">Mes</label>
+            <label for="cond_filtroMes" style="margin-bottom:4px;display:block">Mes</label>
             <select id="cond_filtroMes" onchange="renderCondicionesInseguras()" style="margin:0">
               <option value="">Todos los meses</option>
               <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
@@ -3785,7 +3843,7 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field" style="margin:0;min-width:140px">
-            <label style="margin-bottom:4px;display:block">Año</label>
+            <label for="cond_filtroAnio" style="margin-bottom:4px;display:block">Año</label>
             <select id="cond_filtroAnio" onchange="renderCondicionesInseguras()" style="margin:0">
               <option value="">Todos los años</option>
             </select>
@@ -3825,15 +3883,15 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="margin-bottom:16px">
         <div class="card-body" style="padding:16px 18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:6px">
-            <div class="field" style="margin:0"><label>Fecha *</label><input type="date" id="invh_fecha"></div>
-            <div class="field" style="margin:0"><label>Turno *</label>
+            <div class="field" style="margin:0"><label for="invh_fecha">Fecha *</label><input type="date" id="invh_fecha"></div>
+            <div class="field" style="margin:0"><label for="invh_turno">Turno *</label>
               <select id="invh_turno">
                 <option value="Turno 1 (6am-2pm)">Turno 1 (6am-2pm)</option>
                 <option value="Turno 2 (2pm-10pm)">Turno 2 (2pm-10pm)</option>
                 <option value="Turno 3 (10pm-6am)">Turno 3 (10pm-6am)</option>
               </select>
             </div>
-            <div class="field" style="margin:0"><label>Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
+            <div class="field" style="margin:0"><label for="invh_responsable">Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
           </div>
           <div style="font-size:12px;color:var(--text3);margin-top:4px">Cada herramienta arranca en <strong>“✓ Completa”</strong>. Toca <strong>“✗ Incompleta”</strong> en las que falten o estén mal e indica cuántas faltan.</div>
         </div>
@@ -4050,9 +4108,9 @@ body.rol-operario .btn-principal-operario {
               <span>El precio ya no se pone aquí — se ingresa en <strong>"Movimientos"</strong> cada vez que registres una entrada, porque el mismo producto puede comprarse a precios distintos según la fecha.</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Código Siesa *</label><input id="invp_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
-              <div class="field"><label>Nombre *</label><input id="invp_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del producto"></div>
-              <div class="field"><label>Unidad</label>
+              <div class="field"><label for="invp_codigo">Código Siesa *</label><input id="invp_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
+              <div class="field"><label for="invp_nombre">Nombre *</label><input id="invp_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del producto"></div>
+              <div class="field"><label for="invp_unidad">Unidad</label>
                 <select id="invp_unidad">
                   <option value="Unidades" selected>Unidades</option>
                   <option value="Metros">Metros</option>
@@ -4076,12 +4134,12 @@ body.rol-operario .btn-principal-operario {
                   <option value="Onzas">Onzas</option>
                 </select>
               </div>
-              <div class="field"><label>Stock Mínimo</label><input id="invp_stockmin" type="number" min="0" value="0"></div>
-              <div class="field"><label>Ubicación</label><input id="invp_ubicacion" placeholder="Ej: Bodega principal, estante 3"></div>
-              <div class="field"><label>Proveedor *</label>
+              <div class="field"><label for="invp_stockmin">Stock Mínimo</label><input id="invp_stockmin" type="number" min="0" value="0"></div>
+              <div class="field"><label for="invp_ubicacion">Ubicación</label><input id="invp_ubicacion" placeholder="Ej: Bodega principal, estante 3"></div>
+              <div class="field"><label for="invp_proveedor">Proveedor *</label>
                 <select id="invp_proveedor"><option value="">Selecciona un proveedor...</option></select>
               </div>
-              <div class="field"><label>Tipo</label>
+              <div class="field"><label for="invp_tipo">Tipo</label>
                 <select id="invp_tipo">
                   <option value="Insumos">Insumos</option>
                   <option value="Repuestos">Repuestos</option>
@@ -4101,20 +4159,20 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Nuevo Movimiento</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Código Siesa *</label><input id="invm_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
-              <div class="field"><label>Fecha *</label><input id="invm_fecha" type="date"></div>
-              <div class="field"><label>Tipo *</label>
+              <div class="field"><label for="invm_codigo">Código Siesa *</label><input id="invm_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
+              <div class="field"><label for="invm_fecha">Fecha *</label><input id="invm_fecha" type="date"></div>
+              <div class="field"><label for="invm_tipo">Tipo *</label>
                 <select id="invm_tipo" onchange="invHandleTipoChange()">
                   <option value="INGRESO">Ingreso</option><option value="SALIDA">Salida</option>
                   <option value="AJUSTE_POSITIVO">Ajuste Positivo</option><option value="AJUSTE_NEGATIVO">Ajuste Negativo</option>
                 </select>
               </div>
-              <div class="field"><label>Cantidad *</label><input id="invm_cantidad" type="number" min="0.01" step="0.01" placeholder="0"></div>
-              <div class="field" id="invm_grupoPrecio"><label>Precio Unitario <span id="invm_precioMarca">*</span></label>
+              <div class="field"><label for="invm_cantidad">Cantidad *</label><input id="invm_cantidad" type="number" min="0.01" step="0.01" placeholder="0"></div>
+              <div class="field" id="invm_grupoPrecio"><label for="invm_precio">Precio Unitario <span id="invm_precioMarca">*</span></label>
                 <input id="invm_precio" type="number" min="0" step="0.01" placeholder="0.00">
               </div>
               <div class="field" id="invm_grupoDocTipo">
-                <label>Tipo de Documento</label>
+                <label for="invm_tipoDocumento">Tipo de Documento</label>
                 <select id="invm_tipoDocumento" onchange="invHandleTipoDocumentoChange()">
                   <option value="">Sin documento</option>
                   <option value="Orden de Compra">Orden de Compra</option>
@@ -4124,14 +4182,14 @@ body.rol-operario .btn-principal-operario {
                 </select>
               </div>
               <div class="field" id="invm_grupoDocNumero" style="display:none">
-                <label>Número / Referencia</label>
+                <label for="invm_numeroDocumento">Número / Referencia</label>
                 <input id="invm_numeroDocumento" placeholder="Ej: FC-00123">
               </div>
-              <div class="field"><label>Responsable *</label><input id="invm_responsable" placeholder="Nombre completo"></div>
-              <div class="field" id="invm_grupoEquipo"><label>Equipo Destino <span id="invm_equipoMarca">*</span></label>
+              <div class="field"><label for="invm_responsable">Responsable *</label><input id="invm_responsable" placeholder="Nombre completo"></div>
+              <div class="field" id="invm_grupoEquipo"><label for="invm_equipo">Equipo Destino <span id="invm_equipoMarca">*</span></label>
                 <select id="invm_equipo"><option value="">Seleccionar equipo...</option></select>
               </div>
-              <div class="field" style="grid-column:1/-1"><label>Observaciones</label><input id="invm_obs" placeholder="Opcional"></div>
+              <div class="field" style="grid-column:1/-1"><label for="invm_obs">Observaciones</label><input id="invm_obs" placeholder="Opcional"></div>
             </div>
             <div style="background:var(--nota-bg);border:1px solid var(--nota-borde);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;color:var(--nota-tx);display:flex;align-items:flex-start;gap:6px">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.71.71 1.23 1.5 1.41 2.5"></path></svg>
@@ -4148,12 +4206,12 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Nuevo Servicio</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Código *</label><input id="invs_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="SERV-001"></div>
-              <div class="field"><label>Nombre *</label><input id="invs_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del servicio"></div>
-              <div class="field"><label>Precio</label><input id="invs_precio" type="number" min="0" step="0.01" placeholder="0.00"></div>
-              <div class="field"><label>Fecha</label><input id="invs_fecha" type="date"></div>
-              <div class="field"><label>Proveedor</label><select id="invs_proveedor"><option value="">Selecciona un proveedor...</option></select></div>
-              <div class="field" style="grid-column:1/-1"><label>Descripción</label><input id="invs_descripcion" placeholder="Opcional"></div>
+              <div class="field"><label for="invs_codigo">Código *</label><input id="invs_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="SERV-001"></div>
+              <div class="field"><label for="invs_nombre">Nombre *</label><input id="invs_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del servicio"></div>
+              <div class="field"><label for="invs_precio">Precio</label><input id="invs_precio" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="field"><label for="invs_fecha">Fecha</label><input id="invs_fecha" type="date"></div>
+              <div class="field"><label for="invs_proveedor">Proveedor</label><select id="invs_proveedor"><option value="">Selecciona un proveedor...</option></select></div>
+              <div class="field" style="grid-column:1/-1"><label for="invs_descripcion">Descripción</label><input id="invs_descripcion" placeholder="Opcional"></div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:8px;background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text3)">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.71.71 1.23 1.5 1.41 2.5"></path></svg>
@@ -4183,11 +4241,11 @@ body.rol-operario .btn-principal-operario {
           </div>
           <div style="padding:14px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
             <div class="field" style="flex:1;min-width:180px">
-              <label>Buscar</label>
+              <label for="invStockBuscar">Buscar</label>
               <input id="invStockBuscar" placeholder="Código Siesa o nombre…" oninput="invFiltrarStock()">
             </div>
             <div class="field" style="min-width:150px">
-              <label>Tipo</label>
+              <label for="invStockFiltroTipo">Tipo</label>
               <select id="invStockFiltroTipo" onchange="invFiltrarStock()">
                 <option value="">Todos</option>
                 <option value="Insumos">Insumos</option>
@@ -4232,12 +4290,12 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Historial de Movimientos</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Desde</label><input id="invr_desde" type="date"></div>
-              <div class="field"><label>Hasta</label><input id="invr_hasta" type="date"></div>
-              <div class="field"><label>Tipo</label>
+              <div class="field"><label for="invr_desde">Desde</label><input id="invr_desde" type="date"></div>
+              <div class="field"><label for="invr_hasta">Hasta</label><input id="invr_hasta" type="date"></div>
+              <div class="field"><label for="invr_tipo">Tipo</label>
                 <select id="invr_tipo"><option value="">Todos</option><option value="INGRESO">Ingreso</option><option value="SALIDA">Salida</option><option value="AJUSTE_POSITIVO">Ajuste +</option><option value="AJUSTE_NEGATIVO">Ajuste −</option></select>
               </div>
-              <div class="field"><label>Código Siesa</label>
+              <div class="field"><label for="invr_codigo">Código Siesa</label>
                 <select id="invr_codigo"><option value="">Todos los productos</option></select>
               </div>
             </div>
@@ -4256,7 +4314,7 @@ body.rol-operario .btn-principal-operario {
               y te deja registrar esas salidas. Revisa la lista antes de registrar: solo se descuenta lo que marques.
             </p>
             <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
-              <div class="field" style="margin:0"><label>Cerradas desde</label><input id="invdp_desde" type="date"></div>
+              <div class="field" style="margin:0"><label for="invdp_desde">Cerradas desde</label><input id="invdp_desde" type="date"></div>
               <button class="btn btn-primary" onclick="invRevisarDescuentosPendientes()">Revisar</button>
             </div>
             <div id="invdp_resultado" style="overflow-x:auto"></div>
@@ -4270,18 +4328,18 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> Registrar Proveedor</div>
           <div style="padding:18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label>Nombre Proveedor *</label><input id="prov_nombre" placeholder="Nombre de la empresa o persona"></div>
-              <div class="field"><label>Número de Contacto</label><input id="prov_contacto" placeholder="Ej: 300 123 4567"></div>
-              <div class="field"><label>Ciudad / País</label><input id="prov_ciudadpais" placeholder="Ej: Bogotá, Colombia"></div>
-              <div class="field"><label>Dirección</label><input id="prov_direccion" placeholder="Ej: Cra 45 #12-30"></div>
-              <div class="field"><label>Tipo</label>
+              <div class="field"><label for="prov_nombre">Nombre Proveedor *</label><input id="prov_nombre" placeholder="Nombre de la empresa o persona"></div>
+              <div class="field"><label for="prov_contacto">Número de Contacto</label><input id="prov_contacto" placeholder="Ej: 300 123 4567"></div>
+              <div class="field"><label for="prov_ciudadpais">Ciudad / País</label><input id="prov_ciudadpais" placeholder="Ej: Bogotá, Colombia"></div>
+              <div class="field"><label for="prov_direccion">Dirección</label><input id="prov_direccion" placeholder="Ej: Cra 45 #12-30"></div>
+              <div class="field"><label for="prov_tipo">Tipo</label>
                 <select id="prov_tipo">
                   <option value="Insumo">Insumo</option>
                   <option value="Repuesto">Repuesto</option>
                   <option value="Servicio">Servicio</option>
                 </select>
               </div>
-              <div class="field"><label>Qué provee</label><input id="prov_insumo" placeholder="Ej: Rodamientos, mangueras, mantenimiento eléctrico..."></div>
+              <div class="field"><label for="prov_insumo">Qué provee</label><input id="prov_insumo" placeholder="Ej: Rodamientos, mangueras, mantenimiento eléctrico..."></div>
             </div>
             <button class="btn btn-primary" onclick="invRegistrarProveedor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Registrar Proveedor</button>
             <div id="provMsg" style="margin-top:10px;font-size:13px"></div>
@@ -4338,9 +4396,9 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head">Registrar un hallazgo</div>
           <div class="card-body" style="padding:16px 18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-              <div class="field" style="margin:0"><label>Equipo</label><select id="emph_equipo"></select></div>
-              <div class="field" style="margin:0"><label>Prioridad</label><select id="emph_prioridad"><option value="Alta">Alta</option><option value="Media" selected>Media</option><option value="Baja">Baja</option></select></div>
-              <div class="field" style="margin:0;grid-column:1/-1"><label>Qué se encontró</label><textarea id="emph_descripcion" rows="3" placeholder="Ej: fuga de aceite en el enfriador, válvula de alivio sin certificar, falta guarda en el acople"></textarea></div>
+              <div class="field" style="margin:0"><label for="emph_equipo">Equipo</label><select id="emph_equipo"></select></div>
+              <div class="field" style="margin:0"><label for="emph_prioridad">Prioridad</label><select id="emph_prioridad"><option value="Alta">Alta</option><option value="Media" selected>Media</option><option value="Baja">Baja</option></select></div>
+              <div class="field" style="margin:0;grid-column:1/-1"><label for="emph_descripcion">Qué se encontró</label><textarea id="emph_descripcion" rows="3" placeholder="Ej: fuga de aceite en el enfriador, válvula de alivio sin certificar, falta guarda en el acople"></textarea></div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
               <button class="btn btn-primary" id="emphBtnRegistrar" onclick="empRegistrarHallazgo()">Registrar hallazgo</button>
@@ -4351,7 +4409,7 @@ body.rol-operario .btn-principal-operario {
         <div class="card">
           <div class="card-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="flex:1">Hallazgos registrados</span>
-            <select id="emph_filtro" onchange="empRenderHallazgos()" style="min-width:150px">
+            <select id="emph_filtro" aria-label="Filtrar hallazgos" onchange="empRenderHallazgos()" style="min-width:150px">
               <option value="pendientes">Sin resolver</option>
               <option value="Abierto">Abiertos</option>
               <option value="En orden">En orden de trabajo</option>
@@ -4368,7 +4426,7 @@ body.rol-operario .btn-principal-operario {
           <div class="card-head">Repuestos de cada equipo</div>
           <div class="card-body" style="padding:16px 18px">
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px;max-width:75ch">Son los mismos repuestos de la Hoja de Vida del equipo. Marca los críticos y si hay en bodega o hay que comprarlos: con eso se arma la lista de compras de abajo.</div>
-            <div class="field" style="max-width:320px"><label>Equipo</label><select id="empr_equipo" onchange="empCargarRepuestosEquipo()"></select></div>
+            <div class="field" style="max-width:320px"><label for="empr_equipo">Equipo</label><select id="empr_equipo" onchange="empCargarRepuestosEquipo()"></select></div>
             <div id="emprEditor"></div>
           </div>
         </div>
@@ -9244,7 +9302,7 @@ function _mostrarDocumentoEnVisor(html) {
 const CSS_PALETA_PAPEL = 'body{--brand:#02457A;--brand-dark:#001848;--brand-light:#D6EBEE;--brand-mid:#97CADB;'
   + '--accent:#018ABE;--accent2:#2f9e52;--warn:#d9663f;--danger:#c62828;--pending:#8a8785;--surface:#ffffff;'
   + '--surface2:#f2f5f9;--bg:#f6f8fb;--border:#e6eaf1;--text:#2b2e33;--text2:#666b73;--text3:#9599a1;'
-  + '--estado-ok-bg:#e6f4ea;--estado-ok-tx:#15803d;--estado-alerta-bg:#fff4e0;--estado-alerta-tx:#b45309;'
+  + '--estado-ok-bg:#e6f4ea;--estado-ok-tx:#137638;--estado-alerta-bg:#fff4e0;--estado-alerta-tx:#b45309;'
   + '--estado-peligro-bg:#fde8e8;--estado-peligro-tx:#b91c1c;--nota-bg:#fffbea;--nota-borde:#d4a72c;--nota-tx:#7c5c00}';
 
 function _conPaletaDePapel(html) {
@@ -10285,12 +10343,12 @@ function inicializarCampoEquipo() {
 
   if (operacionActual === 'antioquia') {
     wrap.innerHTML = `
-      <label>Empresa *</label>
+      <label for="f_empresa">Empresa *</label>
       <select id="f_empresa" onchange="actualizarEquiposPorEmpresa()" style="margin-bottom:10px">
         <option value="">Seleccionar empresa...</option>
         ${Array.from({length:15}, (_,i)=>i+1).map(n => `<option value="${n}">Empresa ${n}</option>`).join('')}
       </select>
-      <label>Equipo / Activo *</label>
+      <label for="f_equipo">Equipo / Activo *</label>
       <select id="f_equipo">
         <option value="">Seleccionar equipo...</option>
       </select>`;
@@ -10302,7 +10360,7 @@ function inicializarCampoEquipo() {
   // final van sus "Otros equipos" (extintores, equipos de alturas...).
   const grupos = _gruposEquiposParaOrden(operacionActual);
   wrap.innerHTML = `
-    <label>Equipo / Activo *</label>
+    <label for="f_equipo">Equipo / Activo *</label>
     <select id="f_equipo">
       <option value="">Seleccionar equipo...</option>
       ${_renderOptionsGrupo(grupos)}
@@ -15816,11 +15874,11 @@ function _variablesRenderApartado(key) {
             </select>
           </div>
           <div style="flex:1;min-width:140px">
-            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Desde</label>
+            <label for="varDesde-${key}" style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Desde</label>
             <input type="date" id="varDesde-${key}" class="form-control">
           </div>
           <div style="flex:1;min-width:140px">
-            <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Hasta</label>
+            <label for="varHasta-${key}" style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Hasta</label>
             <input type="date" id="varHasta-${key}" class="form-control">
           </div>
           <button class="btn btn-primary" onclick="variablesGraficar('${key}')">Ver comportamiento</button>
@@ -16460,7 +16518,7 @@ function _variablesDibujar(contId, bloques) {
   conDatos.forEach(b => b.campos.forEach(c => { if (!gruposTodos.includes(c.grupo)) gruposTodos.push(c.grupo); }));
   let html = gruposTodos.length > 1 ? `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-      <label style="font-size:12px;color:var(--text3)">Grupo</label>
+      <label for="varFiltroGrupo" style="font-size:12px;color:var(--text3)">Grupo</label>
       <select id="varFiltroGrupo" onchange="_variablesFiltrarGrupo(this.value)" class="form-control" style="max-width:280px">
         <option value="">Todos los grupos</option>
         ${gruposTodos.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('')}
@@ -17180,13 +17238,13 @@ async function pmRenderActividadesInforme(frecuencia, tipo) {
   cont.innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
       <div style="min-width:170px">
-        <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Frecuencia</label>
+        <label for="pmActFrecuencia" style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Frecuencia</label>
         <select id="pmActFrecuencia" class="form-control" onchange="pmRenderActividadesInforme(this.value, document.getElementById('pmActTipo').value)">
           ${INFORME_FRECUENCIAS.map(f => `<option value="${f.key}"${f.key === frecuencia ? ' selected' : ''}>${esc(f.label)}</option>`).join('')}
         </select>
       </div>
       <div style="min-width:210px">
-        <label style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Tipo de equipo</label>
+        <label for="pmActTipo" style="display:block;font-size:11px;color:var(--text3);margin-bottom:4px">Tipo de equipo</label>
         <select id="pmActTipo" class="form-control" onchange="pmRenderActividadesInforme(document.getElementById('pmActFrecuencia').value, this.value)">
           ${INFORME_TIPOS_EQUIPO.map(t => `<option value="${t.tipo}"${t.tipo === tipo ? ' selected' : ''}>${esc(t.nombreTipo)}</option>`).join('')}
         </select>
@@ -19056,9 +19114,9 @@ function filtrarNovedadesUI() {
       <td style="padding:7px 10px">${esc(n.ElaboradoNombre || n.Correo || '')}</td>
       <td style="padding:7px 10px;text-align:center">${n.InformeDriveFileId ? _icono('documento') : '—'}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="abrirModalNovedad(${_jsArg(n.Codigo)})">${iconoEditar}</button>
-        <button class="btn btn-ghost btn-sm" onclick="verInformePdf(${_jsArg(n.Codigo)})" title="Ver PDF del informe">${iconoExportar}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarNovedad(${_jsArg(n.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Editar ${esc(n.Codigo)}" title="Editar" class="btn btn-ghost btn-sm solo-admin" onclick="abrirModalNovedad(${_jsArg(n.Codigo)})">${iconoEditar}</button>
+        <button aria-label="PDF del informe ${esc(n.Codigo)}" class="btn btn-ghost btn-sm" onclick="verInformePdf(${_jsArg(n.Codigo)})" title="Ver PDF del informe">${iconoExportar}</button>
+        <button aria-label="Eliminar ${esc(n.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarNovedad(${_jsArg(n.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
 
@@ -19109,29 +19167,29 @@ function _htmlCamposTiempoNovedad(tipo, existente) {
     const horaEstab  = esc(existente?.HoraEstabilizacion || '');
     return `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px">
-        <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
-        <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
-        <div class="field"><label>Fecha de finalización *</label><input id="nov_fechaFin" type="date" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
-        <div class="field"><label>Hora de finalización *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
-        <div class="field"><label>Fecha de estabilización *</label><input id="nov_fechaEstabilizacion" type="date" value="${fechaEstab}" onchange="actualizarTiemposNovedad()"></div>
-        <div class="field"><label>Hora de estabilización *</label><input id="nov_horaEstabilizacion" type="time" value="${horaEstab}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_fechaEvento">Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_horaInicio">Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_fechaFin">Fecha de finalización *</label><input id="nov_fechaFin" type="date" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_horaFin">Hora de finalización *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_fechaEstabilizacion">Fecha de estabilización *</label><input id="nov_fechaEstabilizacion" type="date" value="${fechaEstab}" onchange="actualizarTiemposNovedad()"></div>
+        <div class="field"><label for="nov_horaEstabilizacion">Hora de estabilización *</label><input id="nov_horaEstabilizacion" type="time" value="${horaEstab}" onchange="actualizarTiemposNovedad()"></div>
       </div>
       <div class="grid-3" style="gap:10px;margin-bottom:14px">
-        <div class="field"><label>Tiempo inicio → finalización (min)</label><input id="nov_tiempoIF" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoInicioFinMin||'')}"></div>
-        <div class="field"><label>Tiempo finalización → estabilización (min)</label><input id="nov_tiempoFE" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoFinEstabilizacionMin||'')}"></div>
-        <div class="field"><label>Tiempo total de recuperación (min)</label><input id="nov_tiempoTotal" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoTotalMin||'')}"></div>
+        <div class="field"><label for="nov_tiempoIF">Tiempo inicio → finalización (min)</label><input id="nov_tiempoIF" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoInicioFinMin||'')}"></div>
+        <div class="field"><label for="nov_tiempoFE">Tiempo finalización → estabilización (min)</label><input id="nov_tiempoFE" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoFinEstabilizacionMin||'')}"></div>
+        <div class="field"><label for="nov_tiempoTotal">Tiempo total de recuperación (min)</label><input id="nov_tiempoTotal" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoTotalMin||'')}"></div>
       </div>`;
   }
   // Tope de fecha = hoy: una novedad es un evento pasado/actual, así que
   // bloquea de raíz los años absurdos por dedazo (31212) en el calendario.
   return `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px">
-      <div class="field"><label>Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" max="${hoy}" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
-      <div class="field"><label>Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
-      <div class="field"><label>Fecha final del evento *</label><input id="nov_fechaFin" type="date" max="${hoy}" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
-      <div class="field"><label>Hora final del evento *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label for="nov_fechaEvento">Fecha inicio de evento *</label><input id="nov_fechaEvento" type="date" max="${hoy}" value="${fechaInicio}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label for="nov_horaInicio">Hora inicio de evento *</label><input id="nov_horaInicio" type="time" value="${horaInicio}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label for="nov_fechaFin">Fecha final del evento *</label><input id="nov_fechaFin" type="date" max="${hoy}" value="${fechaFin}" onchange="actualizarTiemposNovedad()"></div>
+      <div class="field"><label for="nov_horaFin">Hora final del evento *</label><input id="nov_horaFin" type="time" value="${horaFin}" onchange="actualizarTiemposNovedad()"></div>
     </div>
-    <div class="field" style="margin-bottom:4px;max-width:220px"><label>Tiempo total (min)</label>
+    <div class="field" style="margin-bottom:4px;max-width:220px"><label for="nov_tiempoTotal">Tiempo total (min)</label>
       <input id="nov_tiempoTotal" type="number" readonly style="background:var(--surface2)" value="${esc(existente?.TiempoTotalMin||'')}"></div>
     <div id="nov_tiempoAviso" style="font-size:12px;color:var(--danger);margin-bottom:14px"></div>`;
 }
@@ -19171,17 +19229,17 @@ function abrirModalNovedad(codigo) {
 
         ${!existente ? `
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-bottom:14px">
-          <div class="field"><label>Tipo de Informe *</label>
+          <div class="field"><label for="nov_tipoInforme">Tipo de Informe *</label>
             <select id="nov_tipoInforme" onchange="actualizarCodigoNovedadManual()">
               ${NOVEDADES_TIPOS.map(t => `<option value="${t.prefijo}">${esc(t.label)}</option>`).join('')}
             </select>
           </div>
-          <div class="field"><label>Año *</label>
+          <div class="field"><label for="nov_anio">Año *</label>
             <select id="nov_anio" onchange="actualizarCodigoNovedadManual()">
               ${anios.map(a => `<option value="${a}"${a === anioActual ? ' selected' : ''}>${a}</option>`).join('')}
             </select>
           </div>
-          <div class="field"><label>N.º de informe *</label>
+          <div class="field"><label for="nov_numero">N.º de informe *</label>
             <input id="nov_numero" type="number" min="1" placeholder="Ej: 5" oninput="actualizarCodigoNovedadManual()"></div>
         </div>` : `
         <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
@@ -19191,7 +19249,7 @@ function abrirModalNovedad(codigo) {
           <input type="hidden" id="nov_numero" value="${esc(numeroExistente)}">
         </div>`}
 
-        <div class="field" style="margin-bottom:12px"><label>Título del informe *</label>
+        <div class="field" style="margin-bottom:12px"><label for="nov_titulo">Título del informe *</label>
           <input id="nov_titulo" placeholder="Ej: Caída de presión sistema de alta presión" value="${esc(existente?.Titulo||'')}"></div>
 
         <div id="nov_camposTiempoWrap">${_htmlCamposTiempoNovedad(tipoInicial, existente)}</div>
@@ -20032,7 +20090,7 @@ function abrirModalNoRealizadaCronograma(actividadId, turnoId, fecha) {
     <div style="background:var(--surface);border-radius:12px;max-width:400px;width:100%;padding:26px 24px;box-shadow:0 12px 48px rgba(0,0,0,.3)">
       <div style="font-weight:800;font-size:16px;color:var(--danger);margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Marcar como NO realizada</div>
       <div class="field" style="margin-bottom:6px">
-        <label style="margin-bottom:4px;display:block">¿Por qué no se realizó? *</label>
+        <label for="cronModalMotivo" style="margin-bottom:4px;display:block">¿Por qué no se realizó? *</label>
         <textarea id="cronModalMotivo" rows="3" placeholder="Explica brevemente el motivo..." style="width:100%;resize:vertical"></textarea>
       </div>
       <div id="cronModalMotivoError" style="color:var(--danger);font-size:12px;margin-bottom:12px"></div>
@@ -20106,7 +20164,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
           <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;font-weight:700"><input type="radio" name="cronCondInsegura" value="no" onchange="document.getElementById('cronCondCualWrap').style.display='none'"> No</label>
         </div>
         <div id="cronCondCualWrap" style="display:none;margin-bottom:6px">
-          <label style="margin-bottom:4px;display:block;font-size:12px;font-weight:700;color:var(--estado-alerta-tx)">¿Cuál? Especifique *</label>
+          <label for="cronCondCual" style="margin-bottom:4px;display:block;font-size:12px;font-weight:700;color:var(--estado-alerta-tx)">¿Cuál? Especifique *</label>
           <textarea id="cronCondCual" rows="2" placeholder="Describa la condición insegura encontrada..." style="width:100%;resize:vertical"></textarea>
         </div>
         <div id="cronCondError" style="color:var(--danger);font-size:12px;margin-top:2px"></div>
@@ -20116,7 +20174,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
       <div data-paso="3" style="display:none">
         <div style="font-weight:800;font-size:16px;color:var(--brand);margin-bottom:14px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ¿Quién la realizó y a qué hora?</div>
         <div class="field" style="margin-bottom:12px">
-          <label style="margin-bottom:4px;display:block">Hora en que se realizó</label>
+          <label for="cronModalHora" style="margin-bottom:4px;display:block">Hora en que se realizó</label>
           <input type="time" id="cronModalHora" value="${horaDefault}" style="margin:0">
         </div>
         ${conOperarios ? `
@@ -20128,7 +20186,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
           <div id="cronModalOperariosMsg" style="color:var(--danger);font-size:11px;margin-top:3px"></div>
         </div>` : ''}
         <div class="field" style="margin-bottom:14px">
-          <label style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
+          <label for="cronModalObservacion" style="margin-bottom:4px;display:block">Observaciones (opcional)</label>
           <textarea id="cronModalObservacion" rows="3" placeholder="Algo que valga la pena anotar sobre esta actividad..." style="width:100%;resize:vertical"></textarea>
         </div>
       </div>
@@ -20553,14 +20611,16 @@ function _htmlFilaActividadCronograma(actividadId, texto, turnoId, fecha, reg, f
   // checkbox como el botón "No realizado" quedan bloqueados — no hay forma
   // de desmarcar ni de cambiar lo ya reportado.
   const puedeMarcar = editable && !reg;
-  const botonNoRealizado = puedeMarcar ? `<button type="button" id="cronBtnNoReal_${actividadId}"
-      style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;border:1px solid var(--danger);color:var(--danger);background:var(--surface);cursor:pointer;margin-top:5px"
+  const botonNoRealizado = puedeMarcar ? `<button type="button" id="cronBtnNoReal_${actividadId}" class="cron-btn-no-realizado"
       onclick="abrirModalNoRealizadaCronograma(${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})">✗ No realizado</button>` : '';
+  // La casilla va dentro de una etiqueta de 44 px: en el celular se le
+  // atina con el dedo aunque se vea del mismo tamaño. Su nombre para el
+  // lector de pantalla es el texto de la actividad.
   return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border)">
-    <input type="checkbox" id="cronCheck_${actividadId}" ${marcado} ${puedeMarcar ? '' : 'disabled'} style="width:20px;height:20px;flex:none;margin-top:2px;cursor:${puedeMarcar?'pointer':'not-allowed'}"
-      onchange="onCambioActividadCronograma(this,${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})">
+    <label class="casilla-toque"><input type="checkbox" id="cronCheck_${actividadId}" aria-labelledby="cronTexto_${actividadId}" ${marcado} ${puedeMarcar ? '' : 'disabled'} style="cursor:${puedeMarcar?'pointer':'not-allowed'}"
+      onchange="onCambioActividadCronograma(this,${_jsArg(actividadId)},${_jsArg(turnoId)},${_jsArg(fecha)})"></label>
     <div style="flex:1">
-      <div style="font-size:13px;line-height:1.5">${esc(texto)}</div>
+      <div id="cronTexto_${actividadId}" style="font-size:13px;line-height:1.5">${esc(texto)}</div>
       <div id="cronMarca_${actividadId}" style="font-size:11px;color:var(--estado-ok-tx);font-weight:700;margin-top:3px">${marcaTxt}</div>
       ${botonNoRealizado}
       <div id="cronFotos_${actividadId}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHtml}${botonCamara}</div>
@@ -20648,7 +20708,7 @@ function _htmlCheckpointRealizadoControl(checkpointId, turnoId, fecha, reg, edit
       <span id="cronCerrada_${checkpointId}" style="display:${ventanaCerrada ? '' : 'none'};font-size:11px;font-weight:700;color:var(--estado-peligro-tx);text-transform:none">${_icono('reloj')} Ventana cerrada — ya no se puede marcar como realizado</span>
     </div>
     <div id="cronMotivoWrap_${checkpointId}" style="display:none;margin-top:8px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;text-transform:none">
-      <label style="display:block;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--danger)">¿Por qué no se realizó? *</label>
+      <label for="cronMotivo_${checkpointId}" style="display:block;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--danger)">¿Por qué no se realizó? *</label>
       <textarea id="cronMotivo_${checkpointId}" rows="2" style="width:100%;resize:vertical;font-size:13px" placeholder="Explica brevemente el motivo..."></textarea>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('cronMotivoWrap_${checkpointId}').style.display='none'">Cancelar</button>
@@ -21896,7 +21956,7 @@ function _htmlCamposEquiposEntregaTurno(existente) {
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
-        ${g.campos.map(c => `<div class="field"><label>${esc(c.label)}</label><input id="et_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}"></div>`).join('')}
+        ${g.campos.map(c => `<div class="field"><label for="et_${c.id}">${esc(c.label)}</label><input id="et_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}"></div>`).join('')}
       </div>
     </div>`).join('');
 }
@@ -21997,9 +22057,9 @@ function renderTablaEntregasTurno() {
       <td style="padding:7px 10px">${esc(e.EntregadoPor)}</td>
       <td style="padding:7px 10px">${esc(e.RecibidoPor)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verEntregaTurno(${_jsArg(e.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarEntregaTurnoPDF(${_jsArg(e.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarEntregaTurno(${_jsArg(e.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(e.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verEntregaTurno(${_jsArg(e.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(e.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarEntregaTurnoPDF(${_jsArg(e.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(e.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarEntregaTurno(${_jsArg(e.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -22692,9 +22752,9 @@ function renderTablaReportesCompresores() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteCompresor(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteCompresor(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteCompresor(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteCompresorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteCompresor(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -23292,9 +23352,9 @@ function renderTablaEntregasSala() {
       <td style="padding:7px 10px">${esc(r.RecibidoPor || '—')}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text2)">${esc(_esTextoConteo(estados))}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" title="Ver" onclick="verEntregaSala(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" title="PDF" onclick="exportarEntregaSalaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" title="Eliminar" onclick="eliminarEntregaSala(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" class="btn btn-ghost btn-sm" title="Ver" onclick="verEntregaSala(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" class="btn btn-ghost btn-sm" title="PDF" onclick="exportarEntregaSalaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" class="btn btn-ghost btn-sm solo-admin" title="Eliminar" onclick="eliminarEntregaSala(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -23418,7 +23478,7 @@ function _htmlCamposFijosReporteSecador(existente) {
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)}${c.id === 'pa' ? '' : ' *'}</label>
+          <label for="rs_${c.id}">${esc(c.label)}${c.id === 'pa' ? '' : ' *'}</label>
           <input id="rs_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
           ${c.hint ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
         </div>`).join('')}
@@ -23440,7 +23500,7 @@ function _htmlCamposReporteSecadorFriulair(existente) {
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)} *</label>
+          <label for="rs_${c.id}">${esc(c.label)} *</label>
           <input id="rs_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
         </div>`).join('')}
       </div>
@@ -23527,9 +23587,9 @@ function renderTablaReportesSecadores() {
       <td style="padding:7px 10px">${esc(r.Secador)}</td>
       <td style="padding:7px 10px">${esc(r.Tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteSecador(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteSecadorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteSecador(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteSecador(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteSecadorPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteSecador(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -23752,7 +23812,7 @@ function _htmlCamposReporteDrycooler(existente) {
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)}</label>
+          <label for="rd_${c.id}">${esc(c.label)}</label>
           <input id="rd_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
           ${c.hint ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
         </div>`).join('')}
@@ -23830,9 +23890,9 @@ function renderTablaReportesDrycoolers() {
       <td style="padding:7px 10px">${esc(r.Drycooler)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -24010,7 +24070,7 @@ function _htmlCamposReporteDecorado(existente) {
       <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">${esc(g.nombre)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${g.campos.map(c => `<div class="field">
-          <label>${esc(c.label)}</label>
+          <label for="rdec_${c.id}">${esc(c.label)}</label>
           <input id="rdec_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
           ${c.hint ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(c.hint)}</div>` : ''}
         </div>`).join('')}
@@ -24109,9 +24169,9 @@ function renderTablaReportesDecorado() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteDecorado(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDecorado(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteDecorado(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteDecoradoPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteDecorado(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -24352,7 +24412,7 @@ async function inicializarReporteEmergencia() {
   document.getElementById('re_msg').textContent = '';
   _actualizarCamposMedicionesEmergencia();
   document.getElementById('re_camposSecador').innerHTML = REPORTE_EMERGENCIA_CAMPOS_SECADOR.map(c => `<div class="field">
-      <label>${esc(c.label)}</label>
+      <label for="re_${c.id}">${esc(c.label)}</label>
       <input id="re_${c.id}" placeholder="${esc(c.label)}">
     </div>`).join('');
   document.getElementById('re_laboresCompresor').innerHTML = _htmlLaboresDecorado('re-lab-comp', LABORES_EMERGENCIA_COMPRESOR, '');
@@ -24409,9 +24469,9 @@ function renderTablaReportesEmergencia() {
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteEmergencia(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteEmergenciaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteEmergencia(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteEmergencia(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteEmergenciaPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteEmergencia(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -24625,7 +24685,7 @@ function _htmlCamposReportePresionDrycooler(existente) {
   return `<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
       ${REPORTE_PRESION_DRYCOOLER_CAMPOS.map(c => `<div class="field">
-        <label>${esc(c.label)} *</label>
+        <label for="rpd_${c.id}">${esc(c.label)} *</label>
         <input id="rpd_${c.id}" placeholder="${esc(c.label)}" value="${esc(existente?.[c.col] || '')}">
       </div>`).join('')}
     </div>
@@ -24688,9 +24748,9 @@ function renderTablaReportesPresionDrycooler() {
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
       <td style="padding:7px 10px">${esc(r.Tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReportePresionDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReportePresionDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReportePresionDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReportePresionDrycooler(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReportePresionDrycoolerPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReportePresionDrycooler(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -24900,9 +24960,9 @@ function renderTablaReportesMaquinasFormacion() {
       <td style="padding:7px 10px">${esc(r.ReferenciaBotella)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verReporteMaquinasFormacion(${_jsArg(r.Codigo)})">${iconoVer}</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportarReporteMaquinasFormacionPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
-        <button class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteMaquinasFormacion(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
+        <button aria-label="Ver ${esc(r.Codigo)}" title="Ver" class="btn btn-ghost btn-sm" onclick="verReporteMaquinasFormacion(${_jsArg(r.Codigo)})">${iconoVer}</button>
+        <button aria-label="PDF de ${esc(r.Codigo)}" title="Descargar PDF" class="btn btn-ghost btn-sm" onclick="exportarReporteMaquinasFormacionPDF(${_jsArg(r.Codigo)})">${iconoPdf}</button>
+        <button aria-label="Eliminar ${esc(r.Codigo)}" title="Eliminar" class="btn btn-ghost btn-sm solo-admin" onclick="eliminarReporteMaquinasFormacion(${_jsArg(r.Codigo)})" style="color:var(--danger)">${iconoEliminar}</button>
       </td>
     </tr>`;
   });
@@ -25851,7 +25911,7 @@ async function hvdSeleccionarEquipo(equipo) {
         <div id="hvdFotoMsg" style="font-size:12px;margin-top:4px"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label>${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"${soloLectura ? ' readonly' : ''}></div>`).join('')}
+        ${_camposSpecsParaEquipo(equipo).map(c => `<div class="field"${c.full ? ' style="grid-column:1/-1"' : ''}><label for="${c.id}">${esc(c.label)}</label><input id="${c.id}"${c.type ? ` type="${c.type}"` : ''} value="${esc(specs[c.col] || '')}"${soloLectura ? ' readonly' : ''}></div>`).join('')}
       </div>
     </div>
     ${hvdModoActual === 'seguridad' ? '' : `
@@ -27775,14 +27835,14 @@ function _empHtmlFilaBodega(p) {
   p = p || {};
   const td = 'style="padding:4px 6px"';
   return `<tr>
-    <td ${td}><input data-campo="codigo" value="${esc(p.codigo || '')}" placeholder="FA-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></td>
-    <td ${td}><input data-campo="nombre" value="${esc(p.nombre || '')}" placeholder="Nombre del producto"></td>
-    <td ${td}><input data-campo="cantidad" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.cantidad || '')}"></td>
-    <td ${td}><input data-campo="unidad" value="${esc(p.unidad || 'Unidades')}"></td>
-    <td ${td}><input data-campo="precio" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.precio || '')}" placeholder="Opcional"></td>
-    <td ${td}><input data-campo="ubicacion" value="${esc(p.ubicacion || '')}" placeholder="Opcional"></td>
-    <td ${td}><select data-campo="tipo">${EMPALME_TIPOS_PRODUCTO.map(t => `<option${t === (p.tipo || 'Repuestos') ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
-    <td style="padding:4px 6px;text-align:center"><button class="btn-del-row" title="Quitar fila" onclick="this.closest('tr').remove()">✕</button></td>
+    <td ${td}><input data-campo="codigo" aria-label="Código" value="${esc(p.codigo || '')}" placeholder="FA-001" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></td>
+    <td ${td}><input data-campo="nombre" aria-label="Nombre del producto" value="${esc(p.nombre || '')}" placeholder="Nombre del producto"></td>
+    <td ${td}><input data-campo="cantidad" aria-label="Cantidad" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.cantidad || '')}"></td>
+    <td ${td}><input data-campo="unidad" aria-label="Unidad" value="${esc(p.unidad || 'Unidades')}"></td>
+    <td ${td}><input data-campo="precio" aria-label="Precio" type="number" min="0" step="any" inputmode="decimal" value="${esc(p.precio || '')}" placeholder="Opcional"></td>
+    <td ${td}><input data-campo="ubicacion" aria-label="Ubicación" value="${esc(p.ubicacion || '')}" placeholder="Opcional"></td>
+    <td ${td}><select data-campo="tipo" aria-label="Tipo de producto">${EMPALME_TIPOS_PRODUCTO.map(t => `<option${t === (p.tipo || 'Repuestos') ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+    <td style="padding:4px 6px;text-align:center"><button class="btn-del-row" title="Quitar fila" aria-label="Quitar fila" onclick="this.closest('tr').remove()">✕</button></td>
   </tr>`;
 }
 
