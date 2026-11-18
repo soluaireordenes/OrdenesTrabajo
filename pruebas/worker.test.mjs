@@ -105,7 +105,9 @@ const pedirPase = async (s, hoja = SEDE) => {
   return (paseDe[s] = (await x.json()).paseSede);
 };
 await pedirPase(op.session);
-check('/ping responde', (await req('/ping')).status === 200);
+const ping = await req('/ping');
+const pingDatos = await ping.json();
+check('/ping responde con la versión del proxy', ping.status === 200 && pingDatos.ok === true && /^\d{4}-\d{2}-\d{2}$/.test(pingDatos.version || ''), pingDatos);
 const diag = await req('/diag?doc=111&pin=1111');
 check('/diag eliminado (404)', diag.status === 404);
 check('Sin sesión → 401 en Sheets', (await req('/sheets/v4/spreadsheets/X/values/A1')).status === 401);

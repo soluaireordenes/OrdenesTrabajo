@@ -82,6 +82,11 @@
 
 const GOOGLE_SHEETS_BASE = 'https://sheets.googleapis.com';
 
+// Versión del proxy (fecha del cambio). /ping la devuelve: así se sabe qué
+// código está publicado en Cloudflare sin abrirlo, y el monitor lo vigila.
+// Súbela cada vez que cambie este archivo.
+const VERSION_PROXY = '2026-11-18';
+
 // Hojas de cálculo que SOLO un admin puede abrir (ni leer ni escribir).
 // Proyectos: contratos, valores por alcance, calendario de pagos y montos.
 const HOJAS_SOLO_ADMIN = [
@@ -127,7 +132,7 @@ export default {
 
     try {
       if (url.pathname === '/ping') {
-        return _cors(_json({ ok: true }), entorno, origen);
+        return _cors(_json({ ok: true, version: VERSION_PROXY }), entorno, origen);
       }
 
       if (url.pathname === '/login' && peticion.method === 'POST') {
