@@ -4021,6 +4021,35 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Auditoría (fase 1): el HTML se revalida (304) en vez de bajarse entero
+    // en cada apertura, la pantalla de entrada dice que el PIN es de 6 a 8
+    // números y la app no se deja encuadrar por otro sitio (clickjacking).
+    const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+    check('Auditoría: el service worker revalida el HTML (no-cache), no lo baja entero cada vez (reload)',
+      /fetch\(event\.request\.url, \{ cache: 'no-cache'/.test(sw) && !/cache: 'reload'/.test(sw));
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const pin = await p.evaluate(() => document.getElementById('loginPin').placeholder);
+    check('Auditoría: el PIN de la entrada dice "6 a 8 números"', pin === '6 a 8 números', pin);
+    // En un marco de otro origen (la página en blanco de Playwright no es el
+    // sitio de la app) la app se esconde o se abre en su propia ventana.
+    const marco = await ctx.newPage();
+    await marco.setContent(`<iframe id="m" src="${BASE}" style="width:800px;height:600px"></iframe>`);
+    await marco.waitForTimeout(1500);
+    const enMarco = await marco.evaluate(() => {
+      const f = document.getElementById('m');
+      return f ? 'sigue en el marco' : 'salió del marco';
+    }).catch(() => 'salió del marco');
+    const frame = marco.frames().find(f => f !== marco.mainFrame());
+    const escondida = frame ? await frame.evaluate(() => document.documentElement.style.display === 'none').catch(() => null) : null;
+    check('Auditoría: dentro de un marco de otro sitio la app no se muestra (o se abre en su propia ventana)',
+      escondida === true || enMarco === 'salió del marco' || marco.url().startsWith(BASE.replace('/index.html', '')), { enMarco, escondida, url: marco.url() });
+    // En su propia ventana se ve normal.
+    const visible = await p.evaluate(() => document.documentElement.style.display !== 'none');
+    check('Auditoría: fuera de un marco la app se ve normal', visible);
+    check('Auditoría (fase 1): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
     // "¡Toca ya!" que no se quitaba: CA2 con 13.482 h mostraba el informe
     // anual en 8.000 h porque su estado quedó atrás aunque la orden de esa
     // marca ya existía; CA3, porque su hora base (10.000) ya cubría la marca.

@@ -13,6 +13,20 @@
 <!-- Aplica el tema guardado ANTES de pintar, para que no haya destello claro
      al abrir en modo oscuro. Por defecto queda en claro (el modo oscuro es
      opcional y se activa desde el botón del encabezado). -->
+<script>
+// Si otro sitio mete la app en un marco (iframe) para superponerle cosas y
+// hacer que se toque sin querer (clickjacking), la app no se muestra y se
+// abre sola en su propia ventana. GitHub Pages no deja enviar la cabecera
+// X-Frame-Options y frame-ancestors no sirve en una etiqueta meta.
+(function () {
+  if (window.top === window.self) return;
+  var mismoSitio = false;
+  try { mismoSitio = window.top.location.origin === window.location.origin; } catch (e) {}
+  if (mismoSitio) return;
+  document.documentElement.style.display = 'none';
+  try { window.top.location = window.location.href; } catch (e) {}
+})();
+</script>
 <script>try{var _t=localStorage.getItem('tema');if(_t==='dark'||_t==='light')document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 
 <!-- ══ PWA: instalable y con soporte sin conexión ══ -->
@@ -10310,11 +10324,6 @@ function sigDataUrl(canvasId) {
 }
 
 /* ══════════════════════════════════════════════
-   SHAREPOINT — GRAPH API (wrapper)
-   En producción reemplazar con llamadas reales
-   a Microsoft Graph usando MSAL.
-══════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════
    GOOGLE SHEETS API — GUARDAR ÓRDENES
 ══════════════════════════════════════════════ */
 // Columnas por hoja
@@ -13806,7 +13815,7 @@ function mostrarLoginOverlay() {
       </div>
       <div style="text-align:left;margin-bottom:8px">
         <label for="loginPin" style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">PIN</label>
-        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="••••" style="background:var(--surface);color:var(--text);width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;box-sizing:border-box">
+        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="6 a 8 números" style="background:var(--surface);color:var(--text);width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;box-sizing:border-box">
       </div>
       <div id="loginError" style="min-height:18px;font-size:13px;color:var(--danger);margin-bottom:6px;text-align:left"></div>
       <button id="loginBtn" onclick="loginConDocumentoPinClick()" class="btn btn-primary btn-block">Ingresar</button>
@@ -18912,10 +18921,6 @@ function _codigoConsecutivoUnico(prefijo, filas, digitos) {
     codigo = numero + '-' + Array.from(azar).map(b => ALFABETO[b % 36]).join('');
   } while ((filas || []).some(f => f && f.Codigo === codigo));
   return codigo;
-}
-
-function _siguienteCodigo(prefijo) {
-  return _codigoConsecutivoUnico(prefijo, allNovedades, 2);
 }
 
 /** Se llama cada vez que se entra a la pestaña Novedades */

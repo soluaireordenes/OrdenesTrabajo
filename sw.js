@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v176';
+const CACHE_VERSION = 'v177';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -98,13 +98,15 @@ self.addEventListener('fetch', (event) => {
       // La red SIEMPRE se pide y SIEMPRE actualiza el caché al responder,
       // así la próxima vez que toque usar el caché ya está al día.
       //
-      // El HTML se pide con cache:'reload' para SALTARSE la caché HTTP del
-      // navegador. Sin eso, "ir a la red" era mentira a medias: GitHub
-      // Pages sirve el HTML con Cache-Control: max-age=600, así que el
-      // navegador podía devolver una copia de hasta 10 MINUTOS sin
-      // consultar al servidor — y el sistema se veía viejo un buen rato
-      // después de publicar una actualización. Los iconos y el manifest
-      // sí pueden seguir usando la caché normal: casi nunca cambian.
+      // El HTML se pide con cache:'no-cache': el navegador SIEMPRE le
+      // pregunta al servidor, pero con la etiqueta (ETag) de la copia que
+      // tiene. Si no cambió, GitHub Pages responde 304 (unos cientos de
+      // bytes) y se usa esa copia; si cambió, llega la versión nueva.
+      // Antes se pedía con cache:'reload', que también evitaba la copia de
+      // hasta 10 minutos (GitHub sirve el HTML con max-age=600), pero
+      // bajaba los ~512 KB en cada apertura aunque no hubiera cambios: en
+      // 4G lento la segunda visita tardaba casi lo mismo que la primera.
+      // Los iconos y el manifest siguen con la caché normal.
       const esDocumento = event.request.mode === 'navigate'
         || event.request.destination === 'document'
         || url.endsWith('/') || url.endsWith('/index.html');
@@ -120,7 +122,7 @@ self.addEventListener('fetch', (event) => {
       let respuestaFallida = null;
 
       const peticionRed = (esDocumento
-          ? fetch(event.request.url, { cache: 'reload', credentials: 'same-origin' })
+          ? fetch(event.request.url, { cache: 'no-cache', credentials: 'same-origin' })
           : fetch(event.request))
         .then((respuesta) => {
           if (!respuesta.ok) { respuestaFallida = respuesta; return null; }
