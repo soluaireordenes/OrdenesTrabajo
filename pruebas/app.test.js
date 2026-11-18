@@ -3959,6 +3959,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await elegir('rmf_cavidades', '2'); document.getElementById('rmf_velocidad').value = '60';
       await guardarReporteMaquinasFormacion(); await espera(300);
       out.formacion.msg = document.getElementById('rmf_msg').textContent;
+      // Dashboard: el cumplimiento de sus reportes técnicos, por día (no por franja).
+      cronMostrarSubTab('dashboard');
+      for (let i = 0; i < 50 && !/Cumplimiento/.test(document.getElementById('rdec_cumpResumen').textContent); i++) await espera(100);
+      const visible = el => !!el && getComputedStyle(el).display !== 'none';
+      out.dashboard = { bloque: visible(document.getElementById('cronDashReportesWrap')),
+        tarjetas: Object.keys(CUMPLIMIENTO_REPORTES_TECNICOS).filter(k => visible(document.getElementById(CUMPLIMIENTO_REPORTES_TECNICOS[k].resumen).closest('.card'))).join(','),
+        secadores: document.getElementById('rs_cumpResumen').textContent.replace(/\s+/g, ' ').trim(),
+        decorado: document.getElementById('rdec_cumpResumen').textContent.replace(/\s+/g, ' ').trim() };
       return out;
     });
     const fila = (hoja, col, v) => { const f = fake.hoja(id, hoja); return (f.find(x => x[f[0].indexOf(col)] === v) || []).reduce((o, x, i) => (o[f[0][i]] = x, o), {}); };
@@ -3982,6 +3990,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Perú: Máquinas de Formación sin lista de máquinas (se escriben la máquina y la sección) y guarda',
       r.formacion.tipo === 'INPUT' && r.formacion.seccion === 'INPUT' && /IS 3 guardado/.test(r.formacion.msg)
       && fila('ReporteMaquinasFormacion', 'Maquina', 'IS 3').Seccion === '4', r.formacion);
+    // Últimos 7 días por defecto: SCB3 y CD1 reportados hoy → 1 de 7.
+    check('Perú: el Dashboard de Reportes muestra el cumplimiento de sus 6 reportes técnicos, por día',
+      r.dashboard.bloque && r.dashboard.tarjetas === 'compresores,secadores,drycoolers,decorado,emergencia,presiondrycooler'
+      && /Cumplimiento: 14% \(1 de 7 reportes · 1 equipo × 7 días\)/.test(r.dashboard.secadores)
+      && /Cumplimiento: 14% \(1 de 7 reportes · 1 equipo × 7 días\)/.test(r.dashboard.decorado), r.dashboard);
     check('Perú (reportes técnicos): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
