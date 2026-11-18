@@ -13130,6 +13130,13 @@ async function _cargarFotoEnImg(driveFileId, imgEl, aEl) {
     const motivo = _motivoFotoFallida(driveFileId);
     imgEl.alt = 'No se pudo cargar' + (motivo ? ' — ' + motivo : '');
     imgEl.title = motivo;
+    // Al tocarla se abre el archivo en Drive: quien tenga acceso la ve ahí, y
+    // en "Detalles" se sabe en qué carpeta y de qué cuenta quedó (para
+    // compartirla con la cuenta de servicio del proxy).
+    if (aEl) {
+      aEl.href = 'https://drive.google.com/file/d/' + encodeURIComponent(driveFileId) + '/view';
+      aEl.title = 'Abrir en Drive' + (motivo ? ' — ' + motivo : '');
+    }
   }
 }
 

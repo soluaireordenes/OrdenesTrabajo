@@ -4009,13 +4009,14 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     });
     const r = await p.evaluate(async () => {
       googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec';
-      const img = document.createElement('img');
-      await _cargarFotoEnImg('FOTOQUENOCARGA1', img);
-      return { alt: img.alt, title: img.title, html: _htmlMotivoFotoFallida('FOTOQUENOCARGA1') };
+      const img = document.createElement('img'), a = document.createElement('a'); a.href = '#';
+      await _cargarFotoEnImg('FOTOQUENOCARGA1', img, a);
+      return { alt: img.alt, title: img.title, html: _htmlMotivoFotoFallida('FOTOQUENOCARGA1'), enlace: a.href };
     });
-    check('Fotos: la que no carga muestra el motivo del script y del proxy',
+    check('Fotos: la que no carga muestra el motivo del script y del proxy, y al tocarla se abre en Drive',
       /^No se pudo cargar — Script de fotos: Esa foto no está en la carpeta de fotos de este script \(CARPETA_ID\)/.test(r.alt)
-      && /Proxy: respondió 404 \(Drive respondió 404\)/.test(r.alt) && r.title === r.alt.replace('No se pudo cargar — ', '') && /CARPETA_ID/.test(r.html), r);
+      && /Proxy: respondió 404 \(Drive respondió 404\)/.test(r.alt) && r.title === r.alt.replace('No se pudo cargar — ', '') && /CARPETA_ID/.test(r.html)
+      && r.enlace === 'https://drive.google.com/file/d/FOTOQUENOCARGA1/view', r);
     check('Fotos (motivo): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
