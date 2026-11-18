@@ -3999,6 +3999,27 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Una foto que no carga dice por qué (lo que respondieron el proxy y el
+    // script de fotos), en vez de un "No se pudo cargar" sin pista: en el
+    // celular no hay consola donde mirarlo.
+    const { ctx, p, errs } = await nuevaPagina(b, {
+      '**/foto?id=**': r => r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ ok: false, mensaje: 'Drive respondió 404' }) }),
+      'https://script.google.com/macros/s/fake-apps/**': r => r.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ ok: false, mensaje: 'Esa foto no está en la carpeta de fotos de este script (CARPETA_ID) ni compartida por enlace.' }) }),
+    });
+    const r = await p.evaluate(async () => {
+      googleAccessToken = 'SESS.x'; window._fotosUrlSede = () => 'https://script.google.com/macros/s/fake-apps/exec';
+      const img = document.createElement('img');
+      await _cargarFotoEnImg('FOTOQUENOCARGA1', img);
+      return { alt: img.alt, title: img.title, html: _htmlMotivoFotoFallida('FOTOQUENOCARGA1') };
+    });
+    check('Fotos: la que no carga muestra el motivo del script y del proxy',
+      /^No se pudo cargar — Script de fotos: Esa foto no está en la carpeta de fotos de este script \(CARPETA_ID\)/.test(r.alt)
+      && /Proxy: respondió 404 \(Drive respondió 404\)/.test(r.alt) && r.title === r.alt.replace('No se pudo cargar — ', '') && /CARPETA_ID/.test(r.html), r);
+    check('Fotos (motivo): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
     // "¡Toca ya!" que no se quitaba: CA2 con 13.482 h mostraba el informe
     // anual en 8.000 h porque su estado quedó atrás aunque la orden de esa
     // marca ya existía; CA3, porque su hora base (10.000) ya cubría la marca.

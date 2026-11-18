@@ -135,9 +135,18 @@ function _estaEnCarpetaDeFotos(archivo) {
  *  este script: así no sale nada privado de la cuenta (un contrato, una
  *  hoja de vida en PDF) que no pudiera ver ya quien tuviera el enlace. */
 function _esEntregable(archivo) {
+  return !_motivoNoEntregable(archivo);
+}
+
+/** Por qué no se entrega un archivo, o '' si sí se entrega. Son dos casos
+ *  distintos y la app muestra el motivo donde iría la foto: antes los dos
+ *  decían "no es una foto ni un PDF", y una foto fuera de la carpeta parecía
+ *  un archivo dañado. */
+function _motivoNoEntregable(archivo) {
   var tipo = String(archivo.getMimeType() || '').toLowerCase();
-  if (!((tipo.indexOf('image/') === 0 && tipo.indexOf('svg') < 0) || tipo === 'application/pdf')) return false;
-  return _compartidoPorEnlace(archivo) || _estaEnCarpetaDeFotos(archivo);
+  if (!((tipo.indexOf('image/') === 0 && tipo.indexOf('svg') < 0) || tipo === 'application/pdf')) return 'Ese archivo no es una foto ni un PDF.';
+  if (_compartidoPorEnlace(archivo) || _estaEnCarpetaDeFotos(archivo)) return '';
+  return 'Esa foto no está en la carpeta de fotos de este script (CARPETA_ID) ni compartida por enlace.';
 }
 
 function _compartidoPorEnlace(archivo) {
@@ -180,7 +189,8 @@ function doGet(e) {
     var id = p.id;
     if (!id) return _json({ ok: false, mensaje: 'Falta el parámetro id.' });
     var archivo = DriveApp.getFileById(id);
-    if (!_esEntregable(archivo)) return _json({ ok: false, mensaje: 'Ese archivo no es una foto ni un PDF.' });
+    var motivo = _motivoNoEntregable(archivo);
+    if (motivo) return _json({ ok: false, mensaje: motivo });
     var blob = _blobFoto(archivo, quiereThumb);
     return _json({
       ok: true,
