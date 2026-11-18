@@ -882,9 +882,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     for (const ev of ['Page.frameRequestedNavigation', 'Page.frameStartedLoading', 'Page.frameNavigated', 'Page.navigatedWithinDocument', 'Runtime.executionContextDestroyed', 'Runtime.executionContextsCleared', 'Inspector.targetCrashed', 'Page.javascriptDialogOpening']) {
       cdp.on(ev, d => navegaciones.push(new Date().toISOString().slice(11, 23) + ' ' + ev + ' ' + JSON.stringify(d).slice(0, 220)));
     }
-    let r;
-    try {
-    r = await p.evaluate(async () => {
+    // P-01: esta prueba fallaba de vez en cuando solo en GitHub ("Execution
+    // context was destroyed"): el contexto de la página se perdía justo al
+    // devolver el resultado, sin una navegación registrada. Ahora se espera a
+    // que la página quede quieta (service worker activo y red en calma) antes
+    // de empezar y, si aun así se pierde el contexto, se recarga y se repite
+    // una vez, dejando el diagnóstico en el registro.
+    const pasos = async () => {
       const out = {};
       const paso = n => { try { sessionStorage.setItem('__paso', n); } catch (_) {} };
       paso('1: Login: fondo claro de la app con la marca de agua subiendo');
@@ -1097,13 +1101,26 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.cambiarSedeDespliega = !/Cambiar de sede/.test(menu()) && _sidebarClavesVisibles('operaciones').length === Object.keys(OPERACIONES).length;
       paso('25: devolviendo el resultado');
       return out;
-    });
-    } catch (e) {
-      await p.waitForLoadState('load').catch(() => {});
-      const ultimo = await p.evaluate(() => sessionStorage.getItem('__paso')).catch(x => 'no se pudo leer: ' + x.message);
-      console.log('DIAGNÓSTICO — último paso antes de navegar:', ultimo);
-      console.log('DIAGNÓSTICO — navegaciones y avisos:', JSON.stringify(navegaciones, null, 1));
-      throw e;
+    };
+    const pageQuieta = async () => {
+      await p.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+      await p.evaluate(() => Promise.race([navigator.serviceWorker ? navigator.serviceWorker.ready.then(() => true) : true, new Promise(x => setTimeout(() => x(false), 5000))])).catch(() => {});
+      await p.waitForTimeout(300);
+    };
+    let r;
+    for (let intento = 1; ; intento++) {
+      try {
+        await pageQuieta();
+        r = await p.evaluate(pasos);
+        break;
+      } catch (e) {
+        await p.waitForLoadState('load').catch(() => {});
+        const ultimo = await p.evaluate(() => sessionStorage.getItem('__paso')).catch(x => 'no se pudo leer: ' + x.message);
+        console.log('DIAGNÓSTICO — último paso antes de navegar:', ultimo);
+        console.log('DIAGNÓSTICO — navegaciones y avisos:', JSON.stringify(navegaciones, null, 1));
+        if (intento === 1 && /Execution context was destroyed/.test(e.message)) { console.log('Bajos: se perdió el contexto de la página; se recarga y se repite una vez.'); await p.reload({ waitUntil: 'load' }); continue; }
+        throw e;
+      }
     }
     check('B17: los números solo aceptan dígitos con punto (y el menos)', r.numeros);
     check('B16: "1.500" escrito en Proyectos son mil quinientos', JSON.stringify(r.dinero) === '[1500,25000,1500000,15063161.664,1.5]', r.dinero);
