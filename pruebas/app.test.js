@@ -3898,7 +3898,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
   {
     // Perú: los reportes técnicos de Zipaquirá (Secadores, Drycoolers,
     // Decorado, Emergencia, Presión Drycooler y Máquinas de Formación) con
-    // sus equipos de cada grupo, a cualquier hora (sin franjas), con sus
+    // sus equipos de cada grupo, a cualquier hora (sin franjas), con sus 9
     // técnicos (no los de Zipaquirá) y la máquina de formación escrita.
     const fake = sheetsEnMemoria();
     const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
@@ -3915,6 +3915,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.tecnicos = [...document.querySelectorAll('#cronGrupoTecnicos .inv-subtab')].filter(x => getComputedStyle(x).display !== 'none').map(x => x.dataset.crontab).join(',');
       const elegir = async (el, v) => { el = document.getElementById(el); el.value = v; el.dispatchEvent(new Event('change')); await espera(30); };
       const opciones = id => [...document.querySelectorAll(`#${id} option`)].filter(o => o.value).map(o => o.value).join(',');
+      cronMostrarSubTab('compresores'); await espera(400);
+      out.compresoresTecnicos = opciones('rc_tecnico');
       // Secadores: los 14 de Perú en sus 4 grupos, con las variables del panel refrigerado.
       cronMostrarSubTab('secadores'); await espera(400);
       out.secadores = { grupos: [...document.querySelectorAll('#rs_secador optgroup')].map(g => g.label).join(' | '), cuantos: opciones('rs_secador').split(',').length,
@@ -3965,15 +3967,16 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const horas = fake.hoja(id, 'HorasEquipos');
     const horasDe = e => (horas.find(f => f[0] === e) || [])[1];
     check('Perú: Reportes técnicos con los 7 formularios (Compresores, Formación, Secadores, Drycoolers, Decorado, Emergencia y Presión Drycooler)',
-      r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler', r.tecnicos);
-    check('Perú: Secadores con sus 14 secadores por grupo, sin franja ni técnicos de Zipaquirá, con las variables del panel refrigerado; guarda y lleva las horas al Plan',
+      r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler'
+      && r.compresoresTecnicos === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras', { pestanas: r.tecnicos, compresores: r.compresoresTecnicos });
+    check('Perú: Secadores con sus 14 secadores por grupo, sin franja, con sus 9 técnicos (no los de Zipaquirá), con las variables del panel refrigerado; guarda y lleva las horas al Plan',
       r.secadores.grupos === 'Secadores de Alta | Secadores de Baja | Secadores de Emergencia | Secadores de Decorado' && r.secadores.cuantos === 14
-      && r.secadores.primera === 'SCA1 — Fusheng FR1200WP' && r.secadores.tecnicos === 'Otras' && r.secadores.horaOculta && r.secadores.fechaEditable
+      && r.secadores.primera === 'SCA1 — Fusheng FR1200WP' && r.secadores.tecnicos === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras' && r.secadores.horaOculta && r.secadores.fechaEditable
       && r.secadores.refrigerado && /guardado/.test(r.secadores.msg) && sec.Tecnico === 'Luis Técnico' && sec.Hora === '' && sec.FHrS === '15200'
-      && horasDe('SCB3') === '15200' && r.secadores.tecnicoEnLista === 'Luis Técnico,Otras' && /\d/.test(r.secadores.horaTabla || ''),
+      && horasDe('SCB3') === '15200' && r.secadores.tecnicoEnLista === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Luis Técnico,Ricardo Porras,Richard Irrazabal,Otras' && /\d/.test(r.secadores.horaTabla || ''),
       { secadores: r.secadores, fila: sec, horas: horasDe('SCB3') });
     check('Perú: Drycoolers (D1–D4), Decorado (CD1 y CD2), Emergencia (CE1 y CE2) y Presión Drycooler con sus equipos y técnicos; Decorado guarda y lleva las horas',
-      r.drycoolers === 'D1,D2,D3,D4 | Otras' && r.decorado === 'CD1,CD2 | CD1 — FS Curtis NxV55A, 55 kW' && r.emergencia === 'CE1,CE2' && r.presion === 'Otras'
+      r.drycoolers === 'D1,D2,D3,D4 | Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras' && r.decorado === 'CD1,CD2 | CD1 — FS Curtis NxV55A, 55 kW' && r.emergencia === 'CE1,CE2' && r.presion === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras'
       && /guardado/.test(r.decoradoMsg) && dec.TecnicoOtro === 'Luis Técnico' && dec.Hora === '' && horasDe('CD1') === '5300',
       { drycoolers: r.drycoolers, decorado: r.decorado, emergencia: r.emergencia, presion: r.presion, msg: r.decoradoMsg, fila: dec, horas: horasDe('CD1') });
     check('Perú: Máquinas de Formación sin lista de máquinas (se escriben la máquina y la sección) y guarda',
