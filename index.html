@@ -3228,7 +3228,11 @@ body.rol-operario .btn-principal-operario {
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
             <div class="field">
               <label>Técnico que realiza el reporte *</label>
-              <select id="rs_tecnico"><option value="">Seleccionar...</option></select>
+              <select id="rs_tecnico" onchange="document.getElementById('rs_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field" id="rs_tecnicoOtroWrap" style="display:none">
+              <label>Nombre del técnico</label>
+              <input id="rs_tecnicoOtro" placeholder="Nombre completo">
             </div>
             <div class="field"><label>Fecha *</label><input type="date" id="rs_fecha" readonly title="La fecha la pone la hora del reporte que elijas"></div>
             <div class="field">
@@ -3559,7 +3563,7 @@ body.rol-operario .btn-principal-operario {
           <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
             <div class="field">
               <label>Máquina *</label>
-              <select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()"><option value="">Seleccionar...</option></select>
+              <div id="rmf_maquinaWrap"><select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()"><option value="">Seleccionar...</option></select></div>
             </div>
             <div class="field">
               <label>Referencia de botella *</label>
@@ -3615,7 +3619,11 @@ body.rol-operario .btn-principal-operario {
             <div class="field"><label>Fecha *</label><input type="date" id="rpd_fecha"></div>
             <div class="field">
               <label>Quien realiza el reporte *</label>
-              <select id="rpd_tecnico"><option value="">Seleccionar...</option></select>
+              <select id="rpd_tecnico" onchange="document.getElementById('rpd_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
+            </div>
+            <div class="field" id="rpd_tecnicoOtroWrap" style="display:none">
+              <label>Nombre del técnico</label>
+              <input id="rpd_tecnicoOtro" placeholder="Nombre completo">
             </div>
           </div>
           <div id="rpd_camposMediciones"></div>
@@ -11511,10 +11519,101 @@ const REPORTES_TECNICOS_POR_SEDE = {
   // cualquier hora y con las mediciones opcionales.
   // importarSharePoint: el admin puede agregar las lecturas de la lista de
   // SharePoint que se usaba antes (ver rcImportarSharePoint).
-  peru: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru', importarSharePoint: true },
+  // Los demás reportes técnicos son los formularios de Zipaquirá, también a
+  // cualquier hora, con los equipos de Perú de cada grupo (gruposEquipos,
+  // de EQUIPOS_PERU). Sus secadores son todos refrigerados: llevan las
+  // variables del panel de los Friulair (secadoresRefrigerados). Máquinas
+  // de Formación va sin lista fija de máquinas: se escribe.
+  peru: { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'],
+    conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true, campos: 'peru', importarSharePoint: true,
+    gruposEquipos: {
+      secadores: ['Secadores de Alta', 'Secadores de Baja', 'Secadores de Emergencia', 'Secadores de Decorado'],
+      drycoolers: ['Drycoolers'], decorado: ['Compresores de Decorado'], emergencia: ['Compresores de Emergencia'],
+    },
+    secadoresRefrigerados: true },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
+}
+
+/** Los equipos de un reporte técnico (secadores, drycoolers, decorado,
+ *  emergencia), por grupo: [código, modelo]. Una sede con gruposEquipos
+ *  usa los de su lista de equipos; Zipaquirá, los de sus formularios. */
+function _gruposEquiposReporte(tipo) {
+  const grupos = _reportesTecnicosDe(operacionActual).gruposEquipos?.[tipo];
+  if (grupos) {
+    const equipos = EQUIPOS_POR_SEDE[operacionActual] || {};
+    return grupos.map(g => ({ grupo: g, equipos: (equipos[g] || []).map(i => Array.isArray(i) ? i : [i, '']) }));
+  }
+  const zipaquira = { secadores: SECADORES_LISTA_REPORTE, drycoolers: DRYCOOLERS_LISTA_REPORTE,
+    decorado: COMPRESORES_DECORADO_LISTA, emergencia: COMPRESORES_EMERGENCIA_LISTA }[tipo] || [];
+  return [{ grupo: '', equipos: zipaquira.map(e => [e, '']) }];
+}
+/** Las opciones del selector de equipo de un reporte técnico ("CD1 — FS
+ *  Curtis NxV55A"; con grupos si son varios). Se guarda el código. */
+function _opcionesEquiposReporte(tipo) {
+  const grupos = _gruposEquiposReporte(tipo);
+  const opcion = ([codigo, modelo]) => `<option value="${esc(codigo)}">${esc(modelo ? codigo + ' — ' + modelo : codigo)}</option>`;
+  return '<option value="">Seleccionar...</option>' + grupos.map(g => grupos.length > 1 && g.grupo
+    ? `<optgroup label="${esc(g.grupo)}">${g.equipos.map(opcion).join('')}</optgroup>`
+    : g.equipos.map(opcion).join('')).join('');
+}
+/** Técnicos para elegir en un reporte técnico: en Zipaquirá, la lista de su
+ *  formulario; en las demás sedes, los que ya hicieron ese reporte ahí (sin
+ *  nombres escritos en el código; uno nuevo entra por "Otras"). */
+function _llenarTecnicosReporte(prefijo, listaZipaquira, reportes, otrasEnZipaquira) {
+  const sel = document.getElementById(prefijo + '_tecnico');
+  if (!sel) return;
+  const elegido = sel.value;
+  const esZipaquira = operacionActual === 'zipaquira';
+  let nombres = listaZipaquira;
+  if (!esZipaquira) {
+    const vistos = new Map();
+    (reportes || []).forEach(r => {
+      const n = _normalizarNombreOperario(r.Tecnico === 'Otras' ? r.TecnicoOtro : r.Tecnico);
+      if (n && n !== 'Otras' && !vistos.has(n.toLowerCase())) vistos.set(n.toLowerCase(), n);
+    });
+    nombres = [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+  }
+  sel.innerHTML = '<option value="">Seleccionar...</option>' + nombres.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('')
+    + (!esZipaquira || otrasEnZipaquira ? '<option value="Otras">Otras</option>' : '');
+  sel.value = elegido;
+  if (sel.value !== elegido) sel.value = '';
+}
+/** El técnico de un formulario sin columna TecnicoOtro (Secadores, Presión
+ *  Drycooler): si eligió "Otras", el nombre que escribió. */
+function _tecnicoElegidoReporte(prefijo) {
+  const t = document.getElementById(prefijo + '_tecnico').value;
+  return t === 'Otras' ? _normalizarNombreOperario(document.getElementById(prefijo + '_tecnicoOtro')?.value) : t;
+}
+/** ¿Los reportes técnicos de la sede van por franja horaria? */
+function _conHoraReporte() { return !!_reportesTecnicosDe(operacionActual).conHora; }
+/** Sin franjas (Zipaquirá 2, Perú) no se pide la hora y la fecha se escoge,
+ *  hasta hoy; con franjas, la fecha la pone la hora elegida. */
+function _prepararHoraFechaReporte(prefijo) {
+  const conHora = _conHoraReporte();
+  const horaEl = document.getElementById(prefijo + '_hora');
+  if (horaEl) horaEl.closest('.field').style.display = conHora ? '' : 'none';
+  const fechaEl = document.getElementById(prefijo + '_fecha');
+  if (fechaEl) {
+    fechaEl.readOnly = conHora;
+    fechaEl.max = conHora ? '' : _isoLocal(new Date());
+    fechaEl.title = conHora ? 'La fecha la pone la hora del reporte que elijas' : '';
+  }
+}
+/** La fecha y la hora con que se guarda un reporte, o { error }: con
+ *  franjas, la ventana de la franja manda y la fecha es la de su día; sin
+ *  franjas, la fecha escogida (no futura) y sin hora. */
+function _horaFechaParaGuardar(prefijo, hora, fecha) {
+  if (_conHoraReporte()) {
+    const fuera = _motivoReporteFueraDeVentana(hora);
+    if (fuera) return { error: fuera };
+    const f = _fechaDeFranjaReporte(hora);
+    document.getElementById(prefijo + '_fecha').value = f;
+    return { fecha: f, hora };
+  }
+  if (fecha > _isoLocal(new Date())) return { error: 'La fecha del reporte no puede ser posterior a hoy.' };
+  return { fecha, hora: '' };
 }
 /** Los compresores del reporte de la sede, por grupo (sin grupo en
  *  Zipaquirá, donde el nombre ya dice si es de Alta o de Baja). */
@@ -11937,7 +12036,8 @@ const REPORTE_SECADORES_CAMPOS_GRAFICA = [
 
 /** true si el secador elegido usa el esquema Friulair (Friulair o Emergencia). */
 function esSecadorFriulair(secador) {
-  return (secador || '').includes('Friulair') || (secador || '').includes('Emergencia');
+  return (secador || '').includes('Friulair') || (secador || '').includes('Emergencia')
+    || !!_reportesTecnicosDe(operacionActual).secadoresRefrigerados;
 }
 
 // Reporte de seguimiento de drycoolers (Zipaquirá) — calcado del formulario
@@ -12237,6 +12337,9 @@ const REPORTE_MAQUINAS_FORMACION_COLS = [
   'RegistradoPor', 'FechaRegistro', 'Estado',
 ];
 const MAQUINAS_FORMACION = ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3'];
+// Las máquinas de cada sede. Una sede que no está aquí (Perú, por ahora)
+// escribe la máquina en el formulario.
+const MAQUINAS_FORMACION_POR_SEDE = { zipaquira: MAQUINAS_FORMACION };
 // Secciones de cada máquina: la lista del formulario va del 1 a este número.
 const SECCIONES_MAQUINAS_FORMACION = { E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 };
 const CAVIDADES_MAQUINAS_FORMACION = ['1', '2', '3'];
@@ -23229,12 +23332,14 @@ function _actualizarBloqueSecador() {
 }
 
 async function inicializarReporteSecadores() {
-  document.getElementById('rs_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_SECADORES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  document.getElementById('rs_tecnico').value = '';
+  _llenarTecnicosReporte('rs', TECNICOS_REPORTE_SECADORES, [], false);
+  document.getElementById('rs_tecnicoOtroWrap').style.display = 'none';
+  document.getElementById('rs_tecnicoOtro').value = '';
   document.getElementById('rs_hora').innerHTML = '<option value="">Seleccionar...</option>' +
     HORAS_REPORTE_SECADOR.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  document.getElementById('rs_secador').innerHTML = '<option value="">Seleccionar...</option>' +
-    SECADORES_LISTA_REPORTE.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  _prepararHoraFechaReporte('rs');
+  document.getElementById('rs_secador').innerHTML = _opcionesEquiposReporte('secadores');
   document.getElementById('rs_torreDerechaParametro').innerHTML = '<option value="">Seleccionar...</option>' +
     TORRE_DERECHA_PARAMETROS.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
 
@@ -23255,6 +23360,7 @@ async function inicializarReporteSecadores() {
   try {
     await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
     allReportesSecadores = await _cargarReportesTecnicos('rs', SH.reporteSecadores);
+    _llenarTecnicosReporte('rs', TECNICOS_REPORTE_SECADORES, allReportesSecadores, false);
     renderTablaReportesSecadores();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -23290,7 +23396,7 @@ function renderTablaReportesSecadores() {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(_horaReporteParaMostrar(r))}</td>
       <td style="padding:7px 10px">${esc(r.Secador)}</td>
       <td style="padding:7px 10px">${esc(r.Tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -23312,24 +23418,19 @@ function renderTablaReportesSecadores() {
 async function guardarReporteSecador() {
   const msg = document.getElementById('rs_msg');
   msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
-  const tecnico = document.getElementById('rs_tecnico').value;
+  const tecnico = _tecnicoElegidoReporte('rs');
   let fecha = document.getElementById('rs_fecha').value;
   const hora = document.getElementById('rs_hora').value;
   const secador = document.getElementById('rs_secador').value;
 
-  if (!tecnico || !fecha || !hora || !secador) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora y secador.';
+  if (!tecnico || !fecha || (_conHoraReporte() && !hora) || !secador) {
+    msg.textContent = `Completa todos los campos: técnico, fecha, ${_conHoraReporte() ? 'hora y ' : 'y '}secador.`;
     return;
   }
 
-  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
-  if (fueraDeVentana) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = fueraDeVentana;
-    return;
-  }
-  fecha = _fechaDeFranjaReporte(hora);
-  document.getElementById('rs_fecha').value = fecha;
+  const horaFecha = _horaFechaParaGuardar('rs', hora, fecha);
+  if (horaFecha.error) { msg.style.color = 'var(--danger)'; msg.textContent = horaFecha.error; return; }
+  fecha = horaFecha.fecha;
 
   const porColumna = {};
   const esFriulair = esSecadorFriulair(secador);
@@ -23394,7 +23495,7 @@ async function guardarReporteSecador() {
     const colsHoja = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
     const codigo = _siguienteCodigoReporteSecador();
     Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, Secador: secador,
+      Codigo: codigo, Fecha: fecha, Hora: horaFecha.hora, Tecnico: tecnico, Secador: secador,
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
       FechaRegistro: new Date().toISOString(), Estado: 'Activo',
     });
@@ -23537,13 +23638,12 @@ function _siguienteCodigoReporteDrycooler() {
 }
 
 async function inicializarReporteDrycoolers() {
-  document.getElementById('rd_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_DRYCOOLERS.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
-    '<option value="Otras">Otras</option>';
+  document.getElementById('rd_tecnico').value = '';
+  _llenarTecnicosReporte('rd', TECNICOS_REPORTE_DRYCOOLERS, [], true);
   document.getElementById('rd_hora').innerHTML = '<option value="">Seleccionar...</option>' +
     HORAS_REPORTE_DRYCOOLER.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  document.getElementById('rd_drycooler').innerHTML = '<option value="">Seleccionar...</option>' +
-    DRYCOOLERS_LISTA_REPORTE.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  _prepararHoraFechaReporte('rd');
+  document.getElementById('rd_drycooler').innerHTML = _opcionesEquiposReporte('drycoolers');
 
   document.getElementById('rd_fecha').value = _isoLocal(new Date());
   document.getElementById('rd_tecnicoOtroWrap').style.display = 'none';
@@ -23562,6 +23662,7 @@ async function inicializarReporteDrycoolers() {
   try {
     await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
     allReportesDrycoolers = await _cargarReportesTecnicos('rd', SH.reporteDrycoolers);
+    _llenarTecnicosReporte('rd', TECNICOS_REPORTE_DRYCOOLERS, allReportesDrycoolers, true);
     renderTablaReportesDrycoolers();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -23598,7 +23699,7 @@ function renderTablaReportesDrycoolers() {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(_horaReporteParaMostrar(r))}</td>
       <td style="padding:7px 10px">${esc(r.Drycooler)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -23628,19 +23729,14 @@ async function guardarReporteDrycooler() {
   const bombaRecirculacion = document.getElementById('rd_bombaRecirculacion').value;
   const observaciones = document.getElementById('rd_observaciones').value.trim();
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !drycooler || !adiabatico || !entalpico || !bombaRecirculacion) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, drycooler, adiabático, entálpico y bomba de recirculación.';
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (_conHoraReporte() && !hora) || !drycooler || !adiabatico || !entalpico || !bombaRecirculacion) {
+    msg.textContent = `Completa todos los campos: técnico, fecha, ${_conHoraReporte() ? 'hora, ' : ''}drycooler, adiabático, entálpico y bomba de recirculación.`;
     return;
   }
 
-  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
-  if (fueraDeVentana) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = fueraDeVentana;
-    return;
-  }
-  fecha = _fechaDeFranjaReporte(hora);
-  document.getElementById('rd_fecha').value = fecha;
+  const horaFecha = _horaFechaParaGuardar('rd', hora, fecha);
+  if (horaFecha.error) { msg.style.color = 'var(--danger)'; msg.textContent = horaFecha.error; return; }
+  fecha = horaFecha.fecha;
 
   const porColumna = {};
   for (const c of REPORTE_DRYCOOLERS_CAMPOS) {
@@ -23658,7 +23754,7 @@ async function guardarReporteDrycooler() {
     const colsHoja = await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
     const codigo = _siguienteCodigoReporteDrycooler();
     Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Codigo: codigo, Fecha: fecha, Hora: horaFecha.hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
       Drycooler: drycooler, Adiabatico: adiabatico, Entalpico: entalpico, BombaRecirculacion: bombaRecirculacion,
       Observaciones: observaciones,
       RegistradoPor: currentUser?.name || currentUser?.email || 'Sistema',
@@ -23820,13 +23916,12 @@ function _siguienteCodigoReporteDecorado() {
 }
 
 async function inicializarReporteDecorado() {
-  document.getElementById('rdec_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_DECORADO.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
-    '<option value="Otras">Otras</option>';
+  document.getElementById('rdec_tecnico').value = '';
+  _llenarTecnicosReporte('rdec', TECNICOS_REPORTE_DECORADO, [], true);
   document.getElementById('rdec_hora').innerHTML = '<option value="">Seleccionar...</option>' +
     HORAS_REPORTE_DECORADO.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  document.getElementById('rdec_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
-    COMPRESORES_DECORADO_LISTA.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  _prepararHoraFechaReporte('rdec');
+  document.getElementById('rdec_compresor').innerHTML = _opcionesEquiposReporte('decorado');
   document.getElementById('rdec_nivelAceite').innerHTML = '<option value="">Seleccionar...</option>' +
     NIVELES_ACEITE_DECORADO.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
 
@@ -23846,6 +23941,7 @@ async function inicializarReporteDecorado() {
   try {
     await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
     allReportesDecorado = await _cargarReportesTecnicos('rdec', SH.reporteDecorado);
+    _llenarTecnicosReporte('rdec', TECNICOS_REPORTE_DECORADO, allReportesDecorado, true);
     renderTablaReportesDecorado();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -23882,7 +23978,7 @@ function renderTablaReportesDecorado() {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(_horaReporteParaMostrar(r))}</td>
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -23908,19 +24004,14 @@ async function guardarReporteDecorado() {
   const compresor = document.getElementById('rdec_compresor').value;
   const nivelAceite = document.getElementById('rdec_nivelAceite').value;
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !nivelAceite) {
-    msg.textContent = 'Completa todos los campos: técnico, fecha, hora, compresor y nivel de aceite.';
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (_conHoraReporte() && !hora) || !compresor || !nivelAceite) {
+    msg.textContent = `Completa todos los campos: técnico, fecha, ${_conHoraReporte() ? 'hora, ' : ''}compresor y nivel de aceite.`;
     return;
   }
 
-  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
-  if (fueraDeVentana) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = fueraDeVentana;
-    return;
-  }
-  fecha = _fechaDeFranjaReporte(hora);
-  document.getElementById('rdec_fecha').value = fecha;
+  const horaFecha = _horaFechaParaGuardar('rdec', hora, fecha);
+  if (horaFecha.error) { msg.style.color = 'var(--danger)'; msg.textContent = horaFecha.error; return; }
+  fecha = horaFecha.fecha;
 
   const porColumna = {};
   for (const c of REPORTE_DECORADO_CAMPOS) {
@@ -23943,7 +24034,7 @@ async function guardarReporteDecorado() {
     const colsHoja = await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
     const codigo = _siguienteCodigoReporteDecorado();
     Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Codigo: codigo, Fecha: fecha, Hora: horaFecha.hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
       Compresor: compresor, NivelAceite: nivelAceite,
       LaboresCompresor: _leerLaboresDecorado('rdec-lab-comp'),
       LaboresSecador:   _leerLaboresDecorado('rdec-lab-sec'),
@@ -24118,13 +24209,12 @@ function _siguienteCodigoReporteEmergencia() {
 }
 
 async function inicializarReporteEmergencia() {
-  document.getElementById('re_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_EMERGENCIA.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('') +
-    '<option value="Otras">Otras</option>';
+  document.getElementById('re_tecnico').value = '';
+  _llenarTecnicosReporte('re', TECNICOS_REPORTE_EMERGENCIA, [], true);
   document.getElementById('re_hora').innerHTML = '<option value="">Seleccionar...</option>' +
     HORAS_REPORTE_EMERGENCIA.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  document.getElementById('re_compresor').innerHTML = '<option value="">Seleccionar...</option>' +
-    COMPRESORES_EMERGENCIA_LISTA.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  _prepararHoraFechaReporte('re');
+  document.getElementById('re_compresor').innerHTML = _opcionesEquiposReporte('emergencia');
   document.getElementById('re_estadoEquipo').value = '';
   document.getElementById('re_nivelAceite').innerHTML = '<option value="">Seleccionar...</option>' +
     NIVELES_ACEITE_EMERGENCIA.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
@@ -24151,6 +24241,7 @@ async function inicializarReporteEmergencia() {
   try {
     await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
     allReportesEmergencia = await _cargarReportesTecnicos('re', SH.reporteEmergencia);
+    _llenarTecnicosReporte('re', TECNICOS_REPORTE_EMERGENCIA, allReportesEmergencia, true);
     renderTablaReportesEmergencia();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -24187,7 +24278,7 @@ function renderTablaReportesEmergencia() {
     html += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
-      <td style="padding:7px 10px">${esc(r.Hora)}</td>
+      <td style="padding:7px 10px">${esc(_horaReporteParaMostrar(r))}</td>
       <td style="padding:7px 10px">${esc(r.Compresor)}</td>
       <td style="padding:7px 10px">${esc(tecnico)}</td>
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -24217,21 +24308,16 @@ async function guardarReporteEmergencia() {
   const ir = esCompresorIR(compresor);
   const nivelAceite = ir ? '' : document.getElementById('re_nivelAceite').value;
 
-  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || !hora || !compresor || !estadoEquipo || (!ir && !nivelAceite)) {
+  if (!tecnico || (tecnico === 'Otras' && !tecnicoOtro) || !fecha || (_conHoraReporte() && !hora) || !compresor || !estadoEquipo || (!ir && !nivelAceite)) {
     msg.textContent = ir
-      ? 'Completa todos los campos: técnico, fecha, hora, compresor y si el compresor está en línea.'
-      : 'Completa todos los campos: técnico, fecha, hora, compresor, estado del equipo y nivel de aceite.';
+      ? `Completa todos los campos: técnico, fecha, ${_conHoraReporte() ? 'hora, ' : ''}compresor y si el compresor está en línea.`
+      : `Completa todos los campos: técnico, fecha, ${_conHoraReporte() ? 'hora, ' : ''}compresor, estado del equipo y nivel de aceite.`;
     return;
   }
 
-  const fueraDeVentana = _motivoReporteFueraDeVentana(hora);
-  if (fueraDeVentana) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = fueraDeVentana;
-    return;
-  }
-  fecha = _fechaDeFranjaReporte(hora);
-  document.getElementById('re_fecha').value = fecha;
+  const horaFecha = _horaFechaParaGuardar('re', hora, fecha);
+  if (horaFecha.error) { msg.style.color = 'var(--danger)'; msg.textContent = horaFecha.error; return; }
+  fecha = horaFecha.fecha;
 
   const porColumna = {};
   for (const c of _camposReporteEmergencia(compresor)) {
@@ -24266,7 +24352,7 @@ async function guardarReporteEmergencia() {
     const colsHoja = await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
     const codigo = _siguienteCodigoReporteEmergencia();
     Object.assign(porColumna, {
-      Codigo: codigo, Fecha: fecha, Hora: hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
+      Codigo: codigo, Fecha: fecha, Hora: horaFecha.hora, Tecnico: tecnico, TecnicoOtro: tecnico === 'Otras' ? tecnicoOtro : '',
       Compresor: compresor, EstadoEquipo: estadoEquipo, NivelAceite: nivelAceite,
       LaboresCompresor: _leerLaboresDecorado('re-lab-comp'),
       LaboresSecador:   _leerLaboresDecorado('re-lab-sec'),
@@ -24424,8 +24510,10 @@ function _siguienteCodigoReportePresionDrycooler() {
 }
 
 async function inicializarReportePresionDrycooler() {
-  document.getElementById('rpd_tecnico').innerHTML = '<option value="">Seleccionar...</option>' +
-    TECNICOS_REPORTE_PRESION_DRYCOOLER.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  document.getElementById('rpd_tecnico').value = '';
+  _llenarTecnicosReporte('rpd', TECNICOS_REPORTE_PRESION_DRYCOOLER, [], false);
+  document.getElementById('rpd_tecnicoOtroWrap').style.display = 'none';
+  document.getElementById('rpd_tecnicoOtro').value = '';
 
   document.getElementById('rpd_fecha').value = _isoLocal(new Date());
   document.getElementById('rpd_msg').textContent = '';
@@ -24437,6 +24525,7 @@ async function inicializarReportePresionDrycooler() {
   try {
     await asegurarHoja(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS);
     allReportesPresionDrycooler = await _cargarReportesTecnicos('rpd', SH.reportePresionDrycooler);
+    _llenarTecnicosReporte('rpd', TECNICOS_REPORTE_PRESION_DRYCOOLER, allReportesPresionDrycooler, false);
     renderTablaReportesPresionDrycooler();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -24486,7 +24575,7 @@ async function guardarReportePresionDrycooler() {
   const msg = document.getElementById('rpd_msg');
   msg.style.color = 'var(--danger)'; // un guardado anterior lo dejó en verde
   const fecha = document.getElementById('rpd_fecha').value;
-  const tecnico = document.getElementById('rpd_tecnico').value;
+  const tecnico = _tecnicoElegidoReporte('rpd');
 
   if (!fecha || !tecnico) {
     msg.textContent = 'Completa todos los campos: fecha y quien realiza el reporte.';
@@ -24626,8 +24715,13 @@ function _actualizarSeccionesMaquinaFormacion() {
 
 async function inicializarReporteMaquinasFormacion() {
   const opciones = lista => '<option value="">Seleccionar...</option>' + lista.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
-  document.getElementById('rmf_tecnico').innerHTML = opciones(TECNICOS_REPORTE_MAQUINAS_FORMACION) + '<option value="Otras">Otras</option>';
-  document.getElementById('rmf_maquina').innerHTML = opciones(MAQUINAS_FORMACION);
+  document.getElementById('rmf_tecnico').value = '';
+  _llenarTecnicosReporte('rmf', TECNICOS_REPORTE_MAQUINAS_FORMACION, [], true);
+  // Sin lista de máquinas de la sede (Perú), la máquina se escribe.
+  const maquinas = MAQUINAS_FORMACION_POR_SEDE[operacionActual];
+  document.getElementById('rmf_maquinaWrap').innerHTML = maquinas
+    ? `<select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()">${opciones(maquinas)}</select>`
+    : '<input id="rmf_maquina" placeholder="Nombre de la máquina" oninput="_actualizarSeccionesMaquinaFormacion()">';
   document.getElementById('rmf_cavidades').innerHTML = opciones(CAVIDADES_MAQUINAS_FORMACION);
   const ahora = new Date();
   document.getElementById('rmf_fecha').value = _isoLocal(ahora);
@@ -24643,6 +24737,7 @@ async function inicializarReporteMaquinasFormacion() {
   try {
     await asegurarHoja(SH.reporteMaquinasFormacion, REPORTE_MAQUINAS_FORMACION_COLS);
     allReportesMaquinasFormacion = await _cargarReportesTecnicos('rmf', SH.reporteMaquinasFormacion);
+    _llenarTecnicosReporte('rmf', TECNICOS_REPORTE_MAQUINAS_FORMACION, allReportesMaquinasFormacion, true);
     renderTablaReportesMaquinasFormacion();
   } catch (e) {
     wrap.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger)">Error al cargar: ${esc(e.message)}</div>`;
@@ -27939,7 +28034,9 @@ const EQUIPO_REPORTE_A_HORAS = {
 function _equipoDeHorasDelReporte(equipoReporte) {
   const e = (equipoReporte || '').trim();
   if (EQUIPO_REPORTE_A_HORAS[e]) return EQUIPO_REPORTE_A_HORAS[e];
-  return _gruposCompresoresReporte(operacionActual).some(g => g.grupo && g.equipos.includes(e)) ? e : '';
+  if (_gruposCompresoresReporte(operacionActual).some(g => g.grupo && g.equipos.includes(e))) return e;
+  // Una sede con su lista de equipos en los reportes (Perú): el código es el del Plan.
+  return _reportesTecnicosDe(operacionActual).gruposEquipos && _pmGruposEquipos(operacionActual).some(g => g.equipos.includes(e)) ? e : '';
 }
 
 /** Salto maximo plausible de un horometro entre dos reportes del mismo

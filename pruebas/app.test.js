@@ -2869,8 +2869,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.turno === 'actividades,entregasala,temporal,dashboard,observaciones,condiciones,herramienta'
       && r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler'
       && !/Reporte /.test(r.nombresTecnicos) && r.tecnicosZipa !== 'none' && r.tecnicosSoacha === 'none', r);
-    check('Reportes de Perú: Observaciones y Condiciones Inseguras (además de Actividades Temporales y Dashboard) y, en técnicos, Compresores; Soacha sigue sin ellas',
-      r.visiblesPeru === 'temporal,dashboard,observaciones,condiciones | compresores' && r.observacionesPeru && r.condicionesPeru
+    check('Reportes de Perú: Observaciones y Condiciones Inseguras (además de Actividades Temporales y Dashboard) y sus reportes técnicos; Soacha sigue sin ellas',
+      r.visiblesPeru === 'temporal,dashboard,observaciones,condiciones | compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler' && r.observacionesPeru && r.condicionesPeru
       && r.visiblesSoacha === 'temporal,dashboard', { peru: r.visiblesPeru, soacha: r.visiblesSoacha, obs: r.observacionesPeru, cond: r.condicionesPeru });
     check('Orden: todas las secciones arrancan con el mismo encabezado (título con ícono)', r.sinEncabezado === '', r.sinEncabezado);
     check('Orden: una sola acción principal en las pendientes y en el editor',
@@ -3893,6 +3893,93 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && out.programa.cabeceras === 'Actividad,Documento / Registro,Frecuencia,ENE' && out.programa.filas === 11 + 36 + 192
       && out.programa.ca1 === 'CA1 — Hanwha 900 HP' && out.programa.mesesFiltros === 'ENE,JUL', out.programa);
     check('Perú: sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Perú: los reportes técnicos de Zipaquirá (Secadores, Drycoolers,
+    // Decorado, Emergencia, Presión Drycooler y Máquinas de Formación) con
+    // sus equipos de cada grupo, a cualquier hora (sin franjas), con sus
+    // técnicos (no los de Zipaquirá) y la máquina de formación escrita.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const id = await p.evaluate(() => OPERACIONES.peru.spreadsheetId);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      document.getElementById('loginOverlay')?.remove();
+      window.confirmarAccion = async () => true; window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; _aplicarRolUI();
+      currentUser = { name: 'Ana Prueba', email: 'a@x' };
+      operacionActual = 'peru'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.peru.spreadsheetId;
+      showPanel('cronograma'); await espera(300);
+      const out = {};
+      out.tecnicos = [...document.querySelectorAll('#cronGrupoTecnicos .inv-subtab')].filter(x => getComputedStyle(x).display !== 'none').map(x => x.dataset.crontab).join(',');
+      const elegir = async (el, v) => { el = document.getElementById(el); el.value = v; el.dispatchEvent(new Event('change')); await espera(30); };
+      const opciones = id => [...document.querySelectorAll(`#${id} option`)].filter(o => o.value).map(o => o.value).join(',');
+      // Secadores: los 14 de Perú en sus 4 grupos, con las variables del panel refrigerado.
+      cronMostrarSubTab('secadores'); await espera(400);
+      out.secadores = { grupos: [...document.querySelectorAll('#rs_secador optgroup')].map(g => g.label).join(' | '), cuantos: opciones('rs_secador').split(',').length,
+        primera: document.querySelector('#rs_secador option[value="SCA1"]')?.textContent, tecnicos: opciones('rs_tecnico'),
+        horaOculta: getComputedStyle(document.getElementById('rs_hora').closest('.field')).display === 'none', fechaEditable: !document.getElementById('rs_fecha').readOnly };
+      await elegir('rs_tecnico', 'Otras');
+      document.getElementById('rs_tecnicoOtro').value = 'Luis  Técnico';
+      await elegir('rs_secador', 'SCB3');
+      out.secadores.refrigerado = !!document.getElementById('rs_fhrs') && !document.getElementById('rs_s1Parallel')?.offsetParent;
+      REPORTE_SECADORES_CAMPOS_FRIULAIR.forEach((c, i) => { document.getElementById('rs_' + c.id).value = String(10 + i); });
+      document.getElementById('rs_fhrs').value = '15200';
+      await guardarReporteSecador(); await espera(300);
+      out.secadores.msg = document.getElementById('rs_msg').textContent;
+      out.secadores.tecnicoEnLista = opciones('rs_tecnico');
+      document.getElementById('rs_filtroDesde').value = _isoLocal(new Date()); renderTablaReportesSecadores();
+      out.secadores.horaTabla = document.querySelector('#rs_tablaWrap tbody tr td:nth-child(3)')?.textContent.trim();
+      // Drycoolers, Decorado y Emergencia: sus equipos.
+      cronMostrarSubTab('drycoolers'); await espera(400);
+      out.drycoolers = opciones('rd_drycooler') + ' | ' + opciones('rd_tecnico');
+      cronMostrarSubTab('decorado'); await espera(400);
+      out.decorado = opciones('rdec_compresor') + ' | ' + document.querySelector('#rdec_compresor option[value="CD1"]')?.textContent;
+      await elegir('rdec_tecnico', 'Otras'); document.getElementById('rdec_tecnicoOtro').value = 'Luis Técnico';
+      await elegir('rdec_compresor', 'CD1'); await elegir('rdec_nivelAceite', 'Medio');
+      REPORTE_DECORADO_CAMPOS.forEach((c, i) => { const el = document.getElementById('rdec_' + c.id); if (el) el.value = c.id === 'horasTotales' ? '5300' : String(5 + i); });
+      await guardarReporteDecorado(); await espera(300);
+      out.decoradoMsg = document.getElementById('rdec_msg').textContent;
+      cronMostrarSubTab('emergencia'); await espera(400);
+      out.emergencia = opciones('re_compresor');
+      // Presión Drycooler: técnico por "Otras".
+      cronMostrarSubTab('presiondrycooler'); await espera(400);
+      out.presion = opciones('rpd_tecnico');
+      // Máquinas de Formación: la máquina se escribe y la sección también.
+      cronMostrarSubTab('formacion'); await espera(400);
+      const maquina = document.getElementById('rmf_maquina');
+      out.formacion = { tipo: maquina.tagName };
+      maquina.value = 'IS 3'; maquina.dispatchEvent(new Event('input')); await espera(30);
+      out.formacion.seccion = document.getElementById('rmf_seccion').tagName;
+      await elegir('rmf_tecnico', 'Otras'); document.getElementById('rmf_tecnicoOtro').value = 'Luis Técnico';
+      document.getElementById('rmf_referencia').value = 'BOT-1'; document.getElementById('rmf_seccion').value = '4';
+      await elegir('rmf_cavidades', '2'); document.getElementById('rmf_velocidad').value = '60';
+      await guardarReporteMaquinasFormacion(); await espera(300);
+      out.formacion.msg = document.getElementById('rmf_msg').textContent;
+      return out;
+    });
+    const fila = (hoja, col, v) => { const f = fake.hoja(id, hoja); return (f.find(x => x[f[0].indexOf(col)] === v) || []).reduce((o, x, i) => (o[f[0][i]] = x, o), {}); };
+    const sec = fila('ReporteSecadores', 'Secador', 'SCB3');
+    const dec = fila('ReporteDecorado', 'Compresor', 'CD1');
+    const horas = fake.hoja(id, 'HorasEquipos');
+    const horasDe = e => (horas.find(f => f[0] === e) || [])[1];
+    check('Perú: Reportes técnicos con los 7 formularios (Compresores, Formación, Secadores, Drycoolers, Decorado, Emergencia y Presión Drycooler)',
+      r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler', r.tecnicos);
+    check('Perú: Secadores con sus 14 secadores por grupo, sin franja ni técnicos de Zipaquirá, con las variables del panel refrigerado; guarda y lleva las horas al Plan',
+      r.secadores.grupos === 'Secadores de Alta | Secadores de Baja | Secadores de Emergencia | Secadores de Decorado' && r.secadores.cuantos === 14
+      && r.secadores.primera === 'SCA1 — Fusheng FR1200WP' && r.secadores.tecnicos === 'Otras' && r.secadores.horaOculta && r.secadores.fechaEditable
+      && r.secadores.refrigerado && /guardado/.test(r.secadores.msg) && sec.Tecnico === 'Luis Técnico' && sec.Hora === '' && sec.FHrS === '15200'
+      && horasDe('SCB3') === '15200' && r.secadores.tecnicoEnLista === 'Luis Técnico,Otras' && /\d/.test(r.secadores.horaTabla || ''),
+      { secadores: r.secadores, fila: sec, horas: horasDe('SCB3') });
+    check('Perú: Drycoolers (D1–D4), Decorado (CD1 y CD2), Emergencia (CE1 y CE2) y Presión Drycooler con sus equipos y técnicos; Decorado guarda y lleva las horas',
+      r.drycoolers === 'D1,D2,D3,D4 | Otras' && r.decorado === 'CD1,CD2 | CD1 — FS Curtis NxV55A, 55 kW' && r.emergencia === 'CE1,CE2' && r.presion === 'Otras'
+      && /guardado/.test(r.decoradoMsg) && dec.TecnicoOtro === 'Luis Técnico' && dec.Hora === '' && horasDe('CD1') === '5300',
+      { drycoolers: r.drycoolers, decorado: r.decorado, emergencia: r.emergencia, presion: r.presion, msg: r.decoradoMsg, fila: dec, horas: horasDe('CD1') });
+    check('Perú: Máquinas de Formación sin lista de máquinas (se escriben la máquina y la sección) y guarda',
+      r.formacion.tipo === 'INPUT' && r.formacion.seccion === 'INPUT' && /IS 3 guardado/.test(r.formacion.msg)
+      && fila('ReporteMaquinasFormacion', 'Maquina', 'IS 3').Seccion === '4', r.formacion);
+    check('Perú (reportes técnicos): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
   {
