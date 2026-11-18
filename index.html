@@ -11559,6 +11559,11 @@ const TURNOS_ENTREGA_SALA = [
 
 function _entregaSalaDisponible(sede) { return sede === 'zipaquira2'; }
 
+// Sedes con Observaciones (llamados de atención a los operarios de planta)
+// y Condiciones Inseguras en Reportes. No dependen de los equipos de la
+// sede: cada una tiene sus operarios (OperariosPlanta) y sus registros.
+const SEDES_OBSERVACIONES_TURNO = ['zipaquira', 'peru'];
+
 /** El turno de ahora y la fecha en que empezó: de medianoche a las 6 a.m.
  *  sigue el turno de noche del día anterior. */
 function _turnoEntregaSalaAhora(ahora = new Date()) {
@@ -21064,8 +21069,9 @@ async function inicializarPanelCronograma() {
   if (tabActividades) tabActividades.style.display = mostrarEntrega ? '' : 'none';
   if (wrapEntrega) wrapEntrega.style.display = mostrarEntrega ? '' : 'none';
   if (wrapHistorial) wrapHistorial.style.display = mostrarEntrega ? '' : 'none';
-  if (tabObservaciones) tabObservaciones.style.display = mostrarEntrega ? '' : 'none';
-  if (tabCondiciones) tabCondiciones.style.display = mostrarEntrega ? '' : 'none';
+  const conObservaciones = SEDES_OBSERVACIONES_TURNO.includes(operacionActual);
+  if (tabObservaciones) tabObservaciones.style.display = conObservaciones ? '' : 'none';
+  if (tabCondiciones) tabCondiciones.style.display = conObservaciones ? '' : 'none';
   if (tabHerramienta) tabHerramienta.style.display = mostrarEntrega ? '' : 'none';
   // Los reportes técnicos, los que tenga la sede (REPORTES_TECNICOS_POR_SEDE).
   const tecnicos = _reportesTecnicosDe(operacionActual).pestanas;
@@ -21784,7 +21790,8 @@ function renderTablaEntregasTurno() {
 }
 
 /* ══════════════════════════════════════════════
-   OBSERVACIONES POR OPERARIO — solo Zipaquirá.
+   OBSERVACIONES POR OPERARIO — Zipaquirá y Perú
+   (SEDES_OBSERVACIONES_TURNO).
    Llamados de atención (Amarilla/Roja) con fecha,
    hora, operario y observación; se lleva el conteo
    de cuántas lleva cada uno.
