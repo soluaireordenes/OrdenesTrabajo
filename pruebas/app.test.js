@@ -2823,6 +2823,15 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.tecnicosZipa = getComputedStyle(document.getElementById('cronGrupoTecnicos')).display;
       operacionActual = 'soacha'; showPanel('cronograma'); await espera(200);
       out.tecnicosSoacha = getComputedStyle(document.getElementById('cronGrupoTecnicos')).display;
+      // Las pestañas que se ven en cada sede.
+      const visibles = id => [...document.querySelectorAll(`#${id} .inv-subtab`)].filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.crontab).join(',');
+      out.visiblesSoacha = visibles('cronGrupoTurno');
+      operacionActual = 'peru'; showPanel('cronograma'); await espera(300);
+      out.visiblesPeru = visibles('cronGrupoTurno') + ' | ' + visibles('cronGrupoTecnicos');
+      cronMostrarSubTab('observaciones'); await espera(300);
+      out.observacionesPeru = document.getElementById('cronSub-observaciones').classList.contains('active') && !!document.getElementById('obs_operario');
+      cronMostrarSubTab('condiciones'); await espera(300);
+      out.condicionesPeru = document.getElementById('cronSub-condiciones').classList.contains('active');
       operacionActual = 'zipaquira';
       // Encabezado común en cada sección
       const secciones = ['nueva', 'pendientes', 'realizadas', 'lista', 'dashboard', 'novedades', 'historico', 'cronograma', 'variables', 'inventario', 'empalme', 'planmantenimiento'];
@@ -2860,6 +2869,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       r.turno === 'actividades,entregasala,temporal,dashboard,observaciones,condiciones,herramienta'
       && r.tecnicos === 'compresores,formacion,secadores,drycoolers,decorado,emergencia,presiondrycooler'
       && !/Reporte /.test(r.nombresTecnicos) && r.tecnicosZipa !== 'none' && r.tecnicosSoacha === 'none', r);
+    check('Reportes de Perú: Observaciones y Condiciones Inseguras (además de Actividades Temporales y Dashboard) y, en técnicos, Compresores; Soacha sigue sin ellas',
+      r.visiblesPeru === 'temporal,dashboard,observaciones,condiciones | compresores' && r.observacionesPeru && r.condicionesPeru
+      && r.visiblesSoacha === 'temporal,dashboard', { peru: r.visiblesPeru, soacha: r.visiblesSoacha, obs: r.observacionesPeru, cond: r.condicionesPeru });
     check('Orden: todas las secciones arrancan con el mismo encabezado (título con ícono)', r.sinEncabezado === '', r.sinEncabezado);
     check('Orden: una sola acción principal en las pendientes y en el editor',
       r.accionesPendiente === 'Ver:btn-ghost | Realizada:btn-borde-ok | Completar:btn-primary' && r.guardarAdmin && r.guardarOperario,

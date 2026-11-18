@@ -39,7 +39,11 @@ jobs:
   app:
     # La app en un navegador real (Chromium). Tarda un par de minutos: una de
     # las pruebas espera ~45 s a propósito (informe con el servidor colgado).
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04 fijo: desde noviembre de 2026 "ubuntu-latest" es la 26.04,
+    # y Playwright 1.56.1 no tiene Chromium para ella ("Playwright does not
+    # support chromium on ubuntu26.04-x64"). Para pasar a la imagen nueva hay
+    # que subir antes la versión de Playwright.
+    runs-on: ubuntu-24.04
     needs: validar
     steps:
       - uses: actions/checkout@v4
