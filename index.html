@@ -3035,11 +3035,11 @@ body.rol-operario .btn-principal-operario {
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
           <div class="field" style="margin:0;min-width:160px">
             <label style="margin-bottom:4px;display:block">Desde</label>
-            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (operacionActual === 'zipaquira') _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
+            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
           <div class="field" style="margin:0;min-width:160px">
             <label style="margin-bottom:4px;display:block">Hasta</label>
-            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (operacionActual === 'zipaquira') _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
+            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
           </div>
         </div>
       </div>
@@ -3052,9 +3052,9 @@ body.rol-operario .btn-principal-operario {
         </div>
       </div>
 
-      <!-- Cumplimiento de cada formulario de reporte técnico (solo
-           Zipaquirá) — se oculta junto con las demás pestañas exclusivas
-           de esa sede, ver inicializarPanelCronograma. -->
+      <!-- Cumplimiento de cada formulario de reporte técnico, en las sedes
+           con "cumplimiento" (REPORTES_TECNICOS_POR_SEDE): solo las
+           tarjetas de sus reportes, ver inicializarPanelCronograma. -->
       <div id="cronDashReportesWrap" style="display:none">
         <div class="card" style="margin-bottom:16px">
           <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Cumplimiento — Reporte Compresores</div>
@@ -9248,7 +9248,7 @@ async function descargarOrdenPDF(id) {
       <div style="width:100%;height:220px;border:1px solid #ddd;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden">
         ${f.dataUrl
           ? `<img src="${f.dataUrl}" style="max-width:100%;max-height:100%;object-fit:contain">`
-          : `<span style="font-size:11px;color:#b00;display:inline-flex;align-items:center;gap:4px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No se pudo cargar esta foto</span>`}
+          : `<span style="font-size:11px;color:#b00;display:inline-flex;align-items:center;gap:4px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No se pudo cargar esta foto${_htmlMotivoFotoFallida(f.driveFileId)}</span>`}
       </div>
       ${f.tareaDescripcion ? `<div style="font-size:10px;color:#666;margin-top:4px">${esc(f.tareaDescripcion)}</div>` : ''}
     </div>`).join('')}
@@ -11508,7 +11508,9 @@ const COMPRESORES_LISTA_REPORTE = [
 // de aire ni las temperaturas de estator A, B y C.
 // camposOmitidos: ids de REPORTE_COMPRESORES_CAMPOS(_BAJA) que la sede no lleva.
 const REPORTES_TECNICOS_POR_SEDE = {
-  zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true },
+  // cumplimiento: el Dashboard de Reportes muestra el cumplimiento de sus
+  // reportes técnicos (por franja si la sede usa franjas; si no, por día).
+  zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true, cumplimiento: true },
   // medicionesOpcionales: el reporte se guarda aunque falten mediciones (lo
   // que sí se escriba tiene que ser un número).
   zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
@@ -11530,7 +11532,7 @@ const REPORTES_TECNICOS_POR_SEDE = {
       secadores: ['Secadores de Alta', 'Secadores de Baja', 'Secadores de Emergencia', 'Secadores de Decorado'],
       drycoolers: ['Drycoolers'], decorado: ['Compresores de Decorado'], emergencia: ['Compresores de Emergencia'],
     },
-    secadoresRefrigerados: true },
+    secadoresRefrigerados: true, cumplimiento: true },
 };
 function _reportesTecnicosDe(sede) {
   return REPORTES_TECNICOS_POR_SEDE[sede] || { pestanas: [], conHora: true };
@@ -12971,6 +12973,16 @@ async function _borrarArchivoFotoDrive(driveFileId) {
 
 /** Caché en memoria: una vez traída una foto, no se vuelve a pedir. */
 const _fotoDataUrlCache = {};
+// Por qué no cargó cada foto: lo que respondieron el proxy y el script de
+// fotos. Se muestra donde iría la foto, en vez de un "No se pudo cargar" sin
+// pista (en el celular no hay consola donde mirarlo).
+const _fotoMotivoFallo = {};
+let _fotosUltimoErrorProxy = '';
+function _motivoFotoFallida(driveFileId) { return _fotoMotivoFallo[driveFileId] || ''; }
+function _htmlMotivoFotoFallida(driveFileId) {
+  const m = _motivoFotoFallida(driveFileId);
+  return m ? `<br><span style="font-size:10px;color:var(--text3)">${esc(m)}</span>` : '';
+}
 
 /** Le pide la foto al Apps Script (que la entrega como JSON con el
  *  contenido en base64, porque un Web App de Apps Script no puede
@@ -13008,7 +13020,13 @@ async function _archivoDesdeProxy(driveFileId) {
   const resp = await _fetchFotoConTimeout(
     PROXY_URL + '/foto?id=' + encodeURIComponent(driveFileId), 30000,
     { headers: { Authorization: 'Bearer ' + googleAccessToken } });
-  if (!resp.ok) throw new Error('Proxy de fotos respondió ' + resp.status);
+  if (!resp.ok) {
+    // El proxy explica el motivo en su respuesta (p. ej. "Drive respondió
+    // 404": la cuenta de servicio no tiene acceso a esa carpeta).
+    let mensaje = '';
+    try { mensaje = (await resp.json()).mensaje || ''; } catch (_) {}
+    throw new Error('respondió ' + resp.status + (mensaje ? ' (' + mensaje + ')' : ''));
+  }
   return resp.blob();
 }
 
@@ -13048,6 +13066,7 @@ async function _obtenerDataUrlFoto(driveFileId) {
       return dataUrl;
     } catch (e) {
       _fotosProxyFallo();
+      _fotosUltimoErrorProxy = e.message;
       console.warn('Foto por proxy falló, se intenta con el Apps Script:', driveFileId, e.message);
     }
   }
@@ -13073,6 +13092,8 @@ async function _obtenerDataUrlFoto(driveFileId) {
     }
   }
   console.warn('No se pudo cargar la foto', driveFileId, ultimoError);
+  _fotoMotivoFallo[driveFileId] = [ultimoError ? 'Script de fotos: ' + ultimoError : '',
+    _fotosUltimoErrorProxy ? 'Proxy: ' + _fotosUltimoErrorProxy : ''].filter(Boolean).join(' · ');
   return '';
 }
 
@@ -13106,7 +13127,9 @@ async function _cargarFotoEnImg(driveFileId, imgEl, aEl) {
     imgEl.src = dataUrl;
     if (aEl) aEl.href = dataUrl;
   } else {
-    imgEl.alt = 'No se pudo cargar';
+    const motivo = _motivoFotoFallida(driveFileId);
+    imgEl.alt = 'No se pudo cargar' + (motivo ? ' — ' + motivo : '');
+    imgEl.title = motivo;
   }
 }
 
@@ -19574,7 +19597,7 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
         <div style="width:100%;height:280px;border:1px solid #ccc;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden">
           ${dataUrl
             ? `<img src="${dataUrl}" style="max-width:100%;max-height:100%;object-fit:contain">`
-            : `<span style="font-size:11px;color:#b00;display:inline-flex;align-items:center;gap:4px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No se pudo cargar esta foto</span>`}
+            : `<span style="font-size:11px;color:#b00;display:inline-flex;align-items:center;gap:4px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No se pudo cargar esta foto${_htmlMotivoFotoFallida(f.driveFileId)}</span>`}
         </div>
         <div style="font-weight:700;font-size:12px;margin-top:6px;color:var(--brand)">${esc(f.titulo)}</div>
         ${f.descripcion ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${esc(f.descripcion)}</div>` : ''}
@@ -21181,7 +21204,13 @@ async function inicializarPanelCronograma() {
   const tabEntregaSala = document.getElementById('cronTabEntregaSala');
   if (tabEntregaSala) tabEntregaSala.style.display = conEntregaSala ? '' : 'none';
   const dashReportesWrap = document.getElementById('cronDashReportesWrap');
-  if (dashReportesWrap) dashReportesWrap.style.display = mostrarEntrega ? '' : 'none';
+  const conCumplimiento = !!_reportesTecnicosDe(operacionActual).cumplimiento;
+  if (dashReportesWrap) dashReportesWrap.style.display = conCumplimiento ? '' : 'none';
+  // Solo las tarjetas de los reportes que tiene la sede.
+  Object.entries(CUMPLIMIENTO_REPORTES_TECNICOS).forEach(([pestana, c]) => {
+    const tarjeta = document.getElementById(c.resumen)?.closest('.card');
+    if (tarjeta) tarjeta.style.display = tecnicos.includes(pestana) ? '' : 'none';
+  });
   // Sin cronograma no hay día que consultar ni informe que armar: esas dos
   // tarjetas solo dejaban formularios que no llevaban a nada.
   const conCronograma = !!CRONOGRAMA_POR_SEDE[operacionActual];
@@ -21275,7 +21304,7 @@ function inicializarDashboardCronograma() {
     hastaEl.value = _isoLocal(hoy);
   }
   renderDashboardCronograma();
-  if (operacionActual === 'zipaquira') _renderTodosCumplimientosReportesTecnicos();
+  if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();
 }
 
 /** Carga y grafica el cumplimiento de los 6 formularios de reporte técnico
@@ -21295,18 +21324,34 @@ async function _cargarYRenderCumplimientoReporte(sheetName, cols, horas, resumen
   }
 }
 
+/** Las gráficas de cumplimiento del Dashboard, una por reporte técnico
+ *  (Máquinas de Formación no lleva). Se leen al usarlas: las constantes de
+ *  cada reporte van más abajo en el archivo. */
+const CUMPLIMIENTO_REPORTES_TECNICOS = {
+  compresores:      { resumen: 'rc_cumpResumen',   canvas: 'chartCumplimientoRc',   chart: '_chartCumplimientoRc',   hoja: () => SH.reporteCompresores,      cols: () => _colsReporteCompresores(),      horas: () => HORAS_REPORTE_COMPRESOR,   equipo: 'Compresor' },
+  secadores:        { resumen: 'rs_cumpResumen',   canvas: 'chartCumplimientoRs',   chart: '_chartCumplimientoRs',   hoja: () => SH.reporteSecadores,        cols: () => REPORTE_SECADORES_COLS,         horas: () => HORAS_REPORTE_SECADOR,     equipo: 'Secador' },
+  drycoolers:       { resumen: 'rd_cumpResumen',   canvas: 'chartCumplimientoRd',   chart: '_chartCumplimientoRd',   hoja: () => SH.reporteDrycoolers,       cols: () => REPORTE_DRYCOOLERS_COLS,        horas: () => HORAS_REPORTE_DRYCOOLER,   equipo: 'Drycooler' },
+  decorado:         { resumen: 'rdec_cumpResumen', canvas: 'chartCumplimientoRdec', chart: '_chartCumplimientoRdec', hoja: () => SH.reporteDecorado,         cols: () => REPORTE_DECORADO_COLS,          horas: () => HORAS_REPORTE_DECORADO,    equipo: 'Compresor' },
+  emergencia:       { resumen: 're_cumpResumen',   canvas: 'chartCumplimientoRe',   chart: '_chartCumplimientoRe',   hoja: () => SH.reporteEmergencia,       cols: () => REPORTE_EMERGENCIA_COLS,        horas: () => HORAS_REPORTE_EMERGENCIA,  equipo: 'Compresor' },
+  presiondrycooler: { resumen: 'rpd_cumpResumen',  canvas: 'chartCumplimientoRpd',  chart: '_chartCumplimientoRpd',  hoja: () => SH.reportePresionDrycooler, cols: () => REPORTE_PRESION_DRYCOOLER_COLS, horas: () => null,                      equipo: null },
+};
+
+/** ¿La sede muestra el cumplimiento de sus reportes técnicos en el Dashboard? */
+function _conCumplimientoReportes() { return !!_reportesTecnicosDe(operacionActual).cumplimiento; }
+
 /** Usa el mismo rango "Desde/Hasta" del filtro de arriba del Dashboard para
- *  las 6 gráficas de cumplimiento de reportes técnicos. */
+ *  las gráficas de cumplimiento de los reportes técnicos de la sede. Con
+ *  franjas (Zipaquirá) se mide por franja; sin franjas (Perú), por día:
+ *  cuántos de sus equipos se reportaron ese día. */
 function _renderTodosCumplimientosReportesTecnicos() {
   const desde = document.getElementById('cronDashDesde')?.value;
   const hasta = document.getElementById('cronDashHasta')?.value;
   if (!desde || !hasta || desde > hasta) return;
-  _cargarYRenderCumplimientoReporte(SH.reporteCompresores, _colsReporteCompresores(), HORAS_REPORTE_COMPRESOR, 'rc_cumpResumen', 'chartCumplimientoRc', '_chartCumplimientoRc', desde, hasta, 'Compresor');
-  _cargarYRenderCumplimientoReporte(SH.reporteSecadores, REPORTE_SECADORES_COLS, HORAS_REPORTE_SECADOR, 'rs_cumpResumen', 'chartCumplimientoRs', '_chartCumplimientoRs', desde, hasta, 'Secador');
-  _cargarYRenderCumplimientoReporte(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS, HORAS_REPORTE_DRYCOOLER, 'rd_cumpResumen', 'chartCumplimientoRd', '_chartCumplimientoRd', desde, hasta, 'Drycooler');
-  _cargarYRenderCumplimientoReporte(SH.reporteDecorado, REPORTE_DECORADO_COLS, HORAS_REPORTE_DECORADO, 'rdec_cumpResumen', 'chartCumplimientoRdec', '_chartCumplimientoRdec', desde, hasta, 'Compresor');
-  _cargarYRenderCumplimientoReporte(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS, HORAS_REPORTE_EMERGENCIA, 're_cumpResumen', 'chartCumplimientoRe', '_chartCumplimientoRe', desde, hasta, 'Compresor');
-  _cargarYRenderCumplimientoReporte(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS, null, 'rpd_cumpResumen', 'chartCumplimientoRpd', '_chartCumplimientoRpd', desde, hasta, null);
+  const cfg = _reportesTecnicosDe(operacionActual);
+  Object.entries(CUMPLIMIENTO_REPORTES_TECNICOS).forEach(([pestana, c]) => {
+    if (!cfg.pestanas.includes(pestana)) return;
+    _cargarYRenderCumplimientoReporte(c.hoja(), c.cols(), cfg.conHora ? c.horas() : null, c.resumen, c.canvas, c.chart, desde, hasta, c.equipo);
+  });
 }
 
 /** Aviso para cuando un rango de fechas se cortó por el tope de días.
@@ -22384,7 +22429,7 @@ function _renderCumplimientoReporteTecnico(filas, horas, resumenId, canvasId, ch
     const pct = posibles ? Math.round((sumaReportados / posibles) * 100) : 0;
     const color = pct >= 80 ? 'var(--estado-ok-tx)' : (pct >= 50 ? 'var(--estado-alerta-tx)' : 'var(--estado-peligro-tx)');
     const detalle = colEquipo
-      ? ` <span style="color:var(--text3);font-weight:400">(${sumaReportados} de ${posibles} reportes · ${totalEquipos} equipo${totalEquipos === 1 ? '' : 's'} × ${total} franja${total === 1 ? '' : 's'})</span>`
+      ? ` <span style="color:var(--text3);font-weight:400">(${sumaReportados} de ${posibles} reportes · ${totalEquipos} equipo${totalEquipos === 1 ? '' : 's'} × ${total} ${horas ? 'franja' : 'día'}${total === 1 ? '' : 's'})</span>`
       : ` <span style="color:var(--text3);font-weight:400">(${sumaReportados}/${total})</span>`;
     resumenEl.innerHTML = `<span style="font-size:12px;font-weight:600">Cumplimiento: <b style="color:${color}">${pct}%</b>${detalle}</span>`
       + _htmlAvisoRangoRecortado(_avisoRangoRecortado(fechas, hasta, 45));

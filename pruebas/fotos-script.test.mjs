@@ -127,6 +127,9 @@ check('No entrega hojas de cálculo aunque se conozca su ID', !get({ id: 'HOJA1'
 check('Entrega PDF de la carpeta y fotos viejas fuera de ella que ya estaban compartidas por enlace (compatibilidad)', get({ id: 'PDF1', pase: PASE }).ok && get({ id: 'FOTOVIEJA', pase: PASE }).ok);
 check('No entrega imágenes ni PDF privados de la cuenta fuera de la carpeta, ni SVG', !get({ id: 'PRIVADO1', pase: PASE }).ok && !get({ id: 'FOTOPRIVADA', pase: PASE }).ok
   && !get({ id: 'SVG1', pase: PASE }).ok);
+check('Dice por qué no entrega: fuera de la carpeta (y sin enlace) no es lo mismo que "no es una foto"',
+  /no está en la carpeta de fotos de este script \(CARPETA_ID\)/.test(get({ id: 'FOTOPRIVADA', pase: PASE }).mensaje)
+  && get({ id: 'HOJA1', pase: PASE }).mensaje === 'Ese archivo no es una foto ni un PDF.');
 const lote = get({ ids: 'FOTO1,HOJA1,NOEXISTE,PRIVADO1,FOTOVIEJA,SVG1', pase: PASE });
 check('Lectura en lote: solo fotos de la carpeta o compartidas, sin tumbarse por una mala', lote.ok && Object.keys(lote.fotos).sort().join() === 'FOTO1,FOTOVIEJA', lote);
 
