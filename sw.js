@@ -19,7 +19,7 @@
 
 // Sube este número cada vez que publiques una actualización del sistema,
 // así los navegadores descartan el caché viejo y traen la versión nueva.
-const CACHE_VERSION = 'v180';
+const CACHE_VERSION = 'v181';
 const CACHE_NAME = 'solucionaire-shell-' + CACHE_VERSION;
 
 // Cuánto se espera a la red antes de resignarse a mostrar el caché.
@@ -40,6 +40,9 @@ const APP_SHELL = [
   // Chart.js (las gráficas del Dashboard y de Variables), servido desde el
   // propio sitio: así también hay gráficas sin señal.
   './vendor/chart-4.4.0.umd.js',
+  // El mapa de Inicio: se carga cuando se ve, y queda aquí para verlo sin señal.
+  './vendor/jsvectormap.min.js',
+  './vendor/jsvectormap-mundo.js',
 ];
 
 // ── Instalación: guarda en caché la interfaz de la app ──
