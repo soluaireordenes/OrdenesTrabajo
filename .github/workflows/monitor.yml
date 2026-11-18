@@ -1,0 +1,35 @@
+name: Monitor de disponibilidad
+
+# Cada 15 minutos revisa que la app publicada y el proxy respondan. Si algo
+# no responde, la ejecución falla y GitHub le avisa por correo a quien
+# administra el repositorio (Configuración → Notificaciones → Actions).
+# Antes nadie se enteraba de una caída hasta que un técnico reclamaba
+# (auditoría O-02).
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: La app publicada responde
+        run: |
+          for intento in 1 2 3; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://soluaireordenes.github.io/OrdenesTrabajo/index.html) && [ "$codigo" = "200" ] && exit 0
+            echo "Intento $intento: respondió $codigo"; sleep 20
+          done
+          echo "::error::La app publicada no responde (último código: $codigo)."; exit 1
+
+      - name: El proxy responde
+        run: |
+          for intento in 1 2 3; do
+            respuesta=$(curl -s --max-time 20 https://solucionaire-proxy.soluaire-ordenes.workers.dev/ping) && echo "$respuesta" | grep -q '"ok":true' && { echo "Proxy: $respuesta"; exit 0; }
+            echo "Intento $intento: $respuesta"; sleep 20
+          done
+          echo "::error::El proxy no responde."; exit 1

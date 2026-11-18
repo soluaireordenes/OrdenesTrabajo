@@ -13,6 +13,20 @@
 <!-- Aplica el tema guardado ANTES de pintar, para que no haya destello claro
      al abrir en modo oscuro. Por defecto queda en claro (el modo oscuro es
      opcional y se activa desde el botón del encabezado). -->
+<script>
+// Si otro sitio mete la app en un marco (iframe) para superponerle cosas y
+// hacer que se toque sin querer (clickjacking), la app no se muestra y se
+// abre sola en su propia ventana. GitHub Pages no deja enviar la cabecera
+// X-Frame-Options y frame-ancestors no sirve en una etiqueta meta.
+(function () {
+  if (window.top === window.self) return;
+  var mismoSitio = false;
+  try { mismoSitio = window.top.location.origin === window.location.origin; } catch (e) {}
+  if (mismoSitio) return;
+  document.documentElement.style.display = 'none';
+  try { window.top.location = window.location.href; } catch (e) {}
+})();
+</script>
 <script>try{var _t=localStorage.getItem('tema');if(_t==='dark'||_t==='light')document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 
 <!-- ══ PWA: instalable y con soporte sin conexión ══ -->
@@ -57,7 +71,16 @@
   --border:      #e6eaf1;
   --text:        #2b2e33;
   --text2:       #666b73;
-  --text3:       #9599a1;
+  /* Texto secundario: #9599a1 daba 2,86:1 sobre blanco (el mínimo para
+     leer es 4,5:1) y se usa en cientos de etiquetas; con sol en planta o
+     brillo bajo no se leía (auditoría V-01). */
+  --text3:       #6b7079;
+  /* Los colores de acento, aprobado y rechazado sirven de fondo y de
+     texto. Como texto no llegaban a 4,5:1 (3,90, 3,42 y 3,55): estos son
+     los mismos tonos, más oscuros, solo para cuando van como texto. */
+  --accent-tx:   #016a93;
+  --accent2-tx:  #267d43;
+  --warn-tx:     #b4512c;
   /* Radios: solo estos tres, más las formas de píldora (20px / 999px) y de
      círculo (50%). Escala de letra: el texto usa 10, 11, 12, 13, 14, 16 y
      18 px; los números grandes de indicadores y portadas, 20 a 30 px. */
@@ -92,7 +115,10 @@
   --border:      #2d3742;
   --text:        #e5e8ee;
   --text2:       #aab1bc;
-  --text3:       #7d848f;
+  --text3:       #8f96a1;   /* 4,3:1 → 5,4:1 sobre la tarjeta oscura */
+  --accent-tx:   #3aa9d8;
+  --accent2-tx:  #43b96a;
+  --warn-tx:     #e0794f;
   --shadow:      0 2px 12px rgba(0,0,0,.4);
   --shadow-sm:   0 1px 4px rgba(0,0,0,.35);
   --shadow-md:   0 6px 20px rgba(0,0,0,.45);
@@ -627,7 +653,7 @@ body::after {
   font-family: inherit;
 }
 .nav-icon { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; }
-.nav-tab:hover { color: var(--accent); }
+.nav-tab:hover { color: var(--accent-tx); }
 .nav-tab.active { color: var(--brand); background: linear-gradient(180deg,transparent 60%,rgba(1,138,190,.07) 100%); }
 .nav-tab:hover:not(.active) { color: var(--brand); background: var(--brand-light); }
 .nav-tab-indicator {
@@ -843,7 +869,7 @@ body.autenticado #btnBuscarGlobal {
 .kpi-card .kpi-num { font-size: 30px; font-weight: 800; line-height: 1; color: var(--brand); }
 .kpi-card .kpi-label { font-size: 12px; font-weight: 600; letter-spacing: .2px; }
 .kpi-card.kpi-alerta { border-color: #f2b8a3; background: #fff6f2; }
-.kpi-card.kpi-alerta .kpi-num { color: var(--warn); }
+.kpi-card.kpi-alerta .kpi-num { color: var(--warn-tx); }
 
 /* ── Aviso de sin conexión ── */
 #avisoOffline {
@@ -1170,7 +1196,7 @@ body.rol-operario .solo-admin { display: none !important; }
 .btn-ghost:hover:not(:disabled) { background: var(--brand-mid); }
 /* Una sola acción principal por tarjeta o pantalla: la otra va con borde.
    "Realizada" en las pendientes es secundaria al lado de "Completar". */
-.btn-borde-ok { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); }
+.btn-borde-ok { background: transparent; color: var(--accent2-tx); border: 1px solid var(--accent2); }
 .btn-borde-ok:hover:not(:disabled) { background: var(--estado-ok-bg); }
 /* "Guardar cambios" del editor: secundaria para el admin (la principal es
    "Marcar como Realizada"); el operario no ve esa, así que para él es la
@@ -1812,7 +1838,7 @@ body.rol-operario .btn-principal-operario {
       <span id="userRol" class="user-rol" hidden></span>
     </div>
     <button id="btnTema" onclick="alternarTema()" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema"></button>
-    <button id="btnSalir" onclick="cerrarSesion(true)" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
+    <button id="btnSalir" onclick="salirDelSistema()" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
   </div>
 </header>
 
@@ -7204,7 +7230,7 @@ function _sidebarCuentaMovil() {
           <span class="sc-tema-oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>Modo oscuro</span>
           <span class="sc-tema-claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>Modo claro</span>
         </button>
-        <button type="button" onclick="cerrarSesion(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Salir</button>
+        <button type="button" onclick="salirDelSistema()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Salir</button>
       </div>
     </div>`;
 }
@@ -7484,7 +7510,60 @@ let googleAccessToken = null;
 /** salir=true es el botón "Salir": quien entre después en el mismo equipo
  *  tiene que volver a poner la clave de sede. Cuando la sesión solo venció
  *  ("Volver a iniciar sesión") se conserva, porque es la misma persona. */
+/* ── Salir del sistema ──
+   Al salir se borra la copia local de las órdenes de este equipo (trae
+   nombres, observaciones y las firmas de las órdenes recientes: en un
+   celular o PC compartido la podía leer cualquiera), MENOS las que todavía
+   no suben, que son su única copia. Y si hay órdenes sin subir, primero se
+   intenta subirlas y, si no hay señal, se avisa cuántas quedan. */
+const PREFIJO_COPIA_LOCAL_ORDENES = 'ordenesTrabajo_v1_';
+
+/** Las copias locales de órdenes de este equipo (una por sede), ya leídas. */
+function _copiasLocalesDeOrdenes() {
+  const copias = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const clave = localStorage.key(i);
+      if (!clave || !clave.startsWith(PREFIJO_COPIA_LOCAL_ORDENES)) continue;
+      let lista = [];
+      try { lista = JSON.parse(localStorage.getItem(clave) || '[]'); } catch (_) {}
+      copias.push({ clave, lista: Array.isArray(lista) ? lista : [] });
+    }
+  } catch (_) {}
+  return copias;
+}
+
+/** Cuántas órdenes de este equipo todavía no suben, en todas sus sedes. */
+function _ordenesSinSubirEnEsteEquipo() {
+  return _copiasLocalesDeOrdenes().reduce((n, c) => n + c.lista.filter(o => o && o._pendienteSync).length, 0);
+}
+
+/** Deja en cada copia local solo las órdenes que no han subido. */
+function _limpiarCopiasLocalesAlSalir() {
+  _copiasLocalesDeOrdenes().forEach(({ clave, lista }) => {
+    const pendientes = lista.filter(o => o && o._pendienteSync);
+    try {
+      if (pendientes.length) localStorage.setItem(clave, JSON.stringify(pendientes));
+      else localStorage.removeItem(clave);
+    } catch (_) {}
+  });
+}
+
+/** El botón "Salir". */
+async function salirDelSistema() {
+  if (_ordenesSinSubirEnEsteEquipo() && googleAccessToken) {
+    try { await intentarSincronizarPendientes(); } catch (_) {}
+  }
+  const quedan = _ordenesSinSubirEnEsteEquipo();
+  if (quedan && !(await confirmarAccion({
+    titulo: quedan === 1 ? 'Hay 1 orden sin subir' : `Hay ${quedan} órdenes sin subir`,
+    texto: 'No se pudieron subir porque no hay señal. Si sales, quedan guardadas solo en este equipo y se suben cuando vuelvas a entrar aquí. Si te quedas, se suben solas apenas vuelva la señal.',
+    aceptar: 'Salir de todas formas', cancelar: 'Quedarme' }))) return;
+  cerrarSesion(true);
+}
+
 function cerrarSesion(salir) {
+  if (salir === true) _limpiarCopiasLocalesAlSalir();
   try {
     sessionStorage.removeItem('gUser');
     sessionStorage.removeItem('gToken');
@@ -10309,11 +10388,6 @@ function sigDataUrl(canvasId) {
   return JSON.stringify(c.toDataURL()) === JSON.stringify(blank.toDataURL()) ? null : c.toDataURL();
 }
 
-/* ══════════════════════════════════════════════
-   SHAREPOINT — GRAPH API (wrapper)
-   En producción reemplazar con llamadas reales
-   a Microsoft Graph usando MSAL.
-══════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════
    GOOGLE SHEETS API — GUARDAR ÓRDENES
 ══════════════════════════════════════════════ */
@@ -13806,7 +13880,7 @@ function mostrarLoginOverlay() {
       </div>
       <div style="text-align:left;margin-bottom:8px">
         <label for="loginPin" style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">PIN</label>
-        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="••••" style="background:var(--surface);color:var(--text);width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;box-sizing:border-box">
+        <input id="loginPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="6 a 8 números" style="background:var(--surface);color:var(--text);width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;box-sizing:border-box">
       </div>
       <div id="loginError" style="min-height:18px;font-size:13px;color:var(--danger);margin-bottom:6px;text-align:left"></div>
       <button id="loginBtn" onclick="loginConDocumentoPinClick()" class="btn btn-primary btn-block">Ingresar</button>
@@ -13939,7 +14013,7 @@ function mostrarIndicadorStorage(sheetsOk) {
   const pendientes = allOrdenes.filter(o => o._pendienteSync).length;
 
   if (pendientes > 0) {
-    el.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> ${pendientes} orden(es) pendiente(s) de subir · <button onclick="intentarSincronizarPendientes()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:10px;text-decoration:underline;font-family:inherit">Sincronizar ahora</button>`;
+    el.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> ${pendientes} orden(es) pendiente(s) de subir · <button onclick="intentarSincronizarPendientes()" style="background:none;border:none;color:var(--accent-tx);cursor:pointer;font-size:10px;text-decoration:underline;font-family:inherit">Sincronizar ahora</button>`;
   } else if (sheetsOk) {
     el.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e"></span> Google Sheets conectado';
   } else {
@@ -14288,7 +14362,7 @@ async function guardarOrden() {
 
     if (sheetsOk) {
       alert.className = 'alert alert-ok show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Orden <strong>${numOrden}</strong> guardada en Google Sheets. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Orden <strong>${numOrden}</strong> guardada en Google Sheets. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2-tx);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(true);
     } else if (esSinConexion) {
       // Sin internet: queda en cola y se sube SOLA cuando vuelva la señal — no hay que recrearla.
@@ -14307,12 +14381,12 @@ async function guardarOrden() {
         return;   // sin limpiar el formulario: los datos siguen a la vista
       }
       alert.className = 'alert alert-ok show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> Sin conexión: la orden <strong>${numOrden}</strong> quedó guardada en este dispositivo y se subirá sola a Google Sheets apenas vuelva el internet (no necesitas crearla de nuevo). <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg> Sin conexión: la orden <strong>${numOrden}</strong> quedó guardada en este dispositivo y se subirá sola a Google Sheets apenas vuelva el internet (no necesitas crearla de nuevo). <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2-tx);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(false);
     } else {
       // Hubo internet, pero Google rechazó la solicitud por otra razón (permisos, etc.)
       alert.className = 'alert alert-err show';
-      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> La orden <strong>${numOrden}</strong> NO se pudo guardar en Google Sheets (${esc(sheetsError)}). Se guardó solo en este navegador como respaldo — vuelve a iniciar sesión y créala de nuevo para que quede en el Sheet. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2);font-weight:700">Ver orden →</a>`;
+      alert.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> La orden <strong>${numOrden}</strong> NO se pudo guardar en Google Sheets (${esc(sheetsError)}). Se guardó solo en este navegador como respaldo — vuelve a iniciar sesión y créala de nuevo para que quede en el Sheet. <a href="#" onclick="verDetalle(${_jsArg(numOrden)});showPanel('detalle');return false" style="color:var(--accent2-tx);font-weight:700">Ver orden →</a>`;
       mostrarIndicadorStorage(false);
     }
     actualizarContadorTab && actualizarContadorTab();
@@ -18635,7 +18709,7 @@ function renderHistorialRacha(racha) {
     [...racha].reverse().map(r =>
       `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--brand-light);color:var(--brand);border-radius:12px;padding:3px 6px 3px 10px;margin:2px 5px 2px 0;font-size:12px">
         ${fmtFecha(r.fecha)}${r.registradoPor ? ' · ' + esc(r.registradoPor) : ''}
-        <button class="solo-admin" onclick="eliminarFechaRacha(${_jsArg(r.fecha)})" title="Eliminar este registro" style="background:none;border:none;color:var(--warn);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
+        <button class="solo-admin" onclick="eliminarFechaRacha(${_jsArg(r.fecha)})" title="Eliminar este registro" style="background:none;border:none;color:var(--warn-tx);cursor:pointer;font-weight:800;padding:0 2px;line-height:1;font-size:14px">×</button>
       </span>`
     ).join('');
 }
@@ -18912,10 +18986,6 @@ function _codigoConsecutivoUnico(prefijo, filas, digitos) {
     codigo = numero + '-' + Array.from(azar).map(b => ALFABETO[b % 36]).join('');
   } while ((filas || []).some(f => f && f.Codigo === codigo));
   return codigo;
-}
-
-function _siguienteCodigo(prefijo) {
-  return _codigoConsecutivoUnico(prefijo, allNovedades, 2);
 }
 
 /** Se llama cada vez que se entra a la pestaña Novedades */
@@ -26672,7 +26742,7 @@ function _empQuien() { return currentUser?.name || currentUser?.email || ''; }
 function _empMensaje(id, texto, tipo) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.style.color = tipo === 'error' ? 'var(--danger)' : tipo === 'ok' ? 'var(--accent2)' : 'var(--text3)';
+  el.style.color = tipo === 'error' ? 'var(--danger)' : tipo === 'ok' ? 'var(--accent2-tx)' : 'var(--text3)';
   el.textContent = texto;
 }
 
@@ -27509,7 +27579,7 @@ function empRenderHallazgos() {
       <td style="white-space:nowrap;font-weight:600">${esc(h.Equipo || '—')}</td>
       <td style="min-width:220px;white-space:pre-line">${esc(h.Descripcion)}</td>
       <td><span class="emp-chip ${_empClaseHallazgo(h.Estado)}">${esc(h.Estado || 'Abierto')}</span>${h.OrdenNumero
-        ? `<div style="margin-top:4px"><a href="#" onclick="verDetalle(${_jsArg(h.OrdenNumero)});showPanel('detalle');return false" style="font-size:12px;color:var(--accent);font-weight:600">${esc(h.OrdenNumero)}</a></div>` : ''}</td>
+        ? `<div style="margin-top:4px"><a href="#" onclick="verDetalle(${_jsArg(h.OrdenNumero)});showPanel('detalle');return false" style="font-size:12px;color:var(--accent-tx);font-weight:600">${esc(h.OrdenNumero)}</a></div>` : ''}</td>
       <td style="font-size:12px;color:var(--text3);white-space:nowrap">${esc(h.RegistradoPor || '—')}<br>${esc(_empFechaLegible(h.FechaRegistro))}</td>
       ${admin ? `<td><div class="emp-acciones">${h._creandoOrden
         ? '<button class="btn btn-ghost btn-sm" disabled>Creando orden…</button>'
@@ -28805,7 +28875,7 @@ async function _renderDropdownNotificaciones() {
   let notifs;
   try { notifs = await cargarNotificaciones(); }
   catch (e) {
-    panel.innerHTML = `<div style="padding:60px 20px;text-align:center;color:var(--warn);font-size:14px">${esc(e.message)}</div>`;
+    panel.innerHTML = `<div style="padding:60px 20px;text-align:center;color:var(--warn-tx);font-size:14px">${esc(e.message)}</div>`;
     return;
   }
   _ultimasNotificacionesCache = notifs;
@@ -28816,7 +28886,7 @@ async function _renderDropdownNotificaciones() {
     <div style="padding:20px 26px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1;border-radius:12px 12px 0 0">
       <div style="font-weight:800;font-size:18px;color:var(--brand)">Notificaciones</div>
       <div style="display:flex;align-items:center;gap:18px">
-        <span onclick="marcarTodasNotificacionesLeidasClick()" style="font-weight:600;font-size:13px;color:var(--accent2);cursor:pointer">Marcar todas como leídas</span>
+        <span onclick="marcarTodasNotificacionesLeidasClick()" style="font-weight:600;font-size:13px;color:var(--accent2-tx);cursor:pointer">Marcar todas como leídas</span>
         <button onclick="toggleDropdownNotificaciones()" title="Cerrar" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:24px;line-height:1;padding:0">×</button>
       </div>
     </div>`;

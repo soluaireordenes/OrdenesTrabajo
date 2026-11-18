@@ -45,9 +45,18 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # Se publica solo la app: antes subía la carpeta entera ('.'), y
+      # quedaban servidos desde la dirección de la app el código del proxy,
+      # de los scripts, del bot y las pruebas.
+      - name: Armar la carpeta con solo la app
+        run: |
+          mkdir _sitio
+          cp index.html sw.js manifest.json privacidad.html favicon.png icon-192.png icon-512.png icon-512-maskable.png _sitio/
+          cp -r vendor _sitio/
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_sitio'
 
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -4021,6 +4021,76 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Auditoría (fase 1): el HTML se revalida (304) en vez de bajarse entero
+    // en cada apertura, la pantalla de entrada dice que el PIN es de 6 a 8
+    // números y la app no se deja encuadrar por otro sitio (clickjacking).
+    const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+    check('Auditoría: el service worker revalida el HTML (no-cache), no lo baja entero cada vez (reload)',
+      /fetch\(event\.request\.url, \{ cache: 'no-cache'/.test(sw) && !/cache: 'reload'/.test(sw));
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const pin = await p.evaluate(() => document.getElementById('loginPin').placeholder);
+    check('Auditoría: el PIN de la entrada dice "6 a 8 números"', pin === '6 a 8 números', pin);
+    // En un marco de otro origen (la página en blanco de Playwright no es el
+    // sitio de la app) la app se esconde o se abre en su propia ventana.
+    const marco = await ctx.newPage();
+    await marco.setContent(`<iframe id="m" src="${BASE}" style="width:800px;height:600px"></iframe>`);
+    await marco.waitForTimeout(1500);
+    const enMarco = await marco.evaluate(() => {
+      const f = document.getElementById('m');
+      return f ? 'sigue en el marco' : 'salió del marco';
+    }).catch(() => 'salió del marco');
+    const frame = marco.frames().find(f => f !== marco.mainFrame());
+    const escondida = frame ? await frame.evaluate(() => document.documentElement.style.display === 'none').catch(() => null) : null;
+    check('Auditoría: dentro de un marco de otro sitio la app no se muestra (o se abre en su propia ventana)',
+      escondida === true || enMarco === 'salió del marco' || marco.url().startsWith(BASE.replace('/index.html', '')), { enMarco, escondida, url: marco.url() });
+    // En su propia ventana se ve normal.
+    const visible = await p.evaluate(() => document.documentElement.style.display !== 'none');
+    check('Auditoría: fuera de un marco la app se ve normal', visible);
+    // V-01: el texto secundario y los acentos usados como texto llegan a
+    // 4,5:1 sobre las superficies, en claro y en oscuro.
+    const contraste = await p.evaluate(() => {
+      const lum = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      const token = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase();
+      const medir = () => Object.fromEntries(['--text3', '--accent-tx', '--accent2-tx', '--warn-tx'].map(t => [t, Math.min(cr(token(t), token('--surface')), cr(token(t), token('--surface2')))]));
+      const claro = medir();
+      document.documentElement.setAttribute('data-theme', 'dark');
+      const oscuro = medir();
+      document.documentElement.removeAttribute('data-theme');
+      return { claro, oscuro };
+    });
+    check('Auditoría: el texto secundario y los acentos como texto se leen (contraste ≥ 4,5:1) en claro y en oscuro',
+      [...Object.values(contraste.claro), ...Object.values(contraste.oscuro)].every(v => v >= 4.5), contraste);
+    check('Auditoría (fase 1): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
+    // Auditoría (S-06 y D-04): al salir se borra la copia local de las
+    // órdenes (nombres, observaciones, firmas), menos las que no han subido;
+    // y si hay órdenes sin subir, se avisa cuántas antes de salir.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const antes = await p.evaluate(async () => {
+      localStorage.setItem('ordenesTrabajo_v1_zipaquira', JSON.stringify([{ NumeroOrden: 'OT-A', _pendienteSync: true }, { NumeroOrden: 'OT-B', Observaciones: 'privada' }]));
+      localStorage.setItem('ordenesTrabajo_v1_peru', JSON.stringify([{ NumeroOrden: 'OT-C' }]));
+      googleAccessToken = ''; sessionStorage.setItem('gToken', 'SESS.x');
+      const avisos = [];
+      window.confirmarAccion = async o => { avisos.push(o.titulo + ' | ' + o.aceptar + ' | ' + o.cancelar); return false; };
+      await salirDelSistema();
+      return { avisos, sigue: sessionStorage.getItem('gToken'), zipa: JSON.parse(localStorage.getItem('ordenesTrabajo_v1_zipaquira')).length };
+    });
+    check('Auditoría: al salir con órdenes sin subir avisa cuántas y deja quedarse',
+      antes.avisos.join() === 'Hay 1 orden sin subir | Salir de todas formas | Quedarme' && antes.sigue === 'SESS.x' && antes.zipa === 2, antes);
+    await Promise.all([p.waitForEvent('load'), p.evaluate(() => { window.confirmarAccion = async () => true; setTimeout(() => salirDelSistema(), 20); })]);
+    const despues = await p.evaluate(() => ({
+      zipa: JSON.parse(localStorage.getItem('ordenesTrabajo_v1_zipaquira') || 'null'),
+      peru: localStorage.getItem('ordenesTrabajo_v1_peru'), token: sessionStorage.getItem('gToken'),
+    }));
+    check('Auditoría: al salir se borra la copia local de las órdenes y solo quedan las que no han subido',
+      JSON.stringify(despues.zipa) === JSON.stringify([{ NumeroOrden: 'OT-A', _pendienteSync: true }]) && despues.peru === null && despues.token === null, despues);
+    check('Auditoría (salir): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
     // "¡Toca ya!" que no se quitaba: CA2 con 13.482 h mostraba el informe
     // anual en 8.000 h porque su estado quedó atrás aunque la orden de esa
     // marca ya existía; CA3, porque su hora base (10.000) ya cubría la marca.
