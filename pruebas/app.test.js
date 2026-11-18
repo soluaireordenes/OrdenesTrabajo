@@ -4287,6 +4287,95 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Perú (importar de SharePoint): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Auditoría (A-01, A-02, A-03 y V-02), en un celular: cada campo tiene
+    // nombre (su título unido o un aria-label), cada botón dice qué hace,
+    // todo lo que se toca mide al menos 44 px y no queda letra de menos de
+    // 12 px. En computador el tamaño de los controles no cambia.
+    const fake = sheetsEnMemoria();
+    const movil = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, timezoneId: 'America/Bogota' });
+    await movil.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await movil.route('**/sheets/v4/**', fake.route);
+    const p = await movil.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = { vistas: 0, sinNombre: [], botonSinNombre: [], chicos: [], letraChica: [] };
+      const visible = el => { const c = el.getBoundingClientRect(); return c.width > 0 && c.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+      const nombre = el => (el.getAttribute('aria-label') || '').trim()
+        || (el.getAttribute('aria-labelledby') || '').split(/\s+/).map(i => document.getElementById(i)?.textContent || '').join('').trim()
+        || [...(el.labels || [])].map(l => l.textContent).join('').trim() || (el.placeholder || '').trim() || (el.title || '').trim();
+      const revisar = (raiz, vista) => {
+        out.vistas++;
+        for (const el of raiz.querySelectorAll('input:not([type=hidden]):not([type=file]), select, textarea')) {
+          if (visible(el) && !nombre(el)) out.sinNombre.push(vista + ': ' + (el.id || el.dataset.campo || el.outerHTML.slice(0, 60)));
+        }
+        for (const el of raiz.querySelectorAll('button')) {
+          if (visible(el) && !(el.textContent.trim() || el.getAttribute('aria-label') || el.title)) out.botonSinNombre.push(vista + ': ' + el.outerHTML.slice(0, 80));
+        }
+        for (const el of raiz.querySelectorAll('button, input:not([type=hidden]):not([type=file]):not([type=range]), select, textarea, summary')) {
+          if (!visible(el)) continue;
+          // Una casilla dentro de su etiqueta se toca por la etiqueta.
+          const caja = ((el.type === 'checkbox' || el.type === 'radio') && el.closest('label')) || el;
+          const c = caja.getBoundingClientRect();
+          if (c.height < 43.5 || c.width < 43.5) out.chicos.push(`${vista}: ${el.id || el.textContent.trim().slice(0, 20) || el.tagName} ${Math.round(c.width)}x${Math.round(c.height)}`);
+        }
+        for (const el of raiz.querySelectorAll('*')) {
+          if (el.closest('svg') || !visible(el) || ![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 1)) continue;
+          const fs = parseFloat(getComputedStyle(el).fontSize);
+          if (fs < 12) out.letraChica.push(`${vista}: ${fs}px "${el.textContent.trim().slice(0, 30)}"`);
+        }
+      };
+      revisar(document.getElementById('loginOverlay'), 'entrada');
+      document.getElementById('loginOverlay')?.remove();
+      window.confirmarAccion = async () => true; window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; _aplicarRolUI();
+      currentUser = { name: 'Ana Prueba', email: 'a@x' };
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      const panel = () => document.querySelector('.panel.active');
+      for (const pn of ['nueva', 'pendientes', 'lista', 'historico', 'dashboard', 'novedades']) { showPanel(pn); await espera(250); revisar(panel(), pn); }
+      showPanel('cronograma'); await espera(300);
+      for (const s of ['temporal', 'compresores', 'secadores', 'formacion', 'condiciones', 'dashboard', 'herramienta', 'observaciones']) { cronMostrarSubTab(s); await espera(300); revisar(panel(), 'reportes/' + s); }
+      // Las acciones de la tabla de Entrega de turno (antes solo un ícono).
+      allEntregasTurno = [{ Codigo: 'ENT-0007', Fecha: '2026-11-18', TurnoId: 'turno1', TurnoNombre: 'Turno 1', EntregadoPor: 'A', RecibidoPor: 'B' }];
+      cronMostrarSubTab('temporal'); await espera(200); renderTablaEntregasTurno();
+      out.accionesEntrega = [...document.querySelectorAll('#et_tablaWrap tbody button')].map(x => x.getAttribute('aria-label')).join(' | ');
+      revisar(document.getElementById('et_tablaWrap'), 'entregas');
+      // La casilla de una actividad se toca en 44 px y se llama como la actividad.
+      const casilla = document.querySelector('input[id^="cronCheck_"]');
+      out.casilla = casilla ? { nombre: nombre(casilla), caja: Math.round((casilla.closest('label') || casilla).getBoundingClientRect().height) } : null;
+      showPanel('inventario'); await espera(300);
+      for (const s of ['movimiento', 'producto', 'reportes']) { invMostrarSubTab(s); await espera(300); revisar(panel(), 'inventario/' + s); }
+      showPanel('variables'); await espera(300); variablesMostrarSubTab('compresores'); await espera(300); revisar(panel(), 'variables');
+      // El título de un campo, al tocarlo, lleva al campo.
+      showPanel('nueva'); await espera(200);
+      document.querySelector('label[for="f_fechaInicio"]')?.click();
+      out.tituloEnfoca = document.activeElement?.id;
+      return out;
+    });
+    check('Auditoría (celular): todos los campos tienen nombre (título unido o aria-label)', r.vistas >= 20 && !r.sinNombre.length, r.sinNombre.slice(0, 8));
+    check('Auditoría (celular): todos los botones dicen qué hacen; los de la tabla de entregas, con su código',
+      !r.botonSinNombre.length && r.accionesEntrega === 'Ver ENT-0007 | PDF de ENT-0007 | Eliminar ENT-0007', { sin: r.botonSinNombre.slice(0, 5), acciones: r.accionesEntrega });
+    check('Auditoría (celular): todo lo que se toca mide al menos 44 px', !r.chicos.length, r.chicos.slice(0, 10));
+    check('Auditoría (celular): no hay letra de menos de 12 px', !r.letraChica.length, r.letraChica.slice(0, 10));
+    check('Auditoría (celular): la casilla de una actividad se toca en 44 px y se llama como la actividad',
+      r.casilla && r.casilla.caja >= 44 && r.casilla.nombre.length > 10, r.casilla);
+    check('Auditoría: tocar el título de un campo lleva al campo', r.tituloEnfoca === 'f_fechaInicio', r.tituloEnfoca);
+    check('Auditoría (celular): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await movil.close();
+    // En computador (con mouse) los controles y la letra quedan como estaban.
+    const { ctx, p: pc } = await nuevaPagina(b);
+    const enPc = await pc.evaluate(() => {
+      document.getElementById('loginOverlay')?.remove();
+      showPanel('nueva');
+      const etiqueta = document.getElementById('f_tipo').closest('.field').querySelector('label');
+      return { campo: Math.round(document.getElementById('f_tipo').getBoundingClientRect().height), letra: getComputedStyle(etiqueta).fontSize };
+    });
+    check('Auditoría (computador): los campos y los títulos no cambian de tamaño', enPc.campo < 44 && enPc.letra === '11px', enPc);
+    await ctx.close();
+  }
 
   await b.close();
   srv.close();
