@@ -4050,6 +4050,32 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Auditoría (S-06 y D-04): al salir se borra la copia local de las
+    // órdenes (nombres, observaciones, firmas), menos las que no han subido;
+    // y si hay órdenes sin subir, se avisa cuántas antes de salir.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const antes = await p.evaluate(async () => {
+      localStorage.setItem('ordenesTrabajo_v1_zipaquira', JSON.stringify([{ NumeroOrden: 'OT-A', _pendienteSync: true }, { NumeroOrden: 'OT-B', Observaciones: 'privada' }]));
+      localStorage.setItem('ordenesTrabajo_v1_peru', JSON.stringify([{ NumeroOrden: 'OT-C' }]));
+      googleAccessToken = ''; sessionStorage.setItem('gToken', 'SESS.x');
+      const avisos = [];
+      window.confirmarAccion = async o => { avisos.push(o.titulo + ' | ' + o.aceptar + ' | ' + o.cancelar); return false; };
+      await salirDelSistema();
+      return { avisos, sigue: sessionStorage.getItem('gToken'), zipa: JSON.parse(localStorage.getItem('ordenesTrabajo_v1_zipaquira')).length };
+    });
+    check('Auditoría: al salir con órdenes sin subir avisa cuántas y deja quedarse',
+      antes.avisos.join() === 'Hay 1 orden sin subir | Salir de todas formas | Quedarme' && antes.sigue === 'SESS.x' && antes.zipa === 2, antes);
+    await Promise.all([p.waitForEvent('load'), p.evaluate(() => { window.confirmarAccion = async () => true; setTimeout(() => salirDelSistema(), 20); })]);
+    const despues = await p.evaluate(() => ({
+      zipa: JSON.parse(localStorage.getItem('ordenesTrabajo_v1_zipaquira') || 'null'),
+      peru: localStorage.getItem('ordenesTrabajo_v1_peru'), token: sessionStorage.getItem('gToken'),
+    }));
+    check('Auditoría: al salir se borra la copia local de las órdenes y solo quedan las que no han subido',
+      JSON.stringify(despues.zipa) === JSON.stringify([{ NumeroOrden: 'OT-A', _pendienteSync: true }]) && despues.peru === null && despues.token === null, despues);
+    check('Auditoría (salir): sin errores de JS', !errs.length, errs.slice(0, 2));
+    await ctx.close();
+  }
+  {
     // "¡Toca ya!" que no se quitaba: CA2 con 13.482 h mostraba el informe
     // anual en 8.000 h porque su estado quedó atrás aunque la orden de esa
     // marca ya existía; CA3, porque su hora base (10.000) ya cubría la marca.

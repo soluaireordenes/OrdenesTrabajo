@@ -1826,7 +1826,7 @@ body.rol-operario .btn-principal-operario {
       <span id="userRol" class="user-rol" hidden></span>
     </div>
     <button id="btnTema" onclick="alternarTema()" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema"></button>
-    <button id="btnSalir" onclick="cerrarSesion(true)" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
+    <button id="btnSalir" onclick="salirDelSistema()" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
   </div>
 </header>
 
@@ -7218,7 +7218,7 @@ function _sidebarCuentaMovil() {
           <span class="sc-tema-oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>Modo oscuro</span>
           <span class="sc-tema-claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>Modo claro</span>
         </button>
-        <button type="button" onclick="cerrarSesion(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Salir</button>
+        <button type="button" onclick="salirDelSistema()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Salir</button>
       </div>
     </div>`;
 }
@@ -7498,7 +7498,60 @@ let googleAccessToken = null;
 /** salir=true es el botón "Salir": quien entre después en el mismo equipo
  *  tiene que volver a poner la clave de sede. Cuando la sesión solo venció
  *  ("Volver a iniciar sesión") se conserva, porque es la misma persona. */
+/* ── Salir del sistema ──
+   Al salir se borra la copia local de las órdenes de este equipo (trae
+   nombres, observaciones y las firmas de las órdenes recientes: en un
+   celular o PC compartido la podía leer cualquiera), MENOS las que todavía
+   no suben, que son su única copia. Y si hay órdenes sin subir, primero se
+   intenta subirlas y, si no hay señal, se avisa cuántas quedan. */
+const PREFIJO_COPIA_LOCAL_ORDENES = 'ordenesTrabajo_v1_';
+
+/** Las copias locales de órdenes de este equipo (una por sede), ya leídas. */
+function _copiasLocalesDeOrdenes() {
+  const copias = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const clave = localStorage.key(i);
+      if (!clave || !clave.startsWith(PREFIJO_COPIA_LOCAL_ORDENES)) continue;
+      let lista = [];
+      try { lista = JSON.parse(localStorage.getItem(clave) || '[]'); } catch (_) {}
+      copias.push({ clave, lista: Array.isArray(lista) ? lista : [] });
+    }
+  } catch (_) {}
+  return copias;
+}
+
+/** Cuántas órdenes de este equipo todavía no suben, en todas sus sedes. */
+function _ordenesSinSubirEnEsteEquipo() {
+  return _copiasLocalesDeOrdenes().reduce((n, c) => n + c.lista.filter(o => o && o._pendienteSync).length, 0);
+}
+
+/** Deja en cada copia local solo las órdenes que no han subido. */
+function _limpiarCopiasLocalesAlSalir() {
+  _copiasLocalesDeOrdenes().forEach(({ clave, lista }) => {
+    const pendientes = lista.filter(o => o && o._pendienteSync);
+    try {
+      if (pendientes.length) localStorage.setItem(clave, JSON.stringify(pendientes));
+      else localStorage.removeItem(clave);
+    } catch (_) {}
+  });
+}
+
+/** El botón "Salir". */
+async function salirDelSistema() {
+  if (_ordenesSinSubirEnEsteEquipo() && googleAccessToken) {
+    try { await intentarSincronizarPendientes(); } catch (_) {}
+  }
+  const quedan = _ordenesSinSubirEnEsteEquipo();
+  if (quedan && !(await confirmarAccion({
+    titulo: quedan === 1 ? 'Hay 1 orden sin subir' : `Hay ${quedan} órdenes sin subir`,
+    texto: 'No se pudieron subir porque no hay señal. Si sales, quedan guardadas solo en este equipo y se suben cuando vuelvas a entrar aquí. Si te quedas, se suben solas apenas vuelva la señal.',
+    aceptar: 'Salir de todas formas', cancelar: 'Quedarme' }))) return;
+  cerrarSesion(true);
+}
+
 function cerrarSesion(salir) {
+  if (salir === true) _limpiarCopiasLocalesAlSalir();
   try {
     sessionStorage.removeItem('gUser');
     sessionStorage.removeItem('gToken');
