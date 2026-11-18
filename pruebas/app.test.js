@@ -4046,6 +4046,21 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     // En su propia ventana se ve normal.
     const visible = await p.evaluate(() => document.documentElement.style.display !== 'none');
     check('Auditoría: fuera de un marco la app se ve normal', visible);
+    // V-01: el texto secundario y los acentos usados como texto llegan a
+    // 4,5:1 sobre las superficies, en claro y en oscuro.
+    const contraste = await p.evaluate(() => {
+      const lum = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      const token = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase();
+      const medir = () => Object.fromEntries(['--text3', '--accent-tx', '--accent2-tx', '--warn-tx'].map(t => [t, Math.min(cr(token(t), token('--surface')), cr(token(t), token('--surface2')))]));
+      const claro = medir();
+      document.documentElement.setAttribute('data-theme', 'dark');
+      const oscuro = medir();
+      document.documentElement.removeAttribute('data-theme');
+      return { claro, oscuro };
+    });
+    check('Auditoría: el texto secundario y los acentos como texto se leen (contraste ≥ 4,5:1) en claro y en oscuro',
+      [...Object.values(contraste.claro), ...Object.values(contraste.oscuro)].every(v => v >= 4.5), contraste);
     check('Auditoría (fase 1): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
