@@ -2044,7 +2044,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
       operacionActual = 'zipaquira'; operacionAutenticada = true; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
       await showPanel('cronograma'); await espera(400);
-      const nuevos = ['Cristofer Ardila', 'Carlos Peña', 'Jhonatan Jimenez', 'Daniel Alarcon'];
+      const nuevos = ['Cristofer Ardila', 'Carlos Peña', 'Jhonatan Jimenez', 'Daniel Alarcon', 'Yesid Ulloa'];
       const faltan = {}, sobran = {};
       for (const [tab, prefijo] of [['compresores', 'rc'], ['formacion', 'rmf'], ['secadores', 'rs'], ['drycoolers', 'rd'], ['decorado', 'rdec'], ['emergencia', 're'], ['presiondrycooler', 'rpd']]) {
         cronMostrarSubTab(tab); await espera(150);
@@ -2059,7 +2059,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       await inicializarPanelCronograma(); cronMostrarSubTab('compresores'); await espera(400);
       return { faltan, sobran, zipa2: [...document.querySelectorAll('#rc_tecnico option')].map(o => o.value).join(',') };
     });
-    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez y Daniel Alarcon en la lista de los 7 reportes técnicos (Presión Drycooler incluido), George Mazuera y Sebastián Rodríguez ya no; Zipaquirá 2 sigue con la suya',
+    check('Técnicos de Zipaquirá 1: Cristofer Ardila, Carlos Peña, Jhonatan Jimenez, Daniel Alarcon y Yesid Ulloa en la lista de los 7 reportes técnicos (Presión Drycooler incluido), George Mazuera y Sebastián Rodríguez ya no; Zipaquirá 2 sigue con la suya',
       Object.keys(r.faltan).length === 0 && Object.keys(r.sobran).length === 0 && r.zipa2 === ',Otras' && errs.length === 0, { r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
