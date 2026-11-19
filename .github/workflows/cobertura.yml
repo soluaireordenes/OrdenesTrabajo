@@ -1,0 +1,35 @@
+name: Cobertura de las pruebas
+
+# Auditoría P-04: mide qué parte del código ejecutan las pruebas. No aprueba
+# ni reprueba nada por el porcentaje (solo falla si falla alguna prueba): el
+# resumen, con las funciones grandes de la app que ninguna prueba toca, queda
+# en la página de cada ejecución. Corre con cada cambio a main y a mano.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cobertura:
+    # Ubuntu 24.04 fijo, por la misma razón que en "Validar sintaxis"
+    # (Playwright 1.56.1 no tiene Chromium para la 26.04).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Instalar acorn, Playwright y Chromium
+        run: |
+          npm install --no-save acorn@8.14.0 playwright@1.56.1
+          npx playwright install chromium
+          timeout 240 npx playwright install-deps chromium \
+            || echo "::warning::No se pudieron instalar las dependencias del sistema de Chromium (espejos de Ubuntu); se sigue con las de la imagen."
+
+      - name: Medir la cobertura
+        run: node pruebas/cobertura.mjs
