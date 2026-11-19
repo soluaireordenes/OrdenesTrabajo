@@ -4439,6 +4439,23 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     });
     check('Auditoría: con la app en segundo plano el cronómetro no se pinta, y al volver se pone al día',
       reloj.oculto === 'sin pintar' && /Abre a las|Quedan|Tiempo agotado/.test(reloj.visible), reloj);
+    // V-04: cada gráfica dice qué muestra y sus datos principales.
+    const graficas = await p.evaluate(async () => {
+      for (let i = 0; i < 30 && typeof Chart === 'undefined'; i++) await new Promise(x => setTimeout(x, 100));
+      _coloresGraficas();
+      const tarjeta = document.createElement('div');
+      tarjeta.className = 'card';
+      tarjeta.innerHTML = '<div class="card-head">Órdenes por estado</div><div class="card-body"><canvas id="gPrueba1"></canvas><canvas id="gPrueba2"></canvas></div>';
+      document.body.appendChild(tarjeta);
+      const g1 = new Chart(document.getElementById('gPrueba1'), { type: 'bar', data: { labels: ['Lun', 'Mar', 'Mié'], datasets: [{ label: 'Presión (psi)', data: [98, 101.5, 104] }] }, options: { animation: false } });
+      const g2 = new Chart(document.getElementById('gPrueba2'), { type: 'doughnut', data: { labels: ['Pendiente', 'Cerrada'], datasets: [{ data: [3, 6] }] }, options: { animation: false } });
+      const r = { barras: document.getElementById('gPrueba1').getAttribute('aria-label'), rol: document.getElementById('gPrueba1').getAttribute('role'), dona: document.getElementById('gPrueba2').getAttribute('aria-label') };
+      g1.destroy(); g2.destroy(); tarjeta.remove();
+      return r;
+    });
+    check('Auditoría: cada gráfica tiene nombre para el lector de pantalla (qué muestra y sus datos principales)',
+      graficas.rol === 'img' && graficas.barras === 'Gráfica: Órdenes por estado. Presión (psi): 3 dato(s), el último 104 (Mié)'
+      && graficas.dona === 'Gráfica: Órdenes por estado. Pendiente: 3, Cerrada: 6', graficas);
     check('Auditoría (mapa y relojes): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
@@ -4538,6 +4555,68 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const directo = await p3.evaluate(() => ({ hash: location.hash, panel: document.querySelector('.panel.active')?.id, numero: document.querySelector('#panel-detalle .order-num')?.textContent, pendiente: sessionStorage.getItem('rutaPendiente') }));
     await p3.evaluate(() => history.back()); await p3.waitForTimeout(400);
     const trasDirecto = await p3.evaluate(() => ({ hash: location.hash, panel: document.querySelector('.panel.active')?.id }));
+    {
+      // Auditoría (D-03): dos personas editan la misma orden. La segunda en
+      // guardar ya no borra sin aviso lo de la primera: se le pregunta.
+      const fakeE = sheetsEnMemoria();
+      const ctxE = await b.newContext();
+      await ctxE.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+      await ctxE.route('**/sheets/v4/**', fakeE.route);
+      const pE = await ctxE.newPage();
+      const errsE = []; pE.on('pageerror', e => errsE.push(String(e)));
+      await pE.goto(BASE, { waitUntil: 'load' }); await pE.waitForTimeout(400);
+      const { colsE, idE } = await pE.evaluate(() => ({ colsE: SHEETS_COLS, idE: OPERACIONES.zipaquira.spreadsheetId }));
+      const filaE = v => colsE.map(c => ({ NumeroOrden: 'OT-77', Title: v.titulo, Equipo: 'CB1', Estado: 'Pendiente', FechaCreacion: '2026-11-18', ActualizadoEn: v.en, ActualizadoPor: v.por }[c] || ''));
+      fakeE.crear(idE, 'Ordenes', [colsE, filaE({ titulo: 'Cambio de aceite', en: '2026-11-19T13:00:00.000Z', por: 'Ana Prueba' })]);
+      const ordenHoja = () => { const h = fakeE.hoja(idE, 'Ordenes'); const f = h.find(x => x[0] === 'OT-77') || []; return { titulo: f[h[0].indexOf('Title')], en: f[h[0].indexOf('ActualizadoEn')], por: f[h[0].indexOf('ActualizadoPor')], estado: f[h[0].indexOf('Estado')] }; };
+      const otraPersona = (titulo, en) => { const h = fakeE.hoja(idE, 'Ordenes'); const f = h.find(x => x[0] === 'OT-77'); f[h[0].indexOf('Title')] = titulo; f[h[0].indexOf('ActualizadoEn')] = en; f[h[0].indexOf('ActualizadoPor')] = 'Pedro Gómez'; };
+      await pE.evaluate(async () => {
+        document.getElementById('loginOverlay')?.remove();
+        window.alert = () => {}; window.__preguntas = []; window.__respuesta = false;
+        window.confirmarAccion = async o => { window.__preguntas.push(o.titulo + ' | ' + o.texto + ' | ' + o.aceptar + ' / ' + o.cancelar); return window.__respuesta; };
+        googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; _aplicarRolUI();
+        currentUser = { name: 'Ana Prueba', email: 'a@x' };
+        operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+        allOrdenes = [{ id: 'OT-77', NumeroOrden: 'OT-77', Title: 'Cambio de aceite', Equipo: 'CB1', Estado: 'Pendiente', ActualizadoEn: '2026-11-19T13:00:00.000Z', tareas: [], repuestos: [], insumos: [], servicios: [] }];
+        showPanel('pendientes'); abrirModalCompletar('OT-77');
+        document.getElementById('e_descripcion').value = 'Cambio de aceite y filtro (Ana)';
+      });
+      otraPersona('Cambio de aceite (Pedro)', '2026-11-19T13:20:00.000Z');
+      const r1 = await pE.evaluate(async () => { await guardarEdicion(); await new Promise(x => setTimeout(x, 300));
+        return { preguntas: window.__preguntas.slice(), editor: document.getElementById('e_descripcion').value, aviso: [...document.querySelectorAll('#avisos .aviso-texto')].map(a => a.textContent).join(' | ') }; });
+      const tras1 = ordenHoja();
+      // Ahora con los cambios de Pedro a la vista, Ana edita y guarda: sin pregunta.
+      const r2 = await pE.evaluate(async () => { window.__preguntas = [];
+        document.getElementById('e_descripcion').value = 'Cambio de aceite (Pedro) + filtro (Ana)'; await guardarEdicion();
+        return { preguntas: window.__preguntas.length }; });
+      const tras2 = ordenHoja();
+      // Pedro guarda otra vez; esta vez Ana elige guardar encima.
+      otraPersona('Pedro de nuevo', '2026-11-19T14:00:00.000Z');
+      const r3 = await pE.evaluate(async () => { window.__preguntas = []; window.__respuesta = true;
+        document.getElementById('e_descripcion').value = 'Versión final de Ana'; await guardarEdicion();
+        return { preguntas: window.__preguntas.length }; });
+      const tras3 = ordenHoja();
+      // Un guardado propio con el editor abierto (el estado que cambia solo) no es "otra persona".
+      const r4 = await pE.evaluate(async () => { window.__preguntas = []; window.__respuesta = false;
+        await actualizarOrdenEnSheets('OT-77', { Estado: 'En ejecución' });
+        document.getElementById('e_descripcion').value = 'Versión final de Ana, revisada'; await guardarEdicion();
+        return { preguntas: window.__preguntas.length }; });
+      const tras4 = ordenHoja();
+      check('Edición simultánea: si otra persona guardó la orden mientras se editaba, pregunta quién y cuándo en vez de borrar sus cambios',
+        r1.preguntas.length === 1 && /^Otra persona cambió esta orden \| Pedro Gómez guardó cambios en la orden OT-77 a las .+ mientras la editabas\./.test(r1.preguntas[0])
+        && /Guardar mis cambios encima \/ Ver sus cambios$/.test(r1.preguntas[0])
+        && tras1.titulo === 'Cambio de aceite (Pedro)' && tras1.en === '2026-11-19T13:20:00.000Z', { r1, tras1 });
+      check('Edición simultánea: "Ver sus cambios" abre la orden como la dejó la otra persona y lo dice',
+        r1.editor === 'Cambio de aceite (Pedro)' && /se abrió con los cambios de Pedro Gómez/.test(r1.aviso), r1);
+      check('Edición simultánea: guardar sobre la versión al día no pregunta y deja quién y cuándo guardó',
+        r2.preguntas === 0 && tras2.titulo === 'Cambio de aceite (Pedro) + filtro (Ana)' && tras2.por === 'Ana Prueba' && /^2026-|^20\d\d-/.test(tras2.en) && tras2.en !== tras1.en, { r2, tras2 });
+      check('Edición simultánea: "Guardar mis cambios encima" escribe lo del editor',
+        r3.preguntas === 1 && tras3.titulo === 'Versión final de Ana' && tras3.por === 'Ana Prueba', { r3, tras3 });
+      check('Edición simultánea: un guardado propio con el editor abierto (el estado que cambia solo) no cuenta como otra persona',
+        r4.preguntas === 0 && tras4.titulo === 'Versión final de Ana, revisada' && tras4.estado === 'En ejecución', { r4, tras4 });
+      check('Edición simultánea: sin errores de JS', !errsE.length, errsE.slice(0, 2));
+      await ctxE.close();
+    }
     check('Enlace directo: sin sesión, la dirección queda pendiente para después de entrar',
       sinSesion.login && sinSesion.pendiente === 'cronograma/compresores' && sinSesion.hash === '#/inicio', sinSesion);
     check('Enlace directo: con sesión, #/orden/OT-0007 abre esa orden y "atrás" lleva a Inicio',
