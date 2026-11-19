@@ -33,6 +33,7 @@ jobs:
       - run: node pruebas/worker.test.mjs
       - run: node pruebas/whatsapp-worker.test.mjs
       - run: node pruebas/fotos-script.test.mjs
+      - run: node pruebas/respaldo-script.test.mjs
 
   deploy:
     needs: validar

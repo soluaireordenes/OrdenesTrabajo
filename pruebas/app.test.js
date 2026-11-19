@@ -1855,9 +1855,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       entregaEl.value = 'Ana Prueba'; de('TemperaturaSala').value = '29'; de('TemperaturaAmbiente').value = '15';
       await guardarEntregaTurnoSala();
       out.preguntas = preguntas.join(' | ');
-      // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno, ayer
-      const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-      document.getElementById('es_fecha').value = _isoLocal(ayer); document.getElementById('es_turno').value = 'noche';
+      // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno,
+      // hace dos días. No "ayer": entre las 10 p.m. y las 8 a.m. la app propone
+      // la Noche de ayer para la primera entrega, y esta chocaba con ella ("Ese
+      // turno ya tiene entrega"), así que la prueba fallaba según la hora.
+      const antier = new Date(); antier.setDate(antier.getDate() - 2);
+      document.getElementById('es_fecha').value = _isoLocal(antier); document.getElementById('es_turno').value = 'noche';
       ['es_fecha', 'es_turno'].forEach(id => document.getElementById(id).dispatchEvent(new Event('change')));
       entregaEl.value = 'Técnico Tres'; de('TemperaturaSala').value = ''; de('TemperaturaAmbiente').value = '';
       de('JOY 3 · Estado').value = ''; de('JOY 3 · Subestación').value = ''; de('Línea verde · Bomba 1').value = '';
@@ -4391,6 +4394,52 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return { campo: Math.round(document.getElementById('f_tipo').getBoundingClientRect().height), letra: getComputedStyle(etiqueta).fontSize };
     });
     check('Auditoría (computador): los campos y los títulos no cambian de tamaño', enPc.campo < 44 && enPc.letra === '11px', enPc);
+    await ctx.close();
+  }
+  {
+    // Auditoría (R-03 y R-04): el mapa del mundo ya no va dentro de
+    // index.html; se baja de vendor/ cuando el mapa entra en pantalla. Y los
+    // relojes de la pantalla no trabajan con la app en segundo plano.
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+    check('Auditoría: el mapa del mundo ya no va dentro de index.html y queda en el caché para verse sin señal',
+      !/jsVectorMap\.addMap\("world"/.test(html) && /'\.\/vendor\/jsvectormap\.min\.js'/.test(sw) && /'\.\/vendor\/jsvectormap-mundo\.js'/.test(sw));
+    const pedidos = [];
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/vendor/jsvectormap*': r => { pedidos.push(r.request().url().split('/').pop()); r.continue(); } });
+    // Lo que importa es que la página no tenga la librería antes de ver el
+    // mapa (el service worker también baja los dos archivos, para tenerlos
+    // sin señal, por eso se cuentan sin repetir).
+    await p.setViewportSize({ width: 390, height: 700 });
+    pedidos.length = 0;
+    await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
+    const antes = await p.evaluate(() => ({ libreria: typeof jsVectorMap, mapa: !!document.querySelector('#mapaOperacion svg'), arriba: Math.round(document.getElementById('mapaOperacion').getBoundingClientRect().top) }));
+    const r = await p.evaluate(async () => {
+      document.getElementById('loginOverlay')?.remove();
+      showPanel('inicio');
+      document.getElementById('mapaOperacion').scrollIntoView();
+      for (let i = 0; i < 40 && !document.querySelector('#mapaOperacion svg path'); i++) await new Promise(x => setTimeout(x, 100));
+      return { libreria: typeof jsVectorMap, regiones: document.querySelectorAll('#mapaOperacion svg path').length, marcas: document.querySelectorAll('#mapaOperacion svg circle').length };
+    });
+    check('Auditoría: el mapa de Inicio se baja solo al verse y se dibuja con sus 5 sedes',
+      antes.libreria === 'undefined' && !antes.mapa && r.libreria === 'function' && r.regiones > 100 && r.marcas >= 5
+      && [...new Set(pedidos)].sort().join(',') === 'jsvectormap-mundo.js,jsvectormap.min.js', { antes, r, pedidos });
+    // Relojes: con la app oculta el cronómetro de un reporte no se pinta; al volver, sí.
+    const reloj = await p.evaluate(() => {
+      const el = document.createElement('div');
+      el.className = 'cron-timer'; el.id = 'cronTimer_prueba_cp_0800'; el.setAttribute('data-hora', '08:00'); el.textContent = 'sin pintar';
+      document.body.appendChild(el);
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      _iniciarCronometrosCheckpoints();
+      const oculto = el.textContent;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const visible = el.textContent;
+      el.remove(); _actualizarCronometrosCheckpoints();
+      return { oculto, visible };
+    });
+    check('Auditoría: con la app en segundo plano el cronómetro no se pinta, y al volver se pone al día',
+      reloj.oculto === 'sin pintar' && /Abre a las|Quedan|Tiempo agotado/.test(reloj.visible), reloj);
+    check('Auditoría (mapa y relojes): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
 
