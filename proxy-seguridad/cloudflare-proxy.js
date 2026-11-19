@@ -24,6 +24,22 @@
        • Cada petición se cruza con la hoja Usuarios (releída cada 5 min):
          quien quede inactivo o borrado pierde el acceso, y un cambio de
          rol aplica sin esperar a que venza el pase.
+       • Para cerrar todas las sesiones de una persona (celular perdido,
+         equipo compartido) sin desactivarla: en la hoja Usuarios, columna
+         "VersionSesion" (si no existe, se agrega con ese encabezado), se
+         sube el número de su fila (vacío → 1 → 2…). Sus pases dejan de
+         servir en máximo 5 minutos y al volver a entrar recibe uno nuevo.
+       • Cada persona puede hacer hasta 120 peticiones a Sheets por minuto
+         (TOPE_PETICIONES_POR_MINUTO); pasado eso responde 429 como Google y
+         la app espera sola. Así un error en bucle no agota el cupo de todas
+         las sedes.
+       • Bitácora: cada escritura o borrado que pasa por el proxy queda en la
+         pestaña "Bitacora" de la hoja de Usuarios (solo admin; se crea sola):
+         fecha, documento, nombre, rol, sede, hoja, operación, rango y filas.
+       • Los eventos de seguridad (ingresos, fallidos, bloqueos, PIN
+         cambiado, sesiones cerradas, acciones negadas, topes) quedan en el
+         registro del Worker como una línea JSON con "evento" y el documento
+         oculto: Cloudflare → Workers → solucionaire-proxy → Observability.
 
    Endpoints
    ---------
@@ -47,7 +63,7 @@
          de fotos de cada sede.
    • GET  /foto?id=<driveFileId>   (requiere Authorization: Bearer <session>)
          Devuelve la foto directo desde Google Drive con la cuenta de servicio.
-   • GET  /ping             → {ok:true} (para probar que está arriba)
+   • GET  /ping             → {ok:true, version} (para probar que está arriba)
 
    ── VARIABLES Y SECRETOS DEL WORKER (Configuración → Variables y secretos) ──
    Secretos (tipo "Secreto"):
@@ -74,6 +90,8 @@
                                  fallidos para que el bloqueo valga en todas
                                  las copias del Worker. Sin él, el conteo queda
                                  en la memoria de cada copia.
+     • BITACORA_SHEET_ID      → (opcional) otra hoja para la bitácora; si no
+                                 se pone, va en la de Usuarios.
      • ALLOWED_SHEETS         → (opcional) lista de IDs de hojas permitidas,
                                  separados por coma. Si se deja vacío, se
                                  permiten todas las hojas que la cuenta de
@@ -85,7 +103,7 @@ const GOOGLE_SHEETS_BASE = 'https://sheets.googleapis.com';
 // Versión del proxy (fecha del cambio). /ping la devuelve: así se sabe qué
 // código está publicado en Cloudflare sin abrirlo, y el monitor lo vigila.
 // Súbela cada vez que cambie este archivo.
-const VERSION_PROXY = '2026-11-18';
+const VERSION_PROXY = '2026-11-19';
 
 // Hojas de cálculo que SOLO un admin puede abrir (ni leer ni escribir).
 // Proyectos: contratos, valores por alcance, calendario de pagos y montos.
@@ -107,6 +125,7 @@ const SEDES_HOJAS = [
   ['13kf6xZPfdnxDJmCyKJ0q-1z7ijRak7oMNhzemzq2KpI', '1TEwFSN-p-XcPiKHqiv-dqp8B2eefB-0Ecui5KcFU_VI'], // México
   ['1SqiKOzrqvMSOAdeoF_8QqzSylh2Rccq7oDh-UpHaEhY', '1CsrOhNBFQN_6vpbo-QqzbJJIx2qtY1CdQeTGwR3EPDQ'], // Perú
 ];
+const SEDES_NOMBRES = ['Zipaquirá', 'Zipaquirá 2', 'Soacha', 'Antioquia', 'México', 'Perú']; // en el orden de SEDES_HOJAS
 const PASE_SEDE_TTL_SEG = 7 * 24 * 60 * 60; // dura más que la sesión: volver a entrar no pide otra vez la clave
 
 // Token de la cuenta de servicio, cacheado entre peticiones del mismo isolate.
@@ -121,7 +140,7 @@ const BLOQUEO_MS = 15 * 60 * 1000;
 const _intentos = new Map(); // documento -> { intentos, bloqueadoHasta }
 
 export default {
-  async fetch(peticion, entorno) {
+  async fetch(peticion, entorno, ctx) {
     const url = new URL(peticion.url);
     const origen = peticion.headers.get('Origin') || '';
 
@@ -140,7 +159,7 @@ export default {
       }
 
       if (url.pathname.startsWith('/sheets/')) {
-        return _cors(await _gatewaySheets(peticion, entorno, url), entorno, origen);
+        return _cors(await _gatewaySheets(peticion, entorno, url, ctx), entorno, origen);
       }
 
       if (url.pathname === '/pase-fotos' && peticion.method === 'GET') {
@@ -182,9 +201,15 @@ async function _login(peticion, entorno) {
   // conexión para quien prueba un mismo PIN contra muchos documentos.
   const ip = peticion.headers.get('CF-Connecting-IP') || '';
   const minIp = _revisarBloqueoIp(ip);
-  if (minIp > 0) return _json({ ok: false, mensaje: `Demasiados intentos desde esta conexión. Intenta de nuevo en ${minIp} minuto(s).` }, 429);
+  if (minIp > 0) {
+    _evento('login_bloqueado', { motivo: 'conexion', doc: _docOculto(documento), ip });
+    return _json({ ok: false, mensaje: `Demasiados intentos desde esta conexión. Intenta de nuevo en ${minIp} minuto(s).` }, 429);
+  }
   const minBloqueo = await _revisarBloqueo(documento, entorno);
-  if (minBloqueo > 0) return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
+  if (minBloqueo > 0) {
+    _evento('login_bloqueado', { motivo: 'documento', doc: _docOculto(documento), ip });
+    return _json({ ok: false, mensaje: `Demasiados intentos. Intenta de nuevo en ${minBloqueo} minuto(s).` }, 429);
+  }
 
   if (!entorno.USUARIOS_SHEET_ID) return _json({ ok: false, mensaje: 'Falta configurar USUARIOS_SHEET_ID en el Worker.' }, 500);
 
@@ -204,24 +229,39 @@ async function _login(peticion, entorno) {
   if (u) pinBien = await _pinCoincide(pin, documento, u.pinHash, entorno);
   else await _firmaPinV2(pin, documento, '0', entorno.PIN_PEPPER || 'x'); // el mismo trabajo que un PIN equivocado
   if (!pinBien) {
-    await _registrarFallo(documento, entorno);
-    _registrarFalloIp(ip, documento);
+    const bloqueado = await _registrarFallo(documento, entorno);
+    const bloqueoIp = _registrarFalloIp(ip, documento);
+    _evento('login_fallido', { doc: _docOculto(documento), registrado: !!u, ip });
+    if (bloqueado) _evento('bloqueo', { motivo: 'documento', doc: _docOculto(documento), ip });
+    if (bloqueoIp) _evento('bloqueo', { motivo: 'conexion', ip });
     return _json({ ok: false, mensaje: 'Documento o PIN incorrecto.' }, 401);
   }
   // Usuario inactivo/deshabilitado no entra.
-  if (!u.activo) return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
+  if (!u.activo) {
+    _evento('login_inactivo', { doc: _docOculto(documento), ip });
+    return _json({ ok: false, mensaje: 'Usuario inactivo.' }, 403);
+  }
   // PIN todavía en el formato viejo: se pasa al nuevo ahora que se conoce.
   if (entorno.PIN_PEPPER && !/^v2\$/i.test(u.pinHash)) await _guardarPinV2(entorno, u, documento, pin);
 
   await _limpiarFallos(documento, entorno);
   // PIN de menos de 6 números: entra, pero con un pase que solo sirve para
   // crear el PIN nuevo (ver _cambiarPin); nada más funciona hasta entonces.
+  _evento('login', { doc: _docOculto(documento), rol: u.rol, ip, pinCorto: pin.length < PIN_MINIMO });
   if (pin.length < PIN_MINIMO) {
-    const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede, cp: true }, entorno, 60 * 60);
+    const session = await _firmarSesion(_datosSesion(documento, u, { cp: true }), entorno, 60 * 60);
     return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede, cambiarPin: true });
   }
-  const session = await _firmarSesion({ doc: documento, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
+  const session = await _firmarSesion(_datosSesion(documento, u), entorno);
   return _json({ ok: true, session, nombre: u.nombre, rol: u.rol, sede: u.sede });
+}
+
+/** Lo que lleva el pase de sesión. "vs" es la versión de sesión de la
+ *  persona en la hoja Usuarios (ver _sesionVigente); solo va si tiene una. */
+function _datosSesion(doc, u, extra = {}) {
+  const datos = { doc, nombre: u.nombre, rol: u.rol, sede: u.sede, ...extra };
+  if (u.versionSesion) datos.vs = u.versionSesion;
+  return datos;
 }
 
 /* ── CAMBIAR EL PIN ─────────────────────────────────────────────────────
@@ -260,7 +300,9 @@ async function _cambiarPin(peticion, entorno) {
   const u = usuarios.get(doc);
   if (!u || !u.activo) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
   if (!(await _pinCoincide(actual, doc, u.pinHash, entorno))) {
-    await _registrarFallo(doc, entorno);
+    const bloqueado = await _registrarFallo(doc, entorno);
+    _evento('cambio_pin_rechazado', { doc: _docOculto(doc) });
+    if (bloqueado) _evento('bloqueo', { motivo: 'documento', doc: _docOculto(doc) });
     return _json({ ok: false, mensaje: 'El PIN actual no es correcto.' }, 401);
   }
   const debil = _motivoPinDebil(nuevo, doc, actual);
@@ -269,7 +311,8 @@ async function _cambiarPin(peticion, entorno) {
   const valor = entorno.PIN_PEPPER ? await _pinV2(nuevo, doc, entorno.PIN_PEPPER) : await _sha256HexUpper(nuevo);
   if (!(await _escribirPin(entorno, u, valor))) return _json({ ok: false, mensaje: 'No se pudo guardar el PIN nuevo. Intenta de nuevo en un momento.' }, 502);
   await _limpiarFallos(doc, entorno);
-  const session = await _firmarSesion({ doc, nombre: u.nombre, rol: u.rol, sede: u.sede }, entorno);
+  _evento('cambio_pin', { doc: _docOculto(doc) });
+  const session = await _firmarSesion(_datosSesion(doc, u), entorno);
   return _json({ ok: true, session, nombre: u.nombre, rol: u.rol });
 }
 
@@ -394,6 +437,9 @@ async function _leerUsuarios(entorno) {
   const idxRol = _buscarCol(enc, ['rol', 'perfil', 'tipo']);
   const idxAct = _buscarCol(enc, ['activo', 'estado', 'habilitado']);
   const idxSede = _buscarCol(enc, ['sede', 'operacion', 'operación']);
+  // Opcional: subir este número en la fila de una persona cierra todas sus
+  // sesiones abiertas (celular perdido, equipo compartido) sin desactivarla.
+  const idxVs = _buscarCol(enc, ['versionsesion', 'version sesion', 'versión sesión', 'version de sesion', 'versión de sesión']);
   if (idxDoc < 0 || idxPin < 0) {
     const err = new Error('La hoja Usuarios debe tener columnas de documento y PIN.'); err.status = 500; throw err;
   }
@@ -414,6 +460,7 @@ async function _leerUsuarios(entorno) {
       rol,
       activo: !['no', 'inactivo', 'false', '0', 'deshabilitado'].includes(estado),
       sede: idxSede >= 0 ? String(fila[idxSede] || '').trim().toLowerCase() : '',
+      versionSesion: idxVs >= 0 ? String(fila[idxVs] || '').trim() : '',
     });
   }
   _usuariosCache = { leidoEn: Date.now(), porDoc };
@@ -449,6 +496,13 @@ async function _sesionVigente(peticion, entorno) {
   const u = await _usuarioVigente(sesion.doc, entorno);
   if (u === null) return sesion;              // no se pudo comprobar: se confía en el pase
   if (!u || !u.activo) return null;           // borrado o desactivado
+  // Revocación (auditoría S-05): si en la hoja subieron su VersionSesion,
+  // los pases que se dieron antes ya no sirven. Corta en máximo 5 minutos
+  // (lo que tarda en releerse la hoja), sin desactivar a la persona.
+  if (String(u.versionSesion || '') !== String(sesion.vs || '')) {
+    _evento('sesion_revocada', { doc: _docOculto(sesion.doc) });
+    return null;
+  }
   return { ...sesion, rol: u.rol };           // rol de hoy, no el de cuando entró
 }
 
@@ -506,7 +560,7 @@ function _esFotoOPdf(tipo) {
    igual que si el navegador hablara directo, pero: valida el pase de
    sesión, revisa el rol para operaciones sensibles, y reemplaza la
    autorización por el token de la cuenta de servicio. */
-async function _gatewaySheets(peticion, entorno, url) {
+async function _gatewaySheets(peticion, entorno, url, ctx) {
   const sesion = await _sesionVigente(peticion, entorno);
   if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida. Vuelve a iniciar sesión.' }, 401);
   if (sesion.cp) return _debeCambiarPin();
@@ -519,6 +573,17 @@ async function _gatewaySheets(peticion, entorno, url) {
   const permitidas = String(entorno.ALLOWED_SHEETS || '').split(',').map(s => s.trim()).filter(Boolean);
   if (permitidas.length && !permitidas.includes(spreadsheetId)) {
     return _json({ ok: false, mensaje: 'Hoja no permitida por el proxy.' }, 403);
+  }
+
+  // Tope de peticiones por persona (auditoría S-07): un error en bucle (o
+  // alguien a propósito) no puede gastar el cupo de Google que comparten
+  // todas las sedes. Responde como Google cuando se agota el cupo, así la
+  // app espera y reintenta sola (2, 4, 8 y 16 s).
+  const esperar = _excedeTope(sesion.doc);
+  if (esperar) {
+    return new Response(JSON.stringify({ ok: false, mensaje: 'Demasiadas peticiones seguidas. Espera unos segundos.',
+      error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'Tope de peticiones por persona del proxy.' } }),
+      { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(esperar) } });
   }
 
   // Un operario solo abre las hojas de la sede cuya clave escribió.
@@ -535,7 +600,10 @@ async function _gatewaySheets(peticion, entorno, url) {
   // ── Chequeo de rol: un operario solo puede hacer lo que la app usa ──
   if (sesion.rol !== 'admin') {
     const motivo = await _motivoNoPermitido(peticion.method, rutaGoogle, cuerpoTexto, spreadsheetId, entorno, token);
-    if (motivo) return _json({ ok: false, mensaje: 'Esta acción es solo para administradores (' + motivo + ').' }, 403);
+    if (motivo) {
+      _evento('accion_negada', { doc: _docOculto(sesion.doc), metodo: peticion.method, hoja: spreadsheetId.slice(0, 8), motivo });
+      return _json({ ok: false, mensaje: 'Esta acción es solo para administradores (' + motivo + ').' }, 403);
+    }
   }
 
   const cabeceras = { Authorization: 'Bearer ' + token };
@@ -556,6 +624,12 @@ async function _gatewaySheets(peticion, entorno, url) {
 
   // Reenviar la respuesta de Google tal cual (cuerpo + status).
   const texto = await respGoogle.text();
+  // Bitácora (auditoría S-04): cada escritura o borrado que Google aceptó
+  // queda anotado. Se escribe después de responder, sin demorar a nadie.
+  if (esEscritura && respGoogle.ok) {
+    const anotar = _anotarBitacora(entorno, sesion, peticion.method, rutaGoogle, cuerpoTexto, spreadsheetId, respGoogle.status);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(anotar); else await anotar;
+  }
   return new Response(texto, {
     status: respGoogle.status,
     headers: { 'Content-Type': respGoogle.headers.get('Content-Type') || 'application/json' },
@@ -820,7 +894,9 @@ async function _sede(peticion, entorno) {
 
   const ingresada = (await _sha256HexUpper(clave)).toLowerCase();
   if (!_igualSeguro(ingresada, hash)) {
-    await _registrarFallo(llave, entorno);
+    const bloqueado = await _registrarFallo(llave, entorno);
+    _evento('clave_sede_fallida', { doc: _docOculto(sesion.doc), hoja: spreadsheetId.slice(0, 8) });
+    if (bloqueado) _evento('bloqueo', { motivo: 'clave_sede', doc: _docOculto(sesion.doc), hoja: spreadsheetId.slice(0, 8) });
     return _json({ ok: false, mensaje: 'Contraseña incorrecta.' }, 401);
   }
   await _limpiarFallos(llave, entorno);
@@ -992,13 +1068,15 @@ async function _registrarFallo(llave, entorno) {
   let d = { ...((await _leerIntentos(llave, entorno)) || { intentos: 0 }) };
   if (d.bloqueadoHasta && Date.now() >= d.bloqueadoHasta) d = { intentos: 0 };
   d.intentos = (d.intentos || 0) + 1;
-  if (d.intentos >= MAX_INTENTOS) { d.bloqueadoHasta = Date.now() + BLOQUEO_MS; d.intentos = 0; }
+  const bloquea = d.intentos >= MAX_INTENTOS;
+  if (bloquea) { d.bloqueadoHasta = Date.now() + BLOQUEO_MS; d.intentos = 0; }
   _intentos.set(llave, d);
   const kv = _kv(entorno);
   if (kv) {
     try { await kv.put('intentos:' + llave, JSON.stringify(d), { expirationTtl: Math.ceil(BLOQUEO_MS / 1000) }); }
     catch (_) { /* sin cupo de escrituras o caído: queda en memoria */ }
   }
+  return bloquea;
 }
 async function _limpiarFallos(llave, entorno) {
   const habia = _intentos.delete(llave);
@@ -1028,8 +1106,125 @@ function _registrarFalloIp(ip, documento) {
     d = { desde: Date.now(), documentos: new Set(), bloqueadoHasta: 0 };
   }
   d.documentos.add(documento);
-  if (d.documentos.size >= IP_MAX_DOCUMENTOS) d.bloqueadoHasta = Date.now() + BLOQUEO_MS;
+  const bloquea = !d.bloqueadoHasta && d.documentos.size >= IP_MAX_DOCUMENTOS;
+  if (bloquea) d.bloqueadoHasta = Date.now() + BLOQUEO_MS;
   _fallosPorIp.set(ip, d);
+  return bloquea;
+}
+
+/* ── Bitácora de escrituras (auditoría S-04) ──
+   Una fila por cada escritura o borrado que pasa por el proxy, en la
+   pestaña "Bitacora" de la hoja de Usuarios (solo admin; se crea sola la
+   primera vez): fecha y hora de Colombia, documento, nombre, rol, sede,
+   hoja, operación, rango, filas y la respuesta de Google. Las lecturas no se
+   anotan. Ante un borrado o un dato cambiado, aquí se ve quién fue y cuándo.
+   Si no se pudiera anotar, la escritura de la persona igual queda hecha. */
+const BITACORA_TAB = 'Bitacora';
+const BITACORA_ENCABEZADOS = ['Fecha (hora Colombia)', 'Documento', 'Nombre', 'Rol', 'Sede', 'Hoja', 'Operación', 'Rango', 'Filas', 'Respuesta'];
+let _bitacoraLista = false;
+
+function _hojaLegible(spreadsheetId) {
+  if (HOJAS_SOLO_ADMIN.includes(spreadsheetId)) return ['', 'Proyectos'];
+  const i = SEDES_HOJAS.findIndex(f => f.includes(spreadsheetId));
+  if (i < 0) return ['', spreadsheetId];
+  return [SEDES_NOMBRES[i] || '', SEDES_HOJAS[i][0] === spreadsheetId ? 'Órdenes' : 'Inventario'];
+}
+
+/** Qué hizo una escritura, en palabras: operación, rango(s) y filas. */
+function _describirEscritura(metodo, rutaGoogle, cuerpoTexto) {
+  let cuerpo = {};
+  try { cuerpo = cuerpoTexto ? JSON.parse(cuerpoTexto) : {}; } catch (_) { cuerpo = {}; }
+  const ruta = rutaGoogle.split('?')[0];
+  const rangoUrl = (() => { const m = ruta.match(/\/values\/([^:]+)/); try { return m ? decodeURIComponent(m[1]) : ''; } catch (_) { return m ? m[1] : ''; } })();
+  const filasDe = v => (Array.isArray(v) ? v.length : 0);
+  if (/\/values:batchUpdate$/.test(ruta)) {
+    const data = Array.isArray(cuerpo.data) ? cuerpo.data : [];
+    return ['Escribir en lote', data.map(d => d.range).join(' | '), data.reduce((n, d) => n + filasDe(d.values), 0)];
+  }
+  if (/\/values:batchClear$/.test(ruta)) return ['Vaciar en lote', (cuerpo.ranges || []).join(' | '), 0];
+  if (/:append$/.test(ruta)) return ['Agregar filas', rangoUrl, filasDe(cuerpo.values)];
+  if (/:clear$/.test(ruta)) return ['Vaciar', rangoUrl, 0];
+  if (/:batchUpdate$/.test(ruta)) {
+    const pedidos = Array.isArray(cuerpo.requests) ? cuerpo.requests : [];
+    const partes = pedidos.map(r => {
+      if (r.addSheet) return 'crear pestaña ' + ((r.addSheet.properties || {}).title || '');
+      if (r.deleteDimension) { const g = r.deleteDimension.range || {}; return `borrar filas ${(g.startIndex || 0) + 1}-${g.endIndex || ''} (pestaña ${g.sheetId})`; }
+      return Object.keys(r)[0] || 'cambio';
+    });
+    return ['Cambio de estructura', partes.join(' | '), 0];
+  }
+  return [metodo === 'PUT' ? 'Escribir' : metodo, rangoUrl, filasDe(cuerpo.values)];
+}
+
+function _fechaColombia(ms = Date.now()) {
+  return new Date(ms - 5 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+}
+
+async function _anotarBitacora(entorno, sesion, metodo, rutaGoogle, cuerpoTexto, spreadsheetId, status) {
+  const hojaBitacora = entorno.BITACORA_SHEET_ID || entorno.USUARIOS_SHEET_ID;
+  if (!hojaBitacora) return;
+  try {
+    const [sede, hoja] = _hojaLegible(spreadsheetId);
+    const [operacion, rango, filas] = _describirEscritura(metodo, rutaGoogle, cuerpoTexto);
+    const fila = [_fechaColombia(), String(sesion.doc || ''), String(sesion.nombre || ''), String(sesion.rol || ''),
+      sede, hoja, operacion, String(rango).slice(0, 500), filas, status];
+    const token = await _tokenCuentaServicio(entorno);
+    const anexar = valores => fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${hojaBitacora}/values/${encodeURIComponent(BITACORA_TAB + '!A1')}:append`
+      + `?valueInputOption=RAW&insertDataOption=INSERT_ROWS&quotaUser=${encodeURIComponent('u-' + String(sesion.doc || 'anon').slice(0, 30))}`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ values: valores }),
+    });
+    let resp = await anexar([fila]);
+    if (!resp.ok && !_bitacoraLista && resp.status === 400) {
+      // La pestaña todavía no existe: se crea con sus encabezados.
+      await fetch(`${GOOGLE_SHEETS_BASE}/v4/spreadsheets/${hojaBitacora}:batchUpdate`, {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: BITACORA_TAB, gridProperties: { frozenRowCount: 1 } } } }] }),
+      });
+      resp = await anexar([BITACORA_ENCABEZADOS, fila]);
+    }
+    if (resp.status === 429) { await new Promise(r => setTimeout(r, 2000)); resp = await anexar([fila]); }
+    if (resp.ok) _bitacoraLista = true;
+    else _evento('bitacora_fallo', { status: resp.status, doc: _docOculto(sesion.doc) });
+  } catch (err) {
+    _evento('bitacora_fallo', { mensaje: String(err && err.message || err).slice(0, 200) });
+  }
+}
+
+/* ── Tope de peticiones a Sheets por persona (auditoría S-07) ──
+   120 por minuto por documento: muy por encima de lo que pide la app (sus
+   lecturas van en lote), y muy por debajo de lo que gasta un error en bucle.
+   Vive en la memoria de cada instancia del Worker, así que es aproximado
+   (una persona en dos centros de datos tiene dos cuentas), y alcanza para
+   frenar un bucle. Devuelve los segundos que faltan, o 0 si puede seguir. */
+const TOPE_PETICIONES_POR_MINUTO = 120;
+const _peticionesPorDoc = new Map(); // doc -> { desde, cuenta, avisado }
+
+function _excedeTope(doc, ahora = Date.now()) {
+  const llave = String(doc || 'anon');
+  let d = _peticionesPorDoc.get(llave);
+  if (!d || ahora - d.desde >= 60000) {
+    if (_peticionesPorDoc.size > 5000) _peticionesPorDoc.clear(); // que la memoria no crezca sin fin
+    d = { desde: ahora, cuenta: 0, avisado: false };
+    _peticionesPorDoc.set(llave, d);
+  }
+  d.cuenta++;
+  if (d.cuenta <= TOPE_PETICIONES_POR_MINUTO) return 0;
+  if (!d.avisado) { d.avisado = true; _evento('tope_peticiones', { doc: _docOculto(llave), tope: TOPE_PETICIONES_POR_MINUTO }); }
+  return Math.max(1, Math.ceil((d.desde + 60000 - ahora) / 1000));
+}
+
+/* ── Registro de eventos de seguridad (auditoría S-08) ──
+   Una línea JSON por evento en los registros del Worker (Cloudflare →
+   Workers → solucionaire-proxy → Observability → Logs; se filtra por
+   "evento"): ingresos, fallidos, bloqueos, PIN cambiado, sesiones
+   revocadas, acciones negadas y topes. El documento va oculto (solo los
+   3 últimos dígitos): sirve para ver un patrón sin guardar la cédula. */
+function _evento(tipo, datos = {}) {
+  try { console.log(JSON.stringify({ evento: tipo, ...datos, en: new Date().toISOString() })); } catch (_) { /* registrar nunca rompe la petición */ }
+}
+function _docOculto(doc) {
+  const d = String(doc || '');
+  return d.length > 3 ? '…' + d.slice(-3) : '…';
 }
 
 /* ── Utilidades ───────────────────────────────────────────────────────── */

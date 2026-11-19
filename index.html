@@ -3924,6 +3924,7 @@ body.rol-operario .btn-principal-operario {
     <div id="detalle-btn-bar" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="showPanel('lista')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button>
       <button class="btn btn-ghost" onclick="imprimirOrden()" title="Abre el documento de la orden para imprimirlo o guardarlo como PDF"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir / PDF</button>
+      <button class="btn btn-ghost" onclick="compartirEnlaceOrden()" title="Manda el enlace de esta orden (WhatsApp, correo…); quien lo abra entra directo a ella"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Compartir</button>
       <button class="btn btn-ghost solo-admin" style="color:var(--danger);border-color:var(--danger);margin-left:auto" onclick="eliminarOrdenCompleta()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Eliminar orden</button>
     </div>
     <div id="detalleContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:visible;min-height:100px;"></div>
@@ -7805,6 +7806,12 @@ window.addEventListener('load', async () => {
   // bloques <script>, así que todas las funciones a proteger existen.
   _protegerContraDobleToque(FUNCIONES_DE_UN_SOLO_TOQUE);
 
+  // La dirección con la que se abrió (enlace directo): queda guardada si
+  // antes hay que entrar o escribir la clave de la sede. La pantalla de
+  // arranque es Inicio, el primer paso del historial.
+  const rutaPedida = _rutaPedidaAlAbrir();
+  _rutaNavegar('inicio', { reemplazar: true });
+
   // Verificar sesión guardada (login por Documento + PIN — ver
   // loginConDocumentoPinClick()). El token en sí no viene de un OAuth
   // propio del operario: lo entrega el Apps Script tras validar su
@@ -7863,8 +7870,9 @@ window.addEventListener('load', async () => {
     cargarOrdenes().then(() => {
       renderPendientes();
       renderKpisInicio(); // resumen de un vistazo en Inicio
-      // Recordar la última pestaña: al abrir la app, volver a donde estaba.
-      _irAPanelInicialRecordado();
+      // Un enlace directo manda; si no hay, volver a la última pestaña usada.
+      if (rutaPedida) { _usarRutaPendiente(); _irARuta(rutaPedida, { empujar: true }); }
+      else _irAPanelInicialRecordado();
       // Si quedaron órdenes sin subir de una sesión anterior sin internet, reintenta ahora.
       intentarSincronizarPendientes();
       // Revisa los planes de mantenimiento de esta sede y genera las
@@ -7953,6 +7961,121 @@ function actualizarIndicadorNavTab() {
 }
 window.addEventListener('resize', actualizarIndicadorNavTab);
 
+/* ── Rutas: botón "atrás" y enlaces directos (auditoría N-01 y N-02) ──
+   Cada pantalla tiene su dirección con #: #/pendientes,
+   #/cronograma/compresores, #/orden/OT-2026-001. Abrir una pantalla la suma
+   al historial del navegador, así el botón o el gesto "atrás" del celular
+   vuelve a la anterior en vez de cerrar la app. Si hay una ventana abierta
+   (o el menú del celular), "atrás" la cierra primero. Cambiar de subpestaña
+   cambia la dirección sin sumar un paso (atrás no recorre pestaña por
+   pestaña). Abrir la app con una dirección lleva a esa pantalla, también
+   después de iniciar sesión y escribir la clave de la sede. */
+let _rutaActual = '';
+let _rutaPorHistorial = false;
+
+function _rutaDeHash(hash = location.hash) {
+  const r = String(hash || '').replace(/^#\/?/, '');
+  try { return decodeURIComponent(r); } catch (_) { return r; }
+}
+function _hashDeRuta(ruta) { return '#/' + String(ruta).split('/').map(encodeURIComponent).join('/'); }
+
+/** Pone la dirección de la pantalla que se abre: un paso nuevo en el
+ *  historial, o el mismo paso si se llegó con "atrás" o se pide reemplazar.
+ *  Volver a abrir el panel en el que ya se está no suma pasos. */
+function _rutaNavegar(ruta, { reemplazar = false } = {}) {
+  if (!ruta || ruta === _rutaActual) return;
+  if (!ruta.includes('/') && _rutaActual.split('/')[0] === ruta && !reemplazar) return;
+  _rutaActual = ruta;
+  try {
+    if (reemplazar || _rutaPorHistorial || !location.hash) history.replaceState({ ruta }, '', _hashDeRuta(ruta));
+    else history.pushState({ ruta }, '', _hashDeRuta(ruta));
+  } catch (_) {}
+}
+/** La subpestaña va en la dirección del panel en el que se está. */
+function _rutaSubpestana(panel, sub) {
+  if (sub && _rutaActual.split('/')[0] === panel) _rutaNavegar(panel + '/' + sub, { reemplazar: true });
+}
+
+/** Lleva a la pantalla de una dirección. Con "atrás" no suma pasos al
+ *  historial; al abrir la app con un enlace, sí (para poder volver a Inicio). */
+function _irARuta(ruta, { empujar = false } = {}) {
+  const [panel, sub] = String(ruta || '').split('/');
+  _rutaPorHistorial = !empujar;
+  try {
+    if (panel === 'orden' && sub) {
+      if (allOrdenes.some(o => o.NumeroOrden === sub || String(o.id) === sub)) verDetalle(sub);
+      else { aviso('La orden ' + sub + ' no está en esta sede o todavía no ha cargado.', 'info'); showPanel('lista'); }
+    } else if (panel === 'inventario') { abrirInventario(operacionActual); if (sub) invMostrarSubTab(sub); }
+    else if (panel === 'planmantenimiento') { abrirPlanMantenimiento(operacionActual); if (sub) pmMostrarSubTab(sub); }
+    else if (panel === 'variables') abrirVariables(sub || undefined);
+    else if (panel === 'proyectos') { abrirProyectos(); if (sub) proyMostrarSubTab(sub); }
+    else if (panel && panel !== 'detalle' && document.getElementById('panel-' + panel)) {
+      showPanel(panel);
+      if (sub && panel === 'cronograma') cronMostrarSubTab(sub);
+      if (sub && panel === 'empalme') empMostrarSubTab(sub);
+    } else showPanel('inicio');
+  } finally { _rutaPorHistorial = false; }
+}
+
+/** La ventana de la app que está encima de todo (fija y a pantalla
+ *  completa), si hay una. La entrada, la de sesión vencida y la pantalla de
+ *  carga no se cierran con "atrás". */
+const _NO_SE_CIERRAN_CON_ATRAS = ['loginOverlay', 'pantallaCarga', 'modalSesionExpirada', 'fondoSidebarMovil'];
+function _ventanaAbierta() {
+  const abiertas = [...document.body.children].filter(el => {
+    if (_NO_SE_CIERRAN_CON_ATRAS.includes(el.id)) return false;
+    const cs = getComputedStyle(el);
+    if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') return false;
+    const r = el.getBoundingClientRect();
+    return r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9;
+  });
+  return abiertas[abiertas.length - 1] || null;
+}
+/** Cierra la ventana de encima (como Escape, o con su Cancelar / Cerrar /
+ *  ✕, para que quien la abrió se entere) o el menú del celular. */
+function _cerrarVentanaOMenu() {
+  const v = _ventanaAbierta();
+  if (v) {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    if (v.isConnected && getComputedStyle(v).display !== 'none') {
+      const boton = [...v.querySelectorAll('[data-accion="cerrar"], [aria-label="Cerrar"], button, [onclick]')]
+        .find(b => b.matches('[data-accion="cerrar"]') || /^(Cancelar|Cerrar|✕|×|Volver)$/.test((b.getAttribute('aria-label') || b.textContent || '').trim()));
+      if (boton) boton.click();
+    }
+    if (v.isConnected && getComputedStyle(v).display !== 'none') v.remove();
+    return true;
+  }
+  const menu = document.getElementById('sidebarOperaciones');
+  if (menu && menu.classList.contains('abierto')) { toggleSidebarMovil(false); return true; }
+  return false;
+}
+
+window.addEventListener('popstate', () => {
+  if (document.getElementById('loginOverlay')) return; // en la entrada no hay a dónde volver
+  if (_cerrarVentanaOMenu()) {
+    // "Atrás" se usó para cerrar: la pantalla sigue siendo la misma.
+    if (_rutaActual) { try { history.pushState({ ruta: _rutaActual }, '', _hashDeRuta(_rutaActual)); } catch (_) {} }
+    return;
+  }
+  const destino = _rutaDeHash() || 'inicio';
+  if (destino === _rutaActual) return;
+  _irARuta(destino);
+});
+
+/** La dirección con la que se abrió la app (o la que quedó pendiente
+ *  mientras se iniciaba sesión o se escribía la clave de la sede). */
+function _rutaPedidaAlAbrir() {
+  let ruta = _rutaDeHash();
+  try {
+    if (!ruta || ruta === 'inicio') ruta = sessionStorage.getItem('rutaPendiente') || '';
+    if (ruta && ruta !== 'inicio') sessionStorage.setItem('rutaPendiente', ruta);
+  } catch (_) {}
+  return ruta === 'inicio' ? '' : ruta;
+}
+function _usarRutaPendiente() {
+  try { sessionStorage.removeItem('rutaPendiente'); } catch (_) {}
+}
+
 async function showPanel(name) {
   // Sin importar qué sede quedó guardada de antes, hay que volver a entrar
   // con contraseña cada vez que se abre el sistema (sessionStorage, no localStorage).
@@ -7973,6 +8096,7 @@ async function showPanel(name) {
     return;
   }
 
+  _rutaNavegar(name);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -8025,6 +8149,7 @@ function _irAPanelInicialRecordado() {
   if (!ultimo || ultimo === 'inicio' || !document.getElementById('panel-' + ultimo)) return;
   if (PANELES_SOLO_ADMIN.includes(ultimo) && !esAdmin()) return; // un operario no vuelve a una sección de admin
   if (ultimo === 'pendientes') {
+    _rutaNavegar('pendientes');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
     document.getElementById('panel-pendientes').classList.add('active');
@@ -14657,10 +14782,34 @@ function badgeClass(estado) {
 /* ══════════════════════════════════════════════
    VER DETALLE
 ══════════════════════════════════════════════ */
+/** Comparte el enlace directo de la orden abierta (#/orden/OT-…): en el
+ *  celular abre el menú de compartir (WhatsApp, correo…); si no hay, lo
+ *  copia. Quien lo abre entra a esa orden con su usuario y la clave de la
+ *  sede (auditoría N-02). */
+async function compartirEnlaceOrden() {
+  const orden = allOrdenes.find(o => String(o.id) === String(ordenDetalleId) || o.NumeroOrden === ordenDetalleId) || {};
+  const numero = orden.NumeroOrden || ordenDetalleId;
+  if (!numero) return;
+  const url = location.origin + location.pathname + _hashDeRuta('orden/' + numero);
+  const titulo = 'Orden ' + numero + (orden.Title ? ' — ' + orden.Title : '') + ' (' + (OPERACIONES[operacionActual]?.nombre || '') + ')';
+  if (navigator.share) {
+    try { await navigator.share({ title: titulo, text: titulo, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    aviso('Enlace de la orden ' + numero + ' copiado. Quien lo abra entra a esa orden con su usuario y la clave de la sede.', 'exito');
+  } catch (_) {
+    aviso('Copia este enlace: ' + url, 'info');
+  }
+}
+
 async function verDetalle(id) {
   showPanel('detalle');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   const orden = allOrdenes.find(o => String(o.id) === String(id) || o.NumeroOrden === id) || {};
+  // Su dirección (#/orden/OT-…) sirve para volver con "atrás" y para enviarla.
+  _rutaNavegar('orden/' + (orden.NumeroOrden || id), { reemplazar: true });
   // Que orden se esta viendo — lo necesita el boton de eliminar, que hasta
   // ahora no existia y por eso nadie habia tenido que registrarlo.
   ordenDetalleId = id;
@@ -15851,6 +16000,7 @@ function abrirInventario(opKey) {
   }
   inventarioOperacionActual = opKey;
 
+  _rutaNavegar('inventario');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   _actualizarBottomNav(null); // ninguno de los botones de la barra inferior (celular) lleva aquí
@@ -16785,6 +16935,7 @@ async function variablesGraficar(key) {
 function variablesMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-variables');
   if (!panel) return;
+  _rutaSubpestana('variables', nombre);
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
   const sub = document.getElementById('varSub-' + nombre);
@@ -16817,6 +16968,7 @@ function abrirVariables(apartado) {
     return;
   }
 
+  _rutaNavegar('variables');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   _actualizarBottomNav(null);
@@ -16860,6 +17012,7 @@ function abrirPlanMantenimiento(opKey) {
   }
   planMantOperacionActual = opKey;
 
+  _rutaNavegar('planmantenimiento');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   _actualizarBottomNav(null);
@@ -17385,6 +17538,7 @@ async function pmGuardarActividades() {
 
 function pmMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-planmantenimiento');
+  _rutaSubpestana('planmantenimiento', nombre);
   // Una pestaña del programa de Zipaquirá en una sede sin él: a Registro
   // (menos la del Programa anual, si la sede tiene el suyo).
   const programaPropio = nombre === 'programa2026' && panel.classList.contains('con-programa-anual');
@@ -17802,6 +17956,7 @@ function invMostrarSubTab(nombre) {
   // del suyo; este se había quedado sin acotar.
   const panel = document.getElementById('panel-inventario');
   if (!panel) return;
+  _rutaSubpestana('inventario', nombre);
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
   const sub = document.getElementById('invSub-' + nombre);
@@ -21168,6 +21323,7 @@ function cronMostrarSubTab(nombre) {
   if (nombre === 'observaciones' && !esAdmin()) nombre = 'temporal';
   if (nombre === 'actividades' && operacionActual !== 'zipaquira') nombre = 'temporal';
   if (nombre === 'entregasala' && !_entregaSalaDisponible(operacionActual)) nombre = 'temporal';
+  _rutaSubpestana('cronograma', nombre);
   const panel = document.getElementById('panel-cronograma');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.remove('active'));
@@ -26902,6 +27058,7 @@ async function inicializarPanelEmpalme() {
 }
 
 function empMostrarSubTab(nombre) {
+  _rutaSubpestana('empalme', nombre);
   const panel = document.getElementById('panel-empalme');
   panel.querySelectorAll('.inv-subpanel').forEach(p => p.classList.toggle('active', p.id === 'empSub-' + nombre));
   panel.querySelectorAll('.inv-subtab').forEach(b => b.classList.toggle('active', b.dataset.emptab === nombre));
@@ -29851,6 +30008,7 @@ async function abrirProyectos() {
     alert('Esta sección es solo para administradores.');
     return;
   }
+  _rutaNavegar('proyectos');
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
   _actualizarBottomNav(null);
@@ -29876,6 +30034,7 @@ async function proyRecargar() {
 function proyMostrarSubTab(nombre) {
   const panel = document.getElementById('panel-proyectos');
   if (!panel) return;
+  _rutaSubpestana('proyectos', nombre);
   panel.querySelectorAll('.proy-subpanel').forEach(p => p.classList.remove('active'));
   panel.querySelectorAll('.proy-tab').forEach(b => b.classList.remove('active'));
   const sub = document.getElementById('proySub-' + nombre);

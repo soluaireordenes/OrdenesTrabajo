@@ -4442,6 +4442,109 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     check('Auditoría (mapa y relojes): sin errores de JS', !errs.length, errs.slice(0, 2));
     await ctx.close();
   }
+  {
+    // Auditoría (N-01 y N-02): cada pantalla tiene su dirección (#/…); el
+    // botón "atrás" vuelve a la anterior, cierra primero una ventana abierta
+    // o el menú del celular, y un enlace directo lleva a la pantalla (también
+    // a una orden) después de entrar.
+    const fake = sheetsEnMemoria();
+    const movil = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await movil.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await movil.route('**/sheets/v4/**', fake.route);
+    const p = await movil.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(500);
+    const estado = () => p.evaluate(() => ({ hash: location.hash, panel: document.querySelector('.panel.active')?.id, largo: history.length }));
+    const atras = async () => { await p.evaluate(() => history.back()); await p.waitForTimeout(400); return estado(); };
+    const inicio = await estado();
+    await p.evaluate(async () => {
+      document.getElementById('loginOverlay')?.remove();
+      window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true; _aplicarRolUI();
+      currentUser = { name: 'Ana Prueba', email: 'a@x' };
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      allOrdenes = [{ id: 'OT-0007', NumeroOrden: 'OT-0007', Estado: 'Pendiente', Title: 'Cambio de filtro', tareas: '[]' }];
+      showPanel('pendientes');
+    });
+    const enPendientes = await estado();
+    await p.evaluate(() => { showPanel('cronograma'); cronMostrarSubTab('compresores'); });
+    await p.waitForTimeout(300);
+    const enReporte = await estado();
+    await p.evaluate(() => cronMostrarSubTab('secadores'));
+    const otraPestana = await estado();
+    // Una ventana abierta: "atrás" la cierra (como Cancelar) y no cambia de pantalla.
+    const respuesta = p.evaluate(() => confirmarAccion({ titulo: '¿Borrar el reporte?', aceptar: 'Eliminar' }));
+    await p.waitForTimeout(300);
+    const conVentana = await atras();
+    const cancelo = await respuesta;
+    const ventanas = await p.evaluate(() => document.querySelectorAll('.confirmar-fondo').length);
+    // El menú del celular abierto: "atrás" lo cierra.
+    await p.evaluate(() => toggleSidebarMovil(true));
+    const conMenu = await atras();
+    const menuAbierto = await p.evaluate(() => document.getElementById('sidebarOperaciones').classList.contains('abierto'));
+    // Ahora sí vuelve a la pantalla anterior, y luego a Inicio.
+    const vuelve = await atras();
+    const vuelveInicio = await atras();
+    // Adelante y el detalle de una orden.
+    await p.evaluate(() => { showPanel('lista'); verDetalle('OT-0007'); });
+    await p.waitForTimeout(300);
+    const enOrden = await estado();
+    const compartido = await p.evaluate(async () => {
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      let copiado = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => { copiado = t; } } });
+      await compartirEnlaceOrden();
+      return { copiado, aviso: document.querySelector('#avisos .aviso-texto')?.textContent || '' };
+    });
+    const deOrden = await atras();
+    check('Rutas: cada pantalla tiene su dirección y la subpestaña cambia la dirección sin sumar pasos',
+      inicio.hash === '#/inicio' && enPendientes.hash === '#/pendientes' && enReporte.hash === '#/cronograma/compresores'
+      && otraPestana.hash === '#/cronograma/secadores' && otraPestana.largo === enReporte.largo && enReporte.largo === enPendientes.largo + 1,
+      { inicio, enPendientes, enReporte, otraPestana });
+    check('Rutas: "atrás" con una ventana abierta la cierra como Cancelar y se queda en la pantalla',
+      cancelo === false && ventanas === 0 && conVentana.hash === '#/cronograma/secadores' && conVentana.panel === 'panel-cronograma', { cancelo, ventanas, conVentana });
+    check('Rutas: "atrás" con el menú del celular abierto lo cierra y se queda en la pantalla',
+      !menuAbierto && conMenu.panel === 'panel-cronograma' && conMenu.hash === '#/cronograma/secadores', { menuAbierto, conMenu });
+    check('Rutas: "atrás" vuelve a la pantalla anterior (Pendientes) y luego a Inicio, en vez de salir de la app',
+      vuelve.panel === 'panel-pendientes' && vuelve.hash === '#/pendientes' && vuelveInicio.panel === 'panel-inicio' && vuelveInicio.hash === '#/inicio', { vuelve, vuelveInicio });
+    check('Rutas: una orden tiene su dirección (#/orden/OT-0007) y "atrás" vuelve a la lista',
+      enOrden.hash === '#/orden/OT-0007' && enOrden.panel === 'panel-detalle' && deOrden.panel === 'panel-lista' && deOrden.hash === '#/lista', { enOrden, deOrden });
+    check('Rutas: "Compartir" en la orden copia su enlace directo y lo dice',
+      /\/index\.html#\/orden\/OT-0007$/.test(compartido.copiado) && /Enlace de la orden OT-0007 copiado/.test(compartido.aviso), compartido);
+    check('Rutas: sin errores de JS', !errs.length, errs.slice(0, 2));
+    await movil.close();
+
+    // Enlace directo: sin sesión queda pendiente; con la sesión y la sede, lleva ahí.
+    const ctx2 = await b.newContext();
+    await ctx2.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    const p2 = await ctx2.newPage();
+    await p2.goto(BASE + '#/cronograma/compresores', { waitUntil: 'load' }); await p2.waitForTimeout(500);
+    const sinSesion = await p2.evaluate(() => ({ login: !!document.getElementById('loginOverlay'), pendiente: sessionStorage.getItem('rutaPendiente'), hash: location.hash }));
+    await ctx2.close();
+    const cols = await (async () => { const c = await b.newContext(); const q = await c.newPage(); await q.goto(BASE, { waitUntil: 'load' }); const x = await q.evaluate(() => ({ cols: SHEETS_COLS, id: OPERACIONES.zipaquira.spreadsheetId })); await c.close(); return x; })();
+    const fila = cols.cols.map(c => ({ NumeroOrden: 'OT-0007', Title: 'Cambio de filtro', Estado: 'Pendiente', Equipo: 'JOY 2', FechaCreacion: '2026-11-18' }[c] || ''));
+    fake.crear(cols.id, 'Ordenes', [cols.cols, fila]);
+    const ctx3 = await b.newContext();
+    await ctx3.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx3.route('**/sheets/v4/**', fake.route);
+    await ctx3.addInitScript(() => {
+      sessionStorage.setItem('gUser', JSON.stringify({ name: 'Prueba', email: 'p@x', initials: 'PR' }));
+      sessionStorage.setItem('gToken', 'SESS.x'); sessionStorage.setItem('gRol', 'admin');
+      sessionStorage.setItem('operacionAutenticada', 'zipaquira');
+      try { localStorage.setItem('operacionActual', 'zipaquira'); } catch (e) {}
+    });
+    const p3 = await ctx3.newPage();
+    const errs3 = []; p3.on('pageerror', e => errs3.push(String(e)));
+    await p3.goto(BASE + '#/orden/OT-0007', { waitUntil: 'load' }); await p3.waitForTimeout(2000);
+    const directo = await p3.evaluate(() => ({ hash: location.hash, panel: document.querySelector('.panel.active')?.id, numero: document.querySelector('#panel-detalle .order-num')?.textContent, pendiente: sessionStorage.getItem('rutaPendiente') }));
+    await p3.evaluate(() => history.back()); await p3.waitForTimeout(400);
+    const trasDirecto = await p3.evaluate(() => ({ hash: location.hash, panel: document.querySelector('.panel.active')?.id }));
+    check('Enlace directo: sin sesión, la dirección queda pendiente para después de entrar',
+      sinSesion.login && sinSesion.pendiente === 'cronograma/compresores' && sinSesion.hash === '#/inicio', sinSesion);
+    check('Enlace directo: con sesión, #/orden/OT-0007 abre esa orden y "atrás" lleva a Inicio',
+      directo.hash === '#/orden/OT-0007' && directo.panel === 'panel-detalle' && directo.numero === 'OT-0007' && directo.pendiente === null
+      && trasDirecto.panel === 'panel-inicio' && trasDirecto.hash === '#/inicio' && !errs3.length, { directo, trasDirecto, errs: errs3.slice(0, 2) });
+    await ctx3.close();
+  }
 
   await b.close();
   srv.close();
