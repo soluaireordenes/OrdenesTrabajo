@@ -154,6 +154,22 @@
 /* Fila del inventario de herramienta marcada como incompleta. */
 .fila-incompleta { background: #fff6f2; }
 :root[data-theme="dark"] .fila-incompleta { background: #2a1c15; }
+/* Inventario de herramienta: cada categoría es una sección plegable
+   (auditoría R-05). La cabecera se toca entera, con flecha que gira. */
+.invh-grupo > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 44px; cursor: pointer; list-style: none; user-select: none;
+}
+.invh-grupo > summary::-webkit-details-marker { display: none; }
+.invh-grupo > summary::after {
+  content: ''; flex: none; width: 8px; height: 8px; margin-left: auto;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); transition: transform .2s var(--ease);
+}
+.invh-grupo[open] > summary::after { transform: rotate(-135deg); }
+.invh-grupo:not([open]) > summary { border-bottom: 0; }
+.invh-grupo > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .invh-grupo > summary::after { transition: none; } }
 
 /* Plan de Mantenimiento: colores del Excel del cliente (punto programado y
    frecuencias trimestral / semestral / anual). En modo oscuro son
@@ -927,25 +943,44 @@ body.autenticado #btnBuscarGlobal {
   .seccion-titulo { flex-basis: auto; font-size: 16px; }
   .seccion-acciones select { flex: 1 1 auto; min-width: 0 !important; }
 }
+/* Subpestañas de todos los módulos (auditoría N-03): Reportes, Variables,
+   Inventario, Plan de mantenimiento y Empalme se comportan igual. En
+   pantalla ancha se acomodan en filas. En celular son una sola fila que se
+   desliza de lado: el borde por donde quedan más pestañas se difumina
+   (clases mas-izq / mas-der, que pone _sombrasSubtabs) y la pestaña
+   elegida siempre queda a la vista, centrada (_mostrarPestanaEnFila).
+   Antes unas se partían en varias filas y otras se deslizaban sin aviso,
+   cortando nombres por la izquierda. */
+.subtabs { position: relative; display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 640px) {
+  .subtabs {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+    margin-left: -16px; margin-right: -16px; padding: 3px 16px 6px;
+  }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtabs > .inv-subtab { flex: none; }
+  .subtabs.mas-der {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+  }
+  .subtabs.mas-izq {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px);
+            mask-image: linear-gradient(90deg, transparent, #000 40px);
+  }
+  .subtabs.mas-izq.mas-der {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+}
 /* Reportes: las pestañas en dos grupos (Turno / Reportes técnicos), cada uno
-   con su nombre arriba. En celular cada fila se desliza de lado
-   (_mostrarPestanaEnFila la corre hasta la pestaña elegida). */
+   con su nombre arriba; cada grupo es una fila de subpestañas. */
 .cron-grupos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
 .cron-grupo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .cron-grupo-titulo { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text3); }
-.cron-grupo-tabs { position: relative; display: flex; flex-wrap: wrap; gap: 6px; }
 .cron-grupo-tabs .inv-subtab { padding: 7px 13px; }
 @media (max-width: 640px) {
   .cron-grupos { gap: 8px; }
   .cron-grupo { gap: 2px; }
-  .cron-grupo-tabs {
-    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
-    margin: 0 -16px; padding: 3px 40px 6px 16px;
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
-            mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
-  }
-  .cron-grupo-tabs::-webkit-scrollbar { display: none; }
-  .cron-grupo-tabs .inv-subtab { flex: none; }
 }
 /* Rejilla de las graficas de Variables. Exactamente 2 por fila en pantalla
    de escritorio y 1 en angosta: con auto-fit + minmax no se puede fijar en
@@ -2994,7 +3029,7 @@ body.rol-operario .btn-principal-operario {
     <div class="cron-grupos">
       <div class="cron-grupo" id="cronGrupoTurno">
         <div class="cron-grupo-titulo">Turno</div>
-        <div class="cron-grupo-tabs">
+        <div class="cron-grupo-tabs subtabs">
           <button class="inv-subtab" id="cronTabActividades" data-crontab="actividades" onclick="cronMostrarSubTab('actividades')" style="opacity:.6"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Actividades <svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></button>
           <button class="inv-subtab" id="cronTabEntregaSala" data-crontab="entregasala" onclick="cronMostrarSubTab('entregasala')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</button>
           <button class="inv-subtab active" data-crontab="temporal" onclick="cronMostrarSubTab('temporal')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg> Actividades Temporales</button>
@@ -3006,7 +3041,7 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div class="cron-grupo" id="cronGrupoTecnicos" style="display:none">
         <div class="cron-grupo-titulo">Reportes técnicos</div>
-        <div class="cron-grupo-tabs">
+        <div class="cron-grupo-tabs subtabs">
           <button class="inv-subtab" id="cronTabCompresores" data-crontab="compresores" onclick="cronMostrarSubTab('compresores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Compresores</button>
           <button class="inv-subtab" id="cronTabFormacion" data-crontab="formacion" onclick="cronMostrarSubTab('formacion')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Máquinas de Formación</button>
           <button class="inv-subtab" id="cronTabSecadores" data-crontab="secadores" onclick="cronMostrarSubTab('secadores')" style="display:none"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Secadores</button>
@@ -3943,7 +3978,7 @@ body.rol-operario .btn-principal-operario {
         <div class="seccion-acciones"><button class="btn btn-ghost" onclick="volverDeVariables()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Volver</button></div>
       </div>
 
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
+      <div class="subtabs" style="margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-vartab="compresores" onclick="variablesMostrarSubTab('compresores')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v6H6z"></path><path d="M4 8h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><circle cx="12" cy="14" r="3"></circle></svg> Compresores</button>
         <button class="inv-subtab" data-vartab="secadores" onclick="variablesMostrarSubTab('secadores')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"></path><path d="M7 22v-4"></path><path d="M17 22v-4"></path><line x1="8" y1="9" x2="16" y2="9"></line></svg> Secadores</button>
         <button class="inv-subtab" data-vartab="emergencia" onclick="variablesMostrarSubTab('emergencia')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 14h7l-1 8 9-12h-7z"></path></svg> Compresores Emergencia</button>
@@ -4036,7 +4071,7 @@ body.rol-operario .btn-principal-operario {
       <div id="invMsg" style="font-size:13px;margin-bottom:8px"></div>
 
       <!-- Sub-navegación del inventario -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
+      <div class="subtabs" style="margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-invtab="dashboard" onclick="invMostrarSubTab('dashboard')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dashboard</button>
         <button class="inv-subtab solo-admin" data-invtab="producto" onclick="invMostrarSubTab('producto')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Nuevo Producto</button>
         <button class="inv-subtab" data-invtab="movimiento" onclick="invMostrarSubTab('movimiento')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Movimientos</button>
@@ -4378,7 +4413,7 @@ body.rol-operario .btn-principal-operario {
 
       <div id="empKpis" class="emp-kpis"></div>
 
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
+      <div class="subtabs" style="margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-emptab="recepcion" onclick="empMostrarSubTab('recepcion')">Recepción de equipos</button>
         <button class="inv-subtab" data-emptab="hallazgos" onclick="empMostrarSubTab('hallazgos')">Hallazgos</button>
         <button class="inv-subtab" data-emptab="repuestos" onclick="empMostrarSubTab('repuestos')">Repuestos</button>
@@ -4487,7 +4522,7 @@ body.rol-operario .btn-principal-operario {
       </div>
 
       <!-- Sub-navegación del Plan de Mantenimiento -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:4px">
+      <div class="subtabs" style="margin-bottom:16px;padding-bottom:4px">
         <button class="inv-subtab active" data-pmtab="registro" onclick="pmMostrarSubTab('registro')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Registro</button>
         <button class="inv-subtab pm-programa" data-pmtab="horas" onclick="pmMostrarSubTab('horas')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</button>
         <button class="inv-subtab pm-programa" data-pmtab="programa2026" onclick="pmMostrarSubTab('programa2026')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa <span class="pm-programa-anio">2026</span></span></button>
@@ -21197,35 +21232,71 @@ async function inicializarInventarioHerramienta() {
   }
 }
 
+/** La lista de herramientas, una sección plegable por categoría (auditoría
+ *  R-05). Antes se armaban de una vez las 128 filas con sus botones y
+ *  campos (unos 3.000 elementos), pesado de recorrer en un celular. Ahora
+ *  cada categoría arma sus filas la primera vez que se abre, y abrir una
+ *  cierra la anterior: se revisa una caja a la vez. Lo que no se abre cuenta
+ *  como completo, igual que antes; lo marcado en una categoría se conserva
+ *  al cerrarla y su cabecera dice cuántas quedaron con novedad. */
 function renderInventarioHerramienta() {
   const cont = document.getElementById('invh_lista');
   if (!cont) return;
+  cont.innerHTML = INVENTARIO_HERRAMIENTA.map((grupo, i) => `<details class="card invh-grupo" name="invhGrupos" data-grupo="${i}" ontoggle="_invhAlAbrirGrupo(this)" style="margin-bottom:12px">
+    <summary class="card-head" style="font-size:13px">
+      <span>${esc(grupo.cat)} <span style="font-weight:400;color:var(--text3)">(${grupo.items.length})</span></span>
+      <span id="invh_nov_${i}"></span>
+    </summary>
+    <div class="card-body" id="invh_grupo_${i}" style="padding:0"></div>
+  </details>`).join('');
+}
+
+/** Al abrir una categoría: arma sus filas (solo la primera vez) y la deja a
+ *  la vista, porque al cerrarse la de arriba todo se corre. */
+function _invhAlAbrirGrupo(det) {
+  if (!det.open) return;
+  _invhPintarGrupo(Number(det.dataset.grupo));
+  try { det.querySelector('summary').scrollIntoView({ block: 'nearest' }); } catch (_) { /* sin desplazar */ }
+}
+
+/** En qué categoría (posición en INVENTARIO_HERRAMIENTA) está la herramienta n. */
+function _invhGrupoDe(n) {
+  return INVENTARIO_HERRAMIENTA.findIndex(g => g.items.some(it => it.n === n));
+}
+
+/** Abre la categoría de la herramienta n (para mostrar lo que hay que corregir). */
+function _invhAbrirGrupoDe(n) {
+  const det = document.querySelector('#invh_lista details[data-grupo="' + _invhGrupoDe(n) + '"]');
+  if (det && !det.open) { det.open = true; _invhAlAbrirGrupo(det); }
+}
+
+function _invhPintarGrupo(i) {
+  const cuerpo = document.getElementById('invh_grupo_' + i);
+  const grupo = INVENTARIO_HERRAMIENTA[i];
+  if (!cuerpo || !grupo || cuerpo.dataset.listo) return;
   let html = '';
-  INVENTARIO_HERRAMIENTA.forEach(grupo => {
-    html += `<div class="card" style="margin-bottom:12px"><div class="card-head" style="font-size:13px">${esc(grupo.cat)} <span style="font-weight:400;color:var(--text3)">(${grupo.items.length})</span></div><div class="card-body" style="padding:0">`;
-    grupo.items.forEach(it => {
-      const sub = [it.medida, it.marca].filter(Boolean).join(' · ');
-      html += `<div id="invh_row_${it.n}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <div style="flex:1;min-width:160px">
-          <div style="font-size:13px;font-weight:600">${it.n}. ${esc(it.nombre)}</div>
-          <div style="font-size:11px;color:var(--text3)">${sub ? esc(sub) + ' · ' : ''}Esperadas: ${it.cant}</div>
-        </div>
-        <div style="display:flex;gap:6px;white-space:nowrap">
-          <button type="button" id="invh_btnC_${it.n}" class="btn btn-sm" onclick="_invhMarcarCompleta(${it.n})" style="white-space:nowrap">✓ Completa</button>
-          <button type="button" id="invh_btnI_${it.n}" class="btn btn-sm" onclick="_invhMarcarIncompleta(${it.n})" style="white-space:nowrap">✗ Incompleta</button>
-        </div>
-        <div id="invh_falta_${it.n}" style="display:none;flex-basis:100%;gap:8px;align-items:center;flex-wrap:wrap;padding-top:6px">
-          <label style="font-size:11px;color:var(--text2)">Faltan: <input type="number" id="invh_faltan_${it.n}" min="1" max="${it.cant}" value="${it.cant}" style="width:70px;margin:0" oninput="_recalcularResumenInvh()"></label>
-          <span style="font-size:11px;color:var(--text3)">de ${it.cant}</span>
-          <input type="text" id="invh_prob_${it.n}" placeholder="¿Qué pasa? (dañada, perdida…)" style="flex:1;min-width:160px;margin:0">
-        </div>
-      </div>`;
-    });
-    html += `</div></div>`;
+  grupo.items.forEach(it => {
+    const sub = [it.medida, it.marca].filter(Boolean).join(' · ');
+    html += `<div id="invh_row_${it.n}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:13px;font-weight:600">${it.n}. ${esc(it.nombre)}</div>
+        <div style="font-size:11px;color:var(--text3)">${sub ? esc(sub) + ' · ' : ''}Esperadas: ${it.cant}</div>
+      </div>
+      <div style="display:flex;gap:6px;white-space:nowrap">
+        <button type="button" id="invh_btnC_${it.n}" class="btn btn-sm" onclick="_invhMarcarCompleta(${it.n})" style="white-space:nowrap">✓ Completa</button>
+        <button type="button" id="invh_btnI_${it.n}" class="btn btn-sm" onclick="_invhMarcarIncompleta(${it.n})" style="white-space:nowrap">✗ Incompleta</button>
+      </div>
+      <div id="invh_falta_${it.n}" style="display:none;flex-basis:100%;gap:8px;align-items:center;flex-wrap:wrap;padding-top:6px">
+        <label style="font-size:11px;color:var(--text2)">Faltan: <input type="number" id="invh_faltan_${it.n}" min="1" max="${it.cant}" value="${it.cant}" style="width:70px;margin:0" oninput="_recalcularResumenInvh()"></label>
+        <span style="font-size:11px;color:var(--text3)">de ${it.cant}</span>
+        <input type="text" id="invh_prob_${it.n}" placeholder="¿Qué pasa? (dañada, perdida…)" style="flex:1;min-width:160px;margin:0">
+      </div>
+    </div>`;
   });
-  cont.innerHTML = html;
+  cuerpo.innerHTML = html;
+  cuerpo.dataset.listo = '1';
   // Todas arrancan marcadas como "Completa".
-  INVENTARIO_HERRAMIENTA.forEach(g => g.items.forEach(it => _invhPintarEstado(it.n, 'completa')));
+  grupo.items.forEach(it => _invhPintarEstado(it.n, 'completa'));
 }
 
 /** Pinta los dos botones (Completa / Incompleta) de una herramienta según el
@@ -21284,9 +21355,18 @@ function _invhFaltantesActuales() {
 }
 
 function _recalcularResumenInvh() {
+  const falt = _invhFaltantesActuales();
+  // Cada categoría dice en su cabecera cuántas quedaron con novedad, para
+  // que se vea aunque esté cerrada.
+  const porGrupo = {};
+  falt.forEach(f => { const g = _invhGrupoDe(f.n); porGrupo[g] = (porGrupo[g] || 0) + 1; });
+  INVENTARIO_HERRAMIENTA.forEach((g, i) => {
+    const nov = document.getElementById('invh_nov_' + i);
+    if (nov) nov.innerHTML = porGrupo[i]
+      ? `<span class="badge" style="background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);text-transform:none;letter-spacing:0">${porGrupo[i]} con novedad</span>` : '';
+  });
   const el = document.getElementById('invh_resumen');
   if (!el) return;
-  const falt = _invhFaltantesActuales();
   if (!falt.length) {
     el.innerHTML = '<span style="color:var(--estado-ok-tx)">' + _icono('ok') + ' Inventario COMPLETO (128 herramientas)</span>';
     return;
@@ -21307,6 +21387,8 @@ async function guardarInventarioHerramienta() {
   for (const f of faltantes) {
     if (f.faltan < 1) {
       msg.textContent = `En "${f.nombre}": si marcaste Incompleta, indica cuántas faltan (1 o más) o vuelve a marcarla como Completa.`;
+      _invhAbrirGrupoDe(f.n);
+      try { document.getElementById('invh_faltan_' + f.n).focus(); } catch (_) { /* sin foco */ }
       return;
     }
   }
@@ -21426,12 +21508,50 @@ function verInventarioInvh(fechaHora) {
 
 /** En celular cada grupo de pestañas es una fila que se desliza: corre la
  *  fila para que la pestaña elegida quede a la vista. */
+/** Deja la pestaña elegida a la vista, centrada en su fila (en celular la
+ *  fila se desliza de lado; en pantalla ancha no hace nada). */
 function _mostrarPestanaEnFila(tab) {
-  const fila = tab && tab.parentElement;
-  if (!fila || fila.scrollWidth <= fila.clientWidth) return;
-  const izq = tab.offsetLeft, der = izq + tab.offsetWidth;
-  if (izq < fila.scrollLeft || der > fila.scrollLeft + fila.clientWidth) fila.scrollLeft = Math.max(0, izq - 16);
+  const fila = tab && tab.closest('.subtabs');
+  if (!fila) return;
+  if (fila.scrollWidth > fila.clientWidth + 1 && tab.offsetWidth) {
+    fila.scrollLeft = Math.max(0, tab.offsetLeft - (fila.clientWidth - tab.offsetWidth) / 2);
+  }
+  _sombrasSubtabs(fila);
 }
+
+/** Difumina el borde de la fila por donde quedan más pestañas. El margen
+ *  interno de cada lado no cuenta: con solo ese espacio vacío por ver, no
+ *  hay ninguna pestaña tapada. */
+function _sombrasSubtabs(fila) {
+  const sobra = fila.scrollWidth - fila.clientWidth;
+  let izq = false, der = false;
+  if (sobra > 1) {
+    const cs = getComputedStyle(fila);
+    izq = fila.scrollLeft > (parseFloat(cs.paddingLeft) || 0) + 1;
+    der = fila.scrollLeft < sobra - (parseFloat(cs.paddingRight) || 0) - 1;
+  }
+  fila.classList.toggle('mas-izq', izq);
+  fila.classList.toggle('mas-der', der);
+}
+
+/** Prepara todas las filas de subpestañas: el difuminado sigue al
+ *  deslizarlas; y cuando una fila aparece, cambia de tamaño o cambia la
+ *  pestaña elegida (por un toque, un enlace o el botón atrás), la elegida
+ *  queda a la vista. Así no hay que acordarse de hacerlo en cada módulo. */
+function _prepararSubtabs() {
+  document.querySelectorAll('.subtabs').forEach(fila => {
+    if (fila.dataset.subtabsListas) return;
+    fila.dataset.subtabsListas = '1';
+    const alDia = () => { const activa = fila.querySelector('.inv-subtab.active'); if (activa) _mostrarPestanaEnFila(activa); else _sombrasSubtabs(fila); };
+    fila.addEventListener('scroll', () => _sombrasSubtabs(fila), { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(alDia).observe(fila);
+    new MutationObserver(cambios => {
+      if (cambios.some(c => c.target !== fila)) alDia();
+    }).observe(fila, { subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _prepararSubtabs);
+else _prepararSubtabs();
 
 function cronMostrarSubTab(nombre) {
   // Los llamados de atención a operarios son solo para admin (la pestaña ya

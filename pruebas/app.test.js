@@ -356,14 +356,43 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
 
   // 7) Inventario de herramienta + ver inspección
   {
-    const { ctx, p } = await nuevaPagina(b);
-    const r = await p.evaluate(() => {
-      renderInventarioHerramienta(); _recalcularResumenInvh();
+    const fake = sheetsEnMemoria();
+    const { ctx, p } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      // La pestaña de verdad (Cronograma → Inventario Herramienta de Zipaquirá).
+      googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      document.getElementById('loginOverlay')?.remove();
+      await showPanel('cronograma'); await espera(300);
+      cronMostrarSubTab('herramienta'); await espera(400);
+      const lista = document.getElementById('invh_lista');
+      const grupos = () => [...lista.querySelectorAll('details.invh-grupo')];
+      const abrir = async i => { grupos()[i].querySelector('summary').click(); await espera(60); };
+      // R-05: al entrar solo están las 20 cabeceras, todas cerradas, sin las filas.
+      const out = { inicio: { grupos: grupos().length, abiertos: grupos().filter(d => d.open).length,
+        elementos: lista.querySelectorAll('*').length, botones: lista.querySelectorAll('button').length } };
       const it = INVENTARIO_HERRAMIENTA[0].items[0]; const n = it.n;
-      const out = { dosBotones: !!document.getElementById('invh_btnC_' + n) && !!document.getElementById('invh_btnI_' + n) };
+      await abrir(0);
+      out.dosBotones = !!document.getElementById('invh_btnC_' + n) && !!document.getElementById('invh_btnI_' + n);
+      out.botonesTrasAbrir = lista.querySelectorAll('button').length;
+      out.n0 = INVENTARIO_HERRAMIENTA[0].items.length; out.n = n;
       _invhMarcarIncompleta(n); document.getElementById('invh_faltan_' + n).value = '1'; _recalcularResumenInvh();
       const f = _invhFaltantesActuales()[0]; out.faltante = f && f.faltan === 1 && f.encontradas === it.cant - 1;
-      _invhMarcarCompleta(n); out.vuelveCompleto = /COMPLETO/.test(document.getElementById('invh_resumen').textContent);
+      // Abrir otra categoría cierra la primera; lo marcado sigue y su cabecera lo dice.
+      await abrir(1);
+      out.otra = { abiertos: grupos().filter(d => d.open).map(d => d.dataset.grupo).join(','),
+        sigue: _invhFaltantesActuales().length, cabecera: document.getElementById('invh_nov_0').textContent.trim(),
+        cabeceraOtra: document.getElementById('invh_nov_1').textContent.trim() };
+      // Si al guardar falta corregir algo de una categoría cerrada, se abre sola.
+      document.getElementById('invh_faltan_' + n).value = '0';
+      document.getElementById('invh_fecha').value = '2026-11-19'; document.getElementById('invh_turno').value = 'Turno 1 (6am-2pm)';
+      await guardarInventarioHerramienta(); await espera(60);
+      out.alGuardar = { abierta: grupos()[0].open, msg: document.getElementById('invh_msg').textContent, foco: document.activeElement?.id };
+      document.getElementById('invh_faltan_' + n).value = '1';
+      _invhMarcarCompleta(n); out.vuelveCompleto = /COMPLETO/.test(document.getElementById('invh_resumen').textContent)
+        && document.getElementById('invh_nov_0').textContent.trim() === '';
       allInventarioHerramientaReg = [{ Fecha: '2026-10-06', Turno: 'T1', RegistradoPor: 'D', FechaHora: 'FH1', Tipo: 'RESUMEN', Completo: 'NO', TotalFaltantes: '2' }];
       allInventarioHerramientaDet = [
         { FechaHora: 'FH1', HerramientaN: '8', Herramienta: 'Tijera', CantEsperada: '1', CantEncontrada: '0', Faltan: '1', Problema: 'Perdida' },
@@ -376,6 +405,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       return out;
     });
     check('Inventario: botones Completa/Incompleta y faltantes', r.dosBotones && r.faltante && r.vuelveCompleto, r);
+    check('Inventario (R-05): 20 categorías plegables y cerradas, sin armar las filas hasta abrir una; abrir otra cierra la anterior y lo marcado sigue con su cabecera "1 con novedad"; al guardar con algo por corregir se abre su categoría',
+      r.inicio.grupos === 20 && r.inicio.abiertos === 0 && r.inicio.botones === 0 && r.inicio.elementos < 150
+      && r.botonesTrasAbrir === r.n0 * 2 && r.otra.abiertos === '1' && r.otra.sigue === 1 && r.otra.cabecera === '1 con novedad' && r.otra.cabeceraOtra === ''
+      && r.alGuardar.abierta && /indica cuántas faltan/.test(r.alGuardar.msg) && r.alGuardar.foco === 'invh_faltan_' + r.n, r);
     check('Ver inspección con columna Estado', r.inspeccion, r);
     await ctx.close();
   }
@@ -2956,6 +2989,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       { acciones: r.accionesPendiente, guardarAdmin: r.guardarAdmin, guardarOperario: r.guardarOperario });
     check('Orden: Reparar hoja, Capacidad y Limpiar caché van plegadas en "Herramientas", al final del menú',
       r.herramientasPlegadas && r.grupoAlFinal && r.herramientasAbiertas && r.notificacionesArriba, r);
+    const enPc = await pc.p.evaluate(async () => {
+      abrirInventario('zipaquira'); await new Promise(x => setTimeout(x, 200));
+      const f = document.querySelector('#panel-inventario .subtabs'), cs = getComputedStyle(f);
+      return { desliza: f.scrollWidth > f.clientWidth, mascara: cs.maskImage || cs.webkitMaskImage, clases: f.className };
+    });
+    check('Subpestañas (N-03, PC): en pantalla ancha se acomodan en filas, sin deslizar ni difuminar',
+      !enPc.desliza && enPc.mascara === 'none' && enPc.clases === 'subtabs', enPc);
     await pc.ctx.close();
 
     const cel = await nuevo({ width: 390, height: 844 });
@@ -2982,12 +3022,31 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.menuSigueAbierto = sb.classList.contains('abierto') && !!sb.querySelector('[onclick="limpiarCacheLocal()"]');
       sb.querySelector('[onclick="showPanel(\'pendientes\')"]')?.click(); await espera(50);
       out.opcionCierra = !sb.classList.contains('abierto');
+      // N-03: Inventario y Plan, igual que Reportes: una fila que se desliza,
+      // con la elegida a la vista y el borde difuminado solo donde hay más.
+      const estado = f => {
+        const a = f.querySelector('.inv-subtab.active'), ft = f.getBoundingClientRect(), at = a.getBoundingClientRect();
+        return new Set([...f.querySelectorAll('.inv-subtab')].filter(t => t.offsetWidth).map(t => t.offsetTop)).size + ' fila | '
+          + ([...f.classList].filter(c => c.startsWith('mas-')).sort().join(',') || 'sin difuminar') + ' | ' + (at.left >= ft.left - 1 && at.right <= ft.right + 1 ? 'a la vista' : 'tapada');
+      };
+      abrirInventario('zipaquira'); await espera(200);
+      const fi = document.querySelector('#panel-inventario .subtabs');
+      out.inv = [estado(fi)];
+      invMostrarSubTab('stock'); await espera(50); out.inv.push(estado(fi));
+      invMostrarSubTab('reportes'); await espera(50); out.inv.push(estado(fi));
+      abrirPlanMantenimiento('zipaquira'); await espera(200);
+      pmMostrarSubTab('informetrimestral'); await espera(50);
+      out.plan = estado(document.querySelector('#panel-planmantenimiento .subtabs'));
+      out.anchoModulos = document.documentElement.scrollWidth;
       return out;
     });
     check('Orden (celular): cada grupo de Reportes es una fila que se desliza y muestra la pestaña elegida',
       m.unaFila && m.pestanaAVista && m.anchoPagina <= 390, m);
     check('Orden (celular): en Novedades la acción va debajo del título, que usa todo el ancho', m.accionDebajo && m.tituloAncho, m);
     check('Orden (celular): desplegar un grupo del menú no lo cierra; elegir una opción sí', m.menuSigueAbierto && m.opcionCierra, m);
+    check('Subpestañas (N-03, celular): Inventario y Plan son una fila que se desliza como Reportes; la elegida queda a la vista y solo se difumina el borde por donde hay más',
+      JSON.stringify(m.inv) === JSON.stringify(['1 fila | mas-der | a la vista', '1 fila | mas-der,mas-izq | a la vista', '1 fila | mas-izq | a la vista'])
+      && m.plan === '1 fila | mas-der,mas-izq | a la vista' && m.anchoModulos <= 390, { inv: m.inv, plan: m.plan, ancho: m.anchoModulos });
     check('Orden: sin errores de JS', pc.errs.length === 0 && cel.errs.length === 0, { pc: pc.errs.slice(0, 2), cel: cel.errs.slice(0, 2) });
     await cel.ctx.close();
   }
