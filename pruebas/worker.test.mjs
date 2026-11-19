@@ -6,7 +6,9 @@
 // permisos por rol (lista blanca del operario: Proyectos, Usuarios, Config,
 // pestañas de personal, escrituras en lote, edición estructural), que
 // desactivar o cambiar el rol en la hoja aplique sin esperar a que venza el
-// pase, la clave de sede (/sede), ruta /foto y que /diag ya no exista. Se usa una llave RSA falsa
+// pase, la clave de sede (/sede), ruta /foto, que /diag ya no exista, la
+// revocación por VersionSesion, el tope por persona y el registro de
+// eventos. Se usa una llave RSA falsa
 // generada en el momento.
 //
 // Cómo correrlas:  node pruebas/worker.test.mjs   (Node 18 o más reciente)
@@ -27,6 +29,16 @@ fs.unlinkSync(tmp);
 
 const resultados = [];
 const check = (n, ok, d) => resultados.push({ n, ok: !!ok, d });
+// El Worker escribe sus eventos de seguridad como una línea JSON en el
+// registro: aquí se guardan para revisarlos (y no ensucian la salida).
+const eventos = [];
+const logOriginal = console.log;
+console.log = (...a) => {
+  const t = a.join(' ');
+  if (t.startsWith('{"evento"')) { try { eventos.push(JSON.parse(t)); return; } catch (_) { /* no era un evento */ } }
+  logOriginal(...a);
+};
+const hayEvento = (tipo, cond = () => true) => eventos.some(e => e.evento === tipo && cond(e));
 const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
 const h = p => crypto.createHash('sha256').update(p).digest('hex').toUpperCase();
@@ -36,6 +48,7 @@ const PROY = '1rICqEwDTOjA8cxFIEa7m5rIw0gs2fd7CB682dRUj0nk';
 const ORD_ZIPA = '1_gIoYzZIZeURojSemB5vTtSQ1k4vw4_YfN-G6AjtaYU', INV_ZIPA = '1cqfk7gKRX4MfnHnPEZy7WGOunwT7kYLfJ14_W10Wh3s';
 const ORD_ZIPA2 = '1xM4UFaV1fZ5bEYVVNx55UjbPN9CldQ6ObaZl0EGlF8A';
 let llamadas = [];
+let bitacoraCreada = false; const bitacora = [], bitacoraPedidos = [], bitacoraUrls = [];
 const escriturasUsuarios = [];
 // La hoja Usuarios simulada se puede cambiar a mitad de prueba (desactivar a
 // alguien, quitarle el rol) para ver que el proxy lo note.
@@ -52,6 +65,13 @@ globalThis.fetch = async (url, init = {}) => {
     return new Response('{}');
   }
   if (url.includes('HOJAUSUARIOS') && !(init.method && init.method !== 'GET')) return new Response(JSON.stringify({ values: hojaUsuarios }));
+  // Bitácora: la pestaña no existe hasta que el proxy la crea.
+  if (url.includes('HOJAUSUARIOS:batchUpdate')) { bitacoraCreada = true; bitacoraPedidos.push(JSON.parse(init.body)); return new Response('{}'); }
+  if (url.includes('HOJAUSUARIOS') && decodeURIComponent(url).includes('Bitacora!A1:append')) {
+    if (!bitacoraCreada) return new Response(JSON.stringify({ error: { code: 400, message: 'Unable to parse range: Bitacora!A1' } }), { status: 400 });
+    bitacora.push(...JSON.parse(init.body).values); bitacoraUrls.push(url);
+    return new Response('{}');
+  }
   llamadas.push({ url, init });
   // Nombres de pestañas (para revisar qué filas se borran)
   if (url.includes('fields=') && url.includes('sheetId')) return new Response(JSON.stringify({ sheets: [
@@ -119,6 +139,14 @@ await req('/sheets/v4/spreadsheets/HOJASEDEXXXXXXXXXXXXXXXX/values/' + encodeURI
 await req('/sheets/v4/spreadsheets/HOJASEDEXXXXXXXXXXXXXXXX/values/' + encodeURIComponent('H1!A1') + ':append?valueInputOption=USER_ENTERED', { method: 'POST', headers: { ...H(op.session), 'Content-Type': 'application/json' }, body: '{"values":[["x"]]}' });
 const u = llamadas.map(l => new URL(l.url));
 check('quotaUser por persona en cada petición', u.length === 2 && u.every(x => x.searchParams.get('quotaUser') === 'u-111') && llamadas[1].init.body === '{"values":[["x"]]}');
+// Bitácora (auditoría S-04): la primera escritura crea la pestaña con sus
+// encabezados; cada escritura deja una fila; las lecturas no.
+check('Bitácora: la primera escritura crea la pestaña "Bitacora" (en la hoja de Usuarios) con sus encabezados y anota la fila',
+  bitacoraPedidos.length === 1 && bitacoraPedidos[0].requests[0].addSheet.properties.title === 'Bitacora'
+  && bitacora[0][0] === 'Fecha (hora Colombia)' && bitacora[0][6] === 'Operación'
+  && bitacora[1][1] === '111' && bitacora[1][2] === 'Op' && bitacora[1][3] === 'operario' && bitacora[1][6] === 'Agregar filas'
+  && bitacora[1][7] === 'H1!A1' && bitacora[1][8] === 1 && bitacora[1][9] === 200 && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(bitacora[1][0])
+  && new URL(bitacoraUrls[0]).searchParams.get('valueInputOption') === 'RAW', { pedidos: bitacoraPedidos, filas: bitacora.slice(0, 2) });
 check('Usa el token de la cuenta de servicio', llamadas.every(l => l.init.headers.Authorization === 'Bearer TOKEN_SA'));
 
 const st = async (s, hoja, metodo = 'GET', rango = 'Ordenes!A1') => (await req(`/sheets/v4/spreadsheets/${hoja}/values/${encodeURIComponent(rango)}${metodo === 'POST' ? ':append' : ''}`,
@@ -359,6 +387,75 @@ check('Cambiar PIN: el PIN viejo ya no entra; el nuevo sí, sin pedir cambio', !
   const falso = hd + '.' + bd + '.' + crypto.createHmac('sha256', '').update(hd + '.' + bd).digest('base64url');
   const r2 = await worker.fetch(new Request('https://w/sheets/v4/spreadsheets/' + PROY + '/values/A1', { headers: { Authorization: 'Bearer ' + falso } }), sinSecreto);
   check('Sin SESSION_SECRET: no entrega pase y no acepta uno firmado con clave vacía', r1.status === 500 && !(await r1.json()).session && r2.status !== 200, { r1: r1.status, r2: r2.status });
+}
+
+// ── Revocación de sesión (auditoría S-05): VersionSesion en la hoja Usuarios ──
+{
+  hojaUsuarios = [[...hojaUsuarios[0], 'VersionSesion'], ...hojaUsuarios.slice(1).map(f => [...f, '']),
+    ['666', 'Ad3', h('666666'), 'admin', 'SI', ''], ['1234567890', 'Largo', h('123456'), 'operario', 'SI', '']];
+  const s1 = await login('666', '666666');
+  const antes = await st(s1.session, PROY);
+  hojaUsuarios = hojaUsuarios.map(f => f[0] === '666' ? [...f.slice(0, 5), '2'] : f);
+  await login('111', '111111'); // el login relee la hoja
+  const despues = await st(s1.session, PROY);
+  const s2 = await login('666', '666666');
+  const nuevo = await st(s2.session, PROY);
+  const otros = await st(ad.session, PROY);
+  check('Revocación: subir VersionSesion de una persona cierra sus sesiones abiertas (401) sin desactivarla',
+    antes === 200 && despues === 401 && hayEvento('sesion_revocada', e => e.doc === '…'), { antes, despues });
+  check('Revocación: al volver a entrar recibe un pase nuevo que sí sirve, y los demás siguen entrando',
+    s2.ok && nuevo === 200 && otros === 200, { nuevo, otros });
+}
+
+// ── Tope de peticiones por persona (auditoría S-07) ──
+{
+  hojaUsuarios = [...hojaUsuarios, ['777', 'Ad4', h('777777'), 'admin', 'SI', '']];
+  const s = (await login('777', '777777')).session;
+  const estados = [];
+  for (let i = 0; i < 120; i++) estados.push(await st(s, PROY));
+  const pasado = await req(`/sheets/v4/spreadsheets/${PROY}/values/${encodeURIComponent('Ordenes!A1')}`, { headers: H(s) });
+  const cuerpo = await pasado.json();
+  const otro = await st(ad.session, PROY);
+  check('Tope: 120 peticiones por minuto pasan; la siguiente responde 429 como Google (RESOURCE_EXHAUSTED) con Retry-After, para que la app espere y reintente',
+    estados.every(x => x === 200) && pasado.status === 429 && cuerpo.error?.status === 'RESOURCE_EXHAUSTED' && Number(pasado.headers.get('Retry-After')) >= 1,
+    { pasan: estados.filter(x => x === 200).length, status: pasado.status, cuerpo, retry: pasado.headers.get('Retry-After') });
+  check('Tope: es por persona (los demás siguen) y deja un solo evento en el registro',
+    otro === 200 && eventos.filter(e => e.evento === 'tope_peticiones').length === 1, { otro, eventos: eventos.filter(e => e.evento === 'tope_peticiones') });
+}
+
+// ── Bitácora: qué se anota y qué no ──
+{
+  const antes = bitacora.length;
+  await req(`/sheets/v4/spreadsheets/${ORD_ZIPA}/values/${encodeURIComponent('Ordenes!A1:Z')}`, { headers: H(ad.session) });
+  const trasLeer = bitacora.length;
+  const negada = await rango(op.session, 'Operarios!A2', 'PUT', '{"values":[["x"]]}');
+  const trasNegada = bitacora.length;
+  await req(`/sheets/v4/spreadsheets/${ORD_ZIPA}/values:batchUpdate`, { method: 'POST', headers: { ...H(ad.session), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'Ordenes!A5', values: [['a'], ['b']] }, { range: 'Tareas!A2', values: [['c']] }] }) });
+  await req(`/sheets/v4/spreadsheets/${INV_ZIPA}:batchUpdate`, { method: 'POST', headers: { ...H(ad.session), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: 7, dimension: 'ROWS', startIndex: 4, endIndex: 5 } } }] }) });
+  const lote = bitacora[bitacora.length - 2], borrado = bitacora[bitacora.length - 1];
+  check('Bitácora: las lecturas y las escrituras negadas no se anotan',
+    trasLeer === antes && negada === 403 && trasNegada === antes, { antes, trasLeer, negada, trasNegada });
+  check('Bitácora: una escritura en lote dice sede, hoja, rangos y filas; un borrado de filas dice cuáles',
+    lote[1] === '222' && lote[3] === 'admin' && lote[4] === 'Zipaquirá' && lote[5] === 'Órdenes' && lote[6] === 'Escribir en lote'
+    && lote[7] === 'Ordenes!A5 | Tareas!A2' && lote[8] === 3
+    && borrado[4] === 'Zipaquirá' && borrado[5] === 'Inventario' && borrado[6] === 'Cambio de estructura' && /borrar filas 5-5 \(pestaña 7\)/.test(borrado[7]),
+    { lote, borrado });
+}
+
+// ── Registro de eventos de seguridad (auditoría S-08) ──
+{
+  await login('1234567890', '000000');
+  const largo = await login('1234567890', '123456');
+  const texto = JSON.stringify(eventos);
+  check('Registro: deja eventos de ingreso, ingreso fallido, bloqueo, acción negada y PIN cambiado',
+    hayEvento('login') && hayEvento('login_fallido') && hayEvento('bloqueo', e => e.motivo === 'documento') && hayEvento('login_bloqueado')
+    && hayEvento('accion_negada', e => !!e.motivo) && hayEvento('cambio_pin') && hayEvento('clave_sede_fallida') && hayEvento('login_inactivo'),
+    [...new Set(eventos.map(e => e.evento))]);
+  check('Registro: el documento va oculto (solo los 3 últimos dígitos), nunca completo',
+    largo.ok && hayEvento('login_fallido', e => e.doc === '…890') && hayEvento('login', e => e.doc === '…890') && !texto.includes('1234567890'),
+    eventos.filter(e => /890/.test(e.doc || '')));
 }
 
 let ok = 0;
