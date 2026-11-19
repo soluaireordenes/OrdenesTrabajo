@@ -12,6 +12,8 @@
 // Variables opcionales:
 //   PLAYWRIGHT_MODULE  ruta del paquete playwright (si está instalado global)
 //   CHROMIUM_PATH      ruta de un Chromium ya instalado
+//   COBERTURA_DIR      carpeta donde guardar qué partes de index.html se
+//                      ejecutaron (la usa pruebas/cobertura.mjs)
 // ══════════════════════════════════════════════════════════════════════
 const path = require('path');
 const fs = require('fs');
@@ -40,6 +42,37 @@ function iniciarServidor() {
 }
 let BASE;
 const resultados = [];
+
+/** Cobertura (auditoría P-04): cada página que se abre guarda lo que
+ *  ejecutó de index.html al cerrarse su contexto. No cambia ninguna prueba:
+ *  envuelve newContext / newPage / close del navegador. */
+function medirCobertura(b, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  let n = 0;
+  const crearContexto = b.newContext.bind(b);
+  b.newContext = async (...args) => {
+    const ctx = await crearContexto(...args);
+    const paginas = [];
+    const crearPagina = ctx.newPage.bind(ctx);
+    ctx.newPage = async (...a) => {
+      const p = await crearPagina(...a);
+      await p.coverage.startJSCoverage({ resetOnNavigation: false });
+      paginas.push(p);
+      return p;
+    };
+    const cerrar = ctx.close.bind(ctx);
+    ctx.close = async (...a) => {
+      for (const p of paginas) {
+        try {
+          const cob = (await p.coverage.stopJSCoverage()).filter(e => /\/index\.html(\?|#|$)/.test(e.url));
+          fs.writeFileSync(path.join(dir, `app-${process.pid}-${++n}.json`), JSON.stringify(cob));
+        } catch (_) { /* página ya cerrada: sin datos de ella */ }
+      }
+      return cerrar(...a);
+    };
+    return ctx;
+  };
+}
 function check(nombre, ok, detalle) { resultados.push({ nombre, ok: !!ok, detalle }); }
 
 async function nuevaPagina(b, rutas = {}) {
@@ -197,6 +230,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
   const srv = await iniciarServidor();
   BASE = `http://127.0.0.1:${srv.address().port}/index.html`;
   const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  if (process.env.COBERTURA_DIR) medirCobertura(b, process.env.COBERTURA_DIR);
 
   // 1) Carga general
   {

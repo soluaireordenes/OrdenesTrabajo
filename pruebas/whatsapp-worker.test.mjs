@@ -67,7 +67,8 @@ check('Faltan variables → 500 con aviso', (await worker.fetch(new Request('htt
 const filasOperarios = [['Nombre', 'Numero', 'Activo'], ['Ana', '300 111 2233', 'SI'], ['Beto', '+57 310 444 5566', 'SI'],
   ['Caro', '3205556677', 'NO'], ['Dani', '+1 (305) 777-8899', 'SI'], ['Sin número', '', 'SI']];
 const bot = vm.createContext({ console, SpreadsheetApp: { openById: () => ({ getSheetByName: () => ({ getDataRange: () => ({ getValues: () => filasOperarios }) }) }) } });
-vm.runInContext(fs.readFileSync(path.join(aqui, '..', 'whatsapp-agente', 'Codigo-sin-ia.gs'), 'utf8'), bot);
+const rutaBot = path.join(aqui, '..', 'whatsapp-agente', 'Codigo-sin-ia.gs');
+vm.runInContext(fs.readFileSync(rutaBot, 'utf8'), bot, { filename: rutaBot }); // el nombre, para la cobertura
 const quien = n => bot._operarioDe(n);
 check('Bot: reconoce al operario con o sin indicativo en la hoja (WhatsApp siempre lo trae)', quien('573001112233') === 'Ana' && quien('573104445566') === 'Beto');
 check('Bot: un número de otro país que termina igual que uno de Colombia NO pasa por el operario', quien('13001112233') === null && quien('573057778899') === null && quien('13057778899') === 'Dani');
@@ -133,7 +134,7 @@ let libros = {};
 const consultas = vm.createContext({ console, SpreadsheetApp: { openById: id => ({
   getSheetByName: nombre => { const v = (libros[id] || {})[nombre]; return v ? { getDataRange: () => ({ getValues: () => v }) } : null; },
 }) } });
-vm.runInContext(fs.readFileSync(path.join(aqui, '..', 'whatsapp-agente', 'Codigo-sin-ia.gs'), 'utf8'), consultas);
+vm.runInContext(fs.readFileSync(rutaBot, 'utf8'), consultas, { filename: rutaBot });
 libros = { [vm.runInContext('HOJA_INVENTARIO', consultas)]: hojasInventario, [vm.runInContext('HOJA_SISTEMA', consultas)]: hojasSistema };
 const B = consultas;
 

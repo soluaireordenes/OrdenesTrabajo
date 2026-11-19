@@ -58,7 +58,7 @@ function nuevoGoogle({ propiedades = {}, sinAcceso = [], hoy = '2026-11-18' } = 
       newTrigger: fn => { const t = { fn, getHandlerFunction: () => fn }; const b = { timeBased: () => b, everyDays: d => { t.cada = d; return b; }, atHour: h => { t.hora = h; return b; }, create: () => { drive.disparadores.push(t); return t; } }; return b; },
     },
   });
-  vm.runInContext(codigo, ctx);
+  vm.runInContext(codigo, ctx, { filename: path.join(raizRepo, 'respaldo-apps-script.gs') }); // el nombre, para la cobertura
   return { ctx, drive, carpeta };
 }
 

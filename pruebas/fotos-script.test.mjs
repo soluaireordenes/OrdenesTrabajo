@@ -78,7 +78,8 @@ const contexto = vm.createContext({
   },
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: t => ({ setMimeType: () => ({ contenido: JSON.parse(t) }) }) },
 });
-vm.runInContext(fs.readFileSync(path.join(aqui, '..', 'fotos-apps-script.gs'), 'utf8'), contexto);
+const rutaFotos = path.join(aqui, '..', 'fotos-apps-script.gs');
+vm.runInContext(fs.readFileSync(rutaFotos, 'utf8'), contexto, { filename: rutaFotos }); // el nombre, para la cobertura
 const get = params => contexto.doGet({ parameter: params }).contenido;
 const post = cuerpo => contexto.doPost({ postData: { contents: JSON.stringify(cuerpo) } }).contenido;
 
