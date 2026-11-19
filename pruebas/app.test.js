@@ -1456,7 +1456,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
-    // Reporte de compresores de Zipaquirá 2: solo la pestaña de compresores,
+    // Reporte de compresores de Zipaquirá 2: su pestaña, junto a la de Máquinas de Formación,
     // sus 18 compresores sin los IR (Baja y Alta con los campos de Zipaquirá),
     // sin franja horaria; las horas pasan al Plan y Zipaquirá 1 sigue igual.
     const fake = sheetsEnMemoria();
@@ -1551,8 +1551,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const filaJoy = rep.find(f => f[col(rep, 'Compresor')] === 'JOY 2') || [];
     const filaCa = rep.find(f => f[col(rep, 'Compresor')] === 'CA1') || [];
     const horasDe = e => (horas.find(f => f[col(horas, 'Equipo')] === e) || [])[col(horas, 'HorasActuales')];
-    check('Reporte de compresores Zipaquirá 2: solo la pestaña de compresores (Reportes arranca en la entrega de turno), sin franja horaria y con sus 18 compresores sin los IR',
-      r.tecnicas === 'Compresores' && r.abreEn === 'entregasala' && r.horaOculta && r.horaFechaOculta && r.fechaEditable
+    check('Reporte de compresores Zipaquirá 2: sus pestañas son Compresores y Máquinas de Formación (Reportes arranca en la entrega de turno), sin franja horaria y con sus 18 compresores sin los IR',
+      r.tecnicas === 'Compresores | Máquinas de Formación' && r.abreEn === 'entregasala' && r.horaOculta && r.horaFechaOculta && r.fechaEditable
       && r.grupos === 'Baja Presión:10 | Alta Presión:8' && !r.conIR, r);
     check('Reporte de compresores Zipaquirá 2: Baja y Alta con los campos de Zipaquirá menos la PDT del filtro de aire y las temperaturas de estator A, B y C, y sin la pregunta de hora/fecha del compresor; se guardan sin hora y las horas pasan al Plan',
       r.camposBaja === 35 && r.camposAlta === 34 && r.sinPdt && r.sinEstator && filaJoy[col(rep, 'EstadoHoraFecha')] === '' && filaJoy[col(rep, 'BPDTFiltroAire')] === ''
@@ -2649,6 +2649,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.secciones = {};
       for (const m of ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3']) out.secciones[m] = await secciones(m);
       out.seccionesF = [...document.querySelectorAll('#rmf_seccion option')].map(o => o.value).filter(Boolean).join(',');
+      // En Zipaquirá las cavidades no dependen de la máquina: 1 a 3, sin elegir.
+      out.cavidadesF3 = [...document.querySelectorAll('#rmf_cavidades option')].map(o => o.value).filter(Boolean).join(',') + '|' + document.getElementById('rmf_cavidades').value;
       // Faltan datos
       await elegir('rmf_tecnico', TECNICOS_REPORTE_MAQUINAS_FORMACION[0]);
       await guardarReporteMaquinasFormacion();
@@ -2679,13 +2681,13 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const enc = filas[0] || [];
     const fila = m => (filas.find(f => f[enc.indexOf('Maquina')] === m) || []);
     const val = (m, c) => fila(m)[enc.indexOf(c)];
-    check('Máquinas de Formación: pestaña solo en Zipaquirá, justo al lado de Reporte Compresores',
-      r.visibleZipa && !r.visibleZipa2 && r.alLado, { zipa: r.visibleZipa, zipa2: r.visibleZipa2, alLado: r.alLado });
+    check('Máquinas de Formación: pestaña en Zipaquirá y Zipaquirá 2, justo al lado de Reporte Compresores',
+      r.visibleZipa && r.visibleZipa2 && r.alLado, { zipa: r.visibleZipa, zipa2: r.visibleZipa2, alLado: r.alLado });
     check('Máquinas de Formación: E1–E4 y F1–F3, cavidades 1–3; secciones E1 12, E2 8, E3 10, E4 10 y las F 12',
       r.maquinas === 'E1,E2,E3,E4,F1,F2,F3' && r.cavidades === '1,2,3' && r.seccionSinMaquina && r.hora === '09:15'
       && JSON.stringify(r.secciones) === JSON.stringify({ E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 })
-      && r.seccionesF === '1,2,3,4,5,6,7,8,9,10,11,12',
-      { maquinas: r.maquinas, cavidades: r.cavidades, secciones: r.secciones, seccionesF: r.seccionesF, hora: r.hora });
+      && r.seccionesF === '1,2,3,4,5,6,7,8,9,10,11,12' && r.cavidadesF3 === '1,2,3|',
+      { maquinas: r.maquinas, cavidades: r.cavidades, secciones: r.secciones, seccionesF: r.seccionesF, hora: r.hora, cavidadesF3: r.cavidadesF3 });
     check('Máquinas de Formación: pide lo que falta y guarda máquina, referencia, sección, cavidades y velocidad',
       /^Falta la referencia de botella, la sección, las cavidades y la velocidad\.$/.test(r.falta) && /F1 guardado/.test(r.msg) && r.tecnicoQueda !== ''
       && val('F1', 'ReferenciaBotella') === 'BOT-355 ÁMBAR' && val('F1', 'Seccion') === '7' && val('F1', 'Cavidades') === '2' && val('F1', 'Velocidad') === '65'
@@ -2693,6 +2695,62 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.tabla.length === 2 && r.tabla.includes('F1/7/BOT-355 ÁMBAR') && /Referencia de botella/.test(r.vista) && /BOT-355 ÁMBAR/.test(r.vista),
       { falta: r.falta, msg: r.msg, tabla: r.tabla, F1: fila('F1') });
     check('Máquinas de Formación: sin errores de JS ni avisos', errs.length === 0 && r.avisos.length === 0, { errs: errs.slice(0, 2), avisos: r.avisos });
+    await ctx.close();
+  }
+  {
+    // Máquinas de Formación en Zipaquirá 2: sus máquinas B1–B3 y D0–D3, cada
+    // una con sus secciones; las cavidades, del 1 al 3 en todas, sin elegir.
+    const fake = sheetsEnMemoria();
+    const ctx = await b.newContext({ timezoneId: 'America/Bogota' });
+    await ctx.route('**/*.workers.dev/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' }));
+    await ctx.route('**/sheets/v4/**', fake.route);
+    const p = await ctx.newPage();
+    const errs = []; p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.install({ time: new Date('2026-11-19T10:05:00-05:00') });
+    await p.goto(BASE, { waitUntil: 'load' });
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.alert = m => avisos.push(String(m));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; operacionAutenticada = true;
+      currentUser = { name: 'Técnico Dos', email: 't2@x' };
+      operacionActual = 'zipaquira2'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      showPanel('cronograma'); await espera(200);
+      cronMostrarSubTab('formacion'); await espera(500);
+      const elegir = async (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); await espera(20); };
+      const valores = id => [...document.querySelectorAll('#' + id + ' option')].map(o => o.value).filter(Boolean).join(',');
+      const out = { maquinas: valores('rmf_maquina'), tecnicos: valores('rmf_tecnico'), porMaquina: {} };
+      for (const m of ['B1', 'B2', 'B3', 'D0', 'D1', 'D2', 'D3']) {
+        await elegir('rmf_maquina', m);
+        out.porMaquina[m] = document.querySelectorAll('#rmf_seccion option[value]:not([value=""])').length + ' secc / cav ' + valores('rmf_cavidades') + ' → ' + document.getElementById('rmf_cavidades').value;
+      }
+      // Guardar un reporte de D0 con 3 cavidades.
+      await elegir('rmf_tecnico', 'Otras'); document.getElementById('rmf_tecnicoOtroWrap').style.display = '';
+      document.getElementById('rmf_tecnicoOtro').value = 'Yesid Ulloa';
+      await elegir('rmf_maquina', 'D0');
+      document.getElementById('rmf_referencia').value = 'BOT-500';
+      await elegir('rmf_seccion', '11');
+      await elegir('rmf_cavidades', '3');
+      document.getElementById('rmf_velocidad').value = '58';
+      await guardarReporteMaquinasFormacion(); await espera(300);
+      out.msg = document.getElementById('rmf_msg').textContent;
+      out.trasGuardar = valores('rmf_cavidades') + ' → ' + document.getElementById('rmf_cavidades').value;
+      out.avisos = avisos;
+      return out;
+    });
+    const filas = fake.hoja(await p.evaluate(() => OPERACIONES.zipaquira2.spreadsheetId), 'ReporteMaquinasFormacion');
+    const enc = filas[0] || [];
+    const d0 = filas.find(f => f[enc.indexOf('Maquina')] === 'D0') || [];
+    const v = c => d0[enc.indexOf(c)];
+    check('Máquinas de Formación Zipaquirá 2: B1–B3 y D0–D3 con sus secciones (B1 10, B2 8, B3 10, D0 12, D1 12, D2 12, D3 10) y cavidades del 1 al 3 en todas, sin elegir',
+      r.maquinas === 'B1,B2,B3,D0,D1,D2,D3' && JSON.stringify(r.porMaquina) === JSON.stringify({
+        B1: '10 secc / cav 1,2,3 → ', B2: '8 secc / cav 1,2,3 → ', B3: '10 secc / cav 1,2,3 → ', D0: '12 secc / cav 1,2,3 → ',
+        D1: '12 secc / cav 1,2,3 → ', D2: '12 secc / cav 1,2,3 → ', D3: '10 secc / cav 1,2,3 → ' }),
+      { maquinas: r.maquinas, porMaquina: r.porMaquina });
+    check('Máquinas de Formación Zipaquirá 2: guarda en la hoja de Zipaquirá 2 y el formulario queda limpio',
+      /D0 guardado/.test(r.msg) && v('Seccion') === '11' && v('Cavidades') === '3' && v('Velocidad') === '58' && v('Tecnico') === 'Otras' && v('TecnicoOtro') === 'Yesid Ulloa'
+      && v('Fecha') === '2026-11-19' && r.trasGuardar === '1,2,3 → ' && errs.length === 0 && r.avisos.length === 0,
+      { msg: r.msg, d0, trasGuardar: r.trasGuardar, errs: errs.slice(0, 2), avisos: r.avisos });
     await ctx.close();
   }
   {

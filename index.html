@@ -11876,7 +11876,8 @@ const REPORTES_TECNICOS_POR_SEDE = {
   zipaquira:  { pestanas: ['compresores', 'formacion', 'secadores', 'drycoolers', 'decorado', 'emergencia', 'presiondrycooler'], conHora: true, cumplimiento: true },
   // medicionesOpcionales: el reporte se guarda aunque falten mediciones (lo
   // que sí se escriba tiene que ser un número).
-  zipaquira2: { pestanas: ['compresores'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
+  // Máquinas de Formación: con las máquinas de su sala (B1–B3, D0–D3).
+  zipaquira2: { pestanas: ['compresores', 'formacion'], conHora: false, sinHoraFechaCompresor: true, medicionesOpcionales: true,
     camposOmitidos: ['pdtFiltroAire', 'tempEstatorA', 'tempEstatorB', 'tempEstatorC'] },
   // Perú: el de sus 7 compresores, cada uno con las variables de su panel
   // (Hanwha o Centac), con sus propias
@@ -12697,13 +12698,21 @@ const REPORTE_MAQUINAS_FORMACION_COLS = [
 const MAQUINAS_FORMACION = ['E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3'];
 // Las máquinas de cada sede. Una sede que no está aquí (Perú, por ahora)
 // escribe la máquina en el formulario.
-const MAQUINAS_FORMACION_POR_SEDE = { zipaquira: MAQUINAS_FORMACION };
-// Secciones de cada máquina: la lista del formulario va del 1 a este número.
-const SECCIONES_MAQUINAS_FORMACION = { E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 };
+const MAQUINAS_FORMACION_POR_SEDE = {
+  zipaquira: MAQUINAS_FORMACION,
+  zipaquira2: ['B1', 'B2', 'B3', 'D0', 'D1', 'D2', 'D3'],
+};
+// Secciones de cada máquina, por sede: la lista del formulario va del 1 a
+// este número.
+const SECCIONES_MAQUINAS_FORMACION_POR_SEDE = {
+  zipaquira: { E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 },
+  zipaquira2: { B1: 10, B2: 8, B3: 10, D0: 12, D1: 12, D2: 12, D3: 10 },
+};
+// Cavidades: del 1 al 3 en todas las máquinas y todas las sedes.
 const CAVIDADES_MAQUINAS_FORMACION = ['1', '2', '3'];
 const TECNICOS_REPORTE_MAQUINAS_FORMACION = TECNICOS_REPORTE_COMPRESORES;
 function _seccionesMaquinaFormacion(maquina) {
-  return SECCIONES_MAQUINAS_FORMACION[maquina] || null;
+  return (SECCIONES_MAQUINAS_FORMACION_POR_SEDE[operacionActual] || {})[maquina] || null;
 }
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
