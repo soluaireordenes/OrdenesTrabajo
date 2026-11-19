@@ -1855,9 +1855,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       entregaEl.value = 'Ana Prueba'; de('TemperaturaSala').value = '29'; de('TemperaturaAmbiente').value = '15';
       await guardarEntregaTurnoSala();
       out.preguntas = preguntas.join(' | ');
-      // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno, ayer
-      const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-      document.getElementById('es_fecha').value = _isoLocal(ayer); document.getElementById('es_turno').value = 'noche';
+      // Se guarda aunque falten equipos o temperaturas (y lo dice): otro turno,
+      // hace dos días. No "ayer": entre las 10 p.m. y las 8 a.m. la app propone
+      // la Noche de ayer para la primera entrega, y esta chocaba con ella ("Ese
+      // turno ya tiene entrega"), así que la prueba fallaba según la hora.
+      const antier = new Date(); antier.setDate(antier.getDate() - 2);
+      document.getElementById('es_fecha').value = _isoLocal(antier); document.getElementById('es_turno').value = 'noche';
       ['es_fecha', 'es_turno'].forEach(id => document.getElementById(id).dispatchEvent(new Event('change')));
       entregaEl.value = 'Técnico Tres'; de('TemperaturaSala').value = ''; de('TemperaturaAmbiente').value = '';
       de('JOY 3 · Estado').value = ''; de('JOY 3 · Subestación').value = ''; de('Línea verde · Bomba 1').value = '';
