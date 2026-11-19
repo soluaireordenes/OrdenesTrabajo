@@ -9976,7 +9976,22 @@ const EQUIPOS_MEXICO = {
 // de WhatsApp y un operario no puede leerla.)
 const OPERARIOS_PLANTA_COLS = ['Nombre', 'Activo'];
 let _operariosPlanta = null;         // filas de la pestaña, tal como se leyeron
+let _operariosPlantaLibro = null;    // de qué sede (hoja) son esas filas
 let _operariosPlantaEnVuelo = null;
+// Altas y bajas que la app aplica sola en la lista de una sede, para no
+// tener que hacerlas a mano. Se aplican una sola vez: mientras falte en la
+// hoja alguno de los que entran, se agregan los que faltan (o se reactivan
+// si estaban quitados) y se quitan los que salen. Después la lista se lleva
+// desde Cronograma → Observaciones como siempre, y lo que haga ahí un admin
+// (por ejemplo, volver a activar a alguien) ya no se toca.
+const AJUSTES_OPERARIOS_PLANTA = {
+  // Noviembre de 2026: los técnicos nuevos de la sala, que ya están en la
+  // lista de los reportes técnicos (TECNICOS_REPORTE_COMPRESORES).
+  zipaquira: {
+    entran: ['Cristofer Ardila', 'Carlos Peña', 'Jhonatan Jimenez', 'Daniel Alarcon', 'Yesid Ulloa'],
+    salen: ['George Mazuera', 'Sebastián Rodríguez'],
+  },
+};
 
 // Datos de prueba: Empresa 1 → 123, Empresa 2 → 456, Empresa 3 → 789, etc. (+333 cada vez)
 const EQUIPOS_POR_EMPRESA_ANTIOQUIA = {};
@@ -22662,7 +22677,9 @@ function _normalizarNombreOperario(n) {
  *  sede la pestaña no existe: se crea y se llena con los nombres que ya
  *  aparecen en los registros, para que la lista no arranque vacía. */
 async function cargarOperariosPlanta(forzar) {
-  if (_operariosPlanta && !forzar) return _operariosPlanta;
+  // Lo leído es de una sede: al cambiar de sede se vuelve a leer (antes se
+  // quedaba la lista de la sede anterior hasta recargar la app).
+  if (_operariosPlanta && !forzar && _operariosPlantaLibro === GOOGLE_CONFIG.spreadsheetId) return _operariosPlanta;
   if (!_operariosPlantaEnVuelo) {
     _operariosPlantaEnVuelo = (async () => {
       const cols = await asegurarHoja(SH.operariosPlanta, OPERARIOS_PLANTA_COLS);
@@ -22674,11 +22691,44 @@ async function cargarOperariosPlanta(forzar) {
           filas = await _leerHojaGenerica(SH.operariosPlanta);
         }
       }
+      try { filas = await _ajustarOperariosPlanta(cols, filas); }
+      catch (e) { console.warn('No se pudo ajustar la lista de operarios:', e.message); }
       _operariosPlanta = filas;
+      _operariosPlantaLibro = GOOGLE_CONFIG.spreadsheetId;
       return filas;
     })().finally(() => { _operariosPlantaEnVuelo = null; });
   }
   return _operariosPlantaEnVuelo;
+}
+
+/** Nombre para comparar: sin espacios de más, minúsculas y sin tildes
+ *  ("Carlos Pena" es el mismo que "Carlos Peña"). */
+function _claveNombreOperario(n) {
+  return _normalizarNombreOperario(n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Aplica, una sola vez, las altas y bajas de AJUSTES_OPERARIOS_PLANTA de
+ *  la sede. Primero activa y desactiva; lo último es agregar a los que
+ *  faltan, que es lo que marca el ajuste como hecho: si algo falla antes,
+ *  se vuelve a intentar la próxima vez que se abra la lista. */
+async function _ajustarOperariosPlanta(cols, filas) {
+  const ajuste = AJUSTES_OPERARIOS_PLANTA[operacionActual];
+  if (!ajuste) return filas;
+  const filasDe = nombre => filas.filter(f => _claveNombreOperario(f.Nombre) === _claveNombreOperario(nombre));
+  const faltan = ajuste.entran.filter(n => !filasDe(n).length);
+  if (!faltan.length) return filas;
+  const inactivo = f => /^(no|inactivo|false|0)$/i.test(String(f.Activo || '').trim());
+  // Los que salen, aunque en la hoja tengan un apellido más ("Sebastián Rodríguez Gómez").
+  const sale = f => ajuste.salen.some(n => { const k = _claveNombreOperario(f.Nombre), s = _claveNombreOperario(n); return k === s || k.startsWith(s + ' '); });
+  const letra = numToCol(cols.indexOf('Activo'));
+  const cambios = [
+    ...ajuste.entran.flatMap(n => filasDe(n).filter(inactivo)).map(f => [f, 'SI']),
+    ...filas.filter(f => !inactivo(f) && sale(f)).map(f => [f, 'NO']),
+  ];
+  for (const [f, valor] of cambios) await sheetsRequest('UPDATE', SH.operariosPlanta + '!' + letra + f._row, [[valor]]);
+  await appendHoja(SH.operariosPlanta, faltan.map(n => cols.map(c => c === 'Nombre' ? n : c === 'Activo' ? 'SI' : '')));
+  _invalidarCacheHoja(SH.operariosPlanta);
+  return _leerHojaGenerica(SH.operariosPlanta);
 }
 
 /** Quién ya aparece en los registros: los que realizaron actividades del
@@ -22733,7 +22783,7 @@ async function _pintarOperariosPlanta() {
   }
   if (lista) {
     lista.innerHTML = nombres.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${nombres.map(n => `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:12px;padding:3px 4px 3px 10px;font-size:13px;background:var(--surface2)">${esc(n)}<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;min-height:0;color:var(--danger)" title="Quitar de la lista" aria-label="Quitar a ${esc(n)} de la lista" onclick="quitarOperarioPlanta(${_jsArg(n)})">✕</button></span>`).join('')}</div>`
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${nombres.map(n => `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:12px;padding:3px 4px 3px 10px;font-size:13px;background:var(--surface2)">${esc(n)}<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;color:var(--danger)" title="Quitar de la lista" aria-label="Quitar a ${esc(n)} de la lista" onclick="quitarOperarioPlanta(${_jsArg(n)})">✕</button></span>`).join('')}</div>`
       : '<div style="font-size:12px;color:var(--text3)">La lista está vacía. Agrega a los operarios de planta.</div>';
   }
 }
