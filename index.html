@@ -12708,19 +12708,11 @@ const SECCIONES_MAQUINAS_FORMACION_POR_SEDE = {
   zipaquira: { E1: 12, E2: 8, E3: 10, E4: 10, F1: 12, F2: 12, F3: 12 },
   zipaquira2: { B1: 10, B2: 8, B3: 10, D0: 12, D1: 12, D2: 12, D3: 10 },
 };
+// Cavidades: del 1 al 3 en todas las máquinas y todas las sedes.
 const CAVIDADES_MAQUINAS_FORMACION = ['1', '2', '3'];
-// Cavidades de cada máquina, por sede: la lista va del 1 a este número y
-// ya viene elegido (lo normal es trabajar con todas; menos, si hay alguna
-// tapada). Una máquina que no está aquí ofrece del 1 al 3, sin elegir.
-const CAVIDADES_MAQUINAS_FORMACION_POR_SEDE = {
-  zipaquira2: { B1: 3, B2: 2, B3: 3, D0: 2, D1: 3, D2: 2, D3: 3 },
-};
 const TECNICOS_REPORTE_MAQUINAS_FORMACION = TECNICOS_REPORTE_COMPRESORES;
 function _seccionesMaquinaFormacion(maquina) {
   return (SECCIONES_MAQUINAS_FORMACION_POR_SEDE[operacionActual] || {})[maquina] || null;
-}
-function _cavidadesMaquinaFormacion(maquina) {
-  return (CAVIDADES_MAQUINAS_FORMACION_POR_SEDE[operacionActual] || {})[maquina] || null;
 }
 
 // Campos de equipos/indicadores del reporte, en el mismo orden que las
@@ -25201,25 +25193,11 @@ function _siguienteCodigoReporteMaquinasFormacion() {
   return _codigoConsecutivoUnico('RMF', allReportesMaquinasFormacion, 4);
 }
 
-/** La sección y las cavidades dependen de la máquina: la lista de
- *  secciones va del 1 al número de secciones de esa máquina (una máquina
- *  nueva sin ese número todavía pide la sección escrita a mano), y la de
- *  cavidades, del 1 a las de la máquina, con esas ya elegidas (si no se
- *  conocen, del 1 al 3 sin elegir). */
+/** La sección depende de la máquina: la lista va del 1 al número de
+ *  secciones de esa máquina. Una máquina nueva sin ese número todavía pide
+ *  la sección escrita a mano. */
 function _actualizarSeccionesMaquinaFormacion() {
   const maquina = document.getElementById('rmf_maquina').value;
-  const selCav = document.getElementById('rmf_cavidades');
-  const maxCav = _cavidadesMaquinaFormacion(maquina);
-  const listaCav = maxCav ? Array.from({ length: maxCav }, (_, i) => String(i + 1)) : CAVIDADES_MAQUINAS_FORMACION;
-  // Solo se rehace si cambia la lista: escribir el nombre de una máquina
-  // (Perú) no debe borrar las cavidades que ya se eligieron.
-  const claveCav = listaCav.join(',') + '|' + (maxCav || '');
-  if (selCav.dataset.lista !== claveCav) {
-    const antes = selCav.value;
-    selCav.innerHTML = '<option value="">Seleccionar...</option>' + listaCav.map(x => `<option value="${x}">${x}</option>`).join('');
-    selCav.dataset.lista = claveCav;
-    selCav.value = maxCav ? String(maxCav) : (listaCav.includes(antes) ? antes : '');
-  }
   const total = _seccionesMaquinaFormacion(maquina);
   const wrap = document.getElementById('rmf_seccionWrap');
   if (!maquina) {
@@ -25242,8 +25220,7 @@ async function inicializarReporteMaquinasFormacion() {
   document.getElementById('rmf_maquinaWrap').innerHTML = maquinas
     ? `<select id="rmf_maquina" onchange="_actualizarSeccionesMaquinaFormacion()">${opciones(maquinas)}</select>`
     : '<input id="rmf_maquina" placeholder="Nombre de la máquina" oninput="_actualizarSeccionesMaquinaFormacion()">';
-  const selCav = document.getElementById('rmf_cavidades');
-  selCav.value = ''; delete selCav.dataset.lista; // la lista la arma _actualizarSeccionesMaquinaFormacion
+  document.getElementById('rmf_cavidades').innerHTML = opciones(CAVIDADES_MAQUINAS_FORMACION);
   const ahora = new Date();
   document.getElementById('rmf_fecha').value = _isoLocal(ahora);
   document.getElementById('rmf_hora').value = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
