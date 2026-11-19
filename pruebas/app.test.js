@@ -1035,7 +1035,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
         : n === 'CronogramaRegistros' ? [{ OperariosRealizaron: 'Ana Uno, Beto  Dos' }, { OperariosRealizaron: 'Ana Uno' }]
         : n === 'ObservacionesOperarios' ? [{ Operario: 'Caro Tres' }] : [];
       window.appendHoja = async (n, filas) => { if (n === 'OperariosPlanta') hoja.push(...filas); };
+      // Aquí solo se mira el llenado inicial; las altas y bajas de la sede
+      // (AJUSTES_OPERARIOS_PLANTA) tienen su propia prueba.
+      const ajustesSede = AJUSTES_OPERARIOS_PLANTA[operacionActual]; delete AJUSTES_OPERARIOS_PLANTA[operacionActual];
       await cargarOperariosPlanta(true);
+      if (ajustesSede) AJUSTES_OPERARIOS_PLANTA[operacionActual] = ajustesSede;
       out.operarios = operariosPlantaActivos().join(',');
       document.body.insertAdjacentHTML('beforeend', '<div id="cronModalOperariosLista"></div>');
       await _pintarOperariosModalCronograma();
@@ -2063,6 +2067,48 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && rc.guardado.antes === '2026-11-11' && /Reporte guardado correctamente/.test(rc.guardado.msg) && fechaRc === '2026-11-12' && rc.guardado.despues === '2026-11-12'
       && rc.manual === '2026-11-11 → 2026-11-11' && errs.length === 0,
       { rc, fechaRc, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
+    // Operarios de planta de Zipaquirá 1 ("¿Quién la realizó?" en
+    // Actividades y el formulario de observaciones): entran los técnicos
+    // nuevos y salen los que se fueron, una sola vez; después la lista la
+    // maneja el admin y lo que haga no se deshace. Zipaquirá 2, aparte.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const r = await p.evaluate(async () => {
+      googleAccessToken = 'SESS.x'; usuarioRol = 'operario'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'ana@x', initials: 'AP' };
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      await asegurarHoja(SH.operariosPlanta, OPERARIOS_PLANTA_COLS);
+      await appendHoja(SH.operariosPlanta, [['George Mazuera', 'SI'], ['Sebastián Rodríguez Gómez', 'SI'], ['Ana Prueba', 'SI'], ['Carlos Pena', 'NO'], ['Luis Viejo', 'NO']]);
+      _invalidarCacheHoja(SH.operariosPlanta);
+      const out = {};
+      await cargarOperariosPlanta(true);
+      out.primera = operariosPlantaActivos().join(',');
+      // Un admin vuelve a activar a uno que salió: el ajuste no se repite.
+      usuarioRol = 'admin';
+      await _marcarOperarioPlanta('George Mazuera', true);
+      _invalidarCacheHoja(SH.operariosPlanta);
+      await cargarOperariosPlanta(true);
+      out.despues = operariosPlantaActivos().join(',');
+      // Zipaquirá 2: sin ajustes, y no se queda con la lista de Zipaquirá 1.
+      operacionActual = 'zipaquira2'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira2.spreadsheetId;
+      Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
+      await cargarOperariosPlanta();
+      out.zipa2 = operariosPlantaActivos().join(',');
+      out.libros = [OPERACIONES.zipaquira.spreadsheetId, OPERACIONES.zipaquira2.spreadsheetId];
+      return out;
+    });
+    const zipa1 = fake.hoja(r.libros[0], 'OperariosPlanta').slice(1).map(f => f[0] + ':' + f[1]);
+    check('Operarios de Zipaquirá 1: entran Cristofer Ardila, Carlos Peña, Jhonatan Jimenez, Daniel Alarcon y Yesid Ulloa (Carlos Pena, que estaba quitado, vuelve sin repetirse) y salen George Mazuera y Sebastián Rodríguez',
+      r.primera === 'Ana Prueba,Carlos Pena,Cristofer Ardila,Daniel Alarcon,Jhonatan Jimenez,Yesid Ulloa'
+      && JSON.stringify(zipa1) === JSON.stringify(['George Mazuera:SI', 'Sebastián Rodríguez Gómez:NO', 'Ana Prueba:SI', 'Carlos Pena:SI', 'Luis Viejo:NO',
+        'Cristofer Ardila:SI', 'Jhonatan Jimenez:SI', 'Daniel Alarcon:SI', 'Yesid Ulloa:SI']),
+      { primera: r.primera, zipa1 });
+    check('Operarios de Zipaquirá 1: el ajuste se hace una sola vez (si el admin vuelve a activar a alguien, queda); Zipaquirá 2 no cambia ni ve la lista de Zipaquirá 1',
+      r.despues === 'Ana Prueba,Carlos Pena,Cristofer Ardila,Daniel Alarcon,George Mazuera,Jhonatan Jimenez,Yesid Ulloa' && r.zipa2 === '' && errs.length === 0,
+      { despues: r.despues, zipa2: r.zipa2, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
