@@ -8380,11 +8380,51 @@ function alternarTema() {
   const subProy = document.querySelector('#panel-proyectos.active .proy-subpanel.active');
   if (subProy) { try { proyMostrarSubTab(subProy.id.replace('proySub-', '')); } catch (_) {} }
 }
+/* Gráficas con nombre (auditoría V-04): cada gráfica dice qué muestra y
+   sus datos principales a quien usa lector de pantalla, en vez de ser un
+   dibujo mudo. Va como complemento de Chart.js, así vale para todas. */
+function _tituloDeGrafica(chart) {
+  const t = chart.options?.plugins?.title;
+  if (t && t.display !== false && t.text) return Array.isArray(t.text) ? t.text.join(' ') : String(t.text);
+  const c = chart.canvas;
+  const cab = c.closest('.card')?.querySelector('.card-head') || c.closest('section, .proy-sec')?.querySelector('h2, h3');
+  return (cab?.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function _resumenDeGrafica(chart) {
+  const d = chart.data || {};
+  const etiquetas = (d.labels || []).map(String);
+  const sets = (d.datasets || []).filter(s => !s.hidden);
+  const num = v => (v && typeof v === 'object' ? (v.y ?? v.r ?? '') : v);
+  const fmt = v => { const n = Number(num(v)); return isFinite(n) ? n.toLocaleString('es-CO', { maximumFractionDigits: 2 }) : String(num(v) ?? ''); };
+  if (['pie', 'doughnut', 'polarArea'].includes(chart.config.type) && sets[0]) {
+    return etiquetas.map((e, i) => e + ': ' + fmt(sets[0].data[i])).join(', ');
+  }
+  return sets.slice(0, 4).map(s => {
+    const datos = s.data || [];
+    const ultimo = datos.length ? fmt(datos[datos.length - 1]) : '';
+    return (s.label || 'Serie') + ': ' + datos.length + ' dato(s)' + (ultimo !== '' ? ', el último ' + ultimo + (etiquetas.length ? ' (' + etiquetas[etiquetas.length - 1] + ')' : '') : '');
+  }).join('. ') + (sets.length > 4 ? '. Y ' + (sets.length - 4) + ' serie(s) más.' : '');
+}
+const _COMPLEMENTO_GRAFICA_ACCESIBLE = {
+  id: 'graficaAccesible',
+  afterUpdate(chart) {
+    try {
+      const c = chart.canvas;
+      if (!c) return;
+      const titulo = _tituloDeGrafica(chart);
+      const texto = ((titulo ? 'Gráfica: ' + titulo + '. ' : 'Gráfica. ') + _resumenDeGrafica(chart)).slice(0, 400);
+      c.setAttribute('role', 'img');
+      c.setAttribute('aria-label', texto);
+    } catch (_) { /* el nombre nunca debe impedir que se dibuje la gráfica */ }
+  },
+};
+
 /** Letra y líneas de las gráficas (Chart.js) según el tema. Con las de
  *  fábrica (gris #666 y líneas negras al 10 %) las etiquetas apenas se leían
  *  en modo oscuro. Las gráficas ya dibujadas se actualizan. */
 function _coloresGraficas() {
   if (typeof Chart === 'undefined') return;
+  try { if (!Chart.registry.plugins.get('graficaAccesible')) Chart.register(_COMPLEMENTO_GRAFICA_ACCESIBLE); } catch (_) { /* Chart.js viejo: sin nombre */ }
   Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#666';
   Chart.defaults.borderColor = _temaActual() === 'dark' ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)';
   Object.values(Chart.instances || {}).forEach(g => { try { g.update('none'); } catch (_) {} });
@@ -8763,10 +8803,14 @@ function actualizarContadorTab() {
 ══════════════════════════════════════════════ */
 let modalOrdenId = null;
 
+// Fecha de guardado de la orden cuando se abrió el editor (auditoría D-03).
+let _versionOrdenEnEditor = '';
+
 function abrirModalCompletar(id) {
   const o = allOrdenes.find(x => String(x.id) === String(id) || x.NumeroOrden === id);
   if (!o) return;
   modalOrdenId = id;
+  _versionOrdenEnEditor = o.ActualizadoEn || '';
 
   // Mostrar subpanel editor, ocultar lista
   document.getElementById('subpanel-pend-lista').style.display = 'none';
@@ -9041,6 +9085,16 @@ function leerEditorDatos() {
   };
 }
 
+/** Tras un choque de ediciones: trae la orden como quedó en la hoja y la
+ *  vuelve a abrir en el editor, con un aviso de quién la cambió. */
+async function _abrirOrdenTrasConflicto(numeroOrden, quien) {
+  [SH.ordenes, SH.tareas, SH.repuestos, SH.insumos, SH.servicios].forEach(h => _invalidarCacheHoja(h));
+  try { await cargarOrdenes(); } catch (_) { /* se abre con lo que haya */ }
+  const o = allOrdenes.find(x => x.NumeroOrden === numeroOrden);
+  if (o) abrirModalCompletar(o.id || o.NumeroOrden);
+  aviso('La orden ' + numeroOrden + ' se abrió con los cambios de ' + (quien || 'la otra persona') + '. Haz los tuyos y vuelve a guardar.', 'info');
+}
+
 async function guardarEdicion() {
   const alerta = document.getElementById('alertEditor');
   const datos  = leerEditorDatos();
@@ -9075,7 +9129,7 @@ async function guardarEdicion() {
   try {
     if (!googleAccessToken) throw new Error('no hay sesión');
     if (o && o.NumeroOrden) {
-      await actualizarOrdenEnSheets(o.NumeroOrden, {
+      const camposEdicion = {
         Title:             datos.Title,
         Equipo:            datos.Equipo,
         TipoMantenimiento: datos.TipoMantenimiento,
@@ -9093,7 +9147,23 @@ async function guardarEdicion() {
         insumos:           datos.insumos   || [],
         servicios:         datos.servicios || [],
         FirmaCreador:      o.FirmaCreador || '',
-      });
+      };
+      try {
+        await actualizarOrdenEnSheets(o.NumeroOrden, camposEdicion, { versionEsperada: _versionOrdenEnEditor });
+      } catch (e) {
+        // Otra persona guardó la orden mientras se editaba (auditoría D-03):
+        // se pregunta en vez de borrar lo suyo sin aviso.
+        if (!e.conflicto) throw e;
+        const encima = await confirmarAccion({
+          titulo: 'Otra persona cambió esta orden',
+          texto: e.message + ' Si guardas, lo que hay en este editor reemplaza lo suyo. Si no, se abre la orden con sus cambios para que hagas los tuyos encima.',
+          aceptar: 'Guardar mis cambios encima', cancelar: 'Ver sus cambios',
+        });
+        if (!encima) { await _abrirOrdenTrasConflicto(o.NumeroOrden, e.conflicto.por); return; }
+        await actualizarOrdenEnSheets(o.NumeroOrden, camposEdicion, { versionEsperada: e.conflicto.en });
+      }
+      _versionOrdenEnEditor = o.ActualizadoEn || '';
+      guardarLocal();
     }
   } catch(e) {
     alerta.className = 'alert alert-err show';
@@ -10619,7 +10689,11 @@ const SHEETS_COLS = [
   // veces: antes solo se dependia de UltimaGeneracionHoras, y si el
   // guardado fallaba a mitad de camino ese estado no avanzaba y en el
   // siguiente arranque se creaba otra orden igual.
-  'OrigenInforme'
+  'OrigenInforme',
+  // Cuándo y quién guardó la orden por última vez (auditoría D-03): con esto
+  // el editor nota si otra persona la cambió mientras se editaba, en vez de
+  // borrar sus cambios sin aviso.
+  'ActualizadoEn', 'ActualizadoPor'
 ];
 const TAREAS_COLS    = ['NumeroOrden','#','Descripcion','TiempoReal','OK','Responsable','ObservacionCierre'];
 const REPUESTOS_COLS = ['NumeroOrden','#','Codigo','Nombre','Cantidad','Unidades','CostoUnitario','Subtotal'];
@@ -13886,9 +13960,13 @@ async function cargarOrdenesDeSheets() {
   return ordenes;
 }
 
-async function actualizarOrdenEnSheets(numeroOrden, campos) {
+async function actualizarOrdenEnSheets(numeroOrden, campos, { versionEsperada } = {}) {
+  let sello = '', versionAntes = null;
   try {
-    const headers = window._sheetsHeaders || SHEETS_COLS;
+    // Con las columnas al día (ActualizadoEn y ActualizadoPor se agregan
+    // solas al final si la hoja no las tenía; queda en caché por sesión).
+    let headers = window._sheetsHeaders || SHEETS_COLS;
+    try { headers = await asegurarHoja(SH.ordenes, SHEETS_COLS); window._sheetsHeaders = headers; } catch (_) { /* se sigue con las que se conocen */ }
     const colFin  = numToCol(headers.length - 1);
     const base    = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId;
     const hdrs    = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
@@ -13924,6 +14002,20 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
         const row = [...rowData.values[0]];
         while (row.length < headers.length) row.push('');
 
+        // Edición simultánea (auditoría D-03): si quien edita abrió la orden
+        // cuando tenía otra fecha de guardado, alguien la cambió mientras
+        // tanto. Antes se escribía encima y sus cambios se perdían sin aviso.
+        const iVer = headers.indexOf('ActualizadoEn'), iPor = headers.indexOf('ActualizadoPor');
+        versionAntes = iVer >= 0 ? String(row[iVer] || '') : null;
+        if (versionEsperada !== undefined && iVer >= 0 && String(row[iVer] || '') !== String(versionEsperada || '')) {
+          const quien = (iPor >= 0 && row[iPor]) || 'Otra persona';
+          const cuando = row[iVer] ? new Date(row[iVer]) : null;
+          const hora = cuando && !isNaN(cuando) ? ' a las ' + cuando.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+          const err = new Error(quien + ' guardó cambios en la orden ' + numeroOrden + hora + ' mientras la editabas.');
+          err.conflicto = { por: quien, en: row[iVer] || '' };
+          throw err;
+        }
+
         // Actualizar todos los campos (escalares Y arrays como JSON)
         Object.entries(campos).forEach(([k, v]) => {
           const ci = headers.indexOf(k);
@@ -13932,6 +14024,10 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
           else if (Array.isArray(v))         { row[ci] = JSON.stringify(v); }
           else                               { row[ci] = String(v); }
         });
+        // Cada guardado deja su sello: cuándo y quién.
+        sello = new Date().toISOString();
+        if (iVer >= 0) row[iVer] = sello;
+        if (iPor >= 0) row[iPor] = currentUser?.name || currentUser?.email || '';
 
         const putResp = await fetch(base + '/values/' + encodeURIComponent(SH.ordenes + '!A' + sheetRow + ':' + colFin + sheetRow) + '?valueInputOption=RAW', {
           method: 'PUT', headers: hdrs, body: JSON.stringify({ values: [row] })
@@ -14070,6 +14166,17 @@ async function actualizarOrdenEnSheets(numeroOrden, campos) {
     console.warn('No se pudo actualizar en Sheets:', e.message);
     throw e;
   }
+  // La copia de este equipo queda con el mismo sello que la hoja.
+  if (sello) {
+    const o = allOrdenes.find(x => x.NumeroOrden === numeroOrden);
+    if (o) { o.ActualizadoEn = sello; o.ActualizadoPor = currentUser?.name || currentUser?.email || ''; }
+    // Un guardado propio con el editor abierto (por ejemplo, el estado que
+    // cambia solo al marcar una tarea) no cuenta como "otra persona": si la
+    // hoja seguía como la abrió el editor, el editor sigue al día.
+    const enEditor = modalOrdenId != null && allOrdenes.find(x => String(x.id) === String(modalOrdenId) || x.NumeroOrden === modalOrdenId);
+    if (enEditor && enEditor.NumeroOrden === numeroOrden && versionAntes === _versionOrdenEnEditor) _versionOrdenEnEditor = sello;
+  }
+  return { actualizadoEn: sello };
 }
 
 function mostrarLoginOverlay() {

@@ -1,0 +1,14 @@
+# Dependabot (auditoría S-13): las acciones de GitHub van fijadas a un
+# commit exacto (no a "v4", que su autor puede mover). Así nadie puede
+# meter código en la publicación cambiando una acción por fuera; a cambio,
+# las actualizaciones no llegan solas: Dependabot abre un PR una vez al mes
+# con la versión nueva, que pasa por las mismas revisiones antes de fusionar.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Acciones de GitHub"
+    open-pull-requests-limit: 3
