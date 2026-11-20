@@ -452,6 +452,11 @@ body::before {
    todo lo ancho: aquí son casillas con su texto y el botón de la foto. */
 .field .emp-docs label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 400; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
 .field .emp-docs input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
+/* Movimientos → Salida: la casilla del cambio directo en la Hoja de Vida. */
+.field.invm-hv { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; gap: 4px; }
+.field.invm-hv label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; min-height: 32px; }
+.field.invm-hv input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; flex-shrink: 0; accent-color: var(--accent); }
+.invm-hv-ayuda { font-size: 12px; color: var(--text3); padding-left: 26px; }
 /* Fotos de la ficha: grandes y completas (sin recortar) para poder leer la
    placa del equipo; al tocarla se abre la imagen en tamaño original. */
 .emp-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 10px; }
@@ -4225,6 +4230,10 @@ body.rol-operario .btn-principal-operario {
               <div class="field" id="invm_grupoEquipo"><label for="invm_equipo">Equipo Destino <span id="invm_equipoMarca">*</span></label>
                 <select id="invm_equipo"><option value="">Seleccionar equipo...</option></select>
               </div>
+              <div class="field invm-hv" id="invm_grupoHojaVida" style="grid-column:1/-1;display:none">
+                <label for="invm_hojaVida"><input type="checkbox" id="invm_hojaVida"> Cambio directo en la Hoja de Vida del equipo, sin orden de trabajo</label>
+                <span class="invm-hv-ayuda">Para piezas pequeñas: se descuenta con destino al equipo y queda en el historial de su Hoja de Vida y en el Dashboard, con su costo.</span>
+              </div>
               <div class="field" style="grid-column:1/-1"><label for="invm_obs">Observaciones</label><input id="invm_obs" placeholder="Opcional"></div>
             </div>
             <div style="background:var(--nota-bg);border:1px solid var(--nota-borde);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;color:var(--nota-tx);display:flex;align-items:flex-start;gap:6px">
@@ -5900,7 +5909,49 @@ function _stockInventarioParaPantalla(sede) {
   return promesa;
 }
 
+/** Los cambios directos en la Hoja de Vida de una sede: las salidas con el
+ *  documento "Hoja de Vida". Cada uno con su producto, su tipo (Repuestos,
+ *  Insumos…) y su costo. Se guarda unos segundos, como el stock. */
+const _cambiosDirectosPantalla = {};
+function _cambiosDirectosHVD(sede) {
+  const c = _cambiosDirectosPantalla[sede];
+  if (c && Date.now() - c.ms < STOCK_PANTALLA_MS) return c.promesa;
+  const promesa = (async () => {
+    const spreadsheetId = _invSpreadsheetId(sede);
+    const [productos, movimientos] = await Promise.all([
+      _invGetPestana(spreadsheetId, 'Productos!A2:H100000'),
+      _invGetPestana(spreadsheetId, 'Movimientos!A2:M100000'),
+    ]);
+    const prod = {};
+    productos.forEach(r => { if (r[0]) prod[String(r[0]).trim().toUpperCase()] = { nombre: r[1] || '', tipo: r[7] || '' }; });
+    return movimientos
+      .filter(r => r[0] && String(r[2] || '').trim().toUpperCase() === 'SALIDA' && String(r[11] || '').trim() === INV_DOC_HOJA_VIDA && String(r[7] || '').trim())
+      .map(r => {
+        const codigo = String(r[0]).trim().toUpperCase();
+        const cantidad = parseFloat(r[3]) || 0, costoUnitario = parseFloat(r[10]) || 0;
+        return {
+          fecha: String(r[1] || ''), equipo: String(r[7]).trim(), codigo,
+          producto: (prod[codigo] || {}).nombre || codigo, tipoProducto: (prod[codigo] || {}).tipo || '',
+          cantidad, costoUnitario, costo: Math.round(cantidad * costoUnitario * 100) / 100,
+          responsable: r[6] || '', observaciones: r[8] || '',
+        };
+      });
+  })();
+  _cambiosDirectosPantalla[sede] = { ms: Date.now(), promesa };
+  promesa.catch(() => { if (_cambiosDirectosPantalla[sede]?.promesa === promesa) delete _cambiosDirectosPantalla[sede]; });
+  return promesa;
+}
+
+/** El texto de un cambio directo en un historial: "Cambio de repuesto sin
+ *  orden: Empaque × 2 — se cambió por fuga". */
+function _textoCambioDirecto(c) {
+  const cant = Number(c.cantidad).toLocaleString('es-CO');
+  return `Cambio de ${String(c.tipoProducto).toLowerCase() === 'insumos' ? 'insumo' : 'repuesto'} sin orden: ${c.producto} × ${cant}`
+    + (c.observaciones ? ' — ' + c.observaciones : '');
+}
+
 function _invalidarStockPantalla() {
+  Object.keys(_cambiosDirectosPantalla).forEach(k => delete _cambiosDirectosPantalla[k]);
   Object.keys(_stockPantalla).forEach(k => delete _stockPantalla[k]);
   Object.keys(_comprometidosPantalla).forEach(k => delete _comprometidosPantalla[k]);
 }
@@ -6259,6 +6310,31 @@ async function _invLiberarLock(spreadsheetId, token) {
   } catch (e) { console.warn('No se pudo liberar el bloqueo de inventario (expirará solo):', e.message); }
 }
 
+/* ── CAMBIO DIRECTO EN LA HOJA DE VIDA ──
+   Una pieza pequeña (un empaque, un fusible) a veces se cambia sin orden
+   de trabajo. Esa salida se marca con el documento "Hoja de Vida": se
+   descuenta del inventario con destino al equipo, como cualquier salida, y
+   además guarda lo que costó (lo que sale de los lotes más antiguos, FIFO)
+   en su Precio Unitario. Con eso la Hoja de Vida y el Histórico del equipo
+   la muestran, y el Dashboard la suma al gasto del equipo. Las salidas de
+   las órdenes no llevan esta marca: su costo ya va en la orden y no se
+   cuenta dos veces. */
+const INV_DOC_HOJA_VIDA = 'Hoja de Vida';
+
+/** Lo que cuesta sacar `cantidad` de un producto ahora: se consume de los
+ *  lotes más antiguos con existencia, como lo hace el inventario. */
+function _invCostoFifoSalida(movimientos, codigo, cantidad) {
+  const lotes = (_agruparLotesFIFO(movimientos).get(codigo.toUpperCase()) || []).filter(l => l.restante > 0.0001);
+  let porSacar = cantidad, costo = 0;
+  for (const l of lotes) {
+    if (porSacar <= 0) break;
+    const toma = Math.min(l.restante, porSacar);
+    costo += toma * l.precio;
+    porSacar -= toma;
+  }
+  return Math.round(costo * 100) / 100;
+}
+
 async function registrarMovimientoInventarioDirecto(sede, mov) {
   const spreadsheetId = _invSpreadsheetId(sede);
   await _invAsegurarHoja(spreadsheetId, 'Movimientos', INV_MOVIMIENTOS_COLS);
@@ -6268,6 +6344,10 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
   const tipo     = (mov.tipo || '').toString().trim().toUpperCase();
   if (!codigo || cantidad <= 0) throw new Error('Código y cantidad son obligatorios');
   if (!INV_TIPOS_MOVIMIENTO.includes(tipo)) throw new Error('Tipo de movimiento inválido: ' + tipo);
+  const aHojaDeVida = !!mov.hojaDeVida;
+  if (aHojaDeVida && (tipo !== 'SALIDA' || !String(mov.equipo || '').trim())) {
+    throw new Error('Solo una salida con equipo destino puede ir a la Hoja de Vida.');
+  }
 
   const productos = await _invGetPestana(spreadsheetId, 'Productos!A2:A100000');
   if (!productos.some(r => (r[0] || '').toString().trim().toUpperCase() === codigo)) {
@@ -6294,6 +6374,10 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
     if (tipo === 'INGRESO' || tipo === 'AJUSTE_POSITIVO') stockResultante += cantidad;
     else stockResultante -= cantidad;
     stockResultante = Math.max(0, stockResultante);
+    // Cambio directo en la Hoja de Vida: lo que costó, por unidad. Con seis
+    // decimales, para que cantidad × precio vuelva a dar el total exacto
+    // (3 de un total de $4.000 son $1.333,333333, no $1.333,33).
+    const costoUnitario = aHojaDeVida ? Math.round(_invCostoFifoSalida(movimientos, codigo, cantidad) / cantidad * 1e6) / 1e6 : '';
 
     const fila = [
       codigo,
@@ -6306,13 +6390,13 @@ async function registrarMovimientoInventarioDirecto(sede, mov) {
       mov.equipo || '',
       mov.observaciones || '',
       stockResultante,
-      (tipo === 'INGRESO' || tipo === 'AJUSTE_POSITIVO') ? (Math.max(0, parseFloat(mov.precioUnitario) || 0)) : '',
-      mov.tipoDocumento || '',
-      mov.numeroDocumento || '',
+      (tipo === 'INGRESO' || tipo === 'AJUSTE_POSITIVO') ? (Math.max(0, parseFloat(mov.precioUnitario) || 0)) : costoUnitario,
+      aHojaDeVida ? INV_DOC_HOJA_VIDA : (mov.tipoDocumento || ''),
+      aHojaDeVida ? '' : (mov.numeroDocumento || ''),
     ];
     await _invConfirmarLock(spreadsheetId, lockToken);
     await _invAppend(spreadsheetId, 'Movimientos', [fila]);
-    return { stockResultante };
+    return { stockResultante, costoUnitario };
   } finally {
     await _invLiberarLock(spreadsheetId, lockToken);
   }
@@ -15891,6 +15975,11 @@ async function cargarDashboard() {
   // gráficas — pero los indicadores sí. Antes la función salía aquí mismo y
   // el panel quedaba entero en "—".
   const hayGraficas = typeof Chart !== 'undefined';
+  // Los repuestos cambiados sin orden (salidas a la Hoja de Vida) también
+  // son gasto del equipo. Se leen del inventario mientras pasa la espera;
+  // si no se pueden leer (sin inventario, sin señal), el panel sigue con
+  // las órdenes, como siempre.
+  const directosPromesa = _cambiosDirectosHVD(operacionActual).catch(() => []);
   await new Promise(r => setTimeout(r, 300));
 
   // ── Tipos fijos de mantenimiento ──
@@ -15916,6 +16005,8 @@ async function cargarDashboard() {
   }
 
   const ordenesFiltradas = allOrdenes.filter(ordenEnPeriodo);
+  const directos = (await directosPromesa).filter(c => ordenEnPeriodo({ FechaCierre: c.fecha }));
+  const esInsumo = c => String(c.tipoProducto).toLowerCase() === 'insumos';
 
   // ── Conteos ──
   const total    = ordenesFiltradas.length;
@@ -15937,6 +16028,7 @@ async function cargarDashboard() {
     inss.forEach(i => { costoIns  += (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); });
     srvs.forEach(s => { costoServ += (Number(s.cantidad||0) * Number(s.costoUnitario||s.costoUnit||0)); });
   });
+  directos.forEach(c => { if (esInsumo(c)) costoIns += c.costo; else costoRep += c.costo; });
 
   // ── KPIs ──
   const periodoLabel = mesFiltro
@@ -15953,7 +16045,7 @@ async function cargarDashboard() {
   // Actualizar subtítulo de los KPIs de costo
   ['kpi_costo_rep', 'kpi_costo_ins', 'kpi_costo_serv'].forEach(id => {
     const sub = document.querySelector('#' + id)?.closest('.kpi-card')?.querySelector('.kpi-sub');
-    if (sub) sub.textContent = periodoLabel + ' · solo cerradas';
+    if (sub) sub.textContent = periodoLabel + (directos.length ? ' · cerradas y sin orden' : ' · solo cerradas');
   });
 
   // Colores — paleta corporativa (tonos más saturados y serios, no
@@ -16044,10 +16136,15 @@ async function cargarDashboard() {
     });
     return s;
   });
+  // Lo cambiado sin orden no tiene tipo de mantenimiento: va en su propia
+  // barra, para que la suma de la gráfica sea la de los indicadores.
+  const costoSinOrden = directos.reduce((s, c) => s + c.costo, 0);
+  const tiposCosto = costoSinOrden > 0 ? [...TIPOS, 'Sin orden'] : TIPOS;
+  if (costoSinOrden > 0) costoRepTipo.push(costoSinOrden);
   makeChart('chartCostoTipo','_chartCostoTipo',{
     type: 'bar',
-    data: { labels: TIPOS, datasets: [{ label: 'Costo ($)', data: costoRepTipo,
-      backgroundColor: TIPOS.map(t => colores[t]||'#797775'), borderRadius: 6, borderSkipped: false }] },
+    data: { labels: tiposCosto, datasets: [{ label: 'Costo ($)', data: costoRepTipo,
+      backgroundColor: tiposCosto.map(t => colores[t]||'#797775'), borderRadius: 6, borderSkipped: false }] },
     options: { responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtCOP(ctx.raw) } } },
       scales: { y: { beginAtZero: true, ticks: { callback: v => fmtCOP(v) } } } }
@@ -16088,6 +16185,10 @@ async function cargarDashboard() {
       costosPorEquipo[eq].serv += Number(sv.cantidad||0)*Number(sv.costoUnitario||sv.costoUnit||0);
     });
   });
+  directos.forEach(c => {
+    if (!costosPorEquipo[c.equipo]) costosPorEquipo[c.equipo] = { rep: 0, ins: 0, serv: 0 };
+    costosPorEquipo[c.equipo][esInsumo(c) ? 'ins' : 'rep'] += c.costo;
+  });
   // Ordenar por costo total descendente
   const equiposSorted = Object.entries(costosPorEquipo)
     .map(([eq, v]) => ({ eq, rep: v.rep, ins: v.ins, serv: v.serv, total: v.rep + v.ins + v.serv }))
@@ -16127,7 +16228,7 @@ async function cargarDashboard() {
   if (seccionAntioquia) {
     if (operacionActual === 'antioquia') {
       seccionAntioquia.style.display = '';
-      renderGraficasAntioquia(ordenesFiltradas);
+      renderGraficasAntioquia(ordenesFiltradas, directos);
     } else {
       seccionAntioquia.style.display = 'none';
     }
@@ -16182,7 +16283,7 @@ async function cargarDashboard() {
  *  Las empresas son las de la lista cargada (Equipos de las empresas) más las
  *  que aparezcan en órdenes viejas; el equipo de cada orden dice de qué
  *  empresa es ("<Empresa> · <Equipo>"). */
-function renderGraficasAntioquia(ordenesFiltradas) {
+function renderGraficasAntioquia(ordenesFiltradas, directos = []) {
   // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
   // del panel (tablas, totales) sí tiene que seguir funcionando.
   if (typeof Chart === 'undefined') return;
@@ -16200,6 +16301,11 @@ function renderGraficasAntioquia(ordenesFiltradas) {
     const eq = (o.Equipo || '').trim();
     if (!eq || !_empresaDeEquipo(eq)) return;
     costoPorEquipo[eq] = (costoPorEquipo[eq] || 0) + costoOrden(o);
+  });
+  // Y los repuestos cambiados sin orden (salidas a la Hoja de Vida).
+  directos.forEach(c => {
+    if (!_empresaDeEquipo(c.equipo)) return;
+    costoPorEquipo[c.equipo] = (costoPorEquipo[c.equipo] || 0) + c.costo;
   });
 
   // Los equipos de cada empresa: los de la lista y los que tengan gasto
@@ -18913,7 +19019,7 @@ function invRenderActividadReciente(historial) {
       return `<tr><td style="font-size:12px;color:var(--text3)">${esc(m.fecha)}</td><td><strong>${esc(m.codigo)}</strong></td>
         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${esc(m.producto)}</td>
         <td><span class="inv-badge" style="background:${color}22;color:${color}">${tipoLabel[m.tipo] || esc(m.tipo)}</span></td>
-        <td><strong>${m.cantidad}</strong></td><td>${esc(m.equipo)||'—'}</td><td>${esc(m.responsable)||'—'}</td></tr>`;
+        <td><strong>${m.cantidad}</strong></td><td>${esc(m.equipo)||'—'}${m.tipoDocumento === INV_DOC_HOJA_VIDA ? ' <span class="inv-badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Hoja de Vida</span>' : ''}</td><td>${esc(m.responsable)||'—'}</td></tr>`;
     }).join('') + `</tbody></table>`;
 }
 
@@ -19103,6 +19209,8 @@ function invHandleTipoChange() {
   const esSalida = tipo === 'SALIDA';
   document.getElementById('invm_grupoEquipo').style.display = esSalida ? 'flex' : 'none';
   document.getElementById('invm_equipoMarca').style.display = esSalida ? 'inline' : 'none';
+  document.getElementById('invm_grupoHojaVida').style.display = esSalida ? 'flex' : 'none';
+  if (!esSalida) document.getElementById('invm_hojaVida').checked = false;
   // Si se cambia el tipo lejos de "Salida", el equipo destino deja de tener
   // sentido — hay que limpiarlo, no solo ocultarlo. Si no, alguien que
   // primero elige Salida + un equipo y después cambia de opinión a Ingreso
@@ -19147,8 +19255,10 @@ async function invRegistrarMovimiento() {
   const precio = document.getElementById('invm_precio').value;
   const tipoDocumento = esEntrada ? document.getElementById('invm_tipoDocumento').value : '';
   const numeroDocumento = document.getElementById('invm_numeroDocumento').value.trim();
+  const aHojaDeVida = tipo === 'SALIDA' && document.getElementById('invm_hojaVida').checked;
 
   if (tipo === 'SALIDA' && !equipo) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Para una salida, el equipo destino es obligatorio.'; return; }
+  if (aHojaDeVida && /^SEDE /.test(equipo)) { msg.style.color = 'var(--danger)'; msg.textContent = 'Un envío a otra sede no va a una Hoja de Vida: elige el equipo donde se cambió la pieza, o quita la casilla.'; return; }
   if (!responsable) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> El responsable es obligatorio.'; return; }
   if (esEntrada && !precio) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Para un ingreso, el precio unitario es obligatorio.'; return; }
   if (tipoDocumento && !numeroDocumento) { msg.style.color = 'var(--danger)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Escribe el número o referencia del documento elegido.'; return; }
@@ -19177,8 +19287,11 @@ async function invRegistrarMovimiento() {
       // ver el movimiento como "consumo" a medias en el dashboard.
       responsable, equipo: tipo === 'SALIDA' ? equipo : '',
       observaciones: document.getElementById('invm_obs').value.trim(),
+      hojaDeVida: aHojaDeVida,
     });
-    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Movimiento registrado correctamente.';
+    msg.style.color = 'var(--estado-ok-tx)'; msg.innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> '
+      + (aHojaDeVida ? 'Salida registrada. Quedó en la Hoja de Vida de ' + esc(_equipoSinEmpresa(equipo)) + '.' : 'Movimiento registrado correctamente.');
+    document.getElementById('invm_hojaVida').checked = false;
     ['invm_codigo','invm_cantidad','invm_precio','invm_responsable','invm_equipo','invm_obs','invm_numeroDocumento'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('invm_tipoDocumento').value = '';
     document.getElementById('invm_grupoDocNumero').style.display = 'none';
@@ -26521,7 +26634,7 @@ async function hvdSeleccionarEquipo(equipo) {
     ${fijo && fijo.extintor ? '<div id="hvdRecargas" style="margin-top:28px"></div>' : ''}
 
     <div style="margin-top:28px">
-      <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${conComentarios ? 'Comentarios (los que se agreguen desde Inventario de Equipos de Seguridad)' : 'Historial de mantenimientos (se agrega solo al cerrar una orden)'}</div>
+      <div style="font-weight:700;color:var(--brand);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${conComentarios ? 'Comentarios (los que se agreguen desde Inventario de Equipos de Seguridad)' : 'Historial de mantenimientos (órdenes cerradas y repuestos cambiados sin orden)'}</div>
       <div id="hvdHistorial" style="overflow-x:auto"></div>
     </div>`;
   // En celular la hoja de vida queda debajo de la lista: al elegir otro
@@ -29590,33 +29703,67 @@ async function actualizarBadgeNotificaciones() {
 /** Arma la tabla de historial de mantenimientos de un equipo, a partir de
  *  las órdenes de trabajo YA CERRADAS que tengan ese equipo — se arma sola,
  *  no hay que registrar nada aparte cada vez que se cierra una orden. */
-function _renderHistorialOrdenesEquipo(equipo) {
+/** Historial del equipo en la Hoja de Vida: sus órdenes cerradas y los
+ *  repuestos que se le cambiaron sin orden (Inventario → Movimientos →
+ *  Salida → "Cambio directo en la Hoja de Vida"), del más reciente al más
+ *  antiguo. Las órdenes salen de una vez; los cambios directos se leen del
+ *  inventario y se agregan cuando llegan. */
+async function _renderHistorialOrdenesEquipo(equipo) {
   const cont = document.getElementById('hvdHistorial');
-  const ordenes = allOrdenes.filter(o => (o.Equipo||'').trim() === equipo && o.Estado === 'Cerrada')
-    .sort((a,b) => new Date(b.FechaCierre||b.FechaInicio||0) - new Date(a.FechaCierre||a.FechaInicio||0));
+  const ordenes = allOrdenes.filter(o => (o.Equipo||'').trim() === equipo && o.Estado === 'Cerrada');
+  const fechaDe = t => { const d = _fechaLocalDesdeString(t || ''); return isNaN(d) ? 0 : d.getTime(); };
 
-  if (!ordenes.length) { cont.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0">Este equipo todavía no tiene órdenes cerradas.</div>'; return; }
+  const pintar = (directos, cargando) => {
+    const filas = [
+      ...ordenes.map(o => ({ fecha: o.FechaCierre || o.FechaInicio || '', orden: o })),
+      ...directos.map(c => ({ fecha: c.fecha, directo: c })),
+    ].sort((a, b) => fechaDe(b.fecha) - fechaDe(a.fecha));
+    if (!filas.length) {
+      cont.innerHTML = `<div style="color:var(--text3);font-size:13px;padding:12px 0">${cargando ? 'Cargando historial…' : 'Este equipo todavía no tiene órdenes cerradas ni repuestos cambiados sin orden.'}</div>`;
+      return;
+    }
+    cont.innerHTML = `<table class="ie-table"><thead><tr>
+        <th>Fecha</th><th>Realizado por</th><th>Descripción del mantenimiento</th>
+        <th>Horas operación</th><th>Costo total</th><th>Orden de trabajo</th>
+      </tr></thead><tbody>` +
+      filas.map(({ orden: o, directo: c }) => {
+        if (c) {
+          return `<tr class="hvd-cambio-directo">
+          <td>${esc(c.fecha)}</td>
+          <td>${esc(c.responsable)}</td>
+          <td>${esc(_textoCambioDirecto(c))}</td>
+          <td>—</td>
+          <td>${fmtCOP(c.costo)}</td>
+          <td><span class="inv-badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Sin orden</span></td>
+        </tr>`;
+        }
+        // El costo total de la orden (repuestos + insumos + servicios) ya
+        // queda calculado y guardado en CostoReal al cerrarla — usarlo
+        // directamente en vez de recalcular solo repuestos evita que el
+        // historial del equipo muestre $0 cuando el costo real vino de
+        // insumos o servicios en vez de repuestos.
+        const costoTotal = Number(o.CostoReal || 0);
+        return `<tr>
+          <td>${esc(o.FechaCierre || o.FechaInicio || '')}</td>
+          <td>${esc(o.EjecutadoPor || o.Responsable || '')}</td>
+          <td>${esc(o.Title || '')}${o.ObsCierre ? ' — ' + esc(o.ObsCierre) : ''}</td>
+          <td>${esc(o.HorasEquipo || '')}</td>
+          <td>${fmtCOP(costoTotal)}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
+        </tr>`;
+      }).join('') + `</tbody></table>`;
+  };
 
-  cont.innerHTML = `<table class="ie-table"><thead><tr>
-      <th>Fecha</th><th>Realizado por</th><th>Descripción del mantenimiento</th>
-      <th>Horas operación</th><th>Costo total</th><th>Orden de trabajo</th>
-    </tr></thead><tbody>` +
-    ordenes.map(o => {
-      // El costo total de la orden (repuestos + insumos + servicios) ya
-      // queda calculado y guardado en CostoReal al cerrarla — usarlo
-      // directamente en vez de recalcular solo repuestos evita que el
-      // historial del equipo muestre $0 cuando el costo real vino de
-      // insumos o servicios en vez de repuestos.
-      const costoTotal = Number(o.CostoReal || 0);
-      return `<tr>
-        <td>${esc(o.FechaCierre || o.FechaInicio || '')}</td>
-        <td>${esc(o.EjecutadoPor || o.Responsable || '')}</td>
-        <td>${esc(o.Title || '')}${o.ObsCierre ? ' — ' + esc(o.ObsCierre) : ''}</td>
-        <td>${esc(o.HorasEquipo || '')}</td>
-        <td>${fmtCOP(costoTotal)}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver orden</button></td>
-      </tr>`;
-    }).join('') + `</tbody></table>`;
+  pintar([], true);
+  let directos = [];
+  try {
+    directos = (await _cambiosDirectosHVD(operacionActual)).filter(c => c.equipo === equipo);
+  } catch (e) {
+    // Sin inventario (o sin señal) quedan las órdenes, que es lo de siempre.
+    console.warn('No se pudieron leer los cambios sin orden del equipo:', e.message);
+  }
+  if (hvdEquipoActual !== equipo || document.getElementById('hvdHistorial') !== cont) return; // se cambió de equipo mientras cargaba
+  pintar(directos, false);
 }
 
 /* ══════════════════════════════════════════════
@@ -29834,10 +29981,20 @@ function seleccionarEquipoHistorico(equipo) {
   renderHistoricoEquipoSeleccionado();
 }
 
-/** Pinta la tabla de órdenes del equipo elegido, aplicando el filtro de mes/año */
-function renderHistoricoEquipoSeleccionado() {
+/** Pinta la tabla de órdenes del equipo elegido, aplicando el filtro de
+ *  mes/año, con los repuestos que se le cambiaron sin orden (se leen del
+ *  inventario y se agregan cuando llegan). */
+async function renderHistoricoEquipoSeleccionado() {
   if (!equipoHistoricoSeleccionado) return;
+  const equipo = equipoHistoricoSeleccionado;
+  _pintarHistoricoEquipo([]);
+  let directos;
+  try { directos = (await _cambiosDirectosHVD(operacionActual)).filter(c => c.equipo === equipo); }
+  catch (_) { return; } // sin inventario: quedan las órdenes
+  if (directos.length && equipoHistoricoSeleccionado === equipo) _pintarHistoricoEquipo(directos);
+}
 
+function _pintarHistoricoEquipo(directosEquipo) {
   const mesFiltro  = document.getElementById('histFiltroMes').value;
   const anioFiltro = document.getElementById('histFiltroAnio').value;
 
@@ -29858,11 +30015,14 @@ function renderHistoricoEquipoSeleccionado() {
     .filter(o => (o.Equipo || '').trim() === equipoHistoricoSeleccionado)
     .filter(ordenEnPeriodo)
     .sort((a, b) => (b.FechaInicio || b.FechaCreacion || '').localeCompare(a.FechaInicio || a.FechaCreacion || ''));
+  const directos = directosEquipo.filter(c => ordenEnPeriodo({ FechaInicio: c.fecha }))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 
-  document.getElementById('histTituloEquipo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> ' + esc(equipoHistoricoSeleccionado) + ` — ${ordenes.length} orden(es)`;
+  document.getElementById('histTituloEquipo').innerHTML = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> ' + esc(equipoHistoricoSeleccionado) + ` — ${ordenes.length} orden(es)`
+    + (directos.length ? ` y ${directos.length} cambio(s) sin orden` : '');
 
   const wrap = document.getElementById('histTablaOrdenes');
-  if (!ordenes.length) {
+  if (!ordenes.length && !directos.length) {
     wrap.innerHTML = _estadoVacio({ icono: 'calendario', titulo: 'No hay órdenes de este equipo en ese periodo', detalle: 'Cambia el periodo para ver otras.', compacto: true });
     return;
   }
@@ -29897,6 +30057,19 @@ function renderHistoricoEquipoSeleccionado() {
       <td style="padding:7px 10px;text-align:center"><span class="badge" style="${estilo}">${esc(o.Estado)}</span></td>
       <td style="padding:7px 10px;text-align:center">${costo ? fmtCOP(costo) : '—'}</td>
       <td style="padding:7px 10px;text-align:center"><button class="btn btn-ghost btn-sm" onclick="verDetalle(${_jsArg(o.id||o.NumeroOrden)});showPanel('detalle')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver</button></td>
+    </tr>`;
+  });
+
+  // Los repuestos cambiados sin orden, al final.
+  directos.forEach(c => {
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;color:var(--text3)">Sin orden</td>
+      <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(_textoCambioDirecto(c))}">${esc(_textoCambioDirecto(c))}</td>
+      <td style="padding:7px 10px">—</td>
+      <td style="padding:7px 10px">${fmtFecha(c.fecha)}</td>
+      <td style="padding:7px 10px;text-align:center"><span class="badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Cambio directo</span></td>
+      <td style="padding:7px 10px;text-align:center">${c.costo ? fmtCOP(c.costo) : '—'}</td>
+      <td style="padding:7px 10px"></td>
     </tr>`;
   });
 

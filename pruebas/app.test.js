@@ -2180,6 +2180,107 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Salida directa a la Hoja de Vida: una pieza pequeña se descuenta del
+    // inventario con destino al equipo, sin orden. Queda en el historial de
+    // la Hoja de Vida y del Histórico por Equipo, y el Dashboard la suma al
+    // gasto (una sola vez: las salidas de las órdenes no se cuentan aparte).
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const invId = await p.evaluate(() => _invSpreadsheetId('zipaquira'));
+    const hoy = await p.evaluate(() => _isoLocal(new Date()));
+    fake.crear(invId, 'Productos', [['Código', 'Nombre', 'Unidad', 'Grupo', 'Stock Mínimo', 'Fecha Creación', 'Precio Unitario', 'Tipo'],
+      ['EMP-1', 'EMPAQUE DE TAPA', 'und', 'General', '0', 't', '1000', 'Repuestos'],
+      ['GRA-1', 'GRASA', 'kg', 'General', '0', 't', '500', 'Insumos']]);
+    fake.crear(invId, 'Movimientos', [['Código', 'Fecha', 'Tipo', 'Cantidad', 'Usuario', 'Timestamp', 'Responsable', 'Equipo Destino', 'Observaciones', 'Stock Resultante', 'PrecioUnitario', 'TipoDocumento', 'NumeroDocumento'],
+      ['EMP-1', '2026-01-05', 'INGRESO', '2', 'u', 't', 'Compras', '', '', '2', '1000', 'Factura', 'F-1'],
+      ['EMP-1', '2026-02-05', 'INGRESO', '5', 'u', 't', 'Compras', '', '', '7', '1500', '', ''],
+      ['GRA-1', '2026-01-05', 'INGRESO', '10', 'u', 't', 'Compras', '', '', '10', '500', '', ''],
+      // La salida de una orden: su costo va en la orden, no se cuenta otra vez.
+      ['EMP-1', '2026-03-01', 'SALIDA', '1', 'u', 't', 'OT-9', 'CB1', 'Salida automática por cierre de orden de trabajo', '6', '', '', '']]);
+    fake.crear(invId, 'Config', [['clave'], ['']]);
+    const r = await p.evaluate(async hoy => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'ana@x' };
+      document.getElementById('loginOverlay')?.remove();
+      allOrdenes = [{ id: 'O9', NumeroOrden: 'OT-9', Title: 'Cambio de empaque', Equipo: 'CB1', Estado: 'Cerrada', TipoMantenimiento: 'Correctivo',
+        FechaCierre: '2026-03-01', FechaInicio: '2026-03-01', CostoReal: 1000, EjecutadoPor: 'Luis',
+        repuestos: [{ codigo: 'EMP-1', nombre: 'EMPAQUE DE TAPA', cantidad: 1, costoUnitario: 1000 }], insumos: [], servicios: [], tareas: [] }];
+      const out = {};
+      abrirInventario('zipaquira'); await espera(400);
+      invMostrarSubTab('movimiento'); await espera(200);
+      const tipo = document.getElementById('invm_tipo'), grupo = document.getElementById('invm_grupoHojaVida');
+      tipo.value = 'INGRESO'; tipo.dispatchEvent(new Event('change'));
+      out.conIngreso = getComputedStyle(grupo).display;
+      tipo.value = 'SALIDA'; tipo.dispatchEvent(new Event('change'));
+      out.conSalida = getComputedStyle(grupo).display;
+      const llenar = (codigo, cantidad, equipo, obs) => {
+        document.getElementById('invm_codigo').value = codigo; document.getElementById('invm_cantidad').value = cantidad;
+        document.getElementById('invm_fecha').value = hoy; document.getElementById('invm_responsable').value = 'Pedro Técnico';
+        document.getElementById('invm_equipo').value = equipo; document.getElementById('invm_obs').value = obs;
+        document.getElementById('invm_hojaVida').checked = true;
+      };
+      // Un envío a otra sede no va a una Hoja de Vida.
+      llenar('EMP-1', '1', 'SEDE SOACHA', '');
+      await invRegistrarMovimiento();
+      out.aSede = document.getElementById('invMsg').textContent.trim();
+      // 3 empaques: 1 del lote de $1.000 y 2 del de $1.500 → $4.000 ($1.333,33 c/u).
+      llenar('EMP-1', '3', 'CB1', 'Fuga en la tapa');
+      await invRegistrarMovimiento();
+      out.msg = document.getElementById('invMsg').textContent.trim();
+      out.casillaDespues = document.getElementById('invm_hojaVida').checked;
+      // Alguien mira los cambios sin orden entre una salida y otra: la segunda tiene que aparecer igual.
+      out.entreSalidas = (await _cambiosDirectosHVD('zipaquira')).length;
+      // Grasa (insumo), 2 kg → $1.000.
+      tipo.value = 'SALIDA'; tipo.dispatchEvent(new Event('change'));
+      llenar('GRA-1', '2', 'CB1', '');
+      await invRegistrarMovimiento();
+      out.stock = (await obtenerStockInventarioDirecto('zipaquira')).map(x => x.codigo + ':' + x.cantidad).join(',');
+      // Hoja de Vida de CB1: la orden y los dos cambios sin orden.
+      hvdModoActual = 'operacion';
+      await hvdSeleccionarEquipo('CB1'); await espera(400);
+      out.hvd = [...document.querySelectorAll('#hvdHistorial tbody tr')].map(tr => [...tr.children].map(td => td.textContent.trim()).join(' | '));
+      // Histórico por Equipo.
+      document.getElementById('histFiltroMes').value = ''; document.getElementById('histFiltroAnio').value = '';
+      equipoHistoricoSeleccionado = 'CB1';
+      await renderHistoricoEquipoSeleccionado();
+      out.histTitulo = document.getElementById('histTituloEquipo').textContent.trim();
+      out.histFilas = document.querySelectorAll('#histTablaOrdenes tbody tr').length;
+      // Dashboard: sin período, todo junto.
+      document.getElementById('dash_mes').value = ''; document.getElementById('dash_anio').value = '';
+      await cargarDashboard();
+      out.kpiRep = document.getElementById('kpi_costo_rep').textContent;
+      out.kpiIns = document.getElementById('kpi_costo_ins').textContent;
+      out.kpiSub = document.getElementById('kpi_costo_rep').closest('.kpi-card').querySelector('.kpi-sub').textContent;
+      out.porTipo = { labels: window._chartCostoTipo.data.labels, datos: window._chartCostoTipo.data.datasets[0].data };
+      out.porEquipo = { labels: window._chartCostoEquipo.data.labels, rep: window._chartCostoEquipo.data.datasets[0].data, ins: window._chartCostoEquipo.data.datasets[1].data };
+      // Actividad reciente del inventario: la marca.
+      out.actividad = [...document.querySelectorAll('#invActividadReciente .inv-badge')].map(x => x.textContent).filter(t => t === 'Hoja de Vida').length;
+      return out;
+    }, hoy);
+    const movs = fake.hoja(invId, 'Movimientos').slice(5);
+    check('Salida directa a la Hoja de Vida: la casilla sale solo con Salida; un envío a otra sede no se acepta; se descuenta con destino al equipo y guarda su costo (FIFO) y el documento',
+      r.conIngreso === 'none' && r.conSalida !== 'none' && /otra sede no va a una Hoja de Vida/.test(r.aSede)
+      && /Quedó en la Hoja de Vida de CB1/.test(r.msg) && !r.casillaDespues
+      && movs.length === 2 && movs[0][2] === 'SALIDA' && movs[0][7] === 'CB1' && movs[0][6] === 'Pedro Técnico' && movs[0][10] === '1333.333333' && movs[0][11] === 'Hoja de Vida'
+      && movs[1][10] === '500' && r.stock === 'EMP-1:3,GRA-1:8' && r.entreSalidas === 1,
+      { conIngreso: r.conIngreso, conSalida: r.conSalida, aSede: r.aSede, msg: r.msg, movs, stock: r.stock });
+    check('Salida directa a la Hoja de Vida: queda en el historial de la Hoja de Vida (con la orden, del más reciente al más antiguo) y en el Histórico por Equipo',
+      r.hvd.length === 3 && /Cambio de repuesto sin orden: EMPAQUE DE TAPA × 3 — Fuga en la tapa/.test(r.hvd.join('\n'))
+      && /Cambio de insumo sin orden: GRASA × 2/.test(r.hvd.join('\n')) && /Sin orden$/.test(r.hvd[0]) && /Cambio de empaque/.test(r.hvd[2])
+      && /\$\s?4\.000/.test(r.hvd.join('\n'))
+      && /1 orden\(es\) y 2 cambio\(s\) sin orden/.test(r.histTitulo) && r.histFilas === 3,
+      { hvd: r.hvd, histTitulo: r.histTitulo, histFilas: r.histFilas });
+    check('Salida directa a la Hoja de Vida: el Dashboard la suma al gasto (repuesto e insumo por separado, en "Sin orden" y en el equipo) sin contar otra vez la salida de la orden; el inventario la marca',
+      /5\.000/.test(r.kpiRep) && /1\.000/.test(r.kpiIns) && /cerradas y sin orden/.test(r.kpiSub)
+      && r.porTipo.labels.at(-1) === 'Sin orden' && r.porTipo.datos.at(-1) === 5000 && r.porTipo.datos[1] === 1000
+      && JSON.stringify(r.porEquipo) === JSON.stringify({ labels: ['CB1'], rep: [5000], ins: [1000] })
+      && r.actividad === 2 && errs.length === 0,
+      { kpiRep: r.kpiRep, kpiIns: r.kpiIns, kpiSub: r.kpiSub, porTipo: r.porTipo, porEquipo: r.porEquipo, actividad: r.actividad, errs: errs.slice(0, 3) });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el
@@ -2279,6 +2380,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.titulos = [...document.querySelectorAll('#gridEmpresasAntioquia .card-head')].map(h => h.textContent);
       out.general = { labels: window._chartGastoEmpresaGeneral.data.labels, datos: window._chartGastoEmpresaGeneral.data.datasets[0].data };
       out.dos = { labels: window._chartEmpresaAntioquia_1.data.labels, datos: window._chartEmpresaAntioquia_1.data.datasets[0].data };
+      // Con un repuesto cambiado sin orden (salida a la Hoja de Vida), suma al gasto de su empresa.
+      renderGraficasAntioquia([orden('Planta Dos · Compresor ATLAS GA11', 300000)], [{ equipo: 'Planta Dos · Compresor ATLAS GA11', costo: 20000 }]);
+      out.conDirecto = window._chartGastoEmpresaGeneral.data.datasets[0].data;
       // Un operario no puede cambiar la lista.
       usuarioRol = 'operario';
       const alertas = []; window.alert = m => alertas.push(m);
@@ -2321,8 +2425,9 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.hvdItems.length === 5 && r.hvdItems[1] === 'Secador KAESER KRD30' && !r.hvdItems.some(t => t.includes('·'))
       && JSON.stringify(r.titulos) === JSON.stringify(['Planta Uno - Norte', 'Planta Dos', 'Planta Vieja'])
       && JSON.stringify(r.general) === JSON.stringify({ labels: ['Planta Uno - Norte', 'Planta Dos', 'Planta Vieja'], datos: [120000, 300000, 80000] })
-      && JSON.stringify(r.dos) === JSON.stringify({ labels: ['Compresor ATLAS GA11'], datos: [300000] }),
-      { hvd: r.hvd, hvdLista: r.hvdLista, hvdItems: r.hvdItems, titulos: r.titulos, general: r.general, dos: r.dos });
+      && JSON.stringify(r.dos) === JSON.stringify({ labels: ['Compresor ATLAS GA11'], datos: [300000] })
+      && JSON.stringify(r.conDirecto) === JSON.stringify([0, 320000]),
+      { conDirecto: r.conDirecto, hvd: r.hvd, hvdLista: r.hvdLista, hvdItems: r.hvdItems, titulos: r.titulos, general: r.general, dos: r.dos });
     check('Antioquia: el Plan de Mantenimiento muestra los equipos de las empresas (una sección por empresa, no la lista de Zipaquirá); sin lista avisa, y se vuelve a pintar cuando llega',
       JSON.stringify(r.planGrupos) === JSON.stringify(['Planta Uno - Norte', 'Planta Dos'])
       && JSON.stringify(r.planEquipos) === JSON.stringify(['Compresor KAESER SK25', 'Secador KAESER KRD30', 'Compresor KAESER SK25 (S-101)', 'Tanque Pulmón', 'Compresor ATLAS GA11'])
