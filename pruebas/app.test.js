@@ -2256,6 +2256,22 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       out.hvd = ['hvd_descripcion', 'hvd_marca', 'hvd_modelo', 'hvd_serie', 'hvd_datos'].map(id => document.getElementById(id)?.value);
       out.hvdLista = [...document.querySelectorAll('#hvdListaEquipos .hvd-grupo')].map(g => g.textContent);
       out.hvdItems = [...document.querySelectorAll('#hvdListaEquipos [onclick^="hvdSeleccionarEquipo"]')].map(d => d.textContent.trim());
+      // Plan de Mantenimiento: los equipos de las empresas, no la lista de Zipaquirá.
+      abrirPlanMantenimiento('antioquia'); await espera(300);
+      const registro = () => document.getElementById('pmRegistroHorasContenido');
+      out.planGrupos = [...registro().querySelectorAll(':scope > div > div:first-child')].map(d => d.textContent.trim());
+      out.planEquipos = [...registro().querySelectorAll('tbody td:first-child strong')].map(td => td.textContent.trim());
+      pmMostrarSubTab('configinformes'); await espera(300);
+      out.planHoraBase = [...document.querySelectorAll('#pmHoraBaseContenido .pm-hora-base')].map(i => i.dataset.equipo);
+      // Sin lista cargada: un aviso, no los equipos de otra sede; y al llegar la lista se vuelve a pintar.
+      const guardada = EQUIPOS_POR_SEDE.antioquia;
+      EQUIPOS_POR_SEDE.antioquia = {};
+      pmMostrarSubTab('registro'); await espera(300);
+      out.planSinLista = registro().textContent.trim();
+      await cargarEquiposEmpresas(); await espera(300);
+      out.planAlLlegar = registro().querySelectorAll('tbody tr').length;
+      EQUIPOS_POR_SEDE.antioquia = guardada;
+      volverDePlanMantenimiento();
       // Dashboard: gasto por empresa (las de la lista y las de órdenes viejas).
       const orden = (equipo, costo, estado = 'Cerrada') => ({ Equipo: equipo, Estado: estado, repuestos: [{ cantidad: 1, costoUnitario: costo }], insumos: [] });
       renderGraficasAntioquia([orden('Planta Dos · Compresor ATLAS GA11', 300000), orden('Planta Dos · Compresor ATLAS GA11', 50000, 'Abierta'),
@@ -2307,6 +2323,12 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && JSON.stringify(r.general) === JSON.stringify({ labels: ['Planta Uno - Norte', 'Planta Dos', 'Planta Vieja'], datos: [120000, 300000, 80000] })
       && JSON.stringify(r.dos) === JSON.stringify({ labels: ['Compresor ATLAS GA11'], datos: [300000] }),
       { hvd: r.hvd, hvdLista: r.hvdLista, hvdItems: r.hvdItems, titulos: r.titulos, general: r.general, dos: r.dos });
+    check('Antioquia: el Plan de Mantenimiento muestra los equipos de las empresas (una sección por empresa, no la lista de Zipaquirá); sin lista avisa, y se vuelve a pintar cuando llega',
+      JSON.stringify(r.planGrupos) === JSON.stringify(['Planta Uno - Norte', 'Planta Dos'])
+      && JSON.stringify(r.planEquipos) === JSON.stringify(['Compresor KAESER SK25', 'Secador KAESER KRD30', 'Compresor KAESER SK25 (S-101)', 'Tanque Pulmón', 'Compresor ATLAS GA11'])
+      && r.planHoraBase.length === 5 && r.planHoraBase[4] === 'Planta Dos · Compresor ATLAS GA11' && !r.planHoraBase.includes('CB1')
+      && /Todavía no hay equipos cargados/.test(r.planSinLista) && r.planAlLlegar === 5,
+      { planGrupos: r.planGrupos, planEquipos: r.planEquipos, planHoraBase: r.planHoraBase, planSinLista: r.planSinLista, planAlLlegar: r.planAlLlegar });
     check('Antioquia: un operario no puede cambiar la lista; al salir se borra la copia local; las demás sedes siguen con su selector de siempre',
       !r.operario.overlay && r.operario.alertas.length === 1 && r.copiaTrasSalir === null
       && !r.zipaquira.empresa && r.zipaquira.grupos > 0 && r.zipaquira.menu === 0 && errs.length === 0,
