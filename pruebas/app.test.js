@@ -2104,6 +2104,82 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Archivo anual (auditoría D-02): copia un año cerrado al histórico,
+    // comprueba la copia y solo entonces lo quita; repetir no duplica; si la
+    // copia no se puede comprobar no borra nada; y "Eliminar" con la lista
+    // vieja (filas corridas por el archivo) no marca otro reporte.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const HIST = 'HISTORICO_ZIPA_prueba_0123456789';
+    const r = await p.evaluate(async HIST => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const avisos = []; window.aviso = (m, t) => avisos.push((t || '') + ':' + m);
+      const alertas = []; window.alert = m => alertas.push(String(m));
+      window.confirmarAccion = async () => true;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Admin', email: 'a@x', initials: 'AA' };
+      operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      document.getElementById('loginOverlay')?.remove();
+      const cols = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
+      const fila = (codigo, fecha) => cols.map(c => ({ Codigo: codigo, Fecha: fecha, Secador: 'S1', Tecnico: 'T', Estado: 'Activo' })[c] ?? '');
+      // Años mezclados, como quedan en la hoja: 2023, 2024 (con una fila
+      // repetida tal cual), 2025, 2026 y una fila sin fecha.
+      await appendHoja(SH.reporteSecadores, [fila('RS-1', '2024-03-01'), fila('RS-2', '2025-01-10'), fila('RS-3', '2024-12-31'),
+        fila('RS-3', '2024-12-31'), fila('RS-4', '2026-01-02'), fila('RS-5', '2025-06-30'), fila('RS-6', ''), fila('RS-7', '2023-05-05'), fila('RS-8', '2026-11-19')]);
+      _invalidarCacheHoja(SH.reporteSecadores);
+      // La lista que tiene en pantalla otra persona, ANTES de archivar.
+      allReportesSecadores = await _leerHojaGenerica(SH.reporteSecadores);
+      const listaVieja = allReportesSecadores.slice();
+      const out = {};
+      abrirCapacidadHojas(); await espera(300);
+      document.getElementById('archDestino').value = 'https://docs.google.com/spreadsheets/d/' + HIST + '/edit#gid=0';
+      await revisarArchivoAnual();
+      out.lista = [...document.querySelectorAll('#archLista tbody tr')].map(tr => [...tr.children].slice(0, 3).map(td => td.textContent.trim()).join('|'));
+      // Una copia anterior que se cortó: una fila de 2024 ya está en el histórico.
+      await fetch(SHEETS_API + '/v4/spreadsheets/' + HIST + ':batchUpdate', { method: 'POST', headers: { Authorization: 'Bearer x', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'ReporteSecadores 2024' } } }] }) });
+      await fetch(SHEETS_API + '/v4/spreadsheets/' + HIST + '/values/' + encodeURIComponent("'ReporteSecadores 2024'!A1") + '?valueInputOption=RAW', { method: 'PUT',
+        headers: { Authorization: 'Bearer x', 'Content-Type': 'application/json' }, body: JSON.stringify({ values: [cols, fila('RS-1', '2024-03-01')] }) });
+      // Archivar 2025 y 2024 con los botones de la tabla.
+      for (const anio of ['2025', '2024']) {
+        const boton = [...document.querySelectorAll('#archLista button')].find(x => x.textContent.includes(anio));
+        boton.click(); await espera(400);
+      }
+      out.avisos = avisos.slice();
+      // Si la copia no se puede comprobar (Google no guarda lo que se envía), no se borra nada.
+      const fetchReal = window.fetch;
+      window.fetch = (url, init) => String(url).includes(HIST) && String(url).includes(':append') ? Promise.resolve(new Response('{}', { status: 200 })) : fetchReal(url, init);
+      try { await _archivarAnio(SH.reporteSecadores, 2023, HIST); out.sinComprobar = 'archivó'; } catch (e) { out.sinComprobar = e.message; }
+      window.fetch = fetchReal;
+      // Otra persona elimina RS-8 con la lista de antes: su fila ya se corrió.
+      allReportesSecadores = listaVieja;
+      await eliminarReporteSecador('RS-8');
+      out.alertas = alertas.slice();
+      out.libros = { origen: GOOGLE_CONFIG.spreadsheetId };
+      return out;
+    }, HIST);
+    const codigos = filas => filas.slice(1).map(f => f[0] + (f.includes('Eliminada') ? '(eliminada)' : ''));
+    const origen = fake.hoja(r.libros.origen, 'ReporteSecadores');
+    const iCod = origen[0].indexOf('Codigo'), iFecha = origen[0].indexOf('Fecha');
+    const deOrigen = origen.slice(1).map(f => f[iCod] + (f.includes('Eliminada') ? '*' : ''));
+    const h25 = fake.hoja(HIST, 'ReporteSecadores 2025').slice(1).map(f => f[iCod]);
+    const h24 = fake.hoja(HIST, 'ReporteSecadores 2024').slice(1).map(f => f[iCod]);
+    const registro = fake.hoja(r.libros.origen, 'ArchivoAnual');
+    check('Archivo anual (D-02): lista solo los años cerrados por pestaña con cuántas filas tiene cada uno',
+      JSON.stringify(r.lista) === JSON.stringify(['Reporte de secadores|2023|1', 'Reporte de secadores|2024|3', 'Reporte de secadores|2025|2']), r.lista);
+    check('Archivo anual (D-02): 2025 y 2024 pasan al histórico (cada año en su pestaña, la fila repetida dos veces, sin duplicar lo que ya estaba) y salen de la hoja; lo demás queda en su orden; queda constancia',
+      JSON.stringify(h25) === JSON.stringify(['RS-2', 'RS-5']) && JSON.stringify(h24.slice().sort()) === JSON.stringify(['RS-1', 'RS-3', 'RS-3'])
+      && JSON.stringify(deOrigen) === JSON.stringify(['RS-4', 'RS-6', 'RS-7', 'RS-8'])
+      && registro.length === 3 && registro[1].includes('2025') && registro[1].includes('2') && registro[1].includes(HIST) && registro[2].includes('3')
+      && r.avisos.filter(a => a.startsWith('exito:')).length === 2,
+      { h25, h24, deOrigen, registro, avisos: r.avisos, codigos: codigos(origen).length });
+    check('Archivo anual (D-02): si la copia no se puede comprobar, no borra nada; y "Eliminar" con la lista de antes del archivo avisa en vez de marcar otro reporte',
+      /no se pudo comprobar la copia/.test(r.sinComprobar) && deOrigen.includes('RS-7') && !deOrigen.some(c => c.endsWith('*'))
+      && r.alertas.some(a => /la hoja cambió/.test(a)) && errs.length === 0,
+      { sinComprobar: r.sinComprobar, alertas: r.alertas, deOrigen, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
     // Motor de los reportes técnicos (auditoría M-02): las 7 tablas salen
     // del mismo dibujante (con sus columnas, apiladas en celular) y sus
     // botones Ver / PDF abren el reporte de esa fila, con la sede.
@@ -2761,9 +2837,10 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     const antesCapacidad = fake.peticiones.length;
     const cap = await p.evaluate(async () => {
       await abrirCapacidadHojas();
-      const tarjetas = [...document.querySelectorAll('#capacidadOverlay .cap-archivo')];
+      const tarjetas = [...document.querySelectorAll('#capacidadOverlay .cap-archivo:not(#capArchivoAnual)')];
       return {
         tarjetas: tarjetas.map(t => t.querySelector('.cap-titulo')?.textContent),
+        archivoAnualAlFinal: document.querySelector('#capacidadOverlay .cap-archivo:last-child')?.id === 'capArchivoAnual',
         operaciones: tarjetas[0]?.innerText || '',
         inventario: tarjetas[1]?.innerText || '',
         pct: Number(tarjetas[0]?.querySelector('.cap-barra')?.getAttribute('aria-valuenow')),
@@ -2771,8 +2848,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       };
     });
     const leidasCapacidad = fake.peticiones.slice(antesCapacidad).map(x => x.ruta).join(' ');
-    check('Capacidad: mide operaciones, inventario y proyectos; la pestaña más pesada, sus filas con datos y el ritmo',
-      cap.tarjetas.length === 3 && /^Operaciones — /.test(cap.tarjetas[0]) && /^Inventario — /.test(cap.tarjetas[1]) && /^Proyectos/.test(cap.tarjetas[2])
+    check('Capacidad: mide operaciones, inventario y proyectos (y al final, el archivo anual); la pestaña más pesada, sus filas con datos y el ritmo',
+      cap.tarjetas.length === 3 && cap.archivoAnualAlFinal && /^Operaciones — /.test(cap.tarjetas[0]) && /^Inventario — /.test(cap.tarjetas[1]) && /^Proyectos/.test(cap.tarjetas[2])
       && cap.primeraPestana === 'ReporteCompresores' && /2\.520/.test(cap.operaciones) && /Crece unas 3\.486 celdas por día/.test(cap.operaciones)
       && /filas vacías/.test(cap.operaciones) && cap.pct >= 2 && cap.pct < 10 && /Movimientos/.test(cap.inventario),
       { ...cap, operaciones: cap.operaciones.slice(0, 300) });
