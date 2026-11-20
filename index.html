@@ -10170,10 +10170,20 @@ async function cargarEquiposEmpresas() {
     if (sede !== operacionActual) return; // se cambió de sede mientras llegaba
     _aplicarEquiposEmpresas(sede, filas);
     try { localStorage.setItem(_LS_EQUIPOS_EMPRESAS + sede, JSON.stringify(filas)); } catch (_) { /* sin almacenamiento */ }
-    inicializarCampoEquipo();
+    _repintarConEquiposEmpresas();
   } catch (e) {
     console.warn('No se pudieron cargar los equipos de las empresas:', e.message);
   }
+}
+
+/** Lo que está en pantalla con la lista: la orden nueva y, si está abierto,
+ *  el Plan de Mantenimiento (Registro o Configuración). */
+function _repintarConEquiposEmpresas() {
+  inicializarCampoEquipo();
+  if (planMantOperacionActual !== operacionActual) return;
+  const activa = document.querySelector('#panel-planmantenimiento.active .inv-subtab.active')?.dataset.pmtab;
+  if (activa === 'registro') pmRenderRegistroHoras();
+  if (activa === 'configinformes') pmRenderHoraBase();
 }
 
 /* ── Cargar la lista desde el Excel ─────────────────────────────────────
@@ -10327,7 +10337,7 @@ async function guardarEquiposEmpresas(boton) {
     _invalidarCacheHoja(SH.equiposEmpresas);
     _aplicarEquiposEmpresas(operacionActual, equipos);
     try { localStorage.setItem(_LS_EQUIPOS_EMPRESAS + operacionActual, JSON.stringify(equipos)); } catch (_) { /* sin almacenamiento */ }
-    inicializarCampoEquipo();
+    _repintarConEquiposEmpresas();
     document.getElementById('eqEmpActual').innerHTML = _htmlResumenEquiposEmpresas(EQUIPOS_POR_SEDE[operacionActual]);
     document.getElementById('eqEmpVista').innerHTML = '';
     document.getElementById('eqEmpArchivo').value = '';
@@ -11814,7 +11824,8 @@ const INFORME_EQUIPOS_POR_TIPO = {
  *  horas. Zipaquirá 2 tiene sus compresores de baja y alta presión y sus
  *  bombas de vacío; los secadores no van. Las bombas llevan horas, pero no
  *  son compresores: no llevan la evaluación técnica del empalme
- *  (sinEvaluacionTecnica). Una sede sin lista propia muestra la de Zipaquirá. */
+ *  (sinEvaluacionTecnica). Antioquia muestra los equipos de sus empresas
+ *  (ver _pmGruposEquipos). Una sede sin lista propia muestra la de Zipaquirá. */
 const PM_GRUPOS_POR_SEDE = {
   zipaquira2: [
     { nombre: 'Baja Presión', equipos: EQUIPOS_ZIPAQUIRA2['Baja Presión'] },
@@ -11829,6 +11840,10 @@ const PM_GRUPOS_POR_SEDE = {
   })),
 };
 function _pmGruposEquipos(sede) {
+  // Antioquia: los equipos de sus empresas (la lista de Equipos de las
+  // empresas), una sección por empresa. Sin lista cargada, ninguno: no la
+  // de Zipaquirá, que no es de sus clientes.
+  if (SEDES_CON_EMPRESAS.includes(sede)) return Object.entries(EQUIPOS_POR_SEDE[sede] || {}).map(([nombre, equipos]) => ({ nombre, equipos }));
   return PM_GRUPOS_POR_SEDE[sede] || INFORME_TIPOS_EQUIPO.map(t => ({ nombre: t.nombreTipo, equipos: INFORME_EQUIPOS_POR_TIPO[t.tipo] }));
 }
 /** Los compresores del Plan de la sede: los que llevan la evaluación
@@ -17804,6 +17819,8 @@ function volverDePlanMantenimiento() {
  *  agrupados por tipo, cada uno con un campo para digitar sus horas
  *  actuales. Reemplaza el formulario anterior (uno-a-la-vez) por un
  *  cuadro único donde se pueden actualizar todos de una sola vez. */
+const _PM_SIN_EQUIPOS_EMPRESAS = '<div style="color:var(--text3);font-size:13px">Todavía no hay equipos cargados. Un administrador los carga en el menú → Herramientas → Equipos de las empresas.</div>';
+
 async function pmRenderRegistroHoras() {
   const cont = document.getElementById('pmRegistroHorasContenido');
   if (!cont) return;
@@ -17831,7 +17848,9 @@ async function pmRenderRegistroHoras() {
   const conHorometro = new Set(Object.values(EQUIPO_REPORTE_A_HORAS));
   const conCronograma = !!CRONOGRAMA_POR_SEDE[planMantOperacionActual];
 
-  cont.innerHTML = _pmGruposEquipos(planMantOperacionActual).map(grupo => `
+  const grupos = _pmGruposEquipos(planMantOperacionActual);
+  if (!grupos.length) { cont.innerHTML = _PM_SIN_EQUIPOS_EMPRESAS; return; }
+  cont.innerHTML = grupos.map(grupo => `
     <div style="margin-bottom:18px">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(grupo.nombre)}</div>
       <table class="ie-table"><thead><tr><th>Equipo</th><th style="width:160px">Horas actuales</th><th style="width:220px">Última actualización</th></tr></thead><tbody>
@@ -17839,7 +17858,7 @@ async function pmRenderRegistroHoras() {
           const h = horasDe(eq);
           const cuando = actualizadoDe(eq);
           return `<tr>
-          <td><strong>${esc(eq)}</strong></td>
+          <td><strong>${esc(_equipoSinEmpresa(eq))}</strong></td>
           <td style="font-variant-numeric:tabular-nums">${h === '' || h === undefined ? '<span style="color:var(--text3)">—</span>' : esc(Number(h).toLocaleString('es-CO')) + ' h'}</td>
           <td style="font-size:12px;color:var(--text3)">${
             cuando ? esc(cuando)
@@ -18009,6 +18028,7 @@ async function pmRenderHoraBase() {
   );
 
   const equipos = _pmGruposEquipos(planMantOperacionActual).flatMap(g => g.equipos);
+  if (!equipos.length) { cont.innerHTML = _PM_SIN_EQUIPOS_EMPRESAS; return; }
   const filas = equipos.map(eq => {
     const f = horasEquipos.find(x => x.Equipo === eq) || {};
     const actuales = f.HorasActuales === '' || f.HorasActuales === undefined ? null : Number(f.HorasActuales);
