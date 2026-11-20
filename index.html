@@ -2738,7 +2738,7 @@ body.rol-operario .btn-principal-operario {
     <!-- ════ SOLO SERVICIOTECNICO-ANTIOQUIA: gasto por empresa/equipo ════ -->
     <div id="dashAntioquiaSection" style="display:none;margin-top:16px">
       <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Gasto General por Empresa (1 a 15)</div>
+        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Gasto General por Empresa</div>
         <div class="card-body" style="padding:16px">
           <div style="position:relative;height:280px"><canvas id="chartGastoEmpresaGeneral"></canvas></div>
         </div>
@@ -7501,6 +7501,13 @@ function renderSidebarOperaciones() {
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
         <span style="flex:1;line-height:1.25">Reparar hoja</span>
       </div>
+      ${SEDES_CON_EMPRESAS.includes(operacionActual) ? `<div onclick="abrirEquiposEmpresas()" class="solo-admin"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 24px;cursor:pointer;font-size:13px;color:var(--text2)"
+        onmouseover="this.style.background='var(--brand-light)'"
+        onmouseout="this.style.background='transparent'">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
+        <span style="flex:1;line-height:1.25">Equipos de las empresas</span>
+      </div>` : ''}
       <div onclick="abrirCapacidadHojas()" class="solo-admin"
         style="display:flex;align-items:center;gap:10px;padding:10px 16px 10px 24px;cursor:pointer;font-size:13px;color:var(--text2)"
         onmouseover="this.style.background='var(--brand-light)'"
@@ -7672,6 +7679,9 @@ function _limpiarCopiasLocalesAlSalir() {
       else localStorage.removeItem(clave);
     } catch (_) {}
   });
+  // La lista de equipos de las empresas (clientes y seriales) tampoco se
+  // queda en un equipo del que ya se salió.
+  SEDES_CON_EMPRESAS.forEach(sede => { try { localStorage.removeItem(_LS_EQUIPOS_EMPRESAS + sede); } catch (_) {} });
 }
 
 /** El botón "Salir". */
@@ -8149,6 +8159,7 @@ async function showPanel(name) {
   _actualizarBottomNav(name);
 
   if (name === 'inicio')       renderKpisInicio();
+  if (name === 'nueva')        inicializarCampoEquipo();
   if (name === 'pendientes')   _mostrarOrdenesCacheFirst(renderPendientes);
   if (name === 'realizadas')   _mostrarOrdenesCacheFirst(renderRealizadas);
   if (name === 'lista')        _mostrarOrdenesCacheFirst(filtrarOrdenes);
@@ -9845,9 +9856,9 @@ function addRow(tbodyId, tipo) {
 
 /* ══════════════════════════════════════════════
    CAMPO EQUIPO / ACTIVO — "Nueva Orden"
-   En SERVICIOTECNICO-ANTIOQUIA el equipo depende de
-   la empresa elegida (datos de prueba por ahora).
-   En las demás operaciones se usa el listado normal.
+   En SERVICIOTECNICO-ANTIOQUIA primero se elige la empresa y luego su
+   equipo (ver EQUIPOS DE LAS EMPRESAS). En las demás operaciones se usa el
+   listado de la sede.
 ══════════════════════════════════════════════ */
 const EQUIPOS_LISTADO_GENERAL = {
   'Compresores de Aire':        ['CA1','CA2','CA3','CB1','CB2','CB3','CB4'],
@@ -9993,20 +10004,14 @@ const AJUSTES_OPERARIOS_PLANTA = {
   },
 };
 
-// Datos de prueba: Empresa 1 → 123, Empresa 2 → 456, Empresa 3 → 789, etc. (+333 cada vez)
-const EQUIPOS_POR_EMPRESA_ANTIOQUIA = {};
-for (let i = 1; i <= 15; i++) {
-  EQUIPOS_POR_EMPRESA_ANTIOQUIA[i] = [String(123 + 333 * (i - 1))];
-}
-
+/** Antioquia: al elegir la empresa, la lista de equipos pasa a ser la suya. */
 function actualizarEquiposPorEmpresa() {
   const empresaSel = document.getElementById('f_empresa');
   const equipoSel   = document.getElementById('f_equipo');
   if (!empresaSel || !equipoSel) return;
-  const empresaNum = empresaSel.value;
-  const equipos = EQUIPOS_POR_EMPRESA_ANTIOQUIA[empresaNum] || [];
+  const equipos = _gruposEquiposParaOrden(operacionActual)[empresaSel.value] || [];
   equipoSel.innerHTML = '<option value="">Seleccionar equipo...</option>' +
-    equipos.map(eq => `<option value="${esc(eq)}">${esc(eq)}</option>`).join('');
+    equipos.map(eq => `<option value="${esc(eq)}">${esc(_equipoSinEmpresa(eq))}</option>`).join('');
 }
 
 /** Pinta el campo Equipo según la operación activa. */
@@ -10064,12 +10069,276 @@ function _otroEquipoFijo(nombre) {
 }
 
 const EQUIPOS_POR_SEDE = {
+  // Antioquia: sus empresas y sus equipos llegan de la hoja de la sede
+  // (ver EQUIPOS DE LAS EMPRESAS). Arranca vacía: sin esto caería a la
+  // lista general, que es la de Zipaquirá.
+  antioquia: {},
   mexico: EQUIPOS_MEXICO,
   zipaquira: EQUIPOS_ZIPAQUIRA,
   zipaquira2: EQUIPOS_ZIPAQUIRA2,
   // soacha:    EQUIPOS_SOACHA,     // ← pendiente: agregar cuando tengamos su lista real
   peru: EQUIPOS_PERU,
 };
+
+/* ══════════════════════════════════════════════
+   EQUIPOS DE LAS EMPRESAS (Servicio Técnico Antioquia)
+
+   Antioquia atiende varias empresas, cada una con sus equipos. Esa lista NO
+   va en este archivo, que es público en GitHub: serían los clientes y los
+   seriales de sus equipos. Vive en la pestaña EquiposEmpresas de la hoja de
+   la sede, y un admin la carga desde el Excel "Inventario de equipos por
+   planta" (menú → Herramientas → Equipos de las empresas). Las tarifas del
+   Excel no se cargan: no hacen falta para las órdenes.
+
+   En la app, cada equipo se llama "<Empresa> · <Equipo>": así no se cruzan
+   dos equipos iguales de empresas distintas, y la orden dice de qué empresa
+   es. EQUIPOS_POR_SEDE.antioquia queda agrupado por empresa, de modo que el
+   editor de órdenes, las salidas de inventario y la Hoja de Vida usan la
+   misma lista sin tratarla aparte. Se guarda una copia en el equipo para
+   poder hacer órdenes sin señal.
+══════════════════════════════════════════════ */
+const SEDES_CON_EMPRESAS = ['antioquia'];
+const EQUIPOS_EMPRESAS_COLS = ['Empresa', 'Numero', 'Categoria', 'Tipo', 'Equipo', 'Marca', 'Modelo', 'Serial', 'HP', 'CambioEquipo', 'Observaciones'];
+const _SEP_EMPRESA = ' · ';
+const _LS_EQUIPOS_EMPRESAS = 'equiposEmpresas_';
+
+const _nombreEquipoEmpresa = (empresa, equipo) => String(empresa).trim() + _SEP_EMPRESA + String(equipo).trim();
+/** "Planta Uno · Secador KRD30" → "Secador KRD30". */
+function _equipoSinEmpresa(valor) {
+  const t = String(valor || ''), i = t.indexOf(_SEP_EMPRESA);
+  return i >= 0 ? t.slice(i + _SEP_EMPRESA.length) : t;
+}
+/** La empresa de un equipo de Antioquia ('' si el nombre no la trae). */
+function _empresaDeEquipo(valor) {
+  const t = String(valor || ''), i = t.indexOf(_SEP_EMPRESA);
+  return i >= 0 ? t.slice(0, i) : '';
+}
+
+/** Las filas de la pestaña → { empresa: [equipos] }, en el orden del Excel.
+ *  Un nombre repetido dentro de la misma empresa se distingue con su serial
+ *  (o su número) para que cada opción de la lista sea una sola máquina. */
+function _gruposDeEquiposEmpresas(filas, fichas = {}) {
+  const grupos = {};
+  filas.forEach(f => {
+    const empresa = String(f.Empresa || '').trim(), equipo = String(f.Equipo || '').trim();
+    if (!empresa || !equipo) return;
+    const lista = (grupos[empresa] = grupos[empresa] || []);
+    let nombre = _nombreEquipoEmpresa(empresa, equipo);
+    if (lista.includes(nombre)) nombre += ' (' + (String(f.Serial || '').trim() || '#' + (f.Numero || lista.length + 1)) + ')';
+    if (!lista.includes(nombre)) { lista.push(nombre); fichas[nombre] = f; }
+  });
+  return grupos;
+}
+
+// Los datos de cada equipo (marca, modelo, serial…) por su nombre en la app.
+const _FICHAS_EQUIPOS_EMPRESAS = {};
+
+function _aplicarEquiposEmpresas(sede, filas) {
+  _FICHAS_EQUIPOS_EMPRESAS[sede] = {};
+  EQUIPOS_POR_SEDE[sede] = _gruposDeEquiposEmpresas(filas || [], _FICHAS_EQUIPOS_EMPRESAS[sede]);
+}
+
+/** Lo que la lista de la empresa sabe de un equipo, con los nombres de los
+ *  campos de la Hoja de Vida (null si el equipo no está en la lista). */
+function _fichaEquipoEmpresa(nombre) {
+  const f = (_FICHAS_EQUIPOS_EMPRESAS[operacionActual] || {})[nombre];
+  if (!f) return null;
+  const datos = [['Categoría', f.Categoria], ['Tipo', f.Tipo], ['Cambio de equipo', f.CambioEquipo], ['Observaciones', f.Observaciones]]
+    .filter(([, v]) => String(v || '').trim()).map(([k, v]) => k + ': ' + String(v).trim()).join(' · ');
+  return { Descripcion: f.Equipo || '', Marca: f.Marca || '', Modelo: f.Modelo || '', Serie: f.Serial || '', Potencia: f.HP || '', DatosInteres: datos };
+}
+
+// Al arrancar: la última lista guardada en este equipo, para no esperar a la
+// red (ni necesitarla) antes de poder hacer una orden.
+SEDES_CON_EMPRESAS.forEach(sede => {
+  try {
+    const guardada = JSON.parse(localStorage.getItem(_LS_EQUIPOS_EMPRESAS + sede) || 'null');
+    if (Array.isArray(guardada)) _aplicarEquiposEmpresas(sede, guardada);
+  } catch (_) { /* sin almacenamiento: se espera a la hoja */ }
+});
+
+/** Trae los equipos de las empresas de la sede activa (si la sede los usa) y
+ *  vuelve a dibujar la lista de la orden nueva. Si no hay señal, queda la
+ *  copia guardada. */
+async function cargarEquiposEmpresas() {
+  const sede = operacionActual;
+  if (!SEDES_CON_EMPRESAS.includes(sede) || !googleAccessToken) return;
+  try {
+    await asegurarHoja(SH.equiposEmpresas, EQUIPOS_EMPRESAS_COLS);
+    const filas = (await _leerHojaGenerica(SH.equiposEmpresas))
+      .map(f => Object.fromEntries(EQUIPOS_EMPRESAS_COLS.map(c => [c, String(f[c] ?? '')])));
+    if (sede !== operacionActual) return; // se cambió de sede mientras llegaba
+    _aplicarEquiposEmpresas(sede, filas);
+    try { localStorage.setItem(_LS_EQUIPOS_EMPRESAS + sede, JSON.stringify(filas)); } catch (_) { /* sin almacenamiento */ }
+    inicializarCampoEquipo();
+  } catch (e) {
+    console.warn('No se pudieron cargar los equipos de las empresas:', e.message);
+  }
+}
+
+/* ── Cargar la lista desde el Excel ─────────────────────────────────────
+   Entiende el Excel "Inventario de equipos por planta": por cada empresa,
+   una fila con su nombre, la de la tarifa y una tabla con #, Categoría,
+   Tipo, Descripción del Equipo, Marca, Modelo, Serial / Placa, HP, Cambio de
+   Equipo y Observaciones. También una sola tabla con una columna Empresa. */
+const _COLUMNAS_EXCEL_EQUIPOS = {
+  Empresa: ['empresa', 'empresa / planta', 'planta', 'cliente'], Numero: ['#', 'no', 'numero', 'n°', 'nº'],
+  Categoria: ['categoria'], Tipo: ['tipo'], Equipo: ['descripcion del equipo', 'descripcion', 'equipo'],
+  Marca: ['marca'], Modelo: ['modelo'], Serial: ['serial / placa', 'serial', 'placa', 'serie'], HP: ['hp', 'potencia'],
+  CambioEquipo: ['cambio de equipo'], Observaciones: ['observaciones', 'observacion'],
+};
+
+/** Lee las hojas de un archivo y devuelve los equipos por empresa, más
+ *  cuántas filas repetidas se dejaron una sola vez. */
+function _equiposDesdeArchivo(hojas) {
+  const equipos = [], vistos = new Set();
+  let repetidas = 0;
+  hojas.forEach(hoja => {
+    const filas = hoja.filas;
+    let col = null, empresaBloque = '';
+    filas.forEach((fila, k) => {
+      const norm = fila.map(c => _normBuscar(c));
+      // ¿Es una fila de encabezado? (Categoría y Descripción, o Empresa y Equipo)
+      if ((norm.includes('categoria') && norm.some(c => c.startsWith('descripcion'))) || (norm.includes('empresa') && norm.some(c => c.startsWith('equipo') || c.startsWith('descripcion')))) {
+        col = {};
+        Object.entries(_COLUMNAS_EXCEL_EQUIPOS).forEach(([campo, nombres]) => {
+          const i = norm.findIndex(c => nombres.includes(c));
+          if (i >= 0) col[campo] = i;
+        });
+        // La empresa del bloque: la fila de arriba que solo tiene un nombre
+        // (saltando la de la tarifa).
+        empresaBloque = '';
+        for (let j = k - 1; j >= 0; j--) {
+          const arriba = filas[j];
+          if (/^tarifa/.test(_normBuscar(arriba[0]))) continue;
+          if (arriba[0] && arriba.slice(1).every(c => !c)) { empresaBloque = arriba[0].trim(); break; }
+          if (arriba.filter(Boolean).length > 1) break;
+        }
+        return;
+      }
+      if (!col || /^tarifa/.test(norm[0] || '')) return;
+      const v = campo => (col[campo] !== undefined ? String(fila[col[campo]] ?? '').trim() : '');
+      const categoria = v('Categoria'), descripcion = v('Equipo');
+      if (!categoria && !descripcion) return; // la tarifa, el nombre de la empresa siguiente…
+      const empresa = v('Empresa') || empresaBloque;
+      if (!empresa) return;
+      const equipo = {
+        Empresa: empresa, Numero: v('Numero'), Categoria: categoria, Tipo: v('Tipo'),
+        Equipo: descripcion || [categoria, v('Tipo'), v('Marca'), v('Modelo')].filter(Boolean).join(' '),
+        Marca: v('Marca'), Modelo: v('Modelo'), Serial: v('Serial'), HP: v('HP'),
+        CambioEquipo: v('CambioEquipo'), Observaciones: v('Observaciones'),
+      };
+      const clave = JSON.stringify(EQUIPOS_EMPRESAS_COLS.map(c => equipo[c]));
+      if (vistos.has(clave)) { repetidas++; return; }
+      vistos.add(clave);
+      equipos.push(equipo);
+    });
+  });
+  return { equipos, repetidas };
+}
+
+let _equiposEmpresasPorGuardar = null;
+
+function _htmlResumenEquiposEmpresas(grupos) {
+  const empresas = Object.keys(grupos);
+  if (!empresas.length) return '<div class="cap-sub">Todavía no hay equipos cargados.</div>';
+  const total = empresas.reduce((s, e) => s + grupos[e].length, 0);
+  return `<div class="cap-sub" style="margin-bottom:6px">${empresas.length} empresa(s) · ${total} equipo(s)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left">Empresa</th><th style="padding:7px 10px;text-align:right">Equipos</th></tr></thead>
+      <tbody>${empresas.map(e => `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px">${esc(e)}</td><td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${grupos[e].length}</td></tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function abrirEquiposEmpresas() {
+  if (!esAdmin()) { alert('Solo un administrador puede cargar los equipos.'); return; }
+  if (!SEDES_CON_EMPRESAS.includes(operacionActual)) return;
+  document.getElementById('equiposEmpresasOverlay')?.remove();
+  _equiposEmpresasPorGuardar = null;
+  const overlay = document.createElement('div');
+  overlay.id = 'equiposEmpresasOverlay';
+  overlay.style = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;z-index:3000;padding:16px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div role="dialog" aria-modal="true" aria-labelledby="eqEmpTitulo" style="background:var(--surface);border-radius:12px;max-width:640px;width:100%;margin:auto;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="background:var(--brand);color:white;padding:14px 20px;font-weight:700;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span id="eqEmpTitulo">Equipos de las empresas — ${esc(OPERACIONES[operacionActual]?.nombre || '')}</span>
+        <button type="button" onclick="document.getElementById('equiposEmpresasOverlay').remove()" aria-label="Cerrar" style="background:none;border:none;color:white;font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="padding:18px 20px">
+        <p class="cap-sub" style="margin:0 0 12px">Las empresas y sus equipos para las órdenes, la Hoja de Vida y el Dashboard. Se cargan desde el Excel del inventario de equipos por planta; las tarifas no se cargan.</p>
+        <div class="cap-titulo" style="margin-bottom:6px">Lista actual</div>
+        <div id="eqEmpActual" style="margin-bottom:16px">${_htmlResumenEquiposEmpresas(EQUIPOS_POR_SEDE[operacionActual] || {})}</div>
+        <div class="field"><label for="eqEmpArchivo">Cargar desde Excel (.xlsx o CSV)</label>
+          <input id="eqEmpArchivo" type="file" accept=".xlsx,.csv" onchange="previsualizarEquiposEmpresas(this)"></div>
+        <div id="eqEmpVista"></div>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function previsualizarEquiposEmpresas(input) {
+  const vista = document.getElementById('eqEmpVista');
+  const file = input.files && input.files[0];
+  _equiposEmpresasPorGuardar = null;
+  if (!file) { vista.innerHTML = ''; return; }
+  vista.innerHTML = '<div class="cap-sub">Leyendo el archivo…</div>';
+  try {
+    const { equipos, repetidas } = _equiposDesdeArchivo(await _leerHojasDeArchivo(file));
+    if (!equipos.length) {
+      vista.innerHTML = '<div class="cap-sub" style="color:var(--danger)">No se encontraron equipos. El archivo necesita una tabla con las columnas Categoría y Descripción del Equipo (o Empresa y Equipo).</div>';
+      return;
+    }
+    _equiposEmpresasPorGuardar = equipos;
+    vista.innerHTML = `<div class="cap-titulo" style="margin:4px 0 6px">En el archivo</div>
+      ${_htmlResumenEquiposEmpresas(_gruposDeEquiposEmpresas(equipos))}
+      ${repetidas ? `<div class="cap-sub" style="margin-top:6px">${repetidas} fila(s) repetida(s) igual en el archivo: se cargan una sola vez.</div>` : ''}
+      <button type="button" class="btn btn-primary" style="margin-top:12px" onclick="guardarEquiposEmpresas(this)">Guardar esta lista</button>`;
+  } catch (e) {
+    vista.innerHTML = `<div class="cap-sub" style="color:var(--danger)">No se pudo leer el archivo: ${esc(e.message)}</div>`;
+  }
+}
+
+/** Reemplaza la lista de la hoja por la del archivo. Primero escribe la
+ *  nueva desde la fila 1 y después borra lo que sobre de la anterior: la
+ *  pestaña nunca queda vacía a mitad de camino. */
+async function guardarEquiposEmpresas(boton) {
+  if (!esAdmin()) { alert('Solo un administrador puede cargar los equipos.'); return; }
+  const equipos = _equiposEmpresasPorGuardar;
+  if (!equipos || !equipos.length) return;
+  const antes = Object.values(EQUIPOS_POR_SEDE[operacionActual] || {}).flat().length;
+  if (!(await confirmarAccion({
+    titulo: '¿Guardar esta lista de equipos?',
+    texto: `Reemplaza la lista actual (${antes} equipos) por la del archivo (${equipos.length} equipos). Las órdenes ya hechas no cambian.`,
+    aceptar: 'Guardar lista' }))) return;
+  if (boton) { boton.disabled = true; boton.textContent = 'Guardando…'; }
+  try {
+    await asegurarHoja(SH.equiposEmpresas, EQUIPOS_EMPRESAS_COLS);
+    const valores = [EQUIPOS_EMPRESAS_COLS, ...equipos.map(e => EQUIPOS_EMPRESAS_COLS.map(c => e[c] ?? ''))];
+    const base = SHEETS_API + '/v4/spreadsheets/' + GOOGLE_CONFIG.spreadsheetId + '/values/';
+    const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+    const fin = numToCol(EQUIPOS_EMPRESAS_COLS.length - 1);
+    const r = await fetch(base + encodeURIComponent(SH.equiposEmpresas + '!A1:' + fin + valores.length) + '?valueInputOption=RAW',
+      { method: 'PUT', headers: hdrs, body: JSON.stringify({ values: valores }) });
+    if (r.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado'); }
+    if (!r.ok) throw new Error('Google respondió ' + r.status);
+    const sobra = await fetch(base + encodeURIComponent(SH.equiposEmpresas + '!A' + (valores.length + 1) + ':' + fin) + ':clear', { method: 'POST', headers: hdrs, body: '{}' });
+    if (!sobra.ok) console.warn('No se pudieron borrar las filas sobrantes de la lista anterior (HTTP ' + sobra.status + ')');
+    _invalidarCacheHoja(SH.equiposEmpresas);
+    _aplicarEquiposEmpresas(operacionActual, equipos);
+    try { localStorage.setItem(_LS_EQUIPOS_EMPRESAS + operacionActual, JSON.stringify(equipos)); } catch (_) { /* sin almacenamiento */ }
+    inicializarCampoEquipo();
+    document.getElementById('eqEmpActual').innerHTML = _htmlResumenEquiposEmpresas(EQUIPOS_POR_SEDE[operacionActual]);
+    document.getElementById('eqEmpVista').innerHTML = '';
+    document.getElementById('eqEmpArchivo').value = '';
+    _equiposEmpresasPorGuardar = null;
+    const n = Object.keys(EQUIPOS_POR_SEDE[operacionActual]).length;
+    aviso(`Lista guardada: ${n} empresa(s) y ${equipos.length} equipo(s).`, 'exito');
+  } catch (e) {
+    aviso('No se pudo guardar la lista: ' + e.message, 'error');
+    if (boton) { boton.disabled = false; boton.textContent = 'Guardar esta lista'; }
+  }
+}
 
 /* ══════════════════════════════════════════════
    CRONOGRAMA DE ACTIVIDADES DIARIAS — un solo lugar
@@ -10608,7 +10877,9 @@ function _renderOptionsGrupo(grupos) {
         const [codigo, tipo] = item;
         return `<option value="${esc(codigo)}">${esc(codigo)}${tipo ? ' — ' + esc(tipo) : ''}</option>`;
       }
-      return `<option>${esc(item)}</option>`;
+      // Antioquia: el grupo ya es la empresa; la opción dice solo el equipo.
+      const corto = _equipoSinEmpresa(item);
+      return corto === item ? `<option>${esc(item)}</option>` : `<option value="${esc(item)}">${esc(corto)}</option>`;
     }).join('');
     return `<optgroup label="${esc(grupo)}">${items}</optgroup>`;
   }).join('');
@@ -10618,17 +10889,30 @@ function inicializarCampoEquipo() {
   const wrap = document.getElementById('campoEquipoWrap');
   if (!wrap) return;
 
-  if (operacionActual === 'antioquia') {
+  // Lo elegido se conserva si la lista se vuelve a dibujar (al cambiar de
+  // pantalla o cuando llegan los equipos de la hoja).
+  const empresaAntes = document.getElementById('f_empresa')?.value || '';
+  const equipoAntes = document.getElementById('f_equipo')?.value || '';
+
+  if (SEDES_CON_EMPRESAS.includes(operacionActual)) {
+    // Las empresas y, si los hay, los "Otros equipos" de la Hoja de Vida.
+    const empresas = Object.keys(_gruposEquiposParaOrden(operacionActual));
     wrap.innerHTML = `
       <label for="f_empresa">Empresa *</label>
       <select id="f_empresa" onchange="actualizarEquiposPorEmpresa()" style="margin-bottom:10px">
         <option value="">Seleccionar empresa...</option>
-        ${Array.from({length:15}, (_,i)=>i+1).map(n => `<option value="${n}">Empresa ${n}</option>`).join('')}
+        ${empresas.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}
       </select>
       <label for="f_equipo">Equipo / Activo *</label>
       <select id="f_equipo">
         <option value="">Seleccionar equipo...</option>
-      </select>`;
+      </select>
+      ${empresas.length ? '' : '<div style="font-size:12px;color:var(--text3);margin-top:4px">Todavía no hay equipos cargados. Un administrador los carga en el menú → Herramientas → Equipos de las empresas.</div>'}`;
+    if (empresas.includes(empresaAntes)) {
+      document.getElementById('f_empresa').value = empresaAntes;
+      actualizarEquiposPorEmpresa();
+      document.getElementById('f_equipo').value = equipoAntes;
+    }
     return;
   }
 
@@ -10642,6 +10926,7 @@ function inicializarCampoEquipo() {
       <option value="">Seleccionar equipo...</option>
       ${_renderOptionsGrupo(grupos)}
     </select>`;
+  if (equipoAntes) document.getElementById('f_equipo').value = equipoAntes;
 }
 
 function initDefaultRows() {
@@ -11605,6 +11890,7 @@ const SH = {
   novedades: 'Novedades',
   fotosNovedades: 'FotosNovedades',
   inventarioEquiposBase: 'InventarioEquiposBase',
+  equiposEmpresas: 'EquiposEmpresas',
   inventarioEquiposObs:  'InventarioEquiposObs',
   hvdEquipos: 'HVDEquipos',
   hvdRepuestos: 'HVDRepuestos',
@@ -15062,6 +15348,7 @@ async function guardarOrden() {
    CARGAR LISTA DE ÓRDENES
 ══════════════════════════════════════════════ */
 async function cargarOrdenes() {
+  cargarEquiposEmpresas(); // Antioquia: sus empresas y equipos (en paralelo)
   document.getElementById('spinnerLista')?.classList.add('show');
   // Mientras llegan los datos, mostrar skeletons en los contenedores de lista
   // (se reemplazan al terminar por el render real). Da sensación de rapidez.
@@ -15876,8 +16163,10 @@ async function cargarDashboard() {
   }
 }
 
-/** Genera la gráfica general (gasto por empresa) y las 15 gráficas individuales
- *  (gasto por equipo dentro de cada empresa) — solo para SERVICIOTECNICO-ANTIOQUIA. */
+/** Gasto por empresa y, dentro de cada una, por equipo — solo en Antioquia.
+ *  Las empresas son las de la lista cargada (Equipos de las empresas) más las
+ *  que aparezcan en órdenes viejas; el equipo de cada orden dice de qué
+ *  empresa es ("<Empresa> · <Equipo>"). */
 function renderGraficasAntioquia(ordenesFiltradas) {
   // Si el CDN de Chart.js no cargó, no se dibujan gráficas — pero el resto
   // del panel (tablas, totales) sí tiene que seguir funcionando.
@@ -15889,22 +16178,27 @@ function renderGraficasAntioquia(ordenesFiltradas) {
     return s;
   }
 
-  // Costo total acumulado por código de equipo (sin importar a qué empresa pertenece)
-  // Solo de órdenes ya CERRADAS, igual que el resto de las tarjetas/gráficas de costo.
+  // Costo de las órdenes CERRADAS por equipo, igual que el resto de las
+  // tarjetas y gráficas de costo.
   const costoPorEquipo = {};
   ordenesFiltradas.filter(o => o.Estado === 'Cerrada').forEach(o => {
     const eq = (o.Equipo || '').trim();
-    if (!eq) return;
+    if (!eq || !_empresaDeEquipo(eq)) return;
     costoPorEquipo[eq] = (costoPorEquipo[eq] || 0) + costoOrden(o);
   });
 
-  const empresas = Array.from({length:15}, (_,i)=>i+1);
-
-  // ── Gráfica general: gasto total por empresa (suma de todos sus equipos) ──
-  const totalesPorEmpresa = empresas.map(n => {
-    const equipos = EQUIPOS_POR_EMPRESA_ANTIOQUIA[n] || [];
-    return equipos.reduce((s, eq) => s + (costoPorEquipo[eq] || 0), 0);
+  // Los equipos de cada empresa: los de la lista y los que tengan gasto
+  // aunque ya no estén en ella (un equipo dado de baja sigue contando).
+  const catalogo = EQUIPOS_POR_SEDE.antioquia || {};
+  const equiposDe = {};
+  Object.entries(catalogo).forEach(([empresa, lista]) => { equiposDe[empresa] = lista.slice(); });
+  Object.keys(costoPorEquipo).forEach(eq => {
+    const empresa = _empresaDeEquipo(eq);
+    equiposDe[empresa] = equiposDe[empresa] || [];
+    if (!equiposDe[empresa].includes(eq)) equiposDe[empresa].push(eq);
   });
+  const empresas = Object.keys(equiposDe);
+  const totalesPorEmpresa = empresas.map(e => equiposDe[e].reduce((s, eq) => s + (costoPorEquipo[eq] || 0), 0));
 
   function destroyChart(key) { if (window[key]) { window[key].destroy(); window[key] = null; } }
   function makeChart(id, key, cfg) {
@@ -15913,48 +16207,50 @@ function renderGraficasAntioquia(ordenesFiltradas) {
     if (!ctx) return;
     window[key] = new Chart(ctx.getContext('2d'), cfg);
   }
+  // Las gráficas de un dibujo anterior (había más empresas) se liberan.
+  Object.keys(window).filter(k => k.startsWith('_chartEmpresaAntioquia_')).forEach(destroyChart);
+
+  const opciones = () => ({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtCOP(ctx.raw) } } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => fmtCOP(v) } } }
+  });
 
   makeChart('chartGastoEmpresaGeneral','_chartGastoEmpresaGeneral',{
     type: 'bar',
     data: {
-      labels: empresas.map(n => 'Empresa ' + n),
+      labels: empresas,
       datasets: [{ label: 'Gasto total', data: totalesPorEmpresa,
         backgroundColor: '#1F4E79', borderRadius: 6, borderSkipped: false }]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtCOP(ctx.raw) } } },
-      scales: { y: { beginAtZero: true, ticks: { callback: v => fmtCOP(v) } } }
-    }
+    options: opciones()
   });
 
-  // ── 15 gráficas individuales: gasto por equipo dentro de cada empresa ──
+  // ── Una gráfica por empresa: gasto por equipo ──
   const grid = document.getElementById('gridEmpresasAntioquia');
   if (!grid) return;
-
-  grid.innerHTML = empresas.map(n => `
+  if (!empresas.length) {
+    grid.innerHTML = `<div class="cap-sub" style="padding:8px 2px">Todavía no hay empresas cargadas.${esAdmin() ? ' Cárgalas en el menú → Herramientas → Equipos de las empresas.' : ''}</div>`;
+    return;
+  }
+  grid.innerHTML = empresas.map((e, n) => `
     <div class="card">
-      <div class="card-head">Empresa ${n}</div>
+      <div class="card-head">${esc(e)}</div>
       <div class="card-body" style="padding:14px">
         <div style="position:relative;height:220px"><canvas id="chartEmpresaAntioquia_${n}"></canvas></div>
       </div>
     </div>`).join('');
 
-  empresas.forEach(n => {
-    const equipos = EQUIPOS_POR_EMPRESA_ANTIOQUIA[n] || [];
-    const datos = equipos.map(eq => costoPorEquipo[eq] || 0);
+  empresas.forEach((e, n) => {
+    const equipos = equiposDe[e];
     makeChart(`chartEmpresaAntioquia_${n}`, `_chartEmpresaAntioquia_${n}`, {
       type: 'bar',
       data: {
-        labels: equipos,
-        datasets: [{ label: 'Gasto', data: datos,
+        labels: equipos.map(_equipoSinEmpresa),
+        datasets: [{ label: 'Gasto', data: equipos.map(eq => costoPorEquipo[eq] || 0),
           backgroundColor: '#0F7A82', borderRadius: 5, borderSkipped: false }]
       },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtCOP(ctx.raw) } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => fmtCOP(v) } } }
-      }
+      options: opciones()
     });
   });
 }
@@ -26078,7 +26374,7 @@ async function hvdRenderListaEquipos() {
       .map(([grupo, items]) => [grupo, items.map(i => (Array.isArray(i) ? i[0] : i))]).filter(([, equipos]) => equipos.length);
     if (!grupos.length) { cont.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px">Esta sede aún no tiene una lista de equipos configurada.</div>'; return; }
     cont.innerHTML = grupos.map(([grupo, equipos]) => `<div class="hvd-grupo">${esc(grupo)}</div>`
-      + equipos.map(eq => _htmlItemListaHVD(eq, esc(eq))).join('')).join('');
+      + equipos.map(eq => _htmlItemListaHVD(eq, esc(_equipoSinEmpresa(eq)))).join('')).join('');
     return;
   }
 
@@ -26148,6 +26444,10 @@ async function hvdSeleccionarEquipo(equipo) {
     return;
   }
   specs = specs || {};
+  // Antioquia: lo que no se haya escrito en la Hoja de Vida sale de la lista
+  // de equipos de la empresa (marca, modelo, serial, HP…).
+  const ficha = hvdModoActual === 'seguridad' ? null : _fichaEquipoEmpresa(equipo);
+  if (ficha) specs = { ...ficha, ...Object.fromEntries(Object.entries(specs).filter(([, v]) => String(v ?? '').trim())) };
 
   // Repuestos del equipo (solo en modo operación; los de seguridad no llevan).
   let repuestosHVD = [];

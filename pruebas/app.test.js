@@ -2180,6 +2180,140 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Antioquia: las empresas y sus equipos se cargan desde el Excel del
+    // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
+    // código público). La orden nueva pide la empresa y luego su equipo; el
+    // editor, la Hoja de Vida y el Dashboard usan la misma lista.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const encabezado = ['#', 'Categoría', 'Tipo', 'Descripción del Equipo', 'Marca', 'Modelo', 'Serial / Placa', 'HP', 'Cambio de Equipo', 'Observaciones'];
+    const excel = xlsxDePrueba([
+      ['Inventario de equipos por planta'],
+      ['Plantas: 2', '', 'Equipos: 5', '', 'Total: 2.400.000'],
+      null,
+      ['   Planta Uno - Norte'],
+      ['Tarifa mensual:', '', 1500000, '', 'COP'],
+      encabezado,
+      [1, 'Compresor', 'Tornillo', 'Compresor KAESER SK25', 'KAESER', 'SK25', 'S-100', 25],
+      [2, 'Secador', 'Refrigerado', 'Secador KAESER KRD30', 'KAESER', 'KRD30', 'S-200'],
+      [3, 'Compresor', 'Tornillo', 'Compresor KAESER SK25', 'KAESER', 'SK25', 'S-101', 25],
+      [3, 'Compresor', 'Tornillo', 'Compresor KAESER SK25', 'KAESER', 'SK25', 'S-101', 25],
+      [4, 'Tanque', 'Pulmón'],
+      null,
+      ['Planta Dos'],
+      ['Tarifa mensual:', 900000],
+      encabezado,
+      [1, 'Compresor', 'Pistón', 'Compresor ATLAS GA11', 'ATLAS', 'GA11', '', 15, '', 'Pendiente revisión'],
+    ]);
+    const prep = await p.evaluate(() => {
+      window.alert = () => {};
+      window.confirmarAccion = async () => true;
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Admin', email: 'a@x', initials: 'AA' };
+      operacionActual = 'antioquia'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.antioquia.spreadsheetId;
+      document.getElementById('loginOverlay')?.remove();
+      sidebarGrupoExpandido.herramientas = true; renderSidebarOperaciones();
+      const enMenu = [...document.querySelectorAll('[onclick="abrirEquiposEmpresas()"]')].length;
+      abrirEquiposEmpresas();
+      return { libro: GOOGLE_CONFIG.spreadsheetId, enMenu, vacia: document.getElementById('eqEmpActual').textContent.trim() };
+    });
+    // Una lista anterior más larga que la nueva: lo que sobra se borra.
+    fake.crear(prep.libro, 'EquiposEmpresas', [['Empresa', 'Numero', 'Categoria', 'Tipo', 'Equipo'],
+      ...Array.from({ length: 8 }, (_, i) => ['Empresa vieja', String(i + 1), 'Bomba', '', 'Bomba ' + (i + 1)])]);
+    await p.setInputFiles('#eqEmpArchivo', { name: 'Inventario_Equipos.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: excel });
+    await p.waitForSelector('#eqEmpVista button');
+    const vista = await p.$eval('#eqEmpVista', el => el.textContent.replace(/\s+/g, ' ').trim());
+    await p.click('#eqEmpVista button');
+    await p.waitForFunction(() => !document.querySelector('#eqEmpVista button'));
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = { libro: GOOGLE_CONFIG.spreadsheetId, actual: document.getElementById('eqEmpActual').textContent.replace(/\s+/g, ' ').trim() };
+      document.getElementById('equiposEmpresasOverlay').remove();
+      out.grupos = JSON.parse(JSON.stringify(EQUIPOS_POR_SEDE.antioquia));
+      // Al volver a abrir la app: la lista sale de la hoja (y queda copia en el equipo).
+      EQUIPOS_POR_SEDE.antioquia = {};
+      _invalidarCacheHoja(SH.equiposEmpresas);
+      await cargarEquiposEmpresas();
+      out.recargada = JSON.stringify(EQUIPOS_POR_SEDE.antioquia) === JSON.stringify(out.grupos);
+      out.copiaLocal = (JSON.parse(localStorage.getItem('equiposEmpresas_antioquia') || '[]')).length;
+      // Orden nueva: primero la empresa, después su equipo (con el nombre corto).
+      showPanel('nueva'); await espera(100);
+      const emp = document.getElementById('f_empresa'), eq = () => document.getElementById('f_equipo');
+      out.empresas = [...emp.options].map(o => o.textContent);
+      emp.value = 'Planta Uno - Norte'; emp.dispatchEvent(new Event('change'));
+      out.equiposUno = [...eq().options].map(o => o.textContent);
+      emp.value = 'Planta Dos'; emp.dispatchEvent(new Event('change'));
+      eq().value = 'Planta Dos · Compresor ATLAS GA11';
+      inicializarCampoEquipo(); // llega la lista de la hoja con la orden a medio hacer
+      out.conservada = document.getElementById('f_empresa').value + ' | ' + eq().value;
+      // Editor de órdenes: agrupado por empresa, la opción dice el equipo y guarda el nombre completo.
+      const sel = document.createElement('select');
+      sel.innerHTML = _renderOptionsGrupo(_gruposEquiposParaOrden('antioquia'));
+      out.editor = [...sel.querySelectorAll('optgroup')].map(g => g.label + ': ' + [...g.children].map(o => o.textContent + '=' + o.value).join(', '));
+      // Hoja de Vida: los datos del Excel cuando no se han escrito.
+      hvdModoActual = 'operacion';
+      await hvdSeleccionarEquipo('Planta Uno - Norte · Secador KAESER KRD30');
+      out.hvd = ['hvd_descripcion', 'hvd_marca', 'hvd_modelo', 'hvd_serie', 'hvd_datos'].map(id => document.getElementById(id)?.value);
+      out.hvdLista = [...document.querySelectorAll('#hvdListaEquipos .hvd-grupo')].map(g => g.textContent);
+      out.hvdItems = [...document.querySelectorAll('#hvdListaEquipos [onclick^="hvdSeleccionarEquipo"]')].map(d => d.textContent.trim());
+      // Dashboard: gasto por empresa (las de la lista y las de órdenes viejas).
+      const orden = (equipo, costo, estado = 'Cerrada') => ({ Equipo: equipo, Estado: estado, repuestos: [{ cantidad: 1, costoUnitario: costo }], insumos: [] });
+      renderGraficasAntioquia([orden('Planta Dos · Compresor ATLAS GA11', 300000), orden('Planta Dos · Compresor ATLAS GA11', 50000, 'Abierta'),
+        orden('Planta Uno - Norte · Tanque Pulmón', 120000), orden('Planta Vieja · Bomba', 80000)]);
+      out.titulos = [...document.querySelectorAll('#gridEmpresasAntioquia .card-head')].map(h => h.textContent);
+      out.general = { labels: window._chartGastoEmpresaGeneral.data.labels, datos: window._chartGastoEmpresaGeneral.data.datasets[0].data };
+      out.dos = { labels: window._chartEmpresaAntioquia_1.data.labels, datos: window._chartEmpresaAntioquia_1.data.datasets[0].data };
+      // Un operario no puede cambiar la lista.
+      usuarioRol = 'operario';
+      const alertas = []; window.alert = m => alertas.push(m);
+      abrirEquiposEmpresas();
+      out.operario = { overlay: !!document.getElementById('equiposEmpresasOverlay'), alertas };
+      // Al salir del todo, la copia local de la lista se borra.
+      _limpiarCopiasLocalesAlSalir();
+      out.copiaTrasSalir = localStorage.getItem('equiposEmpresas_antioquia');
+      // Las demás sedes siguen igual: un solo selector con sus grupos y sin el menú.
+      usuarioRol = 'admin'; operacionActual = 'zipaquira';
+      renderSidebarOperaciones(); showPanel('nueva'); inicializarCampoEquipo();
+      out.zipaquira = { empresa: !!document.getElementById('f_empresa'), grupos: document.querySelectorAll('#f_equipo optgroup').length,
+        menu: document.querySelectorAll('[onclick="abrirEquiposEmpresas()"]').length };
+      return out;
+    });
+    const hoja = fake.hoja(r.libro, 'EquiposEmpresas');
+    check('Antioquia: el cargador lee el Excel por bloques (empresa, tarifa, tabla), deja una sola vez la fila repetida y guarda la lista en la hoja sin las tarifas',
+      prep.enMenu === 1 && /Todavía no hay equipos/.test(prep.vacia)
+      && /2 empresa\(s\) · 5 equipo\(s\)/.test(vista) && /1 fila\(s\) repetida/.test(vista)
+      && /2 empresa\(s\) · 5 equipo\(s\)/.test(r.actual)
+      && JSON.stringify(hoja[0]) === JSON.stringify(['Empresa', 'Numero', 'Categoria', 'Tipo', 'Equipo', 'Marca', 'Modelo', 'Serial', 'HP', 'CambioEquipo', 'Observaciones'])
+      && hoja.length === 6 && hoja[1][0] === 'Planta Uno - Norte' && hoja[5][0] === 'Planta Dos' && hoja[5][10] === 'Pendiente revisión'
+      && !hoja.flat().some(c => /1500000|900000|tarifa/i.test(c)),
+      { prep, vista, hoja });
+    check('Antioquia: la lista queda por empresa (dos equipos con el mismo nombre se distinguen por el serial; sin descripción, por categoría y tipo), se vuelve a leer de la hoja y queda copia en el equipo',
+      JSON.stringify(r.grupos) === JSON.stringify({
+        'Planta Uno - Norte': ['Planta Uno - Norte · Compresor KAESER SK25', 'Planta Uno - Norte · Secador KAESER KRD30', 'Planta Uno - Norte · Compresor KAESER SK25 (S-101)', 'Planta Uno - Norte · Tanque Pulmón'],
+        'Planta Dos': ['Planta Dos · Compresor ATLAS GA11'] })
+      && r.recargada && r.copiaLocal === 5,
+      { grupos: r.grupos, recargada: r.recargada, copiaLocal: r.copiaLocal });
+    check('Antioquia: la orden nueva pide la empresa y luego su equipo, y lo elegido se conserva si la lista se vuelve a dibujar; el editor agrupa por empresa',
+      JSON.stringify(r.empresas) === JSON.stringify(['Seleccionar empresa...', 'Planta Uno - Norte', 'Planta Dos'])
+      && JSON.stringify(r.equiposUno) === JSON.stringify(['Seleccionar equipo...', 'Compresor KAESER SK25', 'Secador KAESER KRD30', 'Compresor KAESER SK25 (S-101)', 'Tanque Pulmón'])
+      && r.conservada === 'Planta Dos | Planta Dos · Compresor ATLAS GA11'
+      && r.editor[1] === 'Planta Dos: Compresor ATLAS GA11=Planta Dos · Compresor ATLAS GA11' && r.editor.length === 2,
+      { empresas: r.empresas, equiposUno: r.equiposUno, conservada: r.conservada, editor: r.editor });
+    check('Antioquia: la Hoja de Vida trae marca, modelo y serial del Excel; el Dashboard grafica el gasto de cada empresa (también las de órdenes viejas, solo órdenes cerradas)',
+      JSON.stringify(r.hvd) === JSON.stringify(['Secador KAESER KRD30', 'KAESER', 'KRD30', 'S-200', 'Categoría: Secador · Tipo: Refrigerado'])
+      && JSON.stringify(r.hvdLista) === JSON.stringify(['Planta Uno - Norte', 'Planta Dos'])
+      && r.hvdItems.length === 5 && r.hvdItems[1] === 'Secador KAESER KRD30' && !r.hvdItems.some(t => t.includes('·'))
+      && JSON.stringify(r.titulos) === JSON.stringify(['Planta Uno - Norte', 'Planta Dos', 'Planta Vieja'])
+      && JSON.stringify(r.general) === JSON.stringify({ labels: ['Planta Uno - Norte', 'Planta Dos', 'Planta Vieja'], datos: [120000, 300000, 80000] })
+      && JSON.stringify(r.dos) === JSON.stringify({ labels: ['Compresor ATLAS GA11'], datos: [300000] }),
+      { hvd: r.hvd, hvdLista: r.hvdLista, hvdItems: r.hvdItems, titulos: r.titulos, general: r.general, dos: r.dos });
+    check('Antioquia: un operario no puede cambiar la lista; al salir se borra la copia local; las demás sedes siguen con su selector de siempre',
+      !r.operario.overlay && r.operario.alertas.length === 1 && r.copiaTrasSalir === null
+      && !r.zipaquira.empresa && r.zipaquira.grupos > 0 && r.zipaquira.menu === 0 && errs.length === 0,
+      { operario: r.operario, copiaTrasSalir: r.copiaTrasSalir, zipaquira: r.zipaquira, errs: errs.slice(0, 3) });
+    await ctx.close();
+  }
+  {
     // Motor de los reportes técnicos (auditoría M-02): las 7 tablas salen
     // del mismo dibujante (con sus columnas, apiladas en celular) y sus
     // botones Ver / PDF abren el reporte de esa fila, con la sede.
