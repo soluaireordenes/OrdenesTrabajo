@@ -481,7 +481,7 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       _filtrarReportesPorFecha = l => l;
       allReportesSecadores = [{ Codigo: 'RS-1', Fecha: '2026-10-01', Hora: '6:00 a.m.', Secador: 'S', Tecnico: 'T' }];
       renderTablaReportesSecadores();
-      out.borrarReporte = vis(document.querySelector('#rs_tablaWrap button[onclick^="eliminarReporteSecador"]'));
+      out.borrarReporte = vis(document.querySelector('#rs_tablaWrap button[aria-label^="Eliminar"]'));
       out.cards = ['ie_codificacion', 'ieobs_codificacion', 'invs_codigo', 'prov_nombre'].map(id => vis(document.getElementById(id).closest('.card')));
       if (rol === 'operario') {
         const antes = out.alerts.length;
@@ -2101,6 +2101,58 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && rc.guardado.antes === '2026-11-11' && /Reporte guardado correctamente/.test(rc.guardado.msg) && fechaRc === '2026-11-12' && rc.guardado.despues === '2026-11-12'
       && rc.manual === '2026-11-11 → 2026-11-11' && errs.length === 0,
       { rc, fechaRc, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
+    // Motor de los reportes técnicos (auditoría M-02): las 7 tablas salen
+    // del mismo dibujante (con sus columnas, apiladas en celular) y sus
+    // botones Ver / PDF abren el reporte de esa fila, con la sede.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      operacionActual = 'zipaquira';
+      _filtrarReportesPorFecha = l => l; _traerReportesSiFaltan = () => false;
+      let impreso = '';
+      _entregarDocumentoImprimible = html => { impreso = html; };
+      window.open = () => null;
+      const base = { Fecha: '2026-11-19', Hora: '6:00 a.m.', Tecnico: 'Otras', TecnicoOtro: 'Yesid Ulloa', Observaciones: 'Todo normal' };
+      const muestras = {
+        compresores: { Codigo: 'RC-1', Compresor: 'CA1' }, secadores: { Codigo: 'RS-1', Secador: 'Hankinson #1' },
+        drycoolers: { Codigo: 'RD-1', Drycooler: 'D1' }, decorado: { Codigo: 'RDEC-1', Compresor: 'CD1', LaboresCompresor: 'Purga; Limpieza' },
+        emergencia: { Codigo: 'RE-1', Compresor: 'CE1' }, presiondrycooler: { Codigo: 'RPD-1', PresionDrycooler1: '30' },
+        formacion: { Codigo: 'RMF-1', Maquina: 'F1', Seccion: '7', ReferenciaBotella: 'BOT-355' },
+      };
+      const out = {};
+      for (const [clave, extra] of Object.entries(muestras)) {
+        const def = REPORTES_TECNICOS_DEF[clave];
+        def.poner([{ ...base, ...extra }]);
+        def.redibujar(); await espera(30);
+        const tabla = document.querySelector('#' + def.prefijo + '_tablaWrap table');
+        const encabezado = [...tabla.querySelectorAll('thead th')].map(t => t.textContent).filter(Boolean).join(',');
+        const celdas = [...tabla.querySelectorAll('tbody td')].map(t => t.textContent.trim()).filter(Boolean).join(',');
+        tabla.querySelector('button[aria-label^="Ver"]').click(); await espera(30);
+        const ventana = [...document.querySelectorAll('body > div')].pop();
+        const vista = ventana.textContent.replace(/\s+/g, ' ');
+        ventana.remove();
+        impreso = ''; tabla.querySelector('button[aria-label^="PDF"]').click(); await espera(30);
+        out[clave] = { apilada: tabla.classList.contains('tabla-datos'), encabezado, celdas,
+          vista: vista.includes(def.titulo + ' — ' + extra.Codigo) && vista.includes('O-I ZIPAQUIRA') && vista.includes('Yesid Ulloa'),
+          pdf: (impreso.match(/<title>([^<]*)<\/title>/) || [])[1] || '' };
+      }
+      out.labores = /<li>Purga<\/li><li>Limpieza<\/li>/.test(_construirHtmlReporteDecorado({ ...base, ...muestras.decorado }));
+      return out;
+    });
+    const enc = Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'labores').map(([k, v]) => [k, v.encabezado]));
+    check('Motor de reportes (M-02): las 7 tablas con el mismo formato y sus columnas (Presión Drycooler sin hora; Formación con máquina, sección y referencia)',
+      JSON.stringify(enc) === JSON.stringify({
+        compresores: 'Código,Fecha,Hora,Compresor,Técnico', secadores: 'Código,Fecha,Hora,Secador,Técnico', drycoolers: 'Código,Fecha,Hora,Drycooler,Técnico',
+        decorado: 'Código,Fecha,Hora,Compresor,Técnico', emergencia: 'Código,Fecha,Hora,Compresor,Técnico', presiondrycooler: 'Código,Fecha,Técnico',
+        formacion: 'Código,Fecha,Hora,Máquina,Sección,Referencia,Técnico' })
+      && Object.values(r).filter(v => v.apilada !== undefined).every(v => v.apilada && /Yesid Ulloa/.test(v.celdas)) && r.formacion.celdas === 'RMF-1,19/11/2026,6:00 a.m.,F1,7,BOT-355,Yesid Ulloa',
+      enc);
+    check('Motor de reportes (M-02): Ver abre el reporte de esa fila con la sede y el técnico; el PDF lleva la sede en el título; las labores salen como lista',
+      Object.entries(r).filter(([k]) => k !== 'labores').every(([, v]) => v.vista && / — O-I ZIPAQUIRA$|ZIPAQUIRA/.test(v.pdf)) && r.labores && errs.length === 0,
+      { r, errs: errs.slice(0, 2) });
     await ctx.close();
   }
   {
