@@ -12889,6 +12889,24 @@ async function sheetsRequest(method, range, body) {
   return method === 'GET' ? resp.json() : {};
 }
 
+/** Marca "Eliminada" la fila de un registro, comprobando antes que en ese
+ *  número de fila siga estando ese mismo registro (su Código). Si mientras
+ *  la pantalla estaba abierta se archivó un año o se borraron filas, las de
+ *  abajo se corren hacia arriba, y sin esta revisión se marcaría otro
+ *  registro (auditoría D-02). */
+async function _marcarFilaEliminada(hoja, colsHoja, fila) {
+  const iCodigo = colsHoja.indexOf('Codigo');
+  if (iCodigo >= 0 && fila.Codigo) {
+    const celda = hoja + '!' + numToCol(iCodigo) + fila._row;
+    const leido = await sheetsRequest('GET', celda);
+    const actual = String(leido?.values?.[0]?.[0] ?? '').trim();
+    if (actual !== String(fila.Codigo).trim()) {
+      throw new Error('la hoja cambió desde que se abrió esta pantalla (por ejemplo, se archivó un año). Vuelve a abrirla e inténtalo otra vez.');
+    }
+  }
+  await sheetsRequest('UPDATE', hoja + '!' + numToCol(colsHoja.indexOf('Estado')) + fila._row, [['Eliminada']]);
+}
+
 // Detecta el nombre real de la primera hoja del spreadsheet
 async function detectarNombreHoja() {
   try {
@@ -13115,10 +13133,12 @@ async function abrirCapacidadHojas() {
       <div style="padding:18px 20px">
         <p class="cap-sub" style="margin:0 0 14px">Google admite hasta 10 millones de celdas por archivo y cuenta todas las celdas de cada pestaña, también las vacías. Cuando un archivo pase del 70%, conviene pasar los años cerrados a un archivo de histórico.</p>
         ${archivos.map((a, i) => `<div id="capArchivo${i}" class="cap-archivo"><div class="cap-titulo">${esc(a.nombre)}</div><div class="cap-sub" style="margin-top:6px">Midiendo…</div></div>`).join('')}
+        ${_htmlArchivoAnual()}
       </div>
     </div>`;
   overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
+  _prepararArchivoAnual();
 
   await Promise.all(archivos.map(async (a, i) => {
     let html;
@@ -13127,6 +13147,261 @@ async function abrirCapacidadHojas() {
     const cont = document.getElementById('capArchivo' + i);
     if (cont) cont.outerHTML = html;
   }));
+}
+
+/* ══════════════════════════════════════════════
+   ARCHIVO ANUAL (auditoría D-02; solo admin, dentro de Capacidad)
+
+   Las pestañas que crecen todos los días (registros del cronograma, los
+   reportes técnicos, las entregas de turno, el inventario de herramienta)
+   se leen completas cada vez que se abren: con los años se vuelven lentas
+   en datos móviles y se acercan al límite de Google. Aquí un administrador
+   lleva cada año ya cerrado a una hoja de histórico de la sede (una
+   pestaña "<Pestaña> <año>" por cada una), y lo quita de la hoja del día a
+   día. Es seguro cortarlo o repetirlo:
+     1. Copia al histórico solo las filas que aún no estén allá.
+     2. Lee el histórico y comprueba que estén TODAS. Si no, no borra nada.
+     3. Vuelve a leer la pestaña original: si cambió mientras tanto, no
+        borra (lo copiado queda; al repetir, no se copia dos veces).
+     4. Borra esas filas de abajo hacia arriba y deja constancia en la
+        pestaña ArchivoAnual (quién, cuándo, cuántas filas y a dónde).
+   Las pestañas solo agregan filas al final, así que borrar las viejas no
+   afecta lo que se guarde después; lo único que se escribe por número de
+   fila ("Eliminada") comprueba antes el código (_marcarFilaEliminada).
+══════════════════════════════════════════════ */
+const PESTANAS_ARCHIVABLES = [
+  ['cronogramaRegistros', 'Registros del cronograma'],
+  ['reporteCompresores', 'Reporte de compresores'], ['reporteSecadores', 'Reporte de secadores'],
+  ['reporteDrycoolers', 'Reporte de drycoolers'], ['reporteDecorado', 'Reporte de equipos de decorado'],
+  ['reporteEmergencia', 'Reporte de equipos de emergencia'], ['reportePresionDrycooler', 'Presión de drycoolers'],
+  ['reporteMaquinasFormacion', 'Máquinas de formación'], ['entregaTurno', 'Entrega de turno'],
+  ['entregaTurnoSala', 'Entrega de turno de la sala'], ['inventarioHerramienta', 'Inventario de herramienta'],
+];
+const HOJA_ARCHIVO_ANUAL = 'ArchivoAnual';
+const ARCHIVO_ANUAL_COLS = ['FechaHora', 'Pestana', 'Anio', 'Filas', 'Destino', 'ArchivadoPor'];
+const _ARCHIVO_LOTE_FILAS = 500;      // filas por escritura al histórico
+const _ARCHIVO_LOTE_BORRADOS = 100;   // bloques de filas por cada borrado
+
+function _htmlArchivoAnual() {
+  return `<div class="cap-archivo" id="capArchivoAnual">
+    <div class="cap-titulo">Archivo anual</div>
+    <p class="cap-sub" style="margin:6px 0 10px">Lleva los años ya cerrados de las pestañas que más crecen a una hoja de histórico de la sede y los quita de aquí. La app queda más liviana; ese año deja de verse en Reportes, Variables y los informes, pero sigue completo en el histórico. Primero copia y comprueba la copia: si algo falla, no borra nada.</p>
+    <p class="cap-sub" style="margin:0 0 10px">Hoja de histórico: crea una hoja de Google vacía (por ejemplo "Histórico ${esc(OPERACIONES[operacionActual]?.nombre || 'sede')}"), compártela como Editor con la misma cuenta que las demás hojas del sistema y pega aquí su enlace.</p>
+    <div class="field" style="margin-bottom:8px"><label for="archDestino">Enlace de la hoja de histórico</label>
+      <input id="archDestino" type="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…"></div>
+    <button type="button" class="btn btn-ghost" id="archRevisar" onclick="revisarArchivoAnual()">Ver qué se puede archivar</button>
+    <div id="archLista" style="margin-top:10px"></div>
+  </div>`;
+}
+
+/** El ID de una hoja de Google a partir de su enlace (o del ID solo). */
+function _idHojaGoogle(texto) {
+  const t = String(texto || '').trim();
+  const m = t.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,100})/) || t.match(/^([A-Za-z0-9_-]{20,100})$/);
+  return m ? m[1] : '';
+}
+
+async function _pedirSheets(url, opciones) {
+  const resp = await fetch(url, { ...(opciones || {}), headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' } });
+  if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
+  return resp;
+}
+
+/** Pestañas de un libro: nombre → sheetId. */
+async function _pestanasDeLibro(libro) {
+  const resp = await _pedirSheets(SHEETS_API + '/v4/spreadsheets/' + libro + '?fields=' + encodeURIComponent('sheets.properties(sheetId,title)'));
+  if (!resp.ok) throw new Error(resp.status === 403 || resp.status === 404
+    ? 'no se pudo abrir la hoja de histórico: revisa el enlace y que esté compartida como Editor con la cuenta del sistema'
+    : 'Google respondió ' + resp.status);
+  const datos = await resp.json();
+  return Object.fromEntries((datos.sheets || []).map(h => [h.properties.title, h.properties.sheetId]));
+}
+
+/** Todas las filas de una pestaña, encabezado incluido (como texto). */
+async function _valoresDePestana(libro, pestana) {
+  const resp = await _pedirSheets(SHEETS_API + '/v4/spreadsheets/' + libro + '/values/' + encodeURIComponent(_rangoA1(pestana, 'A:ZZ')));
+  if (!resp.ok) throw new Error('no se pudo leer ' + pestana + ' (Google respondió ' + resp.status + ')');
+  return ((await resp.json()).values || []).map(f => f.map(v => String(v ?? '')));
+}
+
+/** La fila con el ancho del encabezado, para comparar filas como texto
+ *  (Google no devuelve las celdas vacías del final). */
+const _filaComoClave = (fila, ancho) => JSON.stringify(Array.from({ length: ancho }, (_, k) => String(fila[k] ?? '')));
+
+/** Las filas de un año: su posición en la pestaña (0 = encabezado) y su
+ *  contenido. El año sale de la columna Fecha (o FechaRegistro); las filas
+ *  sin fecha legible no se archivan nunca. */
+function _filasDelAnio(valores, anio) {
+  const encabezado = valores[0] || [];
+  let iFecha = encabezado.indexOf('Fecha');
+  if (iFecha < 0) iFecha = encabezado.indexOf('FechaRegistro');
+  if (iFecha < 0) return [];
+  const filas = [];
+  for (let i = 1; i < valores.length; i++) {
+    if (_aIsoFecha(valores[i][iFecha]).slice(0, 4) === String(anio)) filas.push({ i, fila: valores[i] });
+  }
+  return filas;
+}
+
+/** Cuántas filas hay de cada año ya cerrado en una pestaña. */
+function _aniosCerrados(valores) {
+  const encabezado = valores[0] || [];
+  let iFecha = encabezado.indexOf('Fecha');
+  if (iFecha < 0) iFecha = encabezado.indexOf('FechaRegistro');
+  const actual = new Date().getFullYear(), cuenta = {};
+  if (iFecha < 0) return cuenta;
+  for (let i = 1; i < valores.length; i++) {
+    const anio = Number(_aIsoFecha(valores[i][iFecha]).slice(0, 4));
+    if (anio && anio < actual) cuenta[anio] = (cuenta[anio] || 0) + 1;
+  }
+  return cuenta;
+}
+
+/** Lleva las filas de un año de una pestaña al histórico (ver el
+ *  encabezado de esta sección). Devuelve cuántas copió y cuántas quitó. */
+async function _archivarAnio(pestana, anio, destino) {
+  const origen = GOOGLE_CONFIG.spreadsheetId;
+  if (!destino || destino === origen) throw new Error('falta la hoja de histórico (y no puede ser esta misma hoja)');
+  const valores = await _valoresDePestana(origen, pestana);
+  const delAnio = _filasDelAnio(valores, anio);
+  if (!delAnio.length) return { copiadas: 0, quitadas: 0 };
+  const encabezado = valores[0];
+  const ancho = encabezado.length;
+  const base = SHEETS_API + '/v4/spreadsheets/';
+
+  // La pestaña del histórico, con el mismo encabezado.
+  const pestanaDestino = pestana + ' ' + anio;
+  const enDestinoIds = await _pestanasDeLibro(destino);
+  if (!(pestanaDestino in enDestinoIds)) {
+    const r = await _pedirSheets(base + destino + ':batchUpdate', { method: 'POST', body: JSON.stringify({ requests: [{ addSheet: { properties: { title: pestanaDestino } } }] }) });
+    if (!r.ok) throw new Error('no se pudo crear la pestaña ' + pestanaDestino + ' en el histórico (Google respondió ' + r.status + ')');
+  }
+  let enDestino = await _valoresDePestana(destino, pestanaDestino);
+  if (!enDestino.length) {
+    const r = await _pedirSheets(base + destino + '/values/' + encodeURIComponent(_rangoA1(pestanaDestino, 'A1')) + '?valueInputOption=RAW', { method: 'PUT', body: JSON.stringify({ values: [encabezado] }) });
+    if (!r.ok) throw new Error('no se pudo escribir en el histórico (Google respondió ' + r.status + ')');
+    enDestino = [encabezado];
+  } else if (_filaComoClave(enDestino[0], ancho) !== _filaComoClave(encabezado, ancho)) {
+    throw new Error('la pestaña ' + pestanaDestino + ' del histórico tiene otras columnas; renómbrala y vuelve a intentar');
+  }
+
+  // 1. Copiar solo lo que no esté ya allá (un intento anterior cortado no
+  //    se repite). Se cuentan repetidas: dos filas iguales son dos filas.
+  const yaEstan = new Map();
+  enDestino.slice(1).forEach(f => { const k = _filaComoClave(f, ancho); yaEstan.set(k, (yaEstan.get(k) || 0) + 1); });
+  const faltan = [];
+  delAnio.forEach(({ fila }) => {
+    const k = _filaComoClave(fila, ancho);
+    if (yaEstan.get(k)) yaEstan.set(k, yaEstan.get(k) - 1);
+    else faltan.push(JSON.parse(k));
+  });
+  for (let k = 0; k < faltan.length; k += _ARCHIVO_LOTE_FILAS) {
+    const r = await _pedirSheets(base + destino + '/values/' + encodeURIComponent(_rangoA1(pestanaDestino, 'A:' + numToCol(ancho - 1))) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
+      { method: 'POST', body: JSON.stringify({ values: faltan.slice(k, k + _ARCHIVO_LOTE_FILAS) }) });
+    if (!r.ok) throw new Error('la copia al histórico se cortó (Google respondió ' + r.status + '). No se borró nada; al volver a intentar sigue donde quedó.');
+  }
+
+  // 2. Comprobar que estén todas en el histórico.
+  const copia = new Map();
+  (await _valoresDePestana(destino, pestanaDestino)).slice(1).forEach(f => { const k = _filaComoClave(f, ancho); copia.set(k, (copia.get(k) || 0) + 1); });
+  for (const { fila } of delAnio) {
+    const k = _filaComoClave(fila, ancho);
+    if (!copia.get(k)) throw new Error('no se pudo comprobar la copia en el histórico. No se borró nada.');
+    copia.set(k, copia.get(k) - 1);
+  }
+
+  // 3. La pestaña original tiene que seguir igual para borrar por número de fila.
+  const ahora = _filasDelAnio(await _valoresDePestana(origen, pestana), anio);
+  if (ahora.length !== delAnio.length || ahora.some((f, k) => f.i !== delAnio[k].i || _filaComoClave(f.fila, ancho) !== _filaComoClave(delAnio[k].fila, ancho))) {
+    throw new Error('la pestaña cambió mientras se copiaba. Lo copiado quedó en el histórico; vuelve a intentar y se quitará sin copiarlo otra vez.');
+  }
+
+  // 4. Borrar de abajo hacia arriba, por bloques de filas seguidas: así
+  //    cada borrado no corre las filas que faltan por borrar.
+  const sheetId = (await _pestanasDeLibro(origen))[pestana];
+  const bloques = [];
+  delAnio.forEach(({ i }) => {
+    const ultimo = bloques[bloques.length - 1];
+    if (ultimo && ultimo.fin === i) ultimo.fin = i + 1; else bloques.push({ ini: i, fin: i + 1 });
+  });
+  bloques.reverse();
+  for (let k = 0; k < bloques.length; k += _ARCHIVO_LOTE_BORRADOS) {
+    const requests = bloques.slice(k, k + _ARCHIVO_LOTE_BORRADOS)
+      .map(b => ({ deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: b.ini, endIndex: b.fin } } }));
+    const r = await _pedirSheets(base + origen + ':batchUpdate', { method: 'POST', body: JSON.stringify({ requests }) });
+    if (!r.ok) throw new Error('se copió todo al histórico pero no se pudieron quitar las filas de aquí (Google respondió ' + r.status + '). Vuelve a intentar.');
+  }
+  _invalidarCacheHoja(pestana);
+
+  // Constancia: quién, cuándo, cuántas filas y a dónde.
+  try {
+    const cols = await asegurarHoja(HOJA_ARCHIVO_ANUAL, ARCHIVO_ANUAL_COLS);
+    const fila = { FechaHora: new Date().toISOString(), Pestana: pestana, Anio: String(anio), Filas: String(delAnio.length), Destino: destino,
+      ArchivadoPor: currentUser?.name || currentUser?.email || '' };
+    await appendHoja(HOJA_ARCHIVO_ANUAL, [cols.map(c => fila[c] ?? '')]);
+  } catch (e) { console.warn('Archivo anual: no se pudo dejar la constancia:', e.message); }
+  return { copiadas: faltan.length, quitadas: delAnio.length };
+}
+
+/** Al abrir Capacidad: la hoja de histórico que se usó la última vez. */
+async function _prepararArchivoAnual() {
+  try {
+    const registro = await _leerHojaGenerica(HOJA_ARCHIVO_ANUAL);
+    const ultimo = registro.filter(f => f.Destino).pop();
+    const campo = document.getElementById('archDestino');
+    if (ultimo && campo && !campo.value) campo.value = 'https://docs.google.com/spreadsheets/d/' + ultimo.Destino + '/edit';
+  } catch (_) { /* todavía no se ha archivado nada en esta sede */ }
+}
+
+/** Lista, por pestaña, los años cerrados que se pueden archivar. */
+async function revisarArchivoAnual() {
+  if (!esAdmin()) { alert('Solo un administrador puede archivar.'); return; }
+  const lista = document.getElementById('archLista');
+  lista.innerHTML = '<div class="cap-sub">Revisando las pestañas…</div>';
+  try {
+    const existentes = await _pestanasDeLibro(GOOGLE_CONFIG.spreadsheetId);
+    const filas = [];
+    for (const [clave, nombre] of PESTANAS_ARCHIVABLES) {
+      const pestana = SH[clave];
+      if (!(pestana in existentes)) continue;
+      const anios = _aniosCerrados(await _valoresDePestana(GOOGLE_CONFIG.spreadsheetId, pestana));
+      Object.keys(anios).sort().forEach(anio => filas.push({ pestana, nombre, anio, n: anios[anio] }));
+    }
+    if (!filas.length) {
+      lista.innerHTML = `<div class="cap-sub">No hay años cerrados por archivar: todo es de ${new Date().getFullYear()}.</div>`;
+      return;
+    }
+    lista.innerHTML = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left">Pestaña</th><th style="padding:7px 10px;text-align:left">Año</th><th style="padding:7px 10px;text-align:right">Filas</th><th style="padding:7px 10px"></th></tr></thead>
+      <tbody>${filas.map(f => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px">${esc(f.nombre)}</td><td style="padding:7px 10px">${esc(f.anio)}</td>
+        <td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${f.n.toLocaleString('es-CO')}</td>
+        <td style="padding:7px 10px;text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="archivarAnioPestana(${_jsArg(f.pestana)}, ${_jsArg(f.nombre)}, ${Number(f.anio)}, this)">Archivar ${esc(f.anio)}</button></td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    lista.innerHTML = `<div class="cap-sub" style="color:var(--danger)">No se pudo revisar: ${esc(e.message)}</div>`;
+  }
+}
+
+async function archivarAnioPestana(pestana, nombre, anio, boton) {
+  if (!esAdmin()) { alert('Solo un administrador puede archivar.'); return; }
+  const destino = _idHojaGoogle(document.getElementById('archDestino')?.value);
+  if (!destino) { aviso('Pega primero el enlace de la hoja de histórico de la sede.', 'advertencia'); document.getElementById('archDestino')?.focus(); return; }
+  if (destino === GOOGLE_CONFIG.spreadsheetId) { aviso('La hoja de histórico tiene que ser otra, no la de esta sede.', 'advertencia'); return; }
+  if (!(await confirmarAccion({
+    titulo: `¿Archivar ${anio} de ${nombre}?`,
+    texto: `Se copia ${anio} a la pestaña "${pestana} ${anio}" de la hoja de histórico, se comprueba la copia y solo entonces se quita de aquí. Ese año deja de verse en la app; sigue completo en el histórico. Hazlo cuando nadie esté registrando en esta pestaña.`,
+    aceptar: 'Archivar' }))) return;
+  const texto = boton ? boton.textContent : '';
+  if (boton) { boton.disabled = true; boton.textContent = 'Archivando…'; }
+  try {
+    const r = await _archivarAnio(pestana, anio, destino);
+    aviso(`${nombre}: ${r.quitadas.toLocaleString('es-CO')} fila(s) de ${anio} quedaron en el histórico y salieron de aquí.`, 'exito');
+    await revisarArchivoAnual();
+  } catch (e) {
+    aviso('No se archivó: ' + e.message, 'error');
+    if (boton) { boton.disabled = false; boton.textContent = texto; }
+  }
 }
 
 // Cachés en memoria (viven mientras dure la sesión del navegador, se
@@ -19870,8 +20145,7 @@ async function eliminarNovedad(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.novedades, NOVEDADES_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.novedades + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.novedades, colsHoja, fila);
     await inicializarPanelNovedades();
   } catch (e) {
     alert('Error al eliminar: ' + e.message);
@@ -23541,8 +23815,7 @@ async function eliminarReporteCompresor(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteCompresores, _colsReporteCompresores());
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteCompresores + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteCompresores, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteCompresores);
     await inicializarReporteCompresores();
   } catch (e) {
@@ -24032,8 +24305,7 @@ async function eliminarEntregaSala(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.entregaTurnoSala, _columnasEntregaSala(operacionActual));
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.entregaTurnoSala + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.entregaTurnoSala, colsHoja, fila);
     _invalidarCacheHoja(SH.entregaTurnoSala);
     // Solo se recarga la lista: el formulario puede estar a medio llenar.
     allEntregasSala = await _cargarReportesTecnicos('es', SH.entregaTurnoSala);
@@ -24262,8 +24534,7 @@ async function eliminarReporteSecador(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteSecadores + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteSecadores, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteSecadores);
     await inicializarReporteSecadores();
   } catch (e) {
@@ -24419,8 +24690,7 @@ async function eliminarReporteDrycooler(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteDrycoolers, REPORTE_DRYCOOLERS_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteDrycoolers + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteDrycoolers, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteDrycoolers);
     await inicializarReporteDrycoolers();
   } catch (e) {
@@ -24600,8 +24870,7 @@ async function eliminarReporteDecorado(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteDecorado, REPORTE_DECORADO_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteDecorado + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteDecorado, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteDecorado);
     await inicializarReporteDecorado();
   } catch (e) {
@@ -24809,8 +25078,7 @@ async function eliminarReporteEmergencia(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteEmergencia, REPORTE_EMERGENCIA_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteEmergencia + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteEmergencia, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteEmergencia);
     await inicializarReporteEmergencia();
   } catch (e) {
@@ -24941,8 +25209,7 @@ async function eliminarReportePresionDrycooler(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reportePresionDrycooler, REPORTE_PRESION_DRYCOOLER_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reportePresionDrycooler + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reportePresionDrycooler, colsHoja, fila);
     _invalidarCacheHoja(SH.reportePresionDrycooler);
     await inicializarReportePresionDrycooler();
   } catch (e) {
@@ -25075,8 +25342,7 @@ async function eliminarReporteMaquinasFormacion(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.reporteMaquinasFormacion, REPORTE_MAQUINAS_FORMACION_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.reporteMaquinasFormacion + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.reporteMaquinasFormacion, colsHoja, fila);
     _invalidarCacheHoja(SH.reporteMaquinasFormacion);
     await inicializarReporteMaquinasFormacion();
   } catch (e) {
@@ -25149,8 +25415,7 @@ async function eliminarEntregaTurno(codigo) {
   if (!fila) return;
   try {
     const colsHoja = await asegurarHoja(SH.entregaTurno, ENTREGA_TURNO_COLS);
-    const colEstado = numToCol(colsHoja.indexOf('Estado'));
-    await sheetsRequest('UPDATE', SH.entregaTurno + '!' + colEstado + fila._row, [['Eliminada']]);
+    await _marcarFilaEliminada(SH.entregaTurno, colsHoja, fila);
     _invalidarCacheHoja(SH.entregaTurno);
     await inicializarEntregaTurno();
   } catch (e) {
