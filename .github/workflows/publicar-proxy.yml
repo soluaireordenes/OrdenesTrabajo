@@ -1,0 +1,40 @@
+name: Publicar el proxy en Cloudflare
+
+# Auditoría O-01: el proxy se publicaba copiando y pegando en Cloudflare.
+# Ahora, cuando cambia proxy-seguridad/cloudflare-proxy.js en main, se
+# prueba y se publica solo, y se comprueba que /ping responda la versión
+# nueva. También se puede correr a mano (Actions → este flujo → Run).
+# Necesita los secretos CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID del
+# repositorio; sin ellos avisa y no publica.
+
+on:
+  push:
+    branches: [main]
+    paths: ['proxy-seguridad/cloudflare-proxy.js', 'scripts-despliegue/publicar-proxy.sh']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      # Si las pruebas del proxy fallan, no se publica.
+      - run: node pruebas/worker.test.mjs
+
+      - name: Publicar y comprobar la versión
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_CUENTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts-despliegue/publicar-proxy.sh
