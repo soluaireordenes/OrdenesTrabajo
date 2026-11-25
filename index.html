@@ -1892,6 +1892,35 @@ body.rol-operario .btn-principal-operario {
   .cron-btn-no-realizado { padding: 8px 14px; font-size: 13px; }
 }
 
+/* ── Clases de uso frecuente (auditoría V-03) ──
+   Los estilos que más se repetían escritos a mano en el HTML. Un ajuste de
+   diseño se hace aquí una vez. Si un elemento cambia su estilo desde el
+   código (por ejemplo, el.style.display), eso sigue mandando. */
+.fila-centrada { display:flex; align-items:center; gap:8px; }
+.sin-margen { margin:0; }
+.relleno-18 { padding:18px; }
+.mb-16 { margin-bottom:16px; }
+.desplazable-x { padding:0; overflow-x:auto; }
+.relleno-14 { padding:14px; }
+.campo-filtro { margin:0; min-width:150px; }
+/* Dentro de un .field, la regla ".field label" (11 px) pesa más que una clase sola. */
+.etiqueta-bloque-12, .field label.etiqueta-bloque-12 { margin-bottom:4px; display:block; font-size:12px; }
+.mb-14 { margin-bottom:14px; }
+.etiqueta-bloque { margin-bottom:4px; display:block; }
+.ancho-14 { width:14%; }
+.texto-tenue { color:var(--text3); font-size:13px; }
+.icono-14 { width:14px; height:14px; }
+.desplazable { overflow-x:auto; }
+.ancho-total { width:100%; }
+.ayuda-tarjeta { font-size:12px; color:var(--text3); padding:12px 18px 0; }
+.campo-filtro-160 { margin:0; min-width:160px; }
+.mayusculas { text-transform:uppercase; }
+.barra-filtros { padding:12px 14px 0; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+.rejilla-campos { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:6px; }
+.mensaje-error { font-size:12px; color:var(--danger); margin:10px 0; }
+.separador-campos { border-top:1px solid var(--border); padding-top:12px; margin-bottom:12px; }
+.vacio-centrado { color:var(--text3); font-size:13px; text-align:center; padding:26px 0; }
+
 /* ── Celular: letra de 12 px como mínimo ──
    Los títulos de los campos, los encabezados de tarjeta, las etiquetas y
    los datos de apoyo estaban en 10 y 11 px: en planta, con sol o a un
@@ -1936,7 +1965,7 @@ body.rol-operario .btn-principal-operario {
       <span id="userRol" class="user-rol" hidden></span>
     </div>
     <button id="btnTema" onclick="alternarTema()" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema"></button>
-    <button id="btnSalir" onclick="salirDelSistema()" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
+    <button id="btnSalir" onclick="salirDelSistema()" title="Cerrar sesión" style="background:var(--brand-light);border:1px solid var(--brand-mid);color:var(--brand);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Salir</button>
   </div>
 </header>
 
@@ -2014,7 +2043,7 @@ body.rol-operario .btn-principal-operario {
          Meta para el bot de WhatsApp, aquí al lado de "Dónde Operamos" para
          que cualquiera en la planta pueda leer qué guarda el sistema. -->
     <div class="card" style="margin-bottom:24px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Tratamiento de Datos</div>
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Tratamiento de Datos</div>
       <div class="card-body" style="padding:22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">
         <div style="flex:1 1 320px;min-width:0">
           <div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:5px">Política de privacidad</div>
@@ -2030,7 +2059,7 @@ body.rol-operario .btn-principal-operario {
 
     <!-- Mapa de operación: dónde tenemos presencia (al final: es informativo) -->
     <div class="card" style="margin-bottom:24px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dónde Operamos</div>
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dónde Operamos</div>
       <div class="card-body" style="padding:22px">
         <div id="mapaOperacion"></div>
 
@@ -2058,7 +2087,7 @@ body.rol-operario .btn-principal-operario {
     <div class="card">
       <div class="card-head">Identificación de la Orden</div>
       <div class="card-body">
-        <div class="grid-2" style="margin-bottom:14px">
+        <div class="grid-2 mb-14">
           <div class="field">
             <label for="f_descripcion">Descripción *</label>
             <input type="text" id="f_descripcion" placeholder="Descripción general del trabajo">
@@ -2130,7 +2159,7 @@ body.rol-operario .btn-principal-operario {
         <table class="dyn-table">
           <thead><tr>
             <th style="width:60%">Descripción de la tarea</th>
-            <th style="width:14%">T. Real</th>
+            <th class="ancho-14">T. Real</th>
             <th style="width:10%">OK</th>
             <th style="width:16%">Responsable</th>
             <th style="width:5%"></th>
@@ -2149,9 +2178,9 @@ body.rol-operario .btn-principal-operario {
           <thead><tr>
             <th style="width:15%">Código</th>
             <th style="width:38%">Nombre repuesto</th>
-            <th style="width:14%">Cantidad</th>
-            <th style="width:14%">Unidades</th>
-            <th style="width:14%">Costo unit.</th>
+            <th class="ancho-14">Cantidad</th>
+            <th class="ancho-14">Unidades</th>
+            <th class="ancho-14">Costo unit.</th>
             <th style="width:5%"></th>
           </tr></thead>
           <tbody id="tbody_repuestos"></tbody>
@@ -2168,9 +2197,9 @@ body.rol-operario .btn-principal-operario {
           <thead><tr>
             <th style="width:15%">Código</th>
             <th style="width:38%">Nombre insumo</th>
-            <th style="width:14%">Cantidad</th>
-            <th style="width:14%">Unidades</th>
-            <th style="width:14%">Costo unit.</th>
+            <th class="ancho-14">Cantidad</th>
+            <th class="ancho-14">Unidades</th>
+            <th class="ancho-14">Costo unit.</th>
             <th style="width:5%"></th>
           </tr></thead>
           <tbody id="tbody_insumos"></tbody>
@@ -2187,9 +2216,9 @@ body.rol-operario .btn-principal-operario {
           <thead><tr>
             <th style="width:15%">Código</th>
             <th style="width:38%">Nombre servicio</th>
-            <th style="width:14%">Cantidad</th>
-            <th style="width:14%">Unidades</th>
-            <th style="width:14%">Costo unit.</th>
+            <th class="ancho-14">Cantidad</th>
+            <th class="ancho-14">Unidades</th>
+            <th class="ancho-14">Costo unit.</th>
             <th style="width:5%"></th>
           </tr></thead>
           <tbody id="tbody_servicios"></tbody>
@@ -2266,7 +2295,7 @@ body.rol-operario .btn-principal-operario {
               <option value="Mejora">Mejora</option>
             </select>
           </div>
-          <div style="padding:14px">
+          <div class="relleno-14">
             <div class="spinner" id="spinnerPend"></div>
             <div id="pendientesContainer"></div>
           </div>
@@ -2306,7 +2335,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card">
         <div class="card-head">1 · Identificación de la Orden</div>
         <div class="card-body">
-          <div class="grid-2" style="margin-bottom:14px">
+          <div class="grid-2 mb-14">
             <div class="field">
               <label for="e_descripcion">Descripción *</label>
               <input type="text" id="e_descripcion" placeholder="Descripción general del trabajo">
@@ -2382,7 +2411,7 @@ body.rol-operario .btn-principal-operario {
               <th style="width:50%">Descripción de la tarea</th>
               <th style="width:12%">T. Real</th>
               <th style="width:9%">OK</th>
-              <th style="width:14%">Responsable</th>
+              <th class="ancho-14">Responsable</th>
               <th style="width:10%"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></th>
               <th style="width:5%"></th>
             </tr></thead>
@@ -2394,7 +2423,7 @@ body.rol-operario .btn-principal-operario {
 
       <!-- ══ 3b. REGISTRO FOTOGRÁFICO ══ -->
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Registro Fotográfico</div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Registro Fotográfico</div>
         <div class="card-body">
           <label style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:white;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:white"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Agregar foto general
@@ -2415,7 +2444,7 @@ body.rol-operario .btn-principal-operario {
               <th style="width:37%">Nombre repuesto</th>
               <th style="width:13%">Cantidad</th>
               <th style="width:13%">Unidades</th>
-              <th style="width:14%">Costo unit.</th>
+              <th class="ancho-14">Costo unit.</th>
               <th style="width:8%"></th>
             </tr></thead>
             <tbody id="e_tbody_repuestos"></tbody>
@@ -2434,7 +2463,7 @@ body.rol-operario .btn-principal-operario {
               <th style="width:37%">Nombre insumo</th>
               <th style="width:13%">Cantidad</th>
               <th style="width:13%">Unidades</th>
-              <th style="width:14%">Costo unit.</th>
+              <th class="ancho-14">Costo unit.</th>
               <th style="width:8%"></th>
             </tr></thead>
             <tbody id="e_tbody_insumos"></tbody>
@@ -2453,7 +2482,7 @@ body.rol-operario .btn-principal-operario {
               <th style="width:37%">Nombre servicio</th>
               <th style="width:13%">Cantidad</th>
               <th style="width:13%">Unidades</th>
-              <th style="width:14%">Costo unit.</th>
+              <th class="ancho-14">Costo unit.</th>
               <th style="width:8%"></th>
             </tr></thead>
             <tbody id="e_tbody_servicios"></tbody>
@@ -2503,7 +2532,7 @@ body.rol-operario .btn-principal-operario {
       <div class="card" style="border-top:3px solid var(--accent2)">
         <div class="card-head" style="color:var(--estado-ok-tx);border-bottom-color:var(--accent2)">8 · Registro de Ejecución y Cierre</div>
         <div class="card-body">
-          <div class="grid-2" style="margin-bottom:14px">
+          <div class="grid-2 mb-14">
             <div class="field">
               <label for="mFechaEjecucion">Fecha de ejecución *</label>
               <input type="date" id="mFechaEjecucion">
@@ -2525,7 +2554,7 @@ body.rol-operario .btn-principal-operario {
               <input type="number" id="mHorasEquipo" placeholder="Ej: 1250" min="0" step="0.1">
             </div>
           </div>
-          <div class="field" style="margin-bottom:14px">
+          <div class="field mb-14">
             <label for="mObsCierre">Observaciones de cierre *</label>
             <textarea id="mObsCierre" placeholder="Describe el trabajo realizado, hallazgos, recomendaciones..." style="min-height:90px"></textarea>
           </div>
@@ -2552,7 +2581,7 @@ body.rol-operario .btn-principal-operario {
   <div id="panel-realizadas" class="panel">
     <div class="seccion-encabezado">
       <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Órdenes realizadas</h2>
-      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarRealizadasCSV()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar CSV</button></div>
+      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarRealizadasCSV()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar CSV</button></div>
     </div>
     <div class="card">
       <div class="card-body" style="padding:0">
@@ -2566,7 +2595,7 @@ body.rol-operario .btn-principal-operario {
             <option value="Mejora">Mejora</option>
           </select>
         </div>
-        <div style="padding:14px">
+        <div class="relleno-14">
           <div class="spinner" id="spinnerReal"></div>
           <div id="realizadasContainer"></div>
         </div>
@@ -2578,7 +2607,7 @@ body.rol-operario .btn-principal-operario {
   <div id="panel-lista" class="panel">
     <div class="seccion-encabezado">
       <h2 class="seccion-titulo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Todas las órdenes</h2>
-      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarExcel()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar</button></div>
+      <div class="seccion-acciones"><button class="btn btn-ghost" onclick="exportarExcel()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Exportar</button></div>
     </div>
     <!-- Filtros -->
     <div class="filter-bar">
@@ -2609,11 +2638,11 @@ body.rol-operario .btn-principal-operario {
     </div>
 
     <!-- Filtros del dashboard -->
-    <div class="card" style="margin-bottom:16px">
+    <div class="card mb-16">
       <div class="card-body" style="padding:14px 18px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
-        <div class="field" style="margin:0;min-width:160px">
-          <label for="dash_mes" style="margin-bottom:4px;display:block">Filtrar por mes</label>
-          <select id="dash_mes" onchange="cargarDashboard()" style="margin:0">
+        <div class="field campo-filtro-160">
+          <label for="dash_mes" class="etiqueta-bloque">Filtrar por mes</label>
+          <select id="dash_mes" onchange="cargarDashboard()" class="sin-margen">
             <option value="">Todos los meses</option>
             <option value="01">Enero</option><option value="02">Febrero</option>
             <option value="03">Marzo</option><option value="04">Abril</option>
@@ -2624,8 +2653,8 @@ body.rol-operario .btn-principal-operario {
           </select>
         </div>
         <div class="field" style="margin:0;min-width:120px">
-          <label for="dash_anio" style="margin-bottom:4px;display:block">Año</label>
-          <select id="dash_anio" onchange="cargarDashboard()" style="margin:0">
+          <label for="dash_anio" class="etiqueta-bloque">Año</label>
+          <select id="dash_anio" onchange="cargarDashboard()" class="sin-margen">
             <option value="">Todos</option>
             <option value="2026">2026</option>
             <option value="2027">2027</option>
@@ -2726,7 +2755,7 @@ body.rol-operario .btn-principal-operario {
 
     <!-- Costos por equipo -->
     <div class="card" style="margin-top:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Gasto total por Equipo</div>
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Gasto total por Equipo</div>
       <div class="card-body" style="padding:16px">
         <div style="position:relative;height:320px"><canvas id="chartCostoEquipo"></canvas></div>
       </div>
@@ -2734,16 +2763,16 @@ body.rol-operario .btn-principal-operario {
 
     <!-- Tabla detalle por equipo -->
     <div class="card" style="margin-top:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Detalle de Gastos por Equipo</div>
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Detalle de Gastos por Equipo</div>
       <div class="card-body" style="padding:0">
-        <div id="tablaEquipos" style="overflow-x:auto"></div>
+        <div id="tablaEquipos" class="desplazable"></div>
       </div>
     </div>
 
     <!-- ════ SOLO SERVICIOTECNICO-ANTIOQUIA: gasto por empresa/equipo ════ -->
     <div id="dashAntioquiaSection" style="display:none;margin-top:16px">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Gasto General por Empresa</div>
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Gasto General por Empresa</div>
         <div class="card-body" style="padding:16px">
           <div style="position:relative;height:280px"><canvas id="chartGastoEmpresaGeneral"></canvas></div>
         </div>
@@ -2773,11 +2802,11 @@ body.rol-operario .btn-principal-operario {
     </div>
 
     <!-- Calendario para registrar el día de una novedad: reinicia el contador desde esa fecha -->
-    <div class="card" style="margin-bottom:16px">
+    <div class="card mb-16">
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:180px">
-          <label for="novRachaFecha" style="margin-bottom:4px;display:block">Fecha de la novedad</label>
-          <input type="date" id="novRachaFecha" style="margin:0">
+          <label for="novRachaFecha" class="etiqueta-bloque">Fecha de la novedad</label>
+          <input type="date" id="novRachaFecha" class="sin-margen">
         </div>
         <button class="btn btn-primary solo-admin" onclick="registrarNovedadRacha()">Registrar y reiniciar contador</button>
         <div id="novRachaHistorial" style="flex-basis:100%;margin-top:2px"></div>
@@ -2787,7 +2816,7 @@ body.rol-operario .btn-principal-operario {
     <!-- Filtro (búsqueda + mes + año) — va ARRIBA de todas las gráficas para
          que filtre a todas por igual (días entre eventos, novedades por mes,
          comparativos, tiempos) y también la lista de abajo. -->
-    <div class="card" style="margin-bottom:14px">
+    <div class="card mb-14">
       <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px">
         <input id="novBuscar" placeholder="Buscar por código, título o descripción..." oninput="filtrarNovedadesUI()" style="flex:1;min-width:200px">
         <select id="novFiltroMes" aria-label="Filtrar por mes" onchange="filtrarNovedadesUI()" style="min-width:140px">
@@ -2810,47 +2839,47 @@ body.rol-operario .btn-principal-operario {
     <!-- Gráfica: un punto/barra por cada evento de novedad registrado, mostrando
          cuántos días pasaron desde el evento anterior (los que se vayan
          registrando a futuro aparecen solos, es la misma lista en vivo) -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Días entre Eventos de Novedad</div>
-      <div class="card-body" style="padding:14px"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div><div id="rachaLeyendaEventos" style="margin-top:10px"></div></div>
+    <div class="card mb-16">
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Días entre Eventos de Novedad</div>
+      <div class="card-body relleno-14"><div style="position:relative;height:220px"><canvas id="chartRachaDiasSinNovedades"></canvas></div><div id="rachaLeyendaEventos" style="margin-top:10px"></div></div>
     </div>
 
     <!-- Gráfica de barras: cuántas novedades cayeron en cada mes, para ver en
          qué mes se presentan más. Respeta el filtro de arriba. -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Novedades por Mes</div>
-      <div class="card-body" style="padding:14px"><div style="position:relative;height:240px"><canvas id="chartNovPorMes"></canvas></div><div id="novPorMesResumen" style="margin-top:8px;text-align:center;font-size:12px;color:var(--text3)"></div></div>
+    <div class="card mb-16">
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Novedades por Mes</div>
+      <div class="card-body relleno-14"><div style="position:relative;height:240px"><canvas id="chartNovPorMes"></canvas></div><div id="novPorMesResumen" style="margin-top:8px;text-align:center;font-size:12px;color:var(--text3)"></div></div>
     </div>
 
     <!-- Dashboard: comparativo de informes por tipo -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparativo por Tipo de Informe</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTipoBarras"></canvas></div></div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparativo por Tipo de Informe</div>
+        <div class="card-body relleno-14"><div style="position:relative;height:260px"><canvas id="chartNovTipoBarras"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Porcentaje por Tipo de Informe</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTipoDona"></canvas></div><div id="novLeyendaTipo"></div></div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Porcentaje por Tipo de Informe</div>
+        <div class="card-body relleno-14"><div style="position:relative;height:260px"><canvas id="chartNovTipoDona"></canvas></div><div id="novLeyendaTipo"></div></div>
       </div>
     </div>
 
     <!-- Dashboard de tiempos -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:16px">
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Distribución de Tiempos de Recuperación</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiemposDona"></canvas></div><div id="novLeyendaRangos"></div></div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Distribución de Tiempos de Recuperación</div>
+        <div class="card-body relleno-14"><div style="position:relative;height:260px"><canvas id="chartNovTiemposDona"></canvas></div><div id="novLeyendaRangos"></div></div>
       </div>
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Tiempo de Recuperación por Informe (min)</div>
-        <div class="card-body" style="padding:14px"><div style="position:relative;height:260px"><canvas id="chartNovTiemposBarras"></canvas></div></div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Tiempo de Recuperación por Informe (min)</div>
+        <div class="card-body relleno-14"><div style="position:relative;height:260px"><canvas id="chartNovTiemposBarras"></canvas></div></div>
       </div>
     </div>
 
     <!-- Tiempo de recuperación por informe, separado por TIPO (una mini-gráfica
          por cada tipo que tenga informes en el filtro; se llena por JS). -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación por Tipo de Informe</div>
-      <div class="card-body" style="padding:14px">
+    <div class="card mb-16">
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tiempo de Recuperación por Tipo de Informe</div>
+      <div class="card-body relleno-14">
         <div id="novTiemposPorTipoWrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px"></div>
       </div>
     </div>
@@ -2868,7 +2897,7 @@ body.rol-operario .btn-principal-operario {
           <option value="INF-E">INF-E (histórico)</option>
         </select>
       </div>
-      <div class="card-body" style="padding:0;overflow-x:auto">
+      <div class="card-body desplazable-x">
         <div id="novTablaWrap"></div>
       </div>
     </div>
@@ -2890,7 +2919,7 @@ body.rol-operario .btn-principal-operario {
     <!-- ══════ VISTA: EQUIPOS (la de siempre) ══════ -->
     <div id="histVistaEquipos">
       <!-- Filtros -->
-      <div class="card" style="margin-bottom:14px">
+      <div class="card mb-14">
         <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px">
           <input id="histBuscarEquipo" placeholder="Buscar equipo..." oninput="filtrarListaEquiposHistorico()" style="flex:1;min-width:180px">
           <select id="histFiltroMes" aria-label="Filtrar por mes" onchange="renderHistoricoEquipoSeleccionado()" style="min-width:140px">
@@ -2913,7 +2942,7 @@ body.rol-operario .btn-principal-operario {
       <div class="grid-lista-detalle" style="--lista-w:260px">
         <!-- Lista de equipos -->
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Equipos</div>
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Equipos</div>
           <div class="card-body" style="padding:0;max-height:560px;overflow-y:auto">
             <div id="histListaEquipos"></div>
           </div>
@@ -2921,8 +2950,8 @@ body.rol-operario .btn-principal-operario {
 
         <!-- Órdenes del equipo seleccionado -->
         <div class="card">
-          <div class="card-head" id="histTituloEquipo" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Selecciona un equipo</div>
-          <div class="card-body" style="padding:0;overflow-x:auto">
+          <div class="card-head fila-centrada" id="histTituloEquipo"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Selecciona un equipo</div>
+          <div class="card-body desplazable-x">
             <div id="histTablaOrdenes" style="padding:20px;color:var(--text3);font-size:13px;text-align:center">
               Elige un equipo de la lista para ver su historial de órdenes.
             </div>
@@ -2933,9 +2962,9 @@ body.rol-operario .btn-principal-operario {
 
     <!-- ══════ VISTA: INVENTARIO DE EQUIPOS (nueva) ══════ -->
     <div id="histVistaInventario" style="display:none">
-      <div class="card solo-admin" style="margin-bottom:14px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Equipo <span style="font-weight:400;text-transform:none;opacity:.85">— solo una vez por equipo</span></div>
-        <div class="card-body" style="padding:18px">
+      <div class="card solo-admin mb-14">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Equipo <span style="font-weight:400;text-transform:none;opacity:.85">— solo una vez por equipo</span></div>
+        <div class="card-body relleno-18">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
             <div class="field"><label for="ie_tipo">Tipo de equipo *</label>
               <select id="ie_tipo" onchange="ieActualizarVisibilidadSerial()">
@@ -2943,9 +2972,9 @@ body.rol-operario .btn-principal-operario {
                 <option value="seguridad">Otros equipos</option>
               </select>
             </div>
-            <div class="field"><label for="ie_codificacion">Codificación *</label><input id="ie_codificacion" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Ej: CA1"></div>
-            <div class="field"><label for="ie_equipo">Equipo *</label><input id="ie_equipo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del equipo"></div>
-            <div class="field"><label for="ie_marca">Marca</label><input id="ie_marca" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="field"><label for="ie_codificacion">Codificación *</label><input id="ie_codificacion" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="Ej: CA1"></div>
+            <div class="field"><label for="ie_equipo">Equipo *</label><input id="ie_equipo" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del equipo"></div>
+            <div class="field"><label for="ie_marca">Marca</label><input id="ie_marca" class="mayusculas" oninput="this.value=this.value.toUpperCase()"></div>
             <div class="field"><label for="ie_descripcion">Descripción Específica</label><input id="ie_descripcion" placeholder="Descripción del equipo"></div>
             <div class="field"><label for="ie_ubicacion">Ubicación</label><input id="ie_ubicacion" placeholder="Ej: Sala de compresores primer piso"></div>
             <div class="field" id="ie_serial_wrap" style="display:none"><label for="ie_serial">Serial</label><input id="ie_serial" placeholder="Serial del fabricante"></div>
@@ -2955,9 +2984,9 @@ body.rol-operario .btn-principal-operario {
         </div>
       </div>
 
-      <div class="card solo-admin" style="margin-bottom:14px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Agregar Observación Anual <span style="font-weight:400;text-transform:none;opacity:.85">— sin repetir los datos del equipo</span></div>
-        <div class="card-body" style="padding:18px">
+      <div class="card solo-admin mb-14">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg> Agregar Observación Anual <span style="font-weight:400;text-transform:none;opacity:.85">— sin repetir los datos del equipo</span></div>
+        <div class="card-body relleno-18">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
             <div class="field" style="grid-column:span 2"><label for="ieobs_codificacion">Equipo *</label>
               <select id="ieobs_codificacion"><option value="">Selecciona un equipo ya registrado...</option></select>
@@ -2972,7 +3001,7 @@ body.rol-operario .btn-principal-operario {
 
       <div class="card">
         <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-          <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Equipos Registrados</span>
+          <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Equipos Registrados</span>
           <div style="display:flex;gap:8px;align-items:center">
             <select id="ieFiltroTipo" onchange="ieAplicarFiltros()" style="font-size:12px;padding:4px 8px;min-width:150px">
               <option value="">Todos los tipos</option>
@@ -2985,7 +3014,7 @@ body.rol-operario .btn-principal-operario {
             <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="cargarInventarioEquipos()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto" id="ieTabla">
+        <div class="card-body desplazable-x" id="ieTabla">
           <div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div>
         </div>
       </div>
@@ -3074,9 +3103,9 @@ body.rol-operario .btn-principal-operario {
          (solo Zipaquirá). El historial de "Entregas Registradas" sigue
          al final de todo, ver más abajo. -->
     <div id="cronEntregaTurnoWrap" style="display:none">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
-        <div class="card-body" style="padding:18px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno</div>
+        <div class="card-body relleno-18">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
             <div class="field"><label for="et_fecha">Fecha *</label><input type="date" id="et_fecha"></div>
             <div class="field"><label for="et_turno">Turno *</label><select id="et_turno"></select></div>
@@ -3089,39 +3118,39 @@ body.rol-operario .btn-principal-operario {
             <textarea id="et_novedadesTurno" rows="4" placeholder="Escribe aquí cualquier novedad del turno..."></textarea>
           </div>
           <div id="et_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarEntregaTurno()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
+          <button class="btn btn-primary ancho-total" onclick="guardarEntregaTurno()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
         </div>
       </div>
     </div>
 
 
     <!-- Consultar otro día (solo lectura) -->
-    <div class="card" id="cronConsultaCard" style="margin-bottom:14px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
+    <div class="card mb-14" id="cronConsultaCard">
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Consultar otro día</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="margin:0;min-width:180px">
-          <label for="cronConsultaFecha" style="margin-bottom:4px;display:block">Fecha</label>
-          <input type="date" id="cronConsultaFecha" onchange="consultarCronogramaFecha()" style="margin:0">
+          <label for="cronConsultaFecha" class="etiqueta-bloque">Fecha</label>
+          <input type="date" id="cronConsultaFecha" onchange="consultarCronogramaFecha()" class="sin-margen">
         </div>
       </div>
       <div id="cronogramaConsultaResultado" style="padding:0 18px 14px"></div>
     </div>
 
     <!-- Descargar informe PDF de un rango de fechas -->
-    <div class="card" id="cronInformeCard" style="margin-bottom:14px">
-      <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
+    <div class="card mb-14" id="cronInformeCard">
+      <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Descargar Informe (PDF)</div>
       <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div class="field" style="margin:0;min-width:160px">
-          <label for="cronInformeDesde" style="margin-bottom:4px;display:block">Desde</label>
-          <input type="date" id="cronInformeDesde" style="margin:0">
+        <div class="field campo-filtro-160">
+          <label for="cronInformeDesde" class="etiqueta-bloque">Desde</label>
+          <input type="date" id="cronInformeDesde" class="sin-margen">
         </div>
-        <div class="field" style="margin:0;min-width:160px">
-          <label for="cronInformeHasta" style="margin-bottom:4px;display:block">Hasta</label>
-          <input type="date" id="cronInformeHasta" style="margin:0">
+        <div class="field campo-filtro-160">
+          <label for="cronInformeHasta" class="etiqueta-bloque">Hasta</label>
+          <input type="date" id="cronInformeHasta" class="sin-margen">
         </div>
-        <div class="field" style="margin:0;min-width:160px">
-          <label for="cronInformeTurno" style="margin-bottom:4px;display:block">Turno</label>
-          <select id="cronInformeTurno" style="margin:0">
+        <div class="field campo-filtro-160">
+          <label for="cronInformeTurno" class="etiqueta-bloque">Turno</label>
+          <select id="cronInformeTurno" class="sin-margen">
             <option value="">Todos los turnos</option>
           </select>
         </div>
@@ -3134,15 +3163,15 @@ body.rol-operario .btn-principal-operario {
          junto al formulario (solo Zipaquirá). -->
     <div id="cronEntregasHistorialWrap" style="display:none">
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
         <!-- Por defecto solo las 5 últimas; con el filtro de fechas se ven las
              anteriores. -->
         <div style="padding:12px 16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-          <div class="field" style="margin:0;min-width:150px"><label for="et_filtroDesde" style="margin-bottom:4px;display:block">Desde</label><input type="date" id="et_filtroDesde" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
-          <div class="field" style="margin:0;min-width:150px"><label for="et_filtroHasta" style="margin-bottom:4px;display:block">Hasta</label><input type="date" id="et_filtroHasta" onchange="renderTablaEntregasTurno()" style="margin:0"></div>
+          <div class="field campo-filtro"><label for="et_filtroDesde" class="etiqueta-bloque">Desde</label><input type="date" id="et_filtroDesde" onchange="renderTablaEntregasTurno()" class="sin-margen"></div>
+          <div class="field campo-filtro"><label for="et_filtroHasta" class="etiqueta-bloque">Hasta</label><input type="date" id="et_filtroHasta" onchange="renderTablaEntregasTurno()" class="sin-margen"></div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('et_filtroDesde').value='';document.getElementById('et_filtroHasta').value='';renderTablaEntregasTurno()">Limpiar filtro</button>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="et_tablaWrap"></div>
         </div>
       </div>
@@ -3155,22 +3184,22 @@ body.rol-operario .btn-principal-operario {
          cumplido; si no, cae a "no cumplido". Aplica a cualquier sede que
          tenga Cronograma configurado (no solo Zipaquirá). -->
     <div id="cronSub-dashboard" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:160px">
-            <label for="cronDashDesde" style="margin-bottom:4px;display:block">Desde</label>
-            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
+          <div class="field campo-filtro-160">
+            <label for="cronDashDesde" class="etiqueta-bloque">Desde</label>
+            <input type="date" id="cronDashDesde" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:160px">
-            <label for="cronDashHasta" style="margin-bottom:4px;display:block">Hasta</label>
-            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" style="margin:0">
+          <div class="field campo-filtro-160">
+            <label for="cronDashHasta" class="etiqueta-bloque">Hasta</label>
+            <input type="date" id="cronDashHasta" onchange="renderDashboardCronograma(); if (_conCumplimientoReportes()) _renderTodosCumplimientosReportesTecnicos();" class="sin-margen">
           </div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Actividades por Turno</div>
-        <div class="card-body" style="padding:14px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Cumplimiento de Actividades por Turno</div>
+        <div class="card-body relleno-14">
           <div id="cronDashResumen" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px"></div>
           <div style="position:relative;height:280px"><canvas id="chartCumplimientoTurnos"></canvas></div>
         </div>
@@ -3180,49 +3209,49 @@ body.rol-operario .btn-principal-operario {
            con "cumplimiento" (REPORTES_TECNICOS_POR_SEDE): solo las
            tarjetas de sus reportes, ver inicializarPanelCronograma. -->
       <div id="cronDashReportesWrap" style="display:none">
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Cumplimiento — Reporte Compresores</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Cumplimiento — Reporte Compresores</div>
+          <div class="card-body relleno-14">
             <div id="rc_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRc"></canvas></div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Cumplimiento — Reporte Secadores</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Cumplimiento — Reporte Secadores</div>
+          <div class="card-body relleno-14">
             <div id="rs_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRs"></canvas></div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Cumplimiento — Reporte Drycoolers</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Cumplimiento — Reporte Drycoolers</div>
+          <div class="card-body relleno-14">
             <div id="rd_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRd"></canvas></div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Cumplimiento — Reporte Decorado</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Cumplimiento — Reporte Decorado</div>
+          <div class="card-body relleno-14">
             <div id="rdec_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRdec"></canvas></div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Cumplimiento — Reporte Emergencia</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Cumplimiento — Reporte Emergencia</div>
+          <div class="card-body relleno-14">
             <div id="re_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRe"></canvas></div>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Cumplimiento — Presión Drycooler</div>
-          <div class="card-body" style="padding:14px">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Cumplimiento — Presión Drycooler</div>
+          <div class="card-body relleno-14">
             <div id="rpd_cumpResumen" style="margin-bottom:8px;text-align:center"></div>
             <div style="position:relative;height:200px"><canvas id="chartCumplimientoRpd"></canvas></div>
           </div>
@@ -3236,9 +3265,9 @@ body.rol-operario .btn-principal-operario {
          de cada equipo al entregar el turno, todo con listas desplegables.
          Los campos de los equipos los arma _htmlCamposEntregaSala. -->
     <div id="cronSub-entregasala" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno · Sala de compresores</div>
-        <div class="card-body" style="padding:18px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6M23 11h-6"></path></svg> Entrega de Turno · Sala de compresores</div>
+        <div class="card-body relleno-18">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin-bottom:12px">
             <div class="field"><label for="es_fecha">Fecha del turno *</label><input type="date" id="es_fecha" onchange="this.dataset.manual='1'"></div>
             <div class="field"><label for="es_turno">Turno *</label><select id="es_turno" onchange="this.dataset.manual='1'"></select></div>
@@ -3252,34 +3281,34 @@ body.rol-operario .btn-principal-operario {
             <textarea id="es_novedades" rows="3" placeholder="Cualquier situación adicional que deba saber quien recibe..."></textarea>
           </div>
           <div id="es_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarEntregaTurnoSala()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
+          <button class="btn btn-primary ancho-total" onclick="guardarEntregaTurnoSala()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Entrega de Turno</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="es_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="es_filtroDesde" onchange="renderTablaEntregasSala()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Entregas Registradas</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="es_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="es_filtroDesde" onchange="renderTablaEntregasSala()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="es_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="es_filtroHasta" onchange="renderTablaEntregasSala()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="es_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="es_filtroHasta" onchange="renderTablaEntregasSala()" class="sin-margen">
           </div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('es_filtroDesde').value='';document.getElementById('es_filtroHasta').value='';renderTablaEntregasSala()">Limpiar filtro</button>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="es_tablaWrap"></div>
         </div>
       </div>
     </div><!-- /cronSub-entregasala -->
 
     <div id="cronSub-compresores" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Compresores</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Compresores</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="rc_tecnico">Técnico que realiza el reporte *</label>
               <select id="rc_tecnico" onchange="document.getElementById('rc_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'">
@@ -3315,29 +3344,29 @@ body.rol-operario .btn-principal-operario {
             </div>
           </div>
           <div id="rc_camposMediciones"></div>
-          <div id="rc_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <div id="rc_msg" class="mensaje-error"></div>
           <div id="rc_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-size:13px;font-weight:700"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
-          <button id="rc_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <button id="rc_btnGuardar" class="btn btn-primary ancho-total" onclick="guardarReporteCompresor()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados
           <span id="rc_importarWrap" class="solo-admin" style="display:none;margin-left:auto">
             <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('rc_importarArchivo').click()" title="Agrega las lecturas del Excel exportado de la lista de SharePoint, sin repetir las que ya están">Importar de SharePoint</button>
             <input type="file" id="rc_importarArchivo" accept=".xlsx,.csv" style="display:none" onchange="rcImportarSharePoint(this.files[0]); this.value=''">
           </span></div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rc_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rc_filtroDesde" onchange="renderTablaReportesCompresores()" style="margin:0">
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rc_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rc_filtroDesde" onchange="renderTablaReportesCompresores()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rc_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rc_filtroHasta" onchange="renderTablaReportesCompresores()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rc_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rc_filtroHasta" onchange="renderTablaReportesCompresores()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rc_tablaWrap"></div>
         </div>
       </div>
@@ -3346,10 +3375,10 @@ body.rol-operario .btn-principal-operario {
     <!-- Reporte de Secadores: formulario técnico calcado del formulario
          "Seguimiento secadores" — solo Zipaquirá. -->
     <div id="cronSub-secadores" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte de Secadores</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> Reporte de Secadores</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="rs_tecnico">Técnico que realiza el reporte *</label>
               <select id="rs_tecnico" onchange="document.getElementById('rs_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
@@ -3382,7 +3411,7 @@ body.rol-operario .btn-principal-operario {
                T1-T4, PA, DP). Los Friulair/Emergencia usan un panel
                totalmente distinto — ver rs_bloqueFriulair más abajo. -->
           <div id="rs_bloqueHOC" style="display:none">
-            <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+            <div class="separador-campos">
               <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Torre derecha</div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
                 <div class="field">
@@ -3399,25 +3428,25 @@ body.rol-operario .btn-principal-operario {
 
           <div id="rs_bloqueFriulair"></div>
 
-          <div id="rs_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <div id="rs_msg" class="mensaje-error"></div>
           <div id="rs_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-size:13px;font-weight:700"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
-          <button id="rs_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <button id="rs_btnGuardar" class="btn btn-primary ancho-total" onclick="guardarReporteSecador()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rs_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rs_filtroDesde" onchange="renderTablaReportesSecadores()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rs_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rs_filtroDesde" onchange="renderTablaReportesSecadores()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rs_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rs_filtroHasta" onchange="renderTablaReportesSecadores()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rs_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rs_filtroHasta" onchange="renderTablaReportesSecadores()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rs_tablaWrap"></div>
         </div>
       </div>
@@ -3426,10 +3455,10 @@ body.rol-operario .btn-principal-operario {
     <!-- Reporte de Drycoolers: formulario técnico calcado del formulario
          "Seguimiento Drycoolers" — solo Zipaquirá. -->
     <div id="cronSub-drycoolers" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte de Drycoolers</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Reporte de Drycoolers</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="rd_tecnico">Técnico que realiza el reporte *</label>
               <select id="rd_tecnico" onchange="document.getElementById('rd_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
@@ -3478,25 +3507,25 @@ body.rol-operario .btn-principal-operario {
             <label for="rd_observaciones">Observaciones <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
             <textarea id="rd_observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
           </div>
-          <div id="rd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <div id="rd_msg" class="mensaje-error"></div>
           <div id="rd_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-size:13px;font-weight:700"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
-          <button id="rd_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <button id="rd_btnGuardar" class="btn btn-primary ancho-total" onclick="guardarReporteDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rd_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rd_filtroDesde" onchange="renderTablaReportesDrycoolers()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rd_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rd_filtroDesde" onchange="renderTablaReportesDrycoolers()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rd_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rd_filtroHasta" onchange="renderTablaReportesDrycoolers()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rd_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rd_filtroHasta" onchange="renderTablaReportesDrycoolers()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rd_tablaWrap"></div>
         </div>
       </div>
@@ -3505,10 +3534,10 @@ body.rol-operario .btn-principal-operario {
     <!-- Reporte de Equipos de Decorado: formulario técnico calcado del
          formulario "Seguimiento Equipos de Decorado" — solo Zipaquirá. -->
     <div id="cronSub-decorado" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Equipos de Decorado</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> Reporte de Equipos de Decorado</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="rdec_tecnico">Técnico que realiza el reporte *</label>
               <select id="rdec_tecnico" onchange="document.getElementById('rdec_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
@@ -3534,42 +3563,42 @@ body.rol-operario .btn-principal-operario {
           </div>
           <div id="rdec_camposMediciones"></div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="separador-campos">
             <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Compresor</div>
             <div id="rdec_laboresCompresor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
           </div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="separador-campos">
             <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Secador</div>
             <div id="rdec_laboresSecador" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
           </div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
-            <div class="field" style="margin:0">
+          <div class="separador-campos">
+            <div class="field sin-margen">
               <label for="rdec_observaciones">Observaciones</label>
               <textarea id="rdec_observaciones" rows="2" placeholder="Opcional — cualquier novedad del turno"></textarea>
             </div>
           </div>
 
-          <div id="rdec_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <div id="rdec_msg" class="mensaje-error"></div>
           <div id="rdec_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-size:13px;font-weight:700"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
-          <button id="rdec_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <button id="rdec_btnGuardar" class="btn btn-primary ancho-total" onclick="guardarReporteDecorado()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rdec_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rdec_filtroDesde" onchange="renderTablaReportesDecorado()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rdec_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rdec_filtroDesde" onchange="renderTablaReportesDecorado()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rdec_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rdec_filtroHasta" onchange="renderTablaReportesDecorado()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rdec_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rdec_filtroHasta" onchange="renderTablaReportesDecorado()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rdec_tablaWrap"></div>
         </div>
       </div>
@@ -3578,10 +3607,10 @@ body.rol-operario .btn-principal-operario {
     <!-- Reporte de Equipos de Emergencia: formulario técnico calcado del
          formulario "Seguimiento equipos de emergencia" — solo Zipaquirá. -->
     <div id="cronSub-emergencia" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reporte de Equipos de Emergencia</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Reporte de Equipos de Emergencia</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="re_tecnico">Técnico que realiza el reporte *</label>
               <select id="re_tecnico" onchange="document.getElementById('re_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
@@ -3611,55 +3640,55 @@ body.rol-operario .btn-principal-operario {
           </div>
           <div id="re_camposMediciones"></div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="separador-campos">
             <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Secador <span style="font-weight:400;color:var(--text3);font-size:12px">· opcional</span></div>
             <div id="re_camposSecador" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
           </div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="separador-campos">
             <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Compresor</div>
             <div id="re_laboresCompresor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
           </div>
 
-          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+          <div class="separador-campos">
             <div style="font-weight:700;color:var(--brand);margin-bottom:8px;font-size:13px">Labores realizadas — Secador</div>
             <div id="re_laboresSecador" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px"></div>
           </div>
 
           <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
-            <div class="field" style="margin:0">
+            <div class="field sin-margen">
               <label for="re_insumosUtilizados">Insumos utilizados</label>
               <input id="re_insumosUtilizados" placeholder="Opcional">
             </div>
-            <div class="field" style="margin:0">
+            <div class="field sin-margen">
               <label for="re_observaciones">Observaciones — Compresor</label>
               <input id="re_observaciones" placeholder="Opcional">
             </div>
-            <div class="field" style="margin:0">
+            <div class="field sin-margen">
               <label for="re_observacionesSecador">Observaciones — Secador</label>
               <input id="re_observacionesSecador" placeholder="Opcional">
             </div>
           </div>
 
-          <div id="re_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
+          <div id="re_msg" class="mensaje-error"></div>
           <div id="re_avisoCerrado" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-size:13px;font-weight:700"><svg class="icono-txt" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> La hora de este reporte ya pasó — la sección está cerrada y no se puede guardar.</div>
-          <button id="re_btnGuardar" class="btn btn-primary" style="width:100%" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <button id="re_btnGuardar" class="btn btn-primary ancho-total" onclick="guardarReporteEmergencia()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="re_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="re_filtroDesde" onchange="renderTablaReportesEmergencia()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="re_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="re_filtroDesde" onchange="renderTablaReportesEmergencia()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="re_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="re_filtroHasta" onchange="renderTablaReportesEmergencia()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="re_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="re_filtroHasta" onchange="renderTablaReportesEmergencia()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="re_tablaWrap"></div>
         </div>
       </div>
@@ -3669,10 +3698,10 @@ body.rol-operario .btn-principal-operario {
          (E1–E4, F1–F3), en qué sección, con cuántas cavidades y a qué
          velocidad — solo Zipaquirá. -->
     <div id="cronSub-formacion" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Reporte de Máquinas de Formación</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"></path><path d="M4 20V9l5 3V9l5 3V5h6v15"></path><line x1="17" y1="9" x2="17" y2="9.01"></line></svg> Reporte de Máquinas de Formación</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field">
               <label for="rmf_tecnico">Quien realiza el reporte *</label>
               <select id="rmf_tecnico" onchange="document.getElementById('rmf_tecnicoOtroWrap').style.display=this.value==='Otras'?'':'none'"><option value="">Seleccionar...</option></select>
@@ -3710,24 +3739,24 @@ body.rol-operario .btn-principal-operario {
             <label for="rmf_observaciones">Observaciones</label>
             <input id="rmf_observaciones" placeholder="Opcional">
           </div>
-          <div id="rmf_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReporteMaquinasFormacion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rmf_msg" class="mensaje-error"></div>
+          <button class="btn btn-primary ancho-total" onclick="guardarReporteMaquinasFormacion()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rmf_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rmf_filtroDesde" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rmf_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rmf_filtroDesde" onchange="renderTablaReportesMaquinasFormacion()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rmf_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rmf_filtroHasta" onchange="renderTablaReportesMaquinasFormacion()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rmf_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rmf_filtroHasta" onchange="renderTablaReportesMaquinasFormacion()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rmf_tablaWrap"></div>
         </div>
       </div>
@@ -3736,10 +3765,10 @@ body.rol-operario .btn-principal-operario {
     <!-- Reporte de Presión Drycooler: formulario corto calcado del
          formulario "Presiones y temperatura de Drycooler" — solo Zipaquirá. -->
     <div id="cronSub-presiondrycooler" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presiones y Temperatura de Drycooler</div>
-        <div class="card-body" style="padding:18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:6px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 0-3.5-3.5L4 14.5V19h4.5L18.7 8.7z"></path><path d="M6 18a3 3 0 0 1-3-3"></path></svg> Presiones y Temperatura de Drycooler</div>
+        <div class="card-body relleno-18">
+          <div class="rejilla-campos">
             <div class="field"><label for="rpd_fecha">Fecha *</label><input type="date" id="rpd_fecha"></div>
             <div class="field">
               <label for="rpd_tecnico">Quien realiza el reporte *</label>
@@ -3751,24 +3780,24 @@ body.rol-operario .btn-principal-operario {
             </div>
           </div>
           <div id="rpd_camposMediciones"></div>
-          <div id="rpd_msg" style="font-size:12px;color:var(--danger);margin:10px 0"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarReportePresionDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
+          <div id="rpd_msg" class="mensaje-error"></div>
+          <button class="btn btn-primary ancho-total" onclick="guardarReportePresionDrycooler()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Reporte</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
-        <div class="card-body" style="padding:12px 14px 0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rpd_filtroDesde" style="margin-bottom:4px;display:block;font-size:12px">Desde</label>
-            <input type="date" id="rpd_filtroDesde" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Reportes Registrados</div>
+        <div class="card-body barra-filtros">
+          <div class="field campo-filtro">
+            <label for="rpd_filtroDesde" class="etiqueta-bloque-12">Desde</label>
+            <input type="date" id="rpd_filtroDesde" onchange="renderTablaReportesPresionDrycooler()" class="sin-margen">
           </div>
-          <div class="field" style="margin:0;min-width:150px">
-            <label for="rpd_filtroHasta" style="margin-bottom:4px;display:block;font-size:12px">Hasta</label>
-            <input type="date" id="rpd_filtroHasta" onchange="renderTablaReportesPresionDrycooler()" style="margin:0">
+          <div class="field campo-filtro">
+            <label for="rpd_filtroHasta" class="etiqueta-bloque-12">Hasta</label>
+            <input type="date" id="rpd_filtroHasta" onchange="renderTablaReportesPresionDrycooler()" class="sin-margen">
           </div>
         </div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="rpd_tablaWrap"></div>
         </div>
       </div>
@@ -3778,9 +3807,9 @@ body.rol-operario .btn-principal-operario {
          operario, tipo (Amarilla/Roja) y observación — solo Zipaquirá,
          en su propia pestaña dentro de Cronograma. -->
     <div id="cronSub-observaciones" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</div>
-        <div class="card-body" style="padding:18px">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg> Observaciones</div>
+        <div class="card-body relleno-18">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
             <div class="field"><label for="obs_fecha">Fecha *</label><input type="date" id="obs_fecha"></div>
             <div class="field"><label for="obs_hora">Hora *</label><input type="time" id="obs_hora"></div>
@@ -3799,26 +3828,26 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
           </div>
-          <div class="field" style="margin-bottom:14px">
+          <div class="field mb-14">
             <label for="obs_texto">Observación / llamado de atención *</label>
             <textarea id="obs_texto" rows="3" placeholder="Describe el llamado de atención..."></textarea>
           </div>
           <div id="obs_msg" style="font-size:12px;color:var(--danger);margin-bottom:10px"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="guardarObservacionOperario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Observación</button>
+          <button class="btn btn-primary ancho-total" onclick="guardarObservacionOperario()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Guardar Observación</button>
         </div>
       </div>
 
       <!-- Operarios de planta: la lista que sale en "¿Quién la realizó?" del
            Cronograma y en el formulario de arriba. Vive en la pestaña
            "OperariosPlanta" de la hoja de la sede. -->
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-head">Operarios de planta</div>
         <div class="card-body" style="padding:14px 18px">
           <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Esta lista sale en el Cronograma ("¿Quién la realizó?") y en el formulario de arriba. Quitar a alguien no borra sus registros ni sus observaciones.</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
             <div class="field" style="flex:1;min-width:180px;margin:0">
               <label for="opPlanta_nombre">Agregar operario</label>
-              <input type="text" id="opPlanta_nombre" placeholder="Nombre y apellido" maxlength="60" style="margin:0" onkeydown="if (event.key === 'Enter') agregarOperarioPlanta()">
+              <input type="text" id="opPlanta_nombre" placeholder="Nombre y apellido" maxlength="60" class="sin-margen" onkeydown="if (event.key === 'Enter') agregarOperarioPlanta()">
             </div>
             <button class="btn btn-primary" onclick="agregarOperarioPlanta()">Agregar</button>
           </div>
@@ -3830,11 +3859,11 @@ body.rol-operario .btn-principal-operario {
       <!-- Filtro por mes/año: afecta tanto el conteo por operario como el
            historial de abajo, para ver cuántas lleva cada uno en un
            periodo concreto (por ejemplo, el mes en curso). -->
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:160px">
-            <label for="obs_filtroMes" style="margin-bottom:4px;display:block">Mes</label>
-            <select id="obs_filtroMes" onchange="aplicarFiltroObservaciones()" style="margin:0">
+          <div class="field campo-filtro-160">
+            <label for="obs_filtroMes" class="etiqueta-bloque">Mes</label>
+            <select id="obs_filtroMes" onchange="aplicarFiltroObservaciones()" class="sin-margen">
               <option value="">Todos los meses</option>
               <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
               <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
@@ -3843,24 +3872,24 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field" style="margin:0;min-width:140px">
-            <label for="obs_filtroAnio" style="margin-bottom:4px;display:block">Año</label>
-            <select id="obs_filtroAnio" onchange="aplicarFiltroObservaciones()" style="margin:0">
+            <label for="obs_filtroAnio" class="etiqueta-bloque">Año</label>
+            <select id="obs_filtroAnio" onchange="aplicarFiltroObservaciones()" class="sin-margen">
               <option value="">Todos los años</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-head">Conteo por operario</div>
-        <div class="card-body" style="padding:0;overflow-x:auto" tabindex="0" role="region" aria-label="Conteo por operario">
+        <div class="card-body desplazable-x" tabindex="0" role="region" aria-label="Conteo por operario">
           <div id="obs_conteoWrap"></div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-head">Historial de observaciones</div>
-        <div class="card-body" style="padding:0;overflow-x:auto" tabindex="0" role="region" aria-label="Historial de observaciones">
+        <div class="card-body desplazable-x" tabindex="0" role="region" aria-label="Historial de observaciones">
           <div id="obs_historialWrap"></div>
         </div>
       </div>
@@ -3870,11 +3899,11 @@ body.rol-operario .btn-principal-operario {
          condiciones inseguras reportadas en el cronograma (columna
          CondicionInsegura de CronogramaRegistros), con su texto completo. -->
     <div id="cronSub-condiciones" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-body" style="padding:14px 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-          <div class="field" style="margin:0;min-width:160px">
-            <label for="cond_filtroMes" style="margin-bottom:4px;display:block">Mes</label>
-            <select id="cond_filtroMes" onchange="renderCondicionesInseguras()" style="margin:0">
+          <div class="field campo-filtro-160">
+            <label for="cond_filtroMes" class="etiqueta-bloque">Mes</label>
+            <select id="cond_filtroMes" onchange="renderCondicionesInseguras()" class="sin-margen">
               <option value="">Todos los meses</option>
               <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
               <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
@@ -3883,17 +3912,17 @@ body.rol-operario .btn-principal-operario {
             </select>
           </div>
           <div class="field" style="margin:0;min-width:140px">
-            <label for="cond_filtroAnio" style="margin-bottom:4px;display:block">Año</label>
-            <select id="cond_filtroAnio" onchange="renderCondicionesInseguras()" style="margin:0">
+            <label for="cond_filtroAnio" class="etiqueta-bloque">Año</label>
+            <select id="cond_filtroAnio" onchange="renderCondicionesInseguras()" class="sin-margen">
               <option value="">Todos los años</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones inseguras reportadas</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+      <div class="card mb-16">
+        <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Condiciones inseguras reportadas</div>
+        <div class="card-body desplazable-x">
           <div id="cond_historialWrap"></div>
         </div>
       </div>
@@ -3920,18 +3949,18 @@ body.rol-operario .btn-principal-operario {
          rapidez, solo marcan lo que falta o está mal (el resto se asume
          completo). Guarda un reporte por turno y muestra faltantes. -->
     <div id="cronSub-herramienta" class="inv-subpanel">
-      <div class="card" style="margin-bottom:16px">
+      <div class="card mb-16">
         <div class="card-body" style="padding:16px 18px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:6px">
-            <div class="field" style="margin:0"><label for="invh_fecha">Fecha *</label><input type="date" id="invh_fecha"></div>
-            <div class="field" style="margin:0"><label for="invh_turno">Turno *</label>
+            <div class="field sin-margen"><label for="invh_fecha">Fecha *</label><input type="date" id="invh_fecha"></div>
+            <div class="field sin-margen"><label for="invh_turno">Turno *</label>
               <select id="invh_turno">
                 <option value="Turno 1 (6am-2pm)">Turno 1 (6am-2pm)</option>
                 <option value="Turno 2 (2pm-10pm)">Turno 2 (2pm-10pm)</option>
                 <option value="Turno 3 (10pm-6am)">Turno 3 (10pm-6am)</option>
               </select>
             </div>
-            <div class="field" style="margin:0"><label for="invh_responsable">Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
+            <div class="field sin-margen"><label for="invh_responsable">Responsable</label><input type="text" id="invh_responsable" placeholder="Quien hace el inventario"></div>
           </div>
           <div style="font-size:12px;color:var(--text3);margin-top:4px">Cada herramienta arranca en <strong>“✓ Completa”</strong>. Toca <strong>“✗ Incompleta”</strong> en las que falten o estén mal e indica cuántas faltan.</div>
         </div>
@@ -3952,7 +3981,7 @@ body.rol-operario .btn-principal-operario {
       <!-- Historial -->
       <div class="card" style="margin-bottom:16px;margin-top:8px">
         <div class="card-head">Historial de inventarios por turno</div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
+        <div class="card-body desplazable-x">
           <div id="invh_historialWrap"></div>
         </div>
       </div>
@@ -3995,9 +4024,9 @@ body.rol-operario .btn-principal-operario {
 
       <div id="varSub-compresores" class="inv-subpanel active">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v6H6z"></path><path d="M4 8h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><circle cx="12" cy="14" r="3"></circle></svg> Variables — Compresores</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-compresores" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v6H6z"></path><path d="M4 8h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><circle cx="12" cy="14" r="3"></circle></svg> Variables — Compresores</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-compresores" class="vacio-centrado">
               Todavía no se han definido las variables de Compresores.
             </div>
           </div>
@@ -4005,9 +4034,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-secadores" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"></path><path d="M7 22v-4"></path><path d="M17 22v-4"></path><line x1="8" y1="9" x2="16" y2="9"></line></svg> Variables — Secadores</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-secadores" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"></path><path d="M7 22v-4"></path><path d="M17 22v-4"></path><line x1="8" y1="9" x2="16" y2="9"></line></svg> Variables — Secadores</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-secadores" class="vacio-centrado">
               Todavía no se han definido las variables de Secadores.
             </div>
           </div>
@@ -4015,9 +4044,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-emergencia" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 14h7l-1 8 9-12h-7z"></path></svg> Variables — Compresores Emergencia</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-emergencia" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 14h7l-1 8 9-12h-7z"></path></svg> Variables — Compresores Emergencia</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-emergencia" class="vacio-centrado">
               Todavía no se han definido las variables de Compresores Emergencia.
             </div>
           </div>
@@ -4025,9 +4054,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-decorado" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"></path></svg> Variables — Compresores Decorado</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-decorado" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"></path></svg> Variables — Compresores Decorado</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-decorado" class="vacio-centrado">
               Todavía no se han definido las variables de Compresores Decorado.
             </div>
           </div>
@@ -4035,9 +4064,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-drycoolers" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M5.6 5.6l12.8 12.8"></path><path d="M18.4 5.6L5.6 18.4"></path><circle cx="12" cy="12" r="3"></circle></svg> Variables — Drycoolers</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-drycoolers" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M5.6 5.6l12.8 12.8"></path><path d="M18.4 5.6L5.6 18.4"></path><circle cx="12" cy="12" r="3"></circle></svg> Variables — Drycoolers</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-drycoolers" class="vacio-centrado">
               Todavía no se han definido las variables de Drycoolers.
             </div>
           </div>
@@ -4045,9 +4074,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-auxiliares" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S6.5 9 6.5 13a5.5 5.5 0 0 0 11 0c0-4-5.5-10.3-5.5-10.3z"></path><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"></path></svg> Variables — Auxiliares</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-auxiliares" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S6.5 9 6.5 13a5.5 5.5 0 0 0 11 0c0-4-5.5-10.3-5.5-10.3z"></path><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"></path></svg> Variables — Auxiliares</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-auxiliares" class="vacio-centrado">
               Todavía no se han definido las variables auxiliares.
             </div>
           </div>
@@ -4055,9 +4084,9 @@ body.rol-operario .btn-principal-operario {
       </div>
       <div id="varSub-entregasala" class="inv-subpanel">
         <div class="card">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"></path><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"></path><polyline points="8 16 11 12 13 14 16 10"></polyline></svg> Variables — Entrega de Turno</div>
-          <div class="card-body" style="padding:18px">
-            <div id="varContenido-entregasala" style="color:var(--text3);font-size:13px;text-align:center;padding:26px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"></path><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"></path><polyline points="8 16 11 12 13 14 16 10"></polyline></svg> Variables — Entrega de Turno</div>
+          <div class="card-body relleno-18">
+            <div id="varContenido-entregasala" class="vacio-centrado">
               Todavía no hay entregas de turno para graficar.
             </div>
           </div>
@@ -4112,45 +4141,45 @@ body.rol-operario .btn-principal-operario {
           </div>
         </div>
         <div class="grid-2-desigual" style="gap:16px">
-          <div class="card" style="margin:0">
-            <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Actividad Reciente <span style="font-weight:400;text-transform:none;opacity:.8">· últimos 10 movimientos</span></div>
+          <div class="card sin-margen">
+            <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Actividad Reciente <span style="font-weight:400;text-transform:none;opacity:.8">· últimos 10 movimientos</span></div>
             <div style="padding:0;overflow-x:auto;max-height:320px" id="invActividadReciente"><div style="padding:14px;color:var(--text3);font-size:13px">Cargando…</div></div>
           </div>
-          <div class="card" style="margin:0">
-            <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Destino de Repuestos</div>
-            <div style="padding:14px" id="invDestinoChart"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="card sin-margen">
+            <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Destino de Repuestos</div>
+            <div class="relleno-14" id="invDestinoChart"><div class="texto-tenue">Cargando…</div></div>
           </div>
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Equipos — Consumo</div>
-          <div style="padding:14px" id="invEquiposChart"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Equipos — Consumo</div>
+          <div class="relleno-14" id="invEquiposChart"><div class="texto-tenue">Cargando…</div></div>
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Alertas de Stock</div>
-          <div style="padding:14px" id="invAlertas"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Alertas de Stock</div>
+          <div class="relleno-14" id="invAlertas"><div class="texto-tenue">Cargando…</div></div>
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Comprometido en Órdenes Abiertas <span style="font-weight:400;text-transform:none;opacity:.8">· se descuenta al cerrar cada orden</span></div>
-          <div style="padding:14px;overflow-x:auto" id="invComprometidos"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Comprometido en Órdenes Abiertas <span style="font-weight:400;text-transform:none;opacity:.8">· se descuenta al cerrar cada orden</span></div>
+          <div style="padding:14px;overflow-x:auto" id="invComprometidos"><div class="texto-tenue">Cargando…</div></div>
         </div>
 
       </div>
 
       <!-- ── Sub-panel: Nuevo Producto ── -->
       <div id="invSub-producto" class="inv-subpanel">
-        <div class="card" style="margin:0">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Producto Nuevo</div>
-          <div style="padding:18px">
+        <div class="card sin-margen">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Registrar Producto Nuevo</div>
+          <div class="relleno-18">
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text2);display:flex;align-items:flex-start;gap:6px">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
               <span>El precio ya no se pone aquí — se ingresa en <strong>"Movimientos"</strong> cada vez que registres una entrada, porque el mismo producto puede comprarse a precios distintos según la fecha.</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label for="invp_codigo">Código Siesa *</label><input id="invp_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
-              <div class="field"><label for="invp_nombre">Nombre *</label><input id="invp_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del producto"></div>
+              <div class="field"><label for="invp_codigo">Código Siesa *</label><input id="invp_codigo" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
+              <div class="field"><label for="invp_nombre">Nombre *</label><input id="invp_nombre" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del producto"></div>
               <div class="field"><label for="invp_unidad">Unidad</label>
                 <select id="invp_unidad">
                   <option value="Unidades" selected>Unidades</option>
@@ -4196,11 +4225,11 @@ body.rol-operario .btn-principal-operario {
 
       <!-- ── Sub-panel: Movimientos ── -->
       <div id="invSub-movimiento" class="inv-subpanel">
-        <div class="card" style="margin:0">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Nuevo Movimiento</div>
-          <div style="padding:18px">
+        <div class="card sin-margen">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Nuevo Movimiento</div>
+          <div class="relleno-18">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label for="invm_codigo">Código Siesa *</label><input id="invm_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
+              <div class="field"><label for="invm_codigo">Código Siesa *</label><input id="invm_codigo" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="REP-001"></div>
               <div class="field"><label for="invm_fecha">Fecha *</label><input id="invm_fecha" type="date"></div>
               <div class="field"><label for="invm_tipo">Tipo *</label>
                 <select id="invm_tipo" onchange="invHandleTipoChange()">
@@ -4248,11 +4277,11 @@ body.rol-operario .btn-principal-operario {
       <!-- ── Sub-panel: Servicios ── -->
       <div id="invSub-servicios" class="inv-subpanel">
         <div class="card solo-admin" style="margin:0 0 16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Nuevo Servicio</div>
-          <div style="padding:18px">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Nuevo Servicio</div>
+          <div class="relleno-18">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-              <div class="field"><label for="invs_codigo">Código *</label><input id="invs_codigo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="SERV-001"></div>
-              <div class="field"><label for="invs_nombre">Nombre *</label><input id="invs_nombre" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del servicio"></div>
+              <div class="field"><label for="invs_codigo">Código *</label><input id="invs_codigo" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="SERV-001"></div>
+              <div class="field"><label for="invs_nombre">Nombre *</label><input id="invs_nombre" class="mayusculas" oninput="this.value=this.value.toUpperCase()" placeholder="Nombre del servicio"></div>
               <div class="field"><label for="invs_precio">Precio</label><input id="invs_precio" type="number" min="0" step="0.01" placeholder="0.00"></div>
               <div class="field"><label for="invs_fecha">Fecha</label><input id="invs_fecha" type="date"></div>
               <div class="field"><label for="invs_proveedor">Proveedor</label><select id="invs_proveedor"><option value="">Selecciona un proveedor...</option></select></div>
@@ -4266,9 +4295,9 @@ body.rol-operario .btn-principal-operario {
             <div id="invsMsg" style="margin-top:10px;font-size:13px"></div>
           </div>
         </div>
-        <div class="card" style="margin:0">
+        <div class="card sin-margen">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Servicios Registrados</span>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Servicios Registrados</span>
           </div>
           <div style="padding:14px 18px 0">
             <input id="invsBuscar" placeholder="Buscar por código o nombre…" oninput="invFiltrarServicios()" style="max-width:320px">
@@ -4279,10 +4308,10 @@ body.rol-operario .btn-principal-operario {
 
       <!-- ── Sub-panel: Stock ── -->
       <div id="invSub-stock" class="inv-subpanel">
-        <div class="card" style="margin:0">
+        <div class="card sin-margen">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Stock Actual</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="invCargarStock()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Stock Actual</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="invCargarStock()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
           <div style="padding:14px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
             <div class="field" style="flex:1;min-width:180px">
@@ -4301,7 +4330,7 @@ body.rol-operario .btn-principal-operario {
               </select>
             </div>
           </div>
-          <div style="padding:0;overflow-x:auto" id="invStockTabla"><div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="desplazable-x" id="invStockTabla"><div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
       </div>
 
@@ -4309,8 +4338,8 @@ body.rol-operario .btn-principal-operario {
       <div id="invSub-lotes" class="inv-subpanel">
         <div class="grid-lista-detalle" style="--lista-w:280px">
           <!-- Selector de producto -->
-          <div class="card" style="margin:0">
-            <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Productos y Servicios</div>
+          <div class="card sin-margen">
+            <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Productos y Servicios</div>
             <div style="padding:10px 14px 0">
               <input id="lotesBuscarProducto" placeholder="Buscar código o nombre…" oninput="invFiltrarListaLotes()" style="margin-bottom:10px">
             </div>
@@ -4331,9 +4360,9 @@ body.rol-operario .btn-principal-operario {
 
       <!-- ── Sub-panel: Reportes ── -->
       <div id="invSub-reportes" class="inv-subpanel">
-        <div class="card" style="margin:0">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Historial de Movimientos</div>
-          <div style="padding:18px">
+        <div class="card sin-margen">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> Historial de Movimientos</div>
+          <div class="relleno-18">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:14px">
               <div class="field"><label for="invr_desde">Desde</label><input id="invr_desde" type="date"></div>
               <div class="field"><label for="invr_hasta">Hasta</label><input id="invr_hasta" type="date"></div>
@@ -4353,16 +4382,16 @@ body.rol-operario .btn-principal-operario {
              dejaba tomar el candado del inventario). Solo admin. -->
         <div class="card solo-admin" style="margin:16px 0 0">
           <div class="card-head">Descuentos pendientes por cierre de órdenes</div>
-          <div style="padding:18px">
+          <div class="relleno-18">
             <p style="font-size:13px;color:var(--text2);margin:0 0 12px;line-height:1.5">
               Busca órdenes cerradas cuyos repuestos o insumos no quedaron descontados del inventario
               y te deja registrar esas salidas. Revisa la lista antes de registrar: solo se descuenta lo que marques.
             </p>
             <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
-              <div class="field" style="margin:0"><label for="invdp_desde">Cerradas desde</label><input id="invdp_desde" type="date"></div>
+              <div class="field sin-margen"><label for="invdp_desde">Cerradas desde</label><input id="invdp_desde" type="date"></div>
               <button class="btn btn-primary" onclick="invRevisarDescuentosPendientes()">Revisar</button>
             </div>
-            <div id="invdp_resultado" style="overflow-x:auto"></div>
+            <div id="invdp_resultado" class="desplazable"></div>
           </div>
         </div>
       </div>
@@ -4370,8 +4399,8 @@ body.rol-operario .btn-principal-operario {
       <!-- ── Sub-panel: Proveedores ── -->
       <div id="invSub-proveedores" class="inv-subpanel">
         <div class="card solo-admin" style="margin:0 0 14px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> Registrar Proveedor</div>
-          <div style="padding:18px">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> Registrar Proveedor</div>
+          <div class="relleno-18">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
               <div class="field"><label for="prov_nombre">Nombre Proveedor *</label><input id="prov_nombre" placeholder="Nombre de la empresa o persona"></div>
               <div class="field"><label for="prov_contacto">Número de Contacto</label><input id="prov_contacto" placeholder="Ej: 300 123 4567"></div>
@@ -4390,9 +4419,9 @@ body.rol-operario .btn-principal-operario {
             <div id="provMsg" style="margin-top:10px;font-size:13px"></div>
           </div>
         </div>
-        <div class="card" style="margin:0">
+        <div class="card sin-margen">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Proveedores Registrados</span>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Proveedores Registrados</span>
             <div style="display:flex;gap:8px;align-items:center">
               <select id="provFiltroTipo" onchange="invFiltrarProveedores()" style="font-size:12px;padding:4px 8px;min-width:130px">
                 <option value="">Todos los tipos</option>
@@ -4400,10 +4429,10 @@ body.rol-operario .btn-principal-operario {
                 <option value="Repuesto">Repuesto</option>
                 <option value="Servicio">Servicio</option>
               </select>
-              <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="invCargarProveedores()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="invCargarProveedores()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
             </div>
           </div>
-          <div style="padding:0;overflow-x:auto" id="provTabla"><div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="desplazable-x" id="provTabla"><div style="padding:16px;color:var(--text3);font-size:13px">Cargando…</div></div>
         </div>
       </div>
 
@@ -4432,17 +4461,17 @@ body.rol-operario .btn-principal-operario {
       <div id="empSub-recepcion" class="inv-subpanel active">
         <div class="grid-lista-detalle" style="--lista-w:280px">
           <div class="card" style="overflow:hidden"><div id="empListaEquipos"></div></div>
-          <div class="card" id="empFichaCard"><div class="card-body" id="empFicha" style="padding:18px"></div></div>
+          <div class="card" id="empFichaCard"><div class="card-body relleno-18" id="empFicha"></div></div>
         </div>
       </div>
 
       <div id="empSub-hallazgos" class="inv-subpanel">
-        <div class="card" style="margin-bottom:14px">
+        <div class="card mb-14">
           <div class="card-head">Registrar un hallazgo</div>
           <div class="card-body" style="padding:16px 18px">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-              <div class="field" style="margin:0"><label for="emph_equipo">Equipo</label><select id="emph_equipo"></select></div>
-              <div class="field" style="margin:0"><label for="emph_prioridad">Prioridad</label><select id="emph_prioridad"><option value="Alta">Alta</option><option value="Media" selected>Media</option><option value="Baja">Baja</option></select></div>
+              <div class="field sin-margen"><label for="emph_equipo">Equipo</label><select id="emph_equipo"></select></div>
+              <div class="field sin-margen"><label for="emph_prioridad">Prioridad</label><select id="emph_prioridad"><option value="Alta">Alta</option><option value="Media" selected>Media</option><option value="Baja">Baja</option></select></div>
               <div class="field" style="margin:0;grid-column:1/-1"><label for="emph_descripcion">Qué se encontró</label><textarea id="emph_descripcion" rows="3" placeholder="Ej: fuga de aceite en el enfriador, válvula de alivio sin certificar, falta guarda en el acople"></textarea></div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
@@ -4462,12 +4491,12 @@ body.rol-operario .btn-principal-operario {
               <option value="">Todos</option>
             </select>
           </div>
-          <div class="card-body" style="padding:0;overflow-x:auto" id="empHallazgosLista"></div>
+          <div class="card-body desplazable-x" id="empHallazgosLista"></div>
         </div>
       </div>
 
       <div id="empSub-repuestos" class="inv-subpanel">
-        <div class="card" style="margin-bottom:14px">
+        <div class="card mb-14">
           <div class="card-head">Repuestos de cada equipo</div>
           <div class="card-body" style="padding:16px 18px">
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px;max-width:75ch">Son los mismos repuestos de la Hoja de Vida del equipo. Marca los críticos y si hay en bodega o hay que comprarlos: con eso se arma la lista de compras de abajo.</div>
@@ -4484,12 +4513,12 @@ body.rol-operario .btn-principal-operario {
               <option value="">Todos los repuestos</option>
             </select>
           </div>
-          <div class="card-body" style="padding:0;overflow-x:auto" id="emprConsolidado"></div>
+          <div class="card-body desplazable-x" id="emprConsolidado"></div>
         </div>
       </div>
 
       <div id="empSub-bodega" class="inv-subpanel">
-        <div class="card" style="margin-bottom:14px">
+        <div class="card mb-14">
           <div class="card-head">Conteo inicial de bodega</div>
           <div class="card-body" style="padding:16px 18px">
             <div style="font-size:13px;color:var(--text2);margin-bottom:12px;max-width:75ch">Lo que se encontró en el almacén al recibir. Entra al Inventario de la sede como ingreso de "Inventario inicial": los productos que no existan se crean solos. Si no sabes el precio, déjalo vacío.</div>
@@ -4501,7 +4530,7 @@ body.rol-operario .btn-principal-operario {
                 <button class="btn btn-ghost" style="margin-top:8px" onclick="empPegarBodega()">Pasar a la tabla</button>
               </div>
             </details>
-            <div style="overflow-x:auto">
+            <div class="desplazable">
               <table class="dyn-table emp-tabla-editor">
                 <thead><tr><th>Código</th><th>Nombre</th><th style="width:90px">Cantidad</th><th style="width:120px">Unidad</th><th style="width:130px">Precio unitario</th><th>Ubicación</th><th style="width:130px">Tipo</th><th></th></tr></thead>
                 <tbody id="empb_tbody"></tbody>
@@ -4516,7 +4545,7 @@ body.rol-operario .btn-principal-operario {
         </div>
         <div class="card">
           <div class="card-head">Ya cargado en el inventario</div>
-          <div class="card-body" style="padding:0;overflow-x:auto" id="empbCargado"></div>
+          <div class="card-body desplazable-x" id="empbCargado"></div>
         </div>
       </div>
     </div>
@@ -4543,14 +4572,14 @@ body.rol-operario .btn-principal-operario {
 
       <div id="pmSub-registro" class="inv-subpanel active">
 
-      <div class="card" style="margin-bottom:14px">
+      <div class="card mb-14">
         <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Operación de Equipos</span>
-          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderRegistroHoras()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+          <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Operación de Equipos</span>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderRegistroHoras()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
         </div>
-        <div class="pm-programa" style="font-size:12px;color:var(--text3);padding:12px 18px 0">Horas actuales de cada equipo. Se alimentan solas con cada reporte del Cronograma que traiga horómetro, y de ahí salen las barras del cronograma de mantenimiento y las órdenes automáticas Trimestral/Semestral/Anual. No se editan a mano: una hora tecleada de más generaría una orden que no toca, o taparía una que sí.</div>
-        <div class="pm-sin-programa" id="pmRegistroAyudaSinPrograma" style="font-size:12px;color:var(--text3);padding:12px 18px 0"></div>
-        <div class="card-body" style="padding:18px" id="pmRegistroHorasContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+        <div class="pm-programa ayuda-tarjeta">Horas actuales de cada equipo. Se alimentan solas con cada reporte del Cronograma que traiga horómetro, y de ahí salen las barras del cronograma de mantenimiento y las órdenes automáticas Trimestral/Semestral/Anual. No se editan a mano: una hora tecleada de más generaría una orden que no toca, o taparía una que sí.</div>
+        <div class="pm-sin-programa ayuda-tarjeta" id="pmRegistroAyudaSinPrograma"></div>
+        <div class="card-body relleno-18" id="pmRegistroHorasContenido"><div class="texto-tenue">Cargando…</div></div>
       </div>
 
       </div><!-- /pmSub-registro -->
@@ -4558,76 +4587,76 @@ body.rol-operario .btn-principal-operario {
       <div id="pmSub-horas" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderHorasMantenimiento()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Horas de Mantenimiento</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderHorasMantenimiento()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Progreso de cada equipo hacia su próximo mantenimiento por horas de operación (ver "Registro" → Horas de Operación de Equipos y planes con Tipo de Frecuencia "Por horas"). Se alimenta de las horas registradas para cada equipo — hoy manual, y en el futuro directo desde tu formulario de operarios.</div>
-          <div class="card-body" style="padding:18px" id="pmHorasContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="ayuda-tarjeta">Progreso de cada equipo hacia su próximo mantenimiento por horas de operación (ver "Registro" → Horas de Operación de Equipos y planes con Tipo de Frecuencia "Por horas"). Se alimenta de las horas registradas para cada equipo — hoy manual, y en el futuro directo desde tu formulario de operarios.</div>
+          <div class="card-body relleno-18" id="pmHorasContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
 
       <div id="pmSub-programa2026" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa de Mantenimiento <span class="pm-programa-anio">2026</span></span></span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderPrograma2026()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> <span>Programa de Mantenimiento <span class="pm-programa-anio">2026</span></span></span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderPrograma2026()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica completa del Programa de Mantenimiento <span class="pm-programa-anio">2026</span> real de <span class="pm-programa-sede">Zipaquirá</span>: cada actividad por equipo, con su documento/registro, frecuencia y los meses en que está programada.</div>
-          <div class="card-body" style="padding:18px" id="pmPrograma2026Contenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="ayuda-tarjeta">Réplica completa del Programa de Mantenimiento <span class="pm-programa-anio">2026</span> real de <span class="pm-programa-sede">Zipaquirá</span>: cada actividad por equipo, con su documento/registro, frecuencia y los meses en que está programada.</div>
+          <div class="card-body relleno-18" id="pmPrograma2026Contenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
 
       <div id="pmSub-informetrimestral" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Cada Trimestral</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeTrimestral()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="13" y1="16" x2="15" y2="16"></line><line x1="9" y1="16" x2="11" y2="16"></line></svg> Informe Cada Trimestral</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeTrimestral()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica del formulario de inspección "Informe Cada Trimestral": estas 8 actividades se revisan cada 2.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 2.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
-          <div class="card-body" style="padding:18px" id="pmInformeTrimestralContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="ayuda-tarjeta">Réplica del formulario de inspección "Informe Cada Trimestral": estas 8 actividades se revisan cada 2.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 2.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
+          <div class="card-body relleno-18" id="pmInformeTrimestralContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
 
       <div id="pmSub-informesemestral" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Cada Semestral</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeSemestral()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg> Informe Cada Semestral</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeSemestral()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica del formulario de inspección "Informe Cada Semestral": estas 10 actividades se revisan cada 4.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 4.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
-          <div class="card-body" style="padding:18px" id="pmInformeSemestralContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="ayuda-tarjeta">Réplica del formulario de inspección "Informe Cada Semestral": estas 10 actividades se revisan cada 4.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 4.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
+          <div class="card-body relleno-18" id="pmInformeSemestralContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
 
       <div id="pmSub-informeanual" class="inv-subpanel">
         <div class="card">
           <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Cada Anual</span>
-            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeAnual()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
+            <span class="fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path><rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg> Informe Cada Anual</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pmRenderInformeAnual()"><svg class="nav-icon icono-14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Actualizar</button>
           </div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">Réplica del formulario de inspección "Informe Cada Anual": estas 21 actividades se revisan cada 8.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 8.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
-          <div class="card-body" style="padding:18px" id="pmInformeAnualContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="ayuda-tarjeta">Réplica del formulario de inspección "Informe Cada Anual": estas 21 actividades se revisan cada 8.000 horas de operación. El sistema genera solo, automáticamente, UNA orden con las tareas cada vez que un equipo llega a un múltiplo de 8.000 horas — no requiere importar ni registrar nada manualmente. Usa el filtro "Tipo de equipo" para ver Compresores, Secadores, Dry Coolers o Compresores de Tornillo.</div>
+          <div class="card-body relleno-18" id="pmInformeAnualContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
       <div id="pmSub-configinformes" class="inv-subpanel">
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Hora base de cada equipo</div>
-          <div class="pm-programa" style="font-size:12px;color:var(--text3);padding:12px 18px 0">
+        <div class="card mb-16">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> Hora base de cada equipo</div>
+          <div class="pm-programa ayuda-tarjeta">
             Desde qué horómetro empieza a contar el sistema para generar órdenes automáticas.
             Un equipo que ya llevaba miles de horas antes de entrar al sistema necesita su hora base,
             o se le generarían órdenes de mantenimientos que ya se hicieron. Déjala vacía o en 0 para contar desde cero.
           </div>
-          <div class="pm-sin-programa" id="pmHoraBaseAyudaSinPrograma" style="font-size:12px;color:var(--text3);padding:12px 18px 0"></div>
-          <div class="card-body" style="padding:18px" id="pmHoraBaseContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="pm-sin-programa ayuda-tarjeta" id="pmHoraBaseAyudaSinPrograma"></div>
+          <div class="card-body relleno-18" id="pmHoraBaseContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
 
         <div class="card pm-programa">
-          <div class="card-head" style="display:flex;align-items:center;gap:8px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Actividades de cada informe</div>
-          <div style="font-size:12px;color:var(--text3);padding:12px 18px 0">
+          <div class="card-head fila-centrada"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Actividades de cada informe</div>
+          <div class="ayuda-tarjeta">
             Las tareas que se escriben automáticamente en la orden. Elige la frecuencia y el tipo de equipo.
             Si no configuras ninguna para una combinación, se usa el checklist que ya trae el sistema.
           </div>
-          <div class="card-body" style="padding:18px" id="pmActividadesContenido"><div style="color:var(--text3);font-size:13px">Cargando…</div></div>
+          <div class="card-body relleno-18" id="pmActividadesContenido"><div class="texto-tenue">Cargando…</div></div>
         </div>
       </div>
 
@@ -4771,7 +4800,7 @@ body.rol-operario .btn-principal-operario {
             <h2>Calendario de pagos</h2>
             <p>Un desembolso por fecha, con su acumulado y los días transcurridos.</p>
           </div>
-          <div class="proy-panel" style="overflow-x:auto">
+          <div class="proy-panel desplazable">
             <table class="proy-table" id="proyTablaPagos">
               <thead><tr>
                 <th>#</th><th>Fecha</th><th class="num">Monto del pago</th>
@@ -4789,7 +4818,7 @@ body.rol-operario .btn-principal-operario {
           </div>
           <div class="proy-panel">
             <div style="padding:0 0 12px"><button class="proy-btn" onclick="proyNuevoPago()">+ Agregar línea de pago</button></div>
-            <div style="overflow-x:auto">
+            <div class="desplazable">
               <table class="proy-table" id="proyTablaPagosEdit">
                 <thead><tr>
                   <th>Fecha</th><th>Alcance</th><th class="num">Monto</th>
@@ -4888,7 +4917,7 @@ body.rol-operario .btn-principal-operario {
             <h2>Semáforo por alcance</h2>
             <p>Real contra programado a la fecha, con el valor y las horas ya ganadas.</p>
           </div>
-          <div class="proy-panel" style="overflow-x:auto">
+          <div class="proy-panel desplazable">
             <table class="proy-table" id="proyTablaSemaforo">
               <thead><tr>
                 <th>Alcance</th><th class="num">% Real</th><th class="num">% Programado</th>
@@ -4914,7 +4943,7 @@ body.rol-operario .btn-principal-operario {
               </div>
               <button class="proy-btn" id="proyBtnGuardarAvances" onclick="proyGuardarAvances()">Guardar avances del corte</button>
             </div>
-            <div style="overflow-x:auto">
+            <div class="desplazable">
               <table class="proy-table" id="proyTablaCaptura">
                 <thead><tr>
                   <th>Alcance</th><th class="num">% anterior</th><th style="width:130px">% de este corte</th>
@@ -4931,7 +4960,7 @@ body.rol-operario .btn-principal-operario {
             <h2>Historial de cortes</h2>
             <p>Todo lo digitado, corte por corte. Se puede corregir o borrar una fila.</p>
           </div>
-          <div class="proy-panel" style="overflow-x:auto">
+          <div class="proy-panel desplazable">
             <table class="proy-table" id="proyTablaAvances">
               <thead><tr>
                 <th>Fecha de corte</th><th>Alcance</th><th style="width:110px">% Completado</th>
@@ -4964,7 +4993,7 @@ body.rol-operario .btn-principal-operario {
               en cero: llénalas en la tabla de abajo y el avance físico pasa a ponderarse por horas. Los avances de obra
               no se cargan — esos se digitan cada viernes.
             </div>
-            <div style="overflow-x:auto">
+            <div class="desplazable">
               <table class="proy-table" id="proyTablaProyectos">
                 <thead><tr><th>Código</th><th>Nombre</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="proyTablaProyectosBody"></tbody>
@@ -4982,7 +5011,7 @@ body.rol-operario .btn-principal-operario {
             <div style="padding:0 0 12px;display:flex;gap:8px;flex-wrap:wrap">
               <button class="proy-btn" onclick="proyNuevoAlcance()">+ Agregar alcance</button>
             </div>
-            <div style="overflow-x:auto">
+            <div class="desplazable">
               <table class="proy-table" id="proyTablaAlcances">
                 <thead><tr>
                   <th>#</th><th>Alcance</th><th class="num">Valor de contrato</th><th class="num">Horas programadas</th>

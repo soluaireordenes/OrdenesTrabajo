@@ -97,6 +97,26 @@ for (const m of html.matchAll(/\son[a-z]+\s*=\s*(["'])([\s\S]*?)\1/g)) {
   }
 }
 
+// Estilos escritos a mano en el HTML fijo (auditoría V-03): los patrones que
+// ya tienen su clase en el CSS ("Clases de uso frecuente") no se vuelven a
+// escribir a mano; se usa la clase.
+const clasesFrecuentes = {};
+const bloqueClases = (html.match(/Clases de uso frecuente[\s\S]*?\*\/([\s\S]*?)\/\* ──/) || [])[1] || '';
+for (const m of bloqueClases.matchAll(/(?:^|,\s*)\.([\w-]+)(?:\s*,[^{]*)?\s*\{([^}]*)\}/gm)) {
+  clasesFrecuentes[m[2].replace(/\s+/g, '').replace(/;$/, '')] = m[1];
+}
+let htmlFijo = html;
+htmlFijo = htmlFijo.replace(/<script>[\s\S]*?<\/script>/g, s => s.replace(/[^\n]/g, ' '));
+for (const m of htmlFijo.matchAll(/\sstyle="([^"]*)"/g)) {
+  const clase = clasesFrecuentes[m[1].replace(/\s+/g, '')];
+  if (!clase) continue;
+  const linea = htmlFijo.slice(0, m.index).split('\n').length;
+  mensajes.push({ archivo: 'index.html', line: linea, severity: 2, ruleId: 'estilo-repetido', message: `style="${m[1]}" ya tiene su clase: usa class="${clase}"` });
+}
+if (Object.keys(clasesFrecuentes).length < 20) {
+  mensajes.push({ archivo: 'index.html', line: 1, severity: 2, ruleId: 'estilo-repetido', message: 'No se encontró el bloque "Clases de uso frecuente" del CSS' });
+}
+
 const errores = mensajes.filter(m => m.severity === 2 || m.fatal);
 const avisos = mensajes.filter(m => !(m.severity === 2 || m.fatal));
 const linea = m => `${m.archivo}:${m.line}  ${m.message}${m.ruleId ? ' (' + m.ruleId + ')' : ''}`;
