@@ -8690,13 +8690,13 @@ function _ejecutarBusquedaGlobal(qRaw) {
     });
   });
 
-  if (!res.length) { cont.innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Sin resultados para "' + esc(qRaw) + '".</div>'; return; }
+  if (!res.length) { cont.innerHTML = html`<div style="padding:18px;color:var(--text3);font-size:13px">Sin resultados para "${qRaw}".</div>`; return; }
   const top = res.slice(0, 40);
-  cont.innerHTML = top.map(r => `
-    <button class="buscar-item" data-tipo="${r.tipo}" data-valor="${esc(String(r.valor))}" onclick="_clicResultadoBusqueda(this.dataset.tipo, this.dataset.valor)">
+  cont.innerHTML = html`${top.map(r => html`
+    <button class="buscar-item" data-tipo="${r.tipo}" data-valor="${String(r.valor)}" onclick="_clicResultadoBusqueda(this.dataset.tipo, this.dataset.valor)">
       <span class="buscar-chip" style="background:${r.color}1a;color:${r.color}">${r.chip}</span>
-      <span style="min-width:0"><span style="font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.titulo)}</span>${r.sub ? `<span style="color:var(--text3);font-size:12px">${esc(r.sub)}</span>` : ''}</span>
-    </button>`).join('') + (res.length > top.length ? `<div style="padding:10px 14px;color:var(--text3);font-size:12px">Mostrando ${top.length} de ${res.length}. Escribe más para afinar.</div>` : '');
+      <span style="min-width:0"><span style="font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.titulo}</span>${r.sub ? html`<span style="color:var(--text3);font-size:12px">${r.sub}</span>` : ''}</span>
+    </button>`)}${res.length > top.length ? html`<div style="padding:10px 14px;color:var(--text3);font-size:12px">Mostrando ${top.length} de ${res.length}. Escribe más para afinar.</div>` : ''}`;
 }
 
 function _clicResultadoBusqueda(tipo, valor) {
@@ -9705,10 +9705,10 @@ function _scopearCss(css, scope) {
  *  iframe: los celulares imprimen el iframe recortado a lo que se ve) y la
  *  impresión se dispara desde el toque del usuario, que es lo único que los
  *  navegadores de celular respetan siempre. */
-function _mostrarDocumentoEnVisor(html) {
-  const titulo = (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || 'Documento';
-  const cssDoc = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
-  const cuerpo = ((html.match(/<body[^>]*>([\s\S]*)<\/body>/i) || [null, html])[1] || '')
+function _mostrarDocumentoEnVisor(htmlTexto) {
+  const titulo = (htmlTexto.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || 'Documento';
+  const cssDoc = [...htmlTexto.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
+  const cuerpo = ((htmlTexto.match(/<body[^>]*>([\s\S]*)<\/body>/i) || [null, htmlTexto])[1] || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '');
 
   const overlay = document.createElement('div');
@@ -9756,21 +9756,21 @@ const CSS_PALETA_PAPEL = 'body{--brand:#02457A;--brand-dark:#001848;--brand-ligh
   + '--estado-ok-bg:#e6f4ea;--estado-ok-tx:#137638;--estado-alerta-bg:#fff4e0;--estado-alerta-tx:#b45309;'
   + '--estado-peligro-bg:#fde8e8;--estado-peligro-tx:#b91c1c;--nota-bg:#fffbea;--nota-borde:#d4a72c;--nota-tx:#7c5c00}';
 
-function _conPaletaDePapel(html) {
+function _conPaletaDePapel(htmlTexto) {
   const estilo = '<style>' + CSS_PALETA_PAPEL + '</style>';
-  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + estilo) : estilo + html;
+  return /<head[^>]*>/i.test(htmlTexto) ? htmlTexto.replace(/<head[^>]*>/i, m => m + estilo) : estilo + htmlTexto;
 }
 
-function _entregarDocumentoImprimible(html, ventana) {
-  html = _conPaletaDePapel(html);
+function _entregarDocumentoImprimible(htmlTexto, ventana) {
+  htmlTexto = _conPaletaDePapel(htmlTexto);
   if (ventana && !_esNavegadorMovil()) {
-    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    const url = URL.createObjectURL(new Blob([htmlTexto], { type: 'text/html;charset=utf-8' }));
     ventana.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
   }
   if (ventana) { try { ventana.close(); } catch (e) { /* la ventana ya se cerró */ } }
-  _mostrarDocumentoEnVisor(html);
+  _mostrarDocumentoEnVisor(htmlTexto);
 }
 
 /** Tareas, repuestos, insumos y servicios de una orden, como tablas para el
@@ -9784,8 +9784,8 @@ function _tablasOrdenParaPdf(o) {
     return [];
   };
   const tareas = lista(o.tareas).filter(t => (t.descripcion || '').trim() || (t.responsable || '').trim());
-  let html = '<div class="section-title">Tareas</div>';
-  html += tareas.length
+  let htmlTexto = '<div class="section-title">Tareas</div>';
+  htmlTexto += tareas.length
     ? '<table><thead><tr><th>Descripción</th><th>T. real</th><th style="text-align:center">Hecha</th><th>Responsable</th></tr></thead><tbody>'
       + tareas.map(t => `<tr><td>${esc(t.descripcion || '—')}</td><td>${esc(t.tiempoReal || '—')}</td>`
         + `<td style="text-align:center">${t.ok ? 'Sí' : 'No'}</td><td>${esc(t.responsable || '—')}</td></tr>`).join('')
@@ -9806,7 +9806,7 @@ function _tablasOrdenParaPdf(o) {
       + `<th>Unidad</th><th style="text-align:right">Costo unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${filas}`
       + `<tr><td colspan="5" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:700">${fmtCOP(total)}</td></tr></tbody></table>`;
   };
-  return html + materiales('Repuestos', lista(o.repuestos)) + materiales('Insumos', lista(o.insumos)) + materiales('Servicios', lista(o.servicios));
+  return htmlTexto + materiales('Repuestos', lista(o.repuestos)) + materiales('Insumos', lista(o.insumos)) + materiales('Servicios', lista(o.servicios));
 }
 
 /* ══════════════════════════════════════════════
@@ -9846,7 +9846,7 @@ async function descargarOrdenPDF(id) {
   // La sede va en el documento: Zipaquirá 1 y 2 tienen equipos con el mismo
   // nombre (CA1, CB1…), y un PDF reenviado o impreso no decía de cuál era.
   const nombreSede = OPERACIONES[operacionActual]?.nombre || '';
-  const html = `<!DOCTYPE html><html lang="es"><head>
+  const htmlTexto = `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
 <title>Orden ${esc(o.NumeroOrden)}${nombreSede ? ' — ' + esc(nombreSede) : ''}</title>
 <style>
@@ -9912,7 +9912,7 @@ ${_bloqueFirmaPdf(o, 'FirmaCierre', 'Firma del técnico ejecutor')}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 
-  _entregarDocumentoImprimible(html, ventana);
+  _entregarDocumentoImprimible(htmlTexto, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -10188,8 +10188,7 @@ function actualizarEquiposPorEmpresa() {
   const equipoSel   = document.getElementById('f_equipo');
   if (!empresaSel || !equipoSel) return;
   const equipos = _gruposEquiposParaOrden(operacionActual)[empresaSel.value] || [];
-  equipoSel.innerHTML = '<option value="">Seleccionar equipo...</option>' +
-    equipos.map(eq => `<option value="${esc(eq)}">${esc(_equipoSinEmpresa(eq))}</option>`).join('');
+  equipoSel.innerHTML = html`<option value="">Seleccionar equipo...</option>${equipos.map(eq => html`<option value="${eq}">${_equipoSinEmpresa(eq)}</option>`)}`;
 }
 
 /** Pinta el campo Equipo según la operación activa. */
@@ -10431,11 +10430,11 @@ function _htmlResumenEquiposEmpresas(grupos) {
   const empresas = Object.keys(grupos);
   if (!empresas.length) return '<div class="cap-sub">Todavía no hay equipos cargados.</div>';
   const total = empresas.reduce((s, e) => s + grupos[e].length, 0);
-  return `<div class="cap-sub" style="margin-bottom:6px">${empresas.length} empresa(s) · ${total} equipo(s)</div>
+  return String(html`<div class="cap-sub" style="margin-bottom:6px">${empresas.length} empresa(s) · ${total} equipo(s)</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left">Empresa</th><th style="padding:7px 10px;text-align:right">Equipos</th></tr></thead>
-      <tbody>${empresas.map(e => `<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px">${esc(e)}</td><td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${grupos[e].length}</td></tr>`).join('')}</tbody>
-    </table>`;
+      <tbody>${empresas.map(e => html`<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px">${e}</td><td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums">${grupos[e].length}</td></tr>`)}</tbody>
+    </table>`);
 }
 
 function abrirEquiposEmpresas() {
@@ -11059,18 +11058,15 @@ function _procedimientoDeActividad(texto) {
  *    - ['CODIGO','Tipo']  → <option value="CODIGO">CODIGO — Tipo</option>
  *    - 'NOMBRE COMPLETO'  → <option>NOMBRE COMPLETO</option>  (lista general) */
 function _renderOptionsGrupo(grupos) {
-  return Object.keys(grupos).map(grupo => {
-    const items = grupos[grupo].map(item => {
-      if (Array.isArray(item)) {
-        const [codigo, tipo] = item;
-        return `<option value="${esc(codigo)}">${esc(codigo)}${tipo ? ' — ' + esc(tipo) : ''}</option>`;
-      }
-      // Antioquia: el grupo ya es la empresa; la opción dice solo el equipo.
-      const corto = _equipoSinEmpresa(item);
-      return corto === item ? `<option>${esc(item)}</option>` : `<option value="${esc(item)}">${esc(corto)}</option>`;
-    }).join('');
-    return `<optgroup label="${esc(grupo)}">${items}</optgroup>`;
-  }).join('');
+  return String(html`${Object.keys(grupos).map(grupo => html`<optgroup label="${grupo}">${grupos[grupo].map(item => {
+    if (Array.isArray(item)) {
+      const [codigo, tipo] = item;
+      return html`<option value="${codigo}">${codigo}${tipo ? ' — ' + tipo : ''}</option>`;
+    }
+    // Antioquia: el grupo ya es la empresa; la opción dice solo el equipo.
+    const corto = _equipoSinEmpresa(item);
+    return corto === item ? html`<option>${item}</option>` : html`<option value="${item}">${corto}</option>`;
+  })}</optgroup>`)}`);
 }
 
 function inicializarCampoEquipo() {
@@ -11089,7 +11085,7 @@ function inicializarCampoEquipo() {
       <label for="f_empresa">Empresa *</label>
       <select id="f_empresa" onchange="actualizarEquiposPorEmpresa()" style="margin-bottom:10px">
         <option value="">Seleccionar empresa...</option>
-        ${empresas.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}
+        ${html`${empresas.map(e => html`<option value="${e}">${e}</option>`)}`}
       </select>
       <label for="f_equipo">Equipo / Activo *</label>
       <select id="f_equipo">
@@ -13620,11 +13616,11 @@ async function abrirCapacidadHojas() {
   _prepararArchivoAnual();
 
   await Promise.all(archivos.map(async (a, i) => {
-    let html;
-    try { html = _htmlCapacidadArchivo(a.nombre, await _medirArchivoSheets(a.id)); }
-    catch (e) { html = `<div class="cap-archivo"><div class="cap-titulo">${esc(a.nombre)}</div><div class="cap-sub" style="margin-top:6px;color:var(--danger)">No se pudo medir: ${esc(e.message)}</div></div>`; }
+    let htmlTexto;
+    try { htmlTexto = _htmlCapacidadArchivo(a.nombre, await _medirArchivoSheets(a.id)); }
+    catch (e) { htmlTexto = `<div class="cap-archivo"><div class="cap-titulo">${esc(a.nombre)}</div><div class="cap-sub" style="margin-top:6px;color:var(--danger)">No se pudo medir: ${esc(e.message)}</div></div>`; }
     const cont = document.getElementById('capArchivo' + i);
-    if (cont) cont.outerHTML = html;
+    if (cont) cont.outerHTML = htmlTexto;
   }));
 }
 
@@ -14336,11 +14332,11 @@ function renderFotosOrden(orden, contId, readonly) {
   const fit     = readonly ? 'contain' : 'cover';
   const bg      = readonly ? '#fff' : '#f2f2f2';
 
-  let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${minColW}px,1fr));gap:14px;margin-top:8px">`;
+  let htmlTexto = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${minColW}px,1fr));gap:14px;margin-top:8px">`;
   fotos.forEach((f, i) => {
     const imgId = `foto-img-${contId}-${i}`;
     const aId   = `foto-a-${contId}-${i}`;
-    html += `
+    htmlTexto += `
       <div style="position:relative;border:1px solid var(--border);border-radius:6px;overflow:hidden;page-break-inside:avoid">
         <a id="${aId}" href="#" target="_blank" rel="noopener" onclick="return this.href!=='#'">
           <img id="${imgId}" alt="Foto evidencia" style="width:100%;height:${imgH}px;object-fit:${fit};display:block;background:${bg}">
@@ -14351,8 +14347,8 @@ function renderFotosOrden(orden, contId, readonly) {
         ${f.tareaDescripcion ? `<div style="font-size:10px;color:var(--text3);padding:3px 5px;background:var(--surface2);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.tareaDescripcion)}</div>` : ''}
       </div>`;
   });
-  html += '</div>';
-  cont.innerHTML = html;
+  htmlTexto += '</div>';
+  cont.innerHTML = htmlTexto;
 
   // Cargar cada imagen — ya no necesita token, se sirve vía el Apps Script de fotos
   fotos.forEach((f, i) => {
@@ -15747,199 +15743,199 @@ async function verDetalle(id) {
 
   // (debug removed)
 
-  let html = '';
+  let htmlTexto = '';
 
   // ── Encabezado con logo (igual en todos los PDFs del sistema) ──
-  html += _encabezadoPdfHtml('Orden de Trabajo', OPERACIONES[operacionActual]?.nombre || 'SolucionAIRE · Atera');
+  htmlTexto += _encabezadoPdfHtml('Orden de Trabajo', OPERACIONES[operacionActual]?.nombre || 'SolucionAIRE · Atera');
 
   // ── Título simple (sin timeline, eso solo aparece en "Completar") ──
-  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
-  html += '<div style="font-size:16px;font-weight:600">' + esc(orden.Title||'—') + '</div>';
-  html += '<span class="order-num">' + esc(orden.NumeroOrden||'—') + '</span></div>';
+  htmlTexto += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+  htmlTexto += '<div style="font-size:16px;font-weight:600">' + esc(orden.Title||'—') + '</div>';
+  htmlTexto += '<span class="order-num">' + esc(orden.NumeroOrden||'—') + '</span></div>';
 
   // ── Identificación ──
-  html += '<div class="detail-section"><div class="detail-section-title">Identificación</div><div class="detail-grid">';
-  html += campo('Equipo / Activo', orden.Equipo);
-  html += campo('Tipo de mantenimiento', orden.TipoMantenimiento);
-  html += campo('Prioridad', orden.Prioridad);
-  html += campo('Estado', orden.Estado);
-  html += campo('Solicitada por', orden.SolicitadaPor);
-  html += campo('Autorizada por', orden.AutorizadaPor||'—');
-  html += campo('Usuario / Email', orden.UserEmail||'—');
-  html += campo('Fecha creación', fmtFecha(orden.FechaCreacion));
-  html += '</div></div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Identificación</div><div class="detail-grid">';
+  htmlTexto += campo('Equipo / Activo', orden.Equipo);
+  htmlTexto += campo('Tipo de mantenimiento', orden.TipoMantenimiento);
+  htmlTexto += campo('Prioridad', orden.Prioridad);
+  htmlTexto += campo('Estado', orden.Estado);
+  htmlTexto += campo('Solicitada por', orden.SolicitadaPor);
+  htmlTexto += campo('Autorizada por', orden.AutorizadaPor||'—');
+  htmlTexto += campo('Usuario / Email', orden.UserEmail||'—');
+  htmlTexto += campo('Fecha creación', fmtFecha(orden.FechaCreacion));
+  htmlTexto += '</div></div>';
 
   // ── Responsables y Fechas ──
-  html += '<div class="detail-section"><div class="detail-section-title">Responsables y Fechas</div><div class="detail-grid">';
-  html += campo('Responsable ejecución', orden.Responsable);
-  html += campo('Fecha inicio', fmtFecha(orden.FechaInicio));
-  html += campo('Supervisor', orden.Supervisor||'—');
-  html += campo('Fecha fin estimada', fmtFecha(orden.FechaFin));
-  if (orden.EjecutadoPor) html += campo('Ejecutado por', orden.EjecutadoPor);
-  if (orden.FechaCierre)  html += campo('Fecha cierre', fmtFecha(orden.FechaCierre));
-  if (orden.TiempoReal)   html += campo('Tiempo real', orden.TiempoReal);
-  if (orden.CostoReal)    html += campo('Costo real', fmtCOP(orden.CostoReal));
-  html += '</div></div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Responsables y Fechas</div><div class="detail-grid">';
+  htmlTexto += campo('Responsable ejecución', orden.Responsable);
+  htmlTexto += campo('Fecha inicio', fmtFecha(orden.FechaInicio));
+  htmlTexto += campo('Supervisor', orden.Supervisor||'—');
+  htmlTexto += campo('Fecha fin estimada', fmtFecha(orden.FechaFin));
+  if (orden.EjecutadoPor) htmlTexto += campo('Ejecutado por', orden.EjecutadoPor);
+  if (orden.FechaCierre)  htmlTexto += campo('Fecha cierre', fmtFecha(orden.FechaCierre));
+  if (orden.TiempoReal)   htmlTexto += campo('Tiempo real', orden.TiempoReal);
+  if (orden.CostoReal)    htmlTexto += campo('Costo real', fmtCOP(orden.CostoReal));
+  htmlTexto += '</div></div>';
 
   // ── Tareas ──
-  html += '<div class="detail-section"><div class="detail-section-title">Tareas a Ejecutar</div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Tareas a Ejecutar</div>';
   if (tareas.length) {
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
-    html += '<thead><tr style="background:linear-gradient(90deg, var(--brand) 0%, #1a4a8a 100%)">';
-    html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Descripción</th>';
-    html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">T. Real</th>';
-    html += '<th style="padding:8px 10px;text-align:center;color:#fff;font-size:11px;letter-spacing:.4px">OK</th>';
-    html += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Responsable</th>';
-    html += '</tr></thead><tbody>';
+    htmlTexto += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
+    htmlTexto += '<thead><tr style="background:linear-gradient(90deg, var(--brand) 0%, #1a4a8a 100%)">';
+    htmlTexto += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Descripción</th>';
+    htmlTexto += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">T. Real</th>';
+    htmlTexto += '<th style="padding:8px 10px;text-align:center;color:#fff;font-size:11px;letter-spacing:.4px">OK</th>';
+    htmlTexto += '<th style="padding:8px 10px;text-align:left;color:#fff;font-size:11px;letter-spacing:.4px">Responsable</th>';
+    htmlTexto += '</tr></thead><tbody>';
     tareas.forEach(function(t, idx) {
       const checked = t.ok ? 'checked' : '';
       const rowStyle = t.ok ? 'background:#f0fff4;' : '';
-      html += `<tr style="border-bottom:1px solid var(--border);${rowStyle}" id="tarea-row-${idx}">`;
-      html += '<td style="padding:6px 10px">' + esc(t.descripcion||'—') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(t.tiempoReal||'—') + '</td>';
-      html += `<td style="padding:6px 10px;text-align:center">
+      htmlTexto += `<tr style="border-bottom:1px solid var(--border);${rowStyle}" id="tarea-row-${idx}">`;
+      htmlTexto += '<td style="padding:6px 10px">' + esc(t.descripcion||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(t.tiempoReal||'—') + '</td>';
+      htmlTexto += `<td style="padding:6px 10px;text-align:center">
         <input type="checkbox" ${checked} disabled
           style="width:18px;height:18px;accent-color:#107C10;cursor:not-allowed;opacity:.85"
           title="Para marcar tareas usa el botón 'Completar' en Pendientes">
       </td>`;
-      html += '<td style="padding:6px 10px">' + esc(t.responsable||'—') + '</td>';
-      html += '</tr>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(t.responsable||'—') + '</td>';
+      htmlTexto += '</tr>';
       // La observación interna ("por qué no se ejecutó esta tarea") ya no se
       // borra al cerrar: se muestra aquí, en la vista de la orden, para que
       // quede como constancia. Sigue siendo interna (no va al PDF externo).
       if ((t.observacionFantasma||'').trim()) {
-        html += `<tr style="background:var(--nota-bg)"><td colspan="4" style="padding:2px 10px 9px 10px;font-size:12px;color:var(--nota-tx);font-style:italic;border-bottom:1px solid var(--border)">${_icono('oculto')} Observación interna: ${esc(t.observacionFantasma)}</td></tr>`;
+        htmlTexto += `<tr style="background:var(--nota-bg)"><td colspan="4" style="padding:2px 10px 9px 10px;font-size:12px;color:var(--nota-tx);font-style:italic;border-bottom:1px solid var(--border)">${_icono('oculto')} Observación interna: ${esc(t.observacionFantasma)}</td></tr>`;
       }
     });
-    html += '</tbody></table></div>';
+    htmlTexto += '</tbody></table></div>';
   } else {
-    html += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron tareas.</div>';
+    htmlTexto += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron tareas.</div>';
   }
   // Indicador de cierre automático (sin botón — se cierra solo al completar todas las tareas)
   if (tareas.length && orden.Estado !== 'Cerrada' && orden.Estado !== 'Rechazada') {
     const completadas = tareas.filter(t => t.ok).length;
-    html += `<div id="progreso-tareas" style="padding:8px 18px 14px;font-size:12px;color:var(--text3)">
+    htmlTexto += `<div id="progreso-tareas" style="padding:8px 18px 14px;font-size:12px;color:var(--text3)">
       ${completadas}/${tareas.length} tareas completadas
     </div>`;
   }
-  html += '</div>';
+  htmlTexto += '</div>';
 
   // ── Registro fotográfico (solo lectura — para subir/eliminar usa "Completar") ──
-  html += '<div class="detail-section"><div class="detail-section-title" style="display:flex;align-items:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Registro Fotográfico</div>';
-  html += '<div style="padding:12px 18px">';
-  html += '<div id="galeria-fotos-orden"></div>';
-  html += '</div></div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title" style="display:flex;align-items:center;gap:6px"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Registro Fotográfico</div>';
+  htmlTexto += '<div style="padding:12px 18px">';
+  htmlTexto += '<div id="galeria-fotos-orden"></div>';
+  htmlTexto += '</div></div>';
 
   // ── Repuestos ──
-  html += '<div class="detail-section"><div class="detail-section-title">Repuestos Requeridos</div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Repuestos Requeridos</div>';
   if (repuestos.length) {
     var totalRep = repuestos.reduce(function(s,r){ return s + (Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
-    html += '<thead><tr style="background:var(--brand-light)">';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
-    html += '</tr></thead><tbody>';
+    htmlTexto += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
+    htmlTexto += '<thead><tr style="background:var(--brand-light)">';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
+    htmlTexto += '</tr></thead><tbody>';
     repuestos.forEach(function(r) {
       var sub = Number(r.cantidad||0) * Number(r.costoUnitario||r.costoUnit||0);
-      html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:6px 10px;font-family:monospace">' + esc(r.codigo||'—') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(r.nombre||'—') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + esc(r.cantidad||'0') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(r.unidades||'und') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(r.costoUnitario||r.costoUnit||0) + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
-      html += '</tr>';
+      htmlTexto += '<tr style="border-bottom:1px solid var(--border)">';
+      htmlTexto += '<td style="padding:6px 10px;font-family:monospace">' + esc(r.codigo||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(r.nombre||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + esc(r.cantidad||'0') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(r.unidades||'und') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(r.costoUnitario||r.costoUnit||0) + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
+      htmlTexto += '</tr>';
     });
-    html += '<tr style="background:var(--brand-light);font-weight:700">';
-    html += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL REPUESTOS</td>';
-    html += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalRep) + '</td>';
-    html += '</tr></tbody></table></div>';
+    htmlTexto += '<tr style="background:var(--brand-light);font-weight:700">';
+    htmlTexto += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL REPUESTOS</td>';
+    htmlTexto += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalRep) + '</td>';
+    htmlTexto += '</tr></tbody></table></div>';
   } else {
-    html += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron repuestos.</div>';
+    htmlTexto += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron repuestos.</div>';
   }
-  html += '</div>';
+  htmlTexto += '</div>';
 
   // ── Insumos ──
-  html += '<div class="detail-section"><div class="detail-section-title">Insumos Requeridos</div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Insumos Requeridos</div>';
   if (insumos.length) {
     var totalIns = insumos.reduce(function(s,i){ return s + (Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
-    html += '<thead><tr style="background:var(--brand-light)">';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
-    html += '</tr></thead><tbody>';
+    htmlTexto += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
+    htmlTexto += '<thead><tr style="background:var(--brand-light)">';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
+    htmlTexto += '</tr></thead><tbody>';
     insumos.forEach(function(i) {
       var sub = Number(i.cantidad||0) * Number(i.costoUnitario||i.costoUnit||0);
-      html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:6px 10px;font-family:monospace">' + esc(i.codigo||'—') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(i.nombre||'—') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + esc(i.cantidad||'0') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(i.unidades||'und') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(i.costoUnitario||i.costoUnit||0) + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
-      html += '</tr>';
+      htmlTexto += '<tr style="border-bottom:1px solid var(--border)">';
+      htmlTexto += '<td style="padding:6px 10px;font-family:monospace">' + esc(i.codigo||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(i.nombre||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + esc(i.cantidad||'0') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(i.unidades||'und') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(i.costoUnitario||i.costoUnit||0) + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
+      htmlTexto += '</tr>';
     });
-    html += '<tr style="background:var(--brand-light);font-weight:700">';
-    html += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL INSUMOS</td>';
-    html += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalIns) + '</td>';
-    html += '</tr></tbody></table></div>';
+    htmlTexto += '<tr style="background:var(--brand-light);font-weight:700">';
+    htmlTexto += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL INSUMOS</td>';
+    htmlTexto += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalIns) + '</td>';
+    htmlTexto += '</tr></tbody></table></div>';
   } else {
-    html += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron insumos.</div>';
+    htmlTexto += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron insumos.</div>';
   }
-  html += '</div>';
+  htmlTexto += '</div>';
 
   // ── Servicios ──
-  html += '<div class="detail-section"><div class="detail-section-title">Servicios Requeridos</div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Servicios Requeridos</div>';
   if (servicios.length) {
     var totalServ = servicios.reduce(function(s,sv){ return s + (Number(sv.cantidad||0) * Number(sv.costoUnitario||sv.costoUnit||0)); }, 0);
-    html += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
-    html += '<thead><tr style="background:var(--brand-light)">';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
-    html += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
-    html += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
-    html += '</tr></thead><tbody>';
+    htmlTexto += '<div style="padding:12px 18px;overflow-x:auto"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:12px">';
+    htmlTexto += '<thead><tr style="background:var(--brand-light)">';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Código</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Nombre</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Cantidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Unidad</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Costo unit.</th>';
+    htmlTexto += '<th style="padding:7px 10px;text-align:right;color:var(--brand);font-size:11px;border-bottom:2px solid var(--brand-mid)">Subtotal</th>';
+    htmlTexto += '</tr></thead><tbody>';
     servicios.forEach(function(sv) {
       var sub = Number(sv.cantidad||0) * Number(sv.costoUnitario||sv.costoUnit||0);
-      html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:6px 10px;font-family:monospace">' + esc(sv.codigo||'—') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(sv.nombre||'—') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + esc(sv.cantidad||'0') + '</td>';
-      html += '<td style="padding:6px 10px">' + esc(sv.unidades||'und') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(sv.costoUnitario||sv.costoUnit||0) + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
-      html += '</tr>';
+      htmlTexto += '<tr style="border-bottom:1px solid var(--border)">';
+      htmlTexto += '<td style="padding:6px 10px;font-family:monospace">' + esc(sv.codigo||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(sv.nombre||'—') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + esc(sv.cantidad||'0') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px">' + esc(sv.unidades||'und') + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right">' + fmtCOP(sv.costoUnitario||sv.costoUnit||0) + '</td>';
+      htmlTexto += '<td style="padding:6px 10px;text-align:right;font-weight:600">' + fmtCOP(sub) + '</td>';
+      htmlTexto += '</tr>';
     });
-    html += '<tr style="background:var(--brand-light);font-weight:700">';
-    html += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL SERVICIOS</td>';
-    html += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalServ) + '</td>';
-    html += '</tr></tbody></table></div>';
+    htmlTexto += '<tr style="background:var(--brand-light);font-weight:700">';
+    htmlTexto += '<td colspan="5" style="padding:7px 10px;text-align:right;color:var(--brand)">TOTAL SERVICIOS</td>';
+    htmlTexto += '<td style="padding:7px 10px;text-align:right;color:var(--brand)">' + fmtCOP(totalServ) + '</td>';
+    htmlTexto += '</tr></tbody></table></div>';
   } else {
-    html += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron servicios.</div>';
+    htmlTexto += '<div style="padding:12px 18px;color:var(--text3);font-size:12px;font-style:italic">No se registraron servicios.</div>';
   }
-  html += '</div>';
+  htmlTexto += '</div>';
 
   // ── Seguridad y Observaciones ──
-  html += '<div class="detail-section"><div class="detail-section-title">Seguridad y Observaciones</div><div class="detail-grid">';
-  html += '<div class="detail-field-full"><div class="detail-field-label">Medidas de seguridad</div>';
-  html += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.MedidasSeguridad||'—') + '</div></div>';
-  html += '<div class="detail-field-full"><div class="detail-field-label">Observaciones</div>';
-  html += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.Observaciones||'—') + '</div></div>';
+  htmlTexto += '<div class="detail-section"><div class="detail-section-title">Seguridad y Observaciones</div><div class="detail-grid">';
+  htmlTexto += '<div class="detail-field-full"><div class="detail-field-label">Medidas de seguridad</div>';
+  htmlTexto += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.MedidasSeguridad||'—') + '</div></div>';
+  htmlTexto += '<div class="detail-field-full"><div class="detail-field-label">Observaciones</div>';
+  htmlTexto += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.Observaciones||'—') + '</div></div>';
   if (orden.ObsCierre) {
-    html += '<div class="detail-field-full"><div class="detail-field-label">Observaciones de cierre</div>';
-    html += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.ObsCierre) + '</div></div>';
+    htmlTexto += '<div class="detail-field-full"><div class="detail-field-label">Observaciones de cierre</div>';
+    htmlTexto += '<div class="detail-field-val" style="white-space:pre-wrap">' + esc(orden.ObsCierre) + '</div></div>';
   }
-  html += '</div></div>';
+  htmlTexto += '</div></div>';
 
   // ── Firmas ──
   // Las firmas de las órdenes viejas no viajan en la copia del dispositivo
@@ -15949,23 +15945,23 @@ async function verDetalle(id) {
   const _firmaFaltaTxt = '<div style="padding:12px 18px;font-size:13px;color:var(--text3);font-style:italic">'
     + 'La firma está guardada, pero no se pudo traer sin conexión. Ábrela con internet para verla.</div></div>';
   if (orden.FirmaCreador) {
-    html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>';
-    html += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCreador) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+    htmlTexto += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>';
+    htmlTexto += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCreador) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
   } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCreador')) {
-    html += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>' + _firmaFaltaTxt;
+    htmlTexto += '<div class="detail-section"><div class="detail-section-title">Firma del solicitante</div>' + _firmaFaltaTxt;
   }
   if (orden.FirmaCierre) {
-    html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>';
-    html += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCierre) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
+    htmlTexto += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>';
+    htmlTexto += '<div style="padding:12px 18px"><img src="' + _srcFirma(orden.FirmaCierre) + '" style="max-height:80px;max-width:260px" alt="Firma"></div></div>';
   } else if (_firmaGuardadaPeroNoDisponible(orden, 'FirmaCierre')) {
-    html += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>' + _firmaFaltaTxt;
+    htmlTexto += '<div class="detail-section"><div class="detail-section-title">Firma del técnico ejecutor</div>' + _firmaFaltaTxt;
   }
 
   // ── Pie ──
-  html += '<div style="background:var(--brand);color:rgba(255,255,255,.4);font-size:10px;text-align:center;padding:8px;font-family:monospace">';
-  html += esc(orden.NumeroOrden||'—') + ' · Generado: ' + new Date().toLocaleString('es-CO') + '</div>';
+  htmlTexto += '<div style="background:var(--brand);color:rgba(255,255,255,.4);font-size:10px;text-align:center;padding:8px;font-family:monospace">';
+  htmlTexto += esc(orden.NumeroOrden||'—') + ' · Generado: ' + new Date().toLocaleString('es-CO') + '</div>';
 
-  document.getElementById('detalleContainer').innerHTML = html;
+  document.getElementById('detalleContainer').innerHTML = htmlTexto;
   renderFotosOrden(orden, 'galeria-fotos-orden', true);
 
   currentOrderId = id;
@@ -15984,21 +15980,21 @@ function renderTimeline(estado) {
     'En ejecución': 2, 'Cerrada': 3, 'Rechazada': -1
   }[estado] ?? 0;
 
-  let html = '<div class="timeline">';
+  let htmlTexto = '<div class="timeline">';
   steps.forEach((s, i) => {
     const isDone   = i < idx;
     const isActive = i === idx;
     const isRej    = estado === 'Rechazada' && i === 1;
-    html += `
+    htmlTexto += `
       <div class="tl-step ${isDone?'done':''} ${isActive?'active':''} ${isRej?'reject':''}">
         <div class="tl-dot">${isDone ? '✓' : (isRej ? '✕' : (i+1))}</div>
         <div>${s.label}</div>
       </div>`;
     if (i < steps.length - 1) {
-      html += `<div class="tl-line ${isDone?'done':''}"></div>`;
+      htmlTexto += `<div class="tl-line ${isDone?'done':''}"></div>`;
     }
   });
-  return html + '</div>';
+  return htmlTexto + '</div>';
 }
 
 function campo(label, val) {
@@ -16448,13 +16444,13 @@ function renderGraficasAntioquia(ordenesFiltradas, directos = []) {
     grid.innerHTML = `<div class="cap-sub" style="padding:8px 2px">Todavía no hay empresas cargadas.${esAdmin() ? ' Cárgalas en el menú → Herramientas → Equipos de las empresas.' : ''}</div>`;
     return;
   }
-  grid.innerHTML = empresas.map((e, n) => `
+  grid.innerHTML = html`${empresas.map((e, n) => html`
     <div class="card">
-      <div class="card-head">${esc(e)}</div>
+      <div class="card-head">${e}</div>
       <div class="card-body" style="padding:14px">
         <div style="position:relative;height:220px"><canvas id="chartEmpresaAntioquia_${n}"></canvas></div>
       </div>
-    </div>`).join('');
+    </div>`)}`;
 
   empresas.forEach((e, n) => {
     const equipos = equiposDe[e];
@@ -16874,6 +16870,36 @@ function _srcFirma(valor) {
 function _jsArg(valor) {
   return esc(JSON.stringify(valor === null || valor === undefined ? '' : String(valor)));
 }
+
+/* ── Plantillas que escapan solas (auditoría M-06) ──
+   Con html`<td>${dato}</td>` cada valor se escapa como con esc(): un nombre
+   con < o comillas sale como texto, nunca como código, aunque se olvide
+   esc(). Es la forma de armar las vistas nuevas.
+   • Un trozo armado con html`…` entra tal cual: se pueden anidar.
+   • Una lista entra unida, cada elemento con la misma regla:
+       html`<tbody>${filas.map(f => html`<tr><td>${f.nombre}</td></tr>`)}</tbody>`
+   • null, undefined, false y NaN no pintan nada; 0 sí.
+   • El argumento de un onclick va con html.arg(valor) (es _jsArg).
+   • HTML fijo de la propia app (un ícono SVG, una constante) va con
+     html.crudo(texto). Nunca con datos que vengan de una hoja o de alguien.
+   El resultado se puede asignar directo a innerHTML o meter en otra
+   plantilla de texto: se convierte en texto solo. */
+class _HtmlSeguro {
+  constructor(texto) { this.texto = texto; }
+  toString() { return this.texto; }
+}
+function _valorEnHtml(v) {
+  if (v instanceof _HtmlSeguro) return v.texto;
+  if (Array.isArray(v)) return v.map(_valorEnHtml).join('');
+  return esc(v);
+}
+function html(partes, ...valores) {
+  let texto = partes[0];
+  valores.forEach((v, i) => { texto += _valorEnHtml(v) + partes[i + 1]; });
+  return new _HtmlSeguro(texto);
+}
+html.arg = valor => new _HtmlSeguro(_jsArg(valor));
+html.crudo = texto => new _HtmlSeguro(String(texto ?? ''));
 
 /** Devuelve el logo de SolucionAIRE/Atera en su versión clara (la del papel),
  *  como data:URL. Se lee de la variable CSS donde ya está, para no duplicar
@@ -17650,7 +17676,7 @@ function _variablesDibujar(contId, bloques) {
   // "Vibracion" o "Motor" es la diferencia entre revisar y perderse.
   const gruposTodos = [];
   conDatos.forEach(b => b.campos.forEach(c => { if (!gruposTodos.includes(c.grupo)) gruposTodos.push(c.grupo); }));
-  let html = gruposTodos.length > 1 ? `
+  let htmlTexto = gruposTodos.length > 1 ? `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
       <label for="varFiltroGrupo" style="font-size:12px;color:var(--text3)">Grupo</label>
       <select id="varFiltroGrupo" onchange="_variablesFiltrarGrupo(this.value)" class="form-control" style="max-width:280px">
@@ -17679,13 +17705,13 @@ function _variablesDibujar(contId, bloques) {
   // tiempo: sus lecturas no coinciden en fecha ni en franja con las de
   // otro formulario, asi que forzarlas a un eje comun desalinearia los
   // puntos. Solo se rotula el bloque cuando hay mas de uno.
-  if (varios) html += `<div style="margin:${iBloque ? '26px' : '0'} 0 4px;font-weight:700;color:var(--brand);font-size:14px">${esc(titulo || '')}</div>`;
-  html += `<div style="color:var(--text3);font-size:13px;margin-bottom:14px">
+  if (varios) htmlTexto += `<div style="margin:${iBloque ? '26px' : '0'} 0 4px;font-weight:700;color:var(--brand);font-size:14px">${esc(titulo || '')}</div>`;
+  htmlTexto += `<div style="color:var(--text3);font-size:13px;margin-bottom:14px">
       ${lecturas.length} ${lecturas.length === 1 ? 'lectura' : 'lecturas'} · ${esc(lecturas[0].Fecha)} a ${esc(lecturas[lecturas.length - 1].Fecha)}
     </div>`;
 
   grupos.forEach(grupo => {
-    html += `<div class="var-grupo" data-grupo="${esc(grupo)}">
+    htmlTexto += `<div class="var-grupo" data-grupo="${esc(grupo)}">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">${esc(grupo)}</div>
       <div class="var-grid">`;
     campos.filter(c => c.grupo === grupo).forEach(campo => {
@@ -17722,7 +17748,7 @@ function _variablesDibujar(contId, bloques) {
           ? `mín ${campo.escala[Math.min(...conDato) - 1]} · máx ${campo.escala[Math.max(...conDato) - 1]}`
           : `mín ${Math.min(...conDato)} · prom ${(conDato.reduce((a, b) => a + b, 0) / conDato.length).toFixed(1)} · máx ${Math.max(...conDato)}`;
 
-      html += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)">
+      htmlTexto += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)">
           <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px">${esc(campo.label)}</div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:6px">
             ${stats}${rango ? ' · normal ' + esc(_variablesTextoRango(rango)) : ''}
@@ -17732,11 +17758,11 @@ function _variablesDibujar(contId, bloques) {
         </div>`;
       porDibujar.push({ canvasId, valores, rango, campo, etiquetas });
     });
-    html += `</div></div>`;
+    htmlTexto += `</div></div>`;
   });
   });
 
-  cont.innerHTML = html;
+  cont.innerHTML = htmlTexto;
   if (typeof Chart === 'undefined') return;
 
   porDibujar.forEach(({ canvasId, valores, rango, etiquetas, campo }) => {
@@ -17872,8 +17898,8 @@ async function variablesGraficar(key) {
     // Un apartado puede agregar sus propios bloques debajo de las gráficas
     // estándar (Auxiliares agrega el promedio de consumo por hora).
     if (typeof ap.extra === 'function') {
-      const html = ap.extra(bloques);
-      if (html) document.getElementById('varGraficas-' + key).insertAdjacentHTML('afterbegin', html);
+      const htmlTexto = ap.extra(bloques);
+      if (htmlTexto) document.getElementById('varGraficas-' + key).insertAdjacentHTML('afterbegin', htmlTexto);
       if (typeof ap.extraDibujar === 'function') ap.extraDibujar(bloques);
     }
     msg.textContent = '';
@@ -20242,7 +20268,7 @@ function filtrarNovedadesUI() {
     return;
   }
 
-  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Título</th>
@@ -20271,7 +20297,7 @@ function filtrarNovedadesUI() {
       </td>
     </tr>`;
 
-  wrap.innerHTML = html;
+  wrap.innerHTML = htmlTexto;
   _montarListaIncremental(document.getElementById('novTbody'), lista, filaNovedad, { tag: 'tr', cols: 7 });
   renderGraficasNovedades();
 }
@@ -20839,11 +20865,11 @@ function renderGraficasNovedades() {
 
 /* ── Construye el HTML de un informe individual (mismo orden que el PDF de referencia) ── */
 async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
-  let html = '';
+  let htmlTexto = '';
   if (incluirEncabezadoMarca) {
-    html += _encabezadoPdfHtml('Informe de Novedad', n.Codigo);
+    htmlTexto += _encabezadoPdfHtml('Informe de Novedad', n.Codigo);
   }
-  html += `
+  htmlTexto += `
     <h1 style="color:var(--brand);font-size:18px;text-align:center;margin-bottom:18px">${esc(n.Titulo)}</h1>
     <div style="margin-bottom:14px;font-size:13px;text-align:center">
       ${n.Codigo.startsWith('INF-E') ? `
@@ -20872,13 +20898,13 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
 
   if (n.fotos && n.fotos.length) {
     // Sin salto de página forzado: el contenido fluye natural y no deja huecos en blanco.
-    html += `<h3 class="novedad-section-title">Evidencias gráficas del evento</h3>
+    htmlTexto += `<h3 class="novedad-section-title">Evidencias gráficas del evento</h3>
       <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-bottom:6px">`;
     for (const f of n.fotos) {
       // Se sirve vía el Apps Script de fotos: no depende del token de quien genera
       // el informe, así que nunca queda en blanco por temas de sesión/permisos.
       const dataUrl = await _obtenerDataUrlFoto(f.driveFileId);
-      html += `<div style="width:300px;text-align:center;page-break-inside:avoid">
+      htmlTexto += `<div style="width:300px;text-align:center;page-break-inside:avoid">
         <div style="width:100%;height:280px;border:1px solid #ccc;border-radius:6px;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden">
           ${dataUrl
             ? `<img src="${dataUrl}" style="max-width:100%;max-height:100%;object-fit:contain">`
@@ -20888,10 +20914,10 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
         ${f.descripcion ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${esc(f.descripcion)}</div>` : ''}
       </div>`;
     }
-    html += `</div>`;
+    htmlTexto += `</div>`;
   }
 
-  html += `
+  htmlTexto += `
     ${n.AccionesCorrectivas ? `<h3 class="novedad-section-title">Acciones correctivas</h3>
     ${_viñetasHtml(n.AccionesCorrectivas)}` : ''}
 
@@ -20915,7 +20941,7 @@ async function _construirHtmlInformeNovedad(n, incluirEncabezadoMarca) {
       </div>
     </div>`;
 
-  return html;
+  return htmlTexto;
 }
 
 /** Exporta UN solo informe en PDF, igual a la estructura del documento de referencia */
@@ -20972,7 +20998,7 @@ async function generarInformeConsolidado() {
   const anioSel = document.getElementById('novFiltroAnio').value;
   const etiquetaFiltro = [mesSel ? mesNombres[mesSel] : '', anioSel].filter(Boolean).join(' de ') || 'Todos los periodos';
 
-  let html = `
+  let htmlTexto = `
     ${_encabezadoPdfHtml('Informes de Novedades Operativas de Planta',
       OPERACIONES[operacionActual].nombre + ' · Generado el ' + new Date().toLocaleDateString('es-CO') +
       ' · Periodo: ' + etiquetaFiltro + ' · ' + novedadesFiltradasActual.length + ' informe(s)')}
@@ -21003,11 +21029,11 @@ async function generarInformeConsolidado() {
 
   let primero = true;
   for (const n of novedadesFiltradasActual) {
-    html += `<div style="${primero ? '' : 'page-break-before:always;'}padding-top:10px">` + await _construirHtmlInformeNovedad(n, true) + `</div>`;
+    htmlTexto += `<div style="${primero ? '' : 'page-break-before:always;'}padding-top:10px">` + await _construirHtmlInformeNovedad(n, true) + `</div>`;
     primero = false;
   }
 
-  cont.innerHTML = html;
+  cont.innerHTML = htmlTexto;
   document.body.classList.add('imprimiendo-novedades');
   setTimeout(() => {
     window.print();
@@ -21160,7 +21186,7 @@ function renderCondicionesInseguras() {
     wrap.innerHTML = _estadoVacio({ icono: 'escudo', titulo: 'Sin condiciones inseguras en este periodo', detalle: 'Las que se reporten al marcar actividades aparecerán aquí.' });
     return;
   }
-  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Fecha</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Hora</th>
@@ -21170,7 +21196,7 @@ function renderCondicionesInseguras() {
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Observación</th>
     </tr></thead><tbody>`;
   filas.forEach(f => {
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;white-space:nowrap">${esc(f.Fecha)}</td>
       <td style="padding:7px 10px;white-space:nowrap">${esc(f.HoraRealizada || '')}</td>
       <td style="padding:7px 10px;min-width:150px">${esc(f.ActividadTexto || f.ActividadId || '')}</td>
@@ -21179,8 +21205,8 @@ function renderCondicionesInseguras() {
       <td style="padding:7px 10px;min-width:180px;color:var(--text2)">${esc(f._obs || '')}</td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 /** Para el Dashboard de cumplimiento: agrupa CronogramaRegistros por
@@ -21398,7 +21424,7 @@ function abrirModalMarcarCronograma(checkboxEl, actividadId, turnoId, fecha) {
 /** Llena las casillas de "¿Quién la realizó?" con la lista de operarios de
  *  la hoja, que llega después de abrir el asistente. */
 async function _pintarOperariosModalCronograma() {
-  const pintar = html => { const el = document.getElementById('cronModalOperariosLista'); if (el) el.outerHTML = html; };
+  const pintar = htmlTexto => { const el = document.getElementById('cronModalOperariosLista'); if (el) el.outerHTML = htmlTexto; };
   try {
     await cargarOperariosPlanta();
     const nombres = operariosPlantaActivos();
@@ -22086,10 +22112,10 @@ function _invhPintarGrupo(i) {
   const cuerpo = document.getElementById('invh_grupo_' + i);
   const grupo = INVENTARIO_HERRAMIENTA[i];
   if (!cuerpo || !grupo || cuerpo.dataset.listo) return;
-  let html = '';
+  let htmlTexto = '';
   grupo.items.forEach(it => {
     const sub = [it.medida, it.marca].filter(Boolean).join(' · ');
-    html += `<div id="invh_row_${it.n}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+    htmlTexto += `<div id="invh_row_${it.n}" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:160px">
         <div style="font-size:13px;font-weight:600">${it.n}. ${esc(it.nombre)}</div>
         <div style="font-size:11px;color:var(--text3)">${sub ? esc(sub) + ' · ' : ''}Esperadas: ${it.cant}</div>
@@ -22105,7 +22131,7 @@ function _invhPintarGrupo(i) {
       </div>
     </div>`;
   });
-  cuerpo.innerHTML = html;
+  cuerpo.innerHTML = htmlTexto;
   cuerpo.dataset.listo = '1';
   // Todas arrancan marcadas como "Completa".
   grupo.items.forEach(it => _invhPintarEstado(it.n, 'completa'));
@@ -22232,7 +22258,7 @@ function renderHistorialInvh() {
     wrap.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3)">Aún no hay inventarios registrados.</div>';
     return;
   }
-  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap">Fecha</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Turno</th>
@@ -22243,7 +22269,7 @@ function renderHistorialInvh() {
   filas.forEach(f => {
     const completo = f.Completo === 'SI';
     const n = Number(f.TotalFaltantes || 0);
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;white-space:nowrap">${esc(f.Fecha)}</td>
       <td style="padding:7px 10px">${esc(f.Turno)}</td>
       <td style="padding:7px 10px">${esc(f.RegistradoPor || '')}</td>
@@ -22251,8 +22277,8 @@ function renderHistorialInvh() {
       <td style="padding:7px 10px;text-align:center"><button type="button" class="btn btn-ghost btn-sm" onclick="verInventarioInvh(${_jsArg(f.FechaHora)})" style="white-space:nowrap">${_icono('ojo')} Ver</button></td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 /** Abre una ventana con el detalle de una inspección de inventario del turno:
@@ -23124,7 +23150,7 @@ async function descargarInformeCronograma(boton) {
       }
     }
 
-    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    const htmlTexto = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Actividades Diarias — ${esc(desde)} a ${esc(hasta)}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:24px}
@@ -23143,7 +23169,7 @@ ${seccionesHtml || '<p>No hay actividades configuradas para este rango.</p>'}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 
-    _entregarDocumentoImprimible(html, ventana);
+    _entregarDocumentoImprimible(htmlTexto, ventana);
   } catch (e) {
     if (ventana) ventana.close();
     console.error('descargarInformeCronograma:', e);
@@ -23280,7 +23306,7 @@ function renderTablaEntregasTurno() {
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
-  let html = `<div style="padding:8px 14px;font-size:12px;color:var(--text3)">${esc(aviso)}</div>
+  let htmlTexto = `<div style="padding:8px 14px;font-size:12px;color:var(--text3)">${esc(aviso)}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Código</th>
@@ -23292,7 +23318,7 @@ function renderTablaEntregasTurno() {
     </tr></thead><tbody>`;
   mostradas.forEach(e => {
     const turno = cfg?.turnos.find(t => t.id === e.TurnoId);
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(e.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(e.Fecha))}</td>
       <td style="padding:7px 10px">${esc(turno?.nombre || e.TurnoNombre)}</td>
@@ -23305,8 +23331,8 @@ function renderTablaEntregasTurno() {
       </td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 /* ══════════════════════════════════════════════
@@ -23410,7 +23436,7 @@ function renderConteoObservaciones() {
     return { nombre, amarillas, rojas, total: amarillas + rojas };
   }).sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre));
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Operario</th>
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)"><span class="punto-estado alerta"></span> Amarillas</th>
@@ -23418,15 +23444,15 @@ function renderConteoObservaciones() {
       <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border)">Total</th>
     </tr></thead><tbody>`;
   conteo.forEach(c => {
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px">${esc(c.nombre)}</td>
       <td style="padding:7px 10px;text-align:center;color:var(--estado-alerta-tx);font-weight:700">${c.amarillas}</td>
       <td style="padding:7px 10px;text-align:center;color:var(--danger);font-weight:700">${c.rojas}</td>
       <td style="padding:7px 10px;text-align:center;font-weight:800">${c.total}</td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 function renderHistorialObservaciones() {
@@ -23439,7 +23465,7 @@ function renderHistorialObservaciones() {
       : _estadoVacio({ icono: 'listo', titulo: 'Todavía no hay observaciones registradas' });
     return;
   }
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Fecha</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Hora</th>
@@ -23452,7 +23478,7 @@ function renderHistorialObservaciones() {
     const badge = o.Tipo === 'Roja'
       ? '<span style="background:var(--estado-peligro-bg);color:var(--estado-peligro-tx);font-weight:700;padding:2px 8px;border-radius:999px;font-size:11px"><span class="punto-estado peligro"></span> Roja</span>'
       : '<span style="background:var(--estado-alerta-bg);color:var(--estado-alerta-tx);font-weight:700;padding:2px 8px;border-radius:999px;font-size:11px"><span class="punto-estado alerta"></span> Amarilla</span>';
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px">${esc(fmtFecha(o.Fecha))}</td>
       <td style="padding:7px 10px">${esc(o.Hora)}</td>
       <td style="padding:7px 10px">${esc(o.Operario)}</td>
@@ -23461,8 +23487,8 @@ function renderHistorialObservaciones() {
       <td style="padding:7px 10px">${esc(o.RegistradoPor)}</td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 /** Nombre escrito de una sola forma, sin espacios de más. */
@@ -24079,11 +24105,11 @@ function _tablaReporteTecnico(def) {
   const th = (t, centro) => `<th style="padding:8px 10px;text-align:${centro ? 'center' : 'left'};border-bottom:2px solid var(--border)">${t}</th>`;
   const td = (valor, fuerte) => `<td style="padding:7px 10px${fuerte ? ';font-weight:700' : ''}">${esc(valor)}</td>`;
   const p = def.prefijo, i = _ICONOS_TABLA_REPORTE;
-  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">${th('Código')}${th('Fecha')}${def.sinHora ? '' : th('Hora')}${def.columnas.map(c => th(c.titulo)).join('')}${th('Técnico')}${th('', true)}</tr></thead><tbody>`;
   filas.forEach(r => {
     const cod = _jsArg(r.Codigo);
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       ${td(fmtFecha(r.Fecha))}${def.sinHora ? '' : td(_horaReporteParaMostrar(r))}${def.columnas.map(c => td(r[c.col], c.fuerte)).join('')}${td(_tecnicoDeReporte(r))}
       <td style="padding:7px 10px;text-align:center;white-space:nowrap">
@@ -24093,8 +24119,8 @@ function _tablaReporteTecnico(def) {
       </td>
     </tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  htmlTexto += '</tbody></table>';
+  wrap.innerHTML = htmlTexto;
 }
 
 /** Los botones Ver / PDF / Eliminar de la tabla: llaman a las funciones de
@@ -24199,7 +24225,7 @@ function _pdfReporteTecnico(def, codigo) {
   if (!r) return;
   const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
   const sede = OPERACIONES[operacionActual] ? ' — ' + esc(OPERACIONES[operacionActual].nombre) : '';
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  const htmlTexto = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>${def.titulo} — ${esc(r.Codigo)}${sede}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
@@ -24208,7 +24234,7 @@ function _pdfReporteTecnico(def, codigo) {
 ${def.documento(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  _entregarDocumentoImprimible(html, ventana);
+  _entregarDocumentoImprimible(htmlTexto, ventana);
 }
 
 function renderTablaReportesCompresores() { _tablaReporteTecnico(REPORTES_TECNICOS_DEF.compresores); }
@@ -24732,11 +24758,11 @@ function renderTablaEntregasSala() {
   const iconoPdf = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
   const iconoEliminar = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
   const th = (t, centro) => `<th style="padding:8px 10px;text-align:${centro ? 'center' : 'left'};border-bottom:2px solid var(--border)">${t}</th>`;
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+  let htmlTexto = `<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">${th('Código')}${th('Fecha')}${th('Turno')}${th('Entregó')}${th('Recibió')}${th('Compresores')}${th('', true)}</tr></thead><tbody>`;
   filas.forEach(r => {
     const estados = colsComp.map(c => r[c]);
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    htmlTexto += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(r.Codigo)}</td>
       <td style="padding:7px 10px">${esc(fmtFecha(r.Fecha))}</td>
       <td style="padding:7px 10px">${esc(r.TurnoNombre)}</td>
@@ -24750,11 +24776,11 @@ function renderTablaEntregasSala() {
       </td>
     </tr>`;
   });
-  html += '</tbody></table>';
+  htmlTexto += '</tbody></table>';
   if (!conFiltro && allEntregasSala.length > filas.length) {
-    html += `<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Se ven las ${filas.length} últimas. Usa Desde/Hasta para ver otras.</div>`;
+    htmlTexto += `<div style="padding:8px 12px;font-size:12px;color:var(--text3)">Se ven las ${filas.length} últimas. Usa Desde/Hasta para ver otras.</div>`;
   }
-  wrap.innerHTML = html;
+  wrap.innerHTML = htmlTexto;
 }
 
 /** HTML de una entrega (el mismo para la vista en pantalla y el PDF). */
@@ -24809,7 +24835,7 @@ function exportarEntregaSalaPDF(codigo) {
   const r = allEntregasSala.find(x => x.Codigo === codigo);
   if (!r) return;
   const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  const htmlTexto = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Entrega de Turno — ${esc(r.Codigo)}${OPERACIONES[operacionActual] ? ' — ' + esc(OPERACIONES[operacionActual].nombre) : ''}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
@@ -24818,7 +24844,7 @@ function exportarEntregaSalaPDF(codigo) {
 ${_construirHtmlEntregaSala(r)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  _entregarDocumentoImprimible(html, ventana);
+  _entregarDocumentoImprimible(htmlTexto, ventana);
 }
 
 async function eliminarEntregaSala(codigo) {
@@ -26009,7 +26035,7 @@ async function exportarEntregaTurnoPDF(codigo) {
   const e = allEntregasTurno.find(x => x.Codigo === codigo);
   if (!e) return;
   const ventana = _esNavegadorMovil() ? null : window.open('', '_blank');
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  const htmlTexto = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Entrega de Turno — ${esc(e.Codigo)}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:var(--text);margin:0;padding:24px}
@@ -26018,7 +26044,7 @@ async function exportarEntregaTurnoPDF(codigo) {
 ${_construirHtmlEntregaTurno(e)}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
-  _entregarDocumentoImprimible(html, ventana);
+  _entregarDocumentoImprimible(htmlTexto, ventana);
 }
 
 /* ══════════════════════════════════════════════
@@ -26064,11 +26090,11 @@ function _poblarSelectAnioInventarioEquipos() {
   const sel = document.getElementById('ieobs_anio');
   if (!sel || sel.options.length) return; // ya está lleno, no repetir 1000 opciones cada vez
   const actual = new Date().getFullYear();
-  let html = '';
+  let htmlTexto = '';
   for (let a = 2025; a <= 3025; a++) {
-    html += `<option value="${a}" ${a === actual ? 'selected' : ''}>${a}</option>`;
+    htmlTexto += `<option value="${a}" ${a === actual ? 'selected' : ''}>${a}</option>`;
   }
-  sel.innerHTML = html;
+  sel.innerHTML = htmlTexto;
 }
 
 /** Lee cualquier pestaña de la hoja de cálculo de la sede activa y la
@@ -29822,14 +29848,14 @@ async function _renderHistorialOrdenesEquipo(equipo) {
       </tr></thead><tbody>` +
       filas.map(({ orden: o, directo: c }) => {
         if (c) {
-          return `<tr class="hvd-cambio-directo">
-          <td>${esc(c.fecha)}</td>
-          <td>${esc(c.responsable)}</td>
-          <td>${esc(_textoCambioDirecto(c))}</td>
+          return String(html`<tr class="hvd-cambio-directo">
+          <td>${c.fecha}</td>
+          <td>${c.responsable}</td>
+          <td>${_textoCambioDirecto(c)}</td>
           <td>—</td>
           <td>${fmtCOP(c.costo)}</td>
           <td><span class="inv-badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Sin orden</span></td>
-        </tr>`;
+        </tr>`);
         }
         // El costo total de la orden (repuestos + insumos + servicios) ya
         // queda calculado y guardado en CostoReal al cerrarla — usarlo
@@ -30129,7 +30155,7 @@ function _pintarHistoricoEquipo(directosEquipo) {
     'Rechazada': 'background:var(--estado-peligro-bg);color:var(--estado-peligro-tx)',
   };
 
-  let html = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+  let tabla = `<table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--surface2)">
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">N° Orden</th>
       <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)">Título</th>
@@ -30143,7 +30169,7 @@ function _pintarHistoricoEquipo(directosEquipo) {
   ordenes.forEach(o => {
     const estilo = badgeEstado[o.Estado] || 'background:#eee;color:var(--text2)';
     const costo  = Number(o.CostoReal || o.CostoTotal || 0);
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    tabla += `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-family:'Courier New',monospace;font-weight:700;color:var(--brand)">${esc(o.NumeroOrden)}</td>
       <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(o.Title)}">${esc(o.Title)}</td>
       <td style="padding:7px 10px">${esc(o.TipoMantenimiento)}</td>
@@ -30156,9 +30182,9 @@ function _pintarHistoricoEquipo(directosEquipo) {
 
   // Los repuestos cambiados sin orden, al final.
   directos.forEach(c => {
-    html += `<tr style="border-bottom:1px solid var(--border)">
+    tabla += html`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;color:var(--text3)">Sin orden</td>
-      <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(_textoCambioDirecto(c))}">${esc(_textoCambioDirecto(c))}</td>
+      <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_textoCambioDirecto(c)}">${_textoCambioDirecto(c)}</td>
       <td style="padding:7px 10px">—</td>
       <td style="padding:7px 10px">${fmtFecha(c.fecha)}</td>
       <td style="padding:7px 10px;text-align:center"><span class="badge" style="background:var(--estado-info-bg);color:var(--estado-info-tx)">Cambio directo</span></td>
@@ -30167,8 +30193,8 @@ function _pintarHistoricoEquipo(directosEquipo) {
     </tr>`;
   });
 
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  tabla += '</tbody></table>';
+  wrap.innerHTML = tabla;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -31010,7 +31036,7 @@ function proyRenderCaja() {
 }
 
 function _proyTexto(id, texto) { const el = document.getElementById(id); if (el) el.textContent = texto; }
-function _proyHtml(id, html)  { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function _proyHtml(id, htmlTexto)  { const el = document.getElementById(id); if (el) el.innerHTML = htmlTexto; }
 
 /** El medidor de media luna con el % dibujado en el centro. */
 function _proyGauge(id, pct, color, leyenda) {

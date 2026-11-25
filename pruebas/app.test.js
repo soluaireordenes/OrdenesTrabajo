@@ -2397,6 +2397,58 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // M-06: html`…` escapa cada valor solo; se anida, une listas, no pinta
+    // null/undefined/false, sí el 0; html.arg es el de los onclick y
+    // html.crudo deja pasar HTML fijo de la app. Las vistas que lo usan no
+    // ejecutan un nombre preparado con código.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      const malo = '<img src=x onerror="window.__xss=1">"\'&';
+      out.valor = String(html`<td title="${malo}">${malo}</td>`);
+      out.anidado = String(html`<ul>${['a<b', 'c'].map(x => html`<li>${x}</li>`)}</ul>`);
+      out.vacios = String(html`[${null}|${undefined}|${false}|${0}|${NaN}]`);
+      out.arg = String(html`<button onclick="f(${html.arg('O\'Brien "x"')})">`);
+      out.crudo = String(html`<span>${html.crudo('<b>fijo</b>')}</span>`);
+      out.enTexto = `<div>${html`<i>${'<x>'}</i>`}</div>`;
+      // Vistas que usan html`…`: con una empresa y un equipo con nombre preparado.
+      usuarioRol = 'admin'; operacionAutenticada = true; operacionActual = 'antioquia';
+      currentUser = { name: 'Ana', email: 'a@x', initials: 'A' };
+      document.getElementById('loginOverlay')?.remove();
+      _aplicarEquiposEmpresas('antioquia', [{ Empresa: malo, Equipo: malo }, { Empresa: 'Planta Dos', Equipo: 'Bomba' }]);
+      showPanel('nueva'); await espera(100);
+      const emp = document.getElementById('f_empresa');
+      out.empresas = [...emp.options].map(o => o.value);
+      emp.value = malo; emp.dispatchEvent(new Event('change'));
+      out.equipo = [...document.getElementById('f_equipo').options].map(o => o.textContent);
+      out.opciones = (() => { const s = document.createElement('select'); s.innerHTML = _renderOptionsGrupo(_gruposEquiposParaOrden('antioquia')); return [...s.querySelectorAll('optgroup')].map(g => g.label); })();
+      abrirEquiposEmpresas();
+      out.resumen = document.querySelector('#eqEmpActual td')?.textContent;
+      document.getElementById('equiposEmpresasOverlay').remove();
+      abrirBuscadorGlobal();
+      const inp = document.getElementById('buscarInput'); inp.value = 'onerror'; inp.dispatchEvent(new Event('input'));
+      out.buscador = [...document.querySelectorAll('#buscarResultados .buscar-item')].map(x => x.dataset.valor);
+      cerrarBuscadorGlobal();
+      out.imgs = document.querySelectorAll('img[src="x"]').length;
+      await espera(200);
+      out.xss = window.__xss || 0;
+      return out;
+    });
+    const malo = '<img src=x onerror="window.__xss=1">"\'&';
+    check('M-06: html`…` escapa cada valor (también en atributos), anida, une listas y no pinta null/undefined/false (el 0 sí); html.arg y html.crudo',
+      r.valor === '<td title="&lt;img src=x onerror=&quot;window.__xss=1&quot;&gt;&quot;&#39;&amp;">&lt;img src=x onerror=&quot;window.__xss=1&quot;&gt;&quot;&#39;&amp;</td>'
+      && r.anidado === '<ul><li>a&lt;b</li><li>c</li></ul>' && r.vacios === '[|||0|]'
+      && r.arg === '<button onclick="f(&quot;O&#39;Brien \\&quot;x\\&quot;&quot;)">' && r.crudo === '<span><b>fijo</b></span>'
+      && r.enTexto === '<div><i>&lt;x&gt;</i></div>',
+      r);
+    check('M-06: las vistas que usan html`…` muestran un nombre preparado como texto (orden nueva, opciones, resumen, buscador) y no ejecutan nada',
+      r.empresas.includes(malo) && r.equipo.includes(malo) && r.opciones.includes(malo) && r.resumen === malo
+      && r.buscador.some(v => v === malo + ' · ' + malo) && r.imgs === 0 && r.xss === 0 && errs.length === 0,
+      { empresas: r.empresas, equipo: r.equipo, opciones: r.opciones, resumen: r.resumen, buscador: r.buscador, imgs: r.imgs, xss: r.xss, errs: errs.slice(0, 3) });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el
