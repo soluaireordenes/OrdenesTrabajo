@@ -48,6 +48,10 @@ const ERRORES = {
   // Un catch (o cualquier bloque) vacío esconde una falla: o se maneja, o un
   // comentario dice por qué se ignora (auditoría M-04).
   'no-empty': ['error', { allowEmptyCatch: false }],
+  // Funciones de tamaño manejable (auditoría M-03): más de 40 caminos o de
+  // 150 líneas de código se dividen (leer datos, calcular, dibujar).
+  complexity: ['error', 40],
+  'max-lines-per-function': ['error', { max: 150, skipBlankLines: true, skipComments: true }],
   // html`…` es la plantilla que escapa sola (auditoría M-06): una variable
   // local con ese nombre la taparía dentro de su función.
   'no-restricted-syntax': ['error',

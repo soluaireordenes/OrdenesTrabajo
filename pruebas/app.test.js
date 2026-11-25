@@ -2449,6 +2449,43 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // M-03: las piezas que calculan sin tocar la pantalla se prueban solas.
+    const { ctx, p, errs } = await nuevaPagina(b);
+    const r = await p.evaluate(() => {
+      const m = (c, u) => ({ codigo: 'X', nombre: 'n', cantidad: c, costoUnitario: u });
+      const ordenes = [
+        { Estado: 'Cerrada', TipoMantenimiento: 'Correctivo', Prioridad: 'Alta', Equipo: 'CB1', repuestos: [m(2, 1000)], insumos: [m(1, 300)], servicios: [m(1, 5000)] },
+        { Estado: 'Cerrada', TipoMantenimiento: 'Preventivo', Prioridad: 'Baja', Equipo: ' CB2 ', repuestos: [{ cantidad: 1, costoUnit: 700 }] },
+        { Estado: 'Pendiente', TipoMantenimiento: 'Mejora', Prioridad: 'Urgente', Equipo: 'CB3', repuestos: [m(1, 99999)] },
+        { Estado: 'En ejecución', Prioridad: 'Urgente', Equipo: 'CB1' },
+        { Estado: 'Cerrada', TipoMantenimiento: 'Correctivo', Prioridad: 'Media', Equipo: '' },
+      ];
+      const directos = [{ equipo: 'CB1', costo: 4000, tipoProducto: 'Repuestos' }, { equipo: 'CB9', costo: 1000, tipoProducto: 'Insumos' }];
+      const d = _calcularDashboard(ordenes, directos);
+      const sinDirectos = _calcularDashboard(ordenes, []);
+      return {
+        d: { total: d.total, pend: d.pend, cerradas: d.cerradas, urgentes: d.urgentes, costoRep: d.costoRep, costoIns: d.costoIns, costoServ: d.costoServ,
+          hayDirectos: d.hayDirectos, tipos: d.tiposCosto, porTipo: d.costoPorTipo, equipos: d.equipos.map(x => [x.eq, x.rep, x.ins, x.serv, x.total]) },
+        sinDirectos: { tipos: sinDirectos.tiposCosto, hayDirectos: sinDirectos.hayDirectos },
+        suma: _sumaCostos([m(2, 1.5), { cantidad: '3', costoUnit: '2' }, {}]),
+        fechas: _fechasInformeCronograma('2026-01-30', '2026-02-02'),
+        fechasTope: _fechasInformeCronograma('2026-01-01', '2026-12-31').length,
+        materiales: _filasMaterialesOrden('OT-1', [{ codigo: 'F', nombre: 'Filtro', cantidad: '2', costoUnitario: '1500' }, { nombre: '  ' }, { nombre: 'Grasa', cantidad: 1, costoUnit: 900, unidades: 'kg' }]),
+      };
+    });
+    check('M-03: _calcularDashboard da los indicadores, los costos (solo cerradas, más lo cambiado sin orden), el costo por tipo con "Sin orden" y el costo por equipo de mayor a menor',
+      JSON.stringify(r.d) === JSON.stringify({ total: 5, pend: 2, cerradas: 3, urgentes: 2, costoRep: 6700, costoIns: 1300, costoServ: 5000, hayDirectos: true,
+        tipos: ['Preventivo', 'Correctivo', 'Predictivo', 'Mejora', 'Sin orden'], porTipo: [700, 7300, 0, 0, 5000],
+        equipos: [['CB1', 6000, 300, 5000, 11300], ['CB9', 0, 1000, 0, 1000], ['CB2', 700, 0, 0, 700]] })
+      && JSON.stringify(r.sinDirectos) === JSON.stringify({ tipos: ['Preventivo', 'Correctivo', 'Predictivo', 'Mejora'], hayDirectos: false }),
+      r);
+    check('M-03: las piezas del informe del cronograma y del guardado de órdenes (días del informe con su tope de 62, filas de materiales)',
+      r.suma === 9 && JSON.stringify(r.fechas) === JSON.stringify(['2026-01-30', '2026-01-31', '2026-02-01', '2026-02-02']) && r.fechasTope === 62
+      && JSON.stringify(r.materiales) === JSON.stringify([['OT-1', 1, 'F', 'Filtro', 2, 'und', 1500, 3000], ['OT-1', 2, '', 'Grasa', 1, 'kg', 900, 900]]) && errs.length === 0,
+      { suma: r.suma, fechas: r.fechas, fechasTope: r.fechasTope, materiales: r.materiales, errs: errs.slice(0, 2) });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el
