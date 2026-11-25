@@ -21,13 +21,13 @@
 (function () {
   if (window.top === window.self) return;
   var mismoSitio = false;
-  try { mismoSitio = window.top.location.origin === window.location.origin; } catch (e) {}
+  try { mismoSitio = window.top.location.origin === window.location.origin; } catch (e) { /* marco de otro sitio: el navegador no deja leerlo, y eso basta para saber que es ajeno */ }
   if (mismoSitio) return;
   document.documentElement.style.display = 'none';
-  try { window.top.location = window.location.href; } catch (e) {}
+  try { window.top.location = window.location.href; } catch (e) { /* el navegador no deja salir del marco: la app queda oculta, que es lo que se quiere */ }
 })();
 </script>
-<script>try{var _t=localStorage.getItem('tema');if(_t==='dark'||_t==='light')document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+<script>try{var _t=localStorage.getItem('tema');if(_t==='dark'||_t==='light')document.documentElement.setAttribute('data-theme',_t);}catch (e) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }</script>
 
 <!-- ══ PWA: instalable y con soporte sin conexión ══ -->
 <link rel="manifest" href="manifest.json">
@@ -1913,7 +1913,7 @@ body.rol-operario .btn-principal-operario {
 </style>
 </head>
 <body>
-<script>try { if (localStorage.getItem('sidebarColapsado') === '1') document.body.classList.add('sidebar-colapsado'); } catch (_) {}</script>
+<script>try { if (localStorage.getItem('sidebarColapsado') === '1') document.body.classList.add('sidebar-colapsado'); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }</script>
 
 <!-- Indicador de versión — discreto, en una esquina, para detectar de un
      vistazo si alguien quedó con una copia vieja en caché. Sube este
@@ -5242,7 +5242,7 @@ function _esIOS() {
 function _mostrarBarraInstalar() {
   if (_appYaInstalada()) return; // ya está instalada, no molestar
   let descartadoHasta = 0;
-  try { descartadoHasta = Number(localStorage.getItem('barraInstalarDescartadaHasta') || 0); } catch (_) {}
+  try { descartadoHasta = Number(localStorage.getItem('barraInstalarDescartadaHasta') || 0); } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
   if (Date.now() < descartadoHasta) return; // el usuario la cerró hace poco
   const barra = document.getElementById('barraInstalarApp');
   if (barra) barra.style.display = 'flex';
@@ -5253,7 +5253,7 @@ function cerrarBarraInstalar() {
   if (barra) barra.style.display = 'none';
   document.body.style.paddingBottom = '';
   // No volver a mostrarla por 7 días, para no ser insistentes
-  try { localStorage.setItem('barraInstalarDescartadaHasta', String(Date.now() + 7*24*60*60*1000)); } catch (_) {}
+  try { localStorage.setItem('barraInstalarDescartadaHasta', String(Date.now() + 7*24*60*60*1000)); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -5323,6 +5323,42 @@ const GENERAR_ORDENES_PLANES_MANTENIMIENTO = false;
 const PROXY_URL  = 'https://solucionaire-proxy.soluaire-ordenes.workers.dev';
 const SHEETS_API = PROXY_URL + '/sheets'; // reemplaza a https://sheets.googleapis.com
 
+/* ── Errores que no deben pasar en silencio (auditoría M-04) ──
+   Lo que falla sin romper la pantalla (una lista que no se pudo leer, una
+   gráfica que no se redibujó) y los errores que nadie atrapó quedan en la
+   consola y se mandan al proxy (/error), que los anota en su registro junto
+   a los eventos de seguridad: Cloudflare → Workers → solucionaire-proxy →
+   Observability, evento "error_app". Sin sesión o sin señal no se manda.
+   Como mucho 20 por apertura y uno por cada mensaje distinto, para que un
+   error en bucle no llene el registro. Los catch que ignoran un error a
+   propósito (navegador sin almacenamiento, una respuesta sin JSON) dicen
+   por qué en su comentario. */
+const _ERRORES_MAX_POR_APERTURA = 20;
+const _erroresReportados = new Set();
+function _reportarError(donde, err) {
+  const mensaje = String((err && (err.message || err.reason)) || err || 'Error sin mensaje').slice(0, 300);
+  console.warn('[' + donde + ']', err);
+  const clave = donde + '|' + mensaje;
+  try {
+    // googleAccessToken es un let más abajo: antes de su línea, leerlo falla (y se cae aquí).
+    if (!googleAccessToken || navigator.onLine === false) return;
+    if (_erroresReportados.has(clave) || _erroresReportados.size >= _ERRORES_MAX_POR_APERTURA) return;
+    _erroresReportados.add(clave);
+    fetch(PROXY_URL + '/error', {
+      method: 'POST', keepalive: true,
+      headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ donde: String(donde).slice(0, 80), mensaje, pantalla: String(location.hash || '').slice(0, 60) }),
+    }).catch(() => { /* sin señal: queda en la consola */ });
+  } catch (_) { /* reportar nunca rompe nada */ }
+}
+// Los errores que nadie atrapó: solo los de la propia app (no los de una
+// extensión del navegador ni de otro sitio).
+window.addEventListener('error', ev => {
+  if (ev.filename && !String(ev.filename).startsWith(location.origin)) return;
+  _reportarError('sin atrapar', ev.error || ev.message);
+});
+window.addEventListener('unhandledrejection', ev => _reportarError('promesa sin atrapar', ev.reason));
+
 // Reintento automático ante el límite de cuota de Google Sheets (HTTP 429).
 // Con el proxy, todos los usuarios comparten la misma cuenta de servicio, y
 // por eso también el cupo de "lecturas por minuto por usuario". Si Google
@@ -5371,7 +5407,7 @@ function esAdmin() { return usuarioRol === 'admin'; }
 const PANELES_SOLO_ADMIN = ['nueva', 'dashboard'];
 // Marca el body según el rol: con rol-operario, el CSS oculta todo lo .solo-admin.
 function _aplicarRolUI() {
-  try { document.body.classList.toggle('rol-operario', !esAdmin()); } catch (e) {}
+  try { document.body.classList.toggle('rol-operario', !esAdmin()); } catch (e) { /* todavía no hay página ni rol: se aplica al cargar */ }
   // Etiqueta del rol al lado del nombre, en el encabezado.
   const rolEl = document.getElementById('userRol');
   if (rolEl) { rolEl.textContent = esAdmin() ? 'Admin' : 'Operario'; rolEl.hidden = !googleAccessToken; }
@@ -5407,7 +5443,7 @@ const EMPALME_SEDES = ['zipaquira2'];
 // En navegación privada estricta (o con los datos del sitio bloqueados) leer
 // el almacenamiento lanza un error: sin el try/catch la app no arrancaba.
 let operacionActual = 'zipaquira';
-try { operacionActual = localStorage.getItem('operacionActual') || 'zipaquira'; } catch (_) {}
+try { operacionActual = localStorage.getItem('operacionActual') || 'zipaquira'; } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
 if (!OPERACIONES[operacionActual]) operacionActual = Object.keys(OPERACIONES)[0];
 GOOGLE_CONFIG.spreadsheetId = OPERACIONES[operacionActual].spreadsheetId;
 
@@ -5421,7 +5457,7 @@ let _notifBadgeEstado = { visible: false, texto: '0' };
 // ya se haya usado antes en este equipo. sessionStorage se borra al cerrar
 // la pestaña, así que esto NO persiste entre sesiones (a diferencia de operacionActual).
 let operacionAutenticada = false;
-try { operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === operacionActual; } catch (_) {}
+try { operacionAutenticada = sessionStorage.getItem('operacionAutenticada') === operacionActual; } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
 
 // Estado (solo en memoria, se reinicia con cada carga de página) de qué
 // grupos del menú lateral (Operaciones/Inventario/Tiempo Real/Plan de
@@ -6515,12 +6551,12 @@ async function validarClaveSedeDirecto(sede, clave) {
     body: JSON.stringify({ spreadsheetId, clave }),
   });
   let datos = {};
-  try { datos = await resp.json(); } catch (_) {}
+  try { datos = await resp.json(); } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
   // Proxy todavía sin la ruta /sede (se publica a mano en Cloudflare): se
   // usa la comprobación anterior hasta que esté.
   if (resp.status === 404 && /Ruta no encontrada/i.test(datos.mensaje || '')) return _validarClaveSedeLocal(spreadsheetId, clave);
   if (resp.ok && datos.ok) {
-    if (datos.paseSede) { try { sessionStorage.setItem('paseSede', JSON.stringify({ sede, pase: datos.paseSede })); } catch (_) {} }
+    if (datos.paseSede) { try { sessionStorage.setItem('paseSede', JSON.stringify({ sede, pase: datos.paseSede })); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ } }
     return true;
   }
   if (resp.status === 401 && /Contraseña incorrecta/i.test(datos.mensaje || '')) return false;
@@ -6555,7 +6591,7 @@ async function _volverAPedirClaveSede() {
   if (_pidiendoClaveSede || !operacionAutenticada) return;
   _pidiendoClaveSede = true;
   operacionAutenticada = false;
-  try { sessionStorage.removeItem('operacionAutenticada'); sessionStorage.removeItem('paseSede'); } catch (_) {}
+  try { sessionStorage.removeItem('operacionAutenticada'); sessionStorage.removeItem('paseSede'); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   aviso('Por seguridad, escribe otra vez la clave de la sede.', 'info', { guardar: false });
   try { await seleccionarOperacion(operacionActual); } finally { _pidiendoClaveSede = false; }
 }
@@ -6655,7 +6691,7 @@ async function _postScriptFotos(cuerpo) {
       body: JSON.stringify(pase ? { ...cuerpo, pase } : cuerpo),
     });
     let datos = null;
-    try { datos = await resp.clone().json(); } catch (_) {}
+    try { datos = await resp.clone().json(); } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     if (!(datos && datos.paseInvalido)) break;
   }
   return resp;
@@ -7336,7 +7372,7 @@ function toggleSidebarMovil(forzar) {
   } else {
     const colapsar = (typeof forzar === 'boolean') ? !forzar : !document.body.classList.contains('sidebar-colapsado');
     document.body.classList.toggle('sidebar-colapsado', colapsar);
-    try { localStorage.setItem('sidebarColapsado', colapsar ? '1' : '0'); } catch (_) {}
+    try { localStorage.setItem('sidebarColapsado', colapsar ? '1' : '0'); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
     actualizarIconoMenuSidebar(!colapsar);
   }
 }
@@ -7422,7 +7458,7 @@ function _sidebarCuentaMovil() {
   // El menú se dibuja una primera vez mientras el script todavía carga,
   // cuando currentUser aún no existe (ni typeof sirve con un let en espera).
   let u = null;
-  try { u = currentUser; } catch (_) {}
+  try { u = currentUser; } catch (_) { /* el menú se dibuja antes de que exista el usuario */ }
   if (!u) return '';
   const rol = googleAccessToken ? (esAdmin() ? 'Admin' : 'Operario') : '';
   return `
@@ -7696,8 +7732,8 @@ async function _validarClaveSede(key, clave) {
  *  para evitar mezclar en memoria datos de una sede con otra. */
 function cambiarOperacion(key) {
   if (!OPERACIONES[key]) return;
-  try { localStorage.setItem('operacionActual', key); } catch (_) {}
-  try { sessionStorage.setItem('operacionAutenticada', key); } catch (_) {}
+  try { localStorage.setItem('operacionActual', key); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
+  try { sessionStorage.setItem('operacionAutenticada', key); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   location.reload();
 }
 
@@ -7742,10 +7778,10 @@ function _copiasLocalesDeOrdenes() {
       const clave = localStorage.key(i);
       if (!clave || !clave.startsWith(PREFIJO_COPIA_LOCAL_ORDENES)) continue;
       let lista = [];
-      try { lista = JSON.parse(localStorage.getItem(clave) || '[]'); } catch (_) {}
+      try { lista = JSON.parse(localStorage.getItem(clave) || '[]'); } catch (_) { /* copia local dañada: se toma como vacía */ }
       copias.push({ clave, lista: Array.isArray(lista) ? lista : [] });
     }
-  } catch (_) {}
+  } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
   return copias;
 }
 
@@ -7761,17 +7797,17 @@ function _limpiarCopiasLocalesAlSalir() {
     try {
       if (pendientes.length) localStorage.setItem(clave, JSON.stringify(pendientes));
       else localStorage.removeItem(clave);
-    } catch (_) {}
+    } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   });
   // La lista de equipos de las empresas (clientes y seriales) tampoco se
   // queda en un equipo del que ya se salió.
-  SEDES_CON_EMPRESAS.forEach(sede => { try { localStorage.removeItem(_LS_EQUIPOS_EMPRESAS + sede); } catch (_) {} });
+  SEDES_CON_EMPRESAS.forEach(sede => { try { localStorage.removeItem(_LS_EQUIPOS_EMPRESAS + sede); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ } });
 }
 
 /** El botón "Salir". */
 async function salirDelSistema() {
   if (_ordenesSinSubirEnEsteEquipo() && googleAccessToken) {
-    try { await intentarSincronizarPendientes(); } catch (_) {}
+    try { await intentarSincronizarPendientes(); } catch (_) { /* sin señal: abajo se cuentan las que quedan y se avisa */ }
   }
   const quedan = _ordenesSinSubirEnEsteEquipo();
   if (quedan && !(await confirmarAccion({
@@ -7789,7 +7825,7 @@ function cerrarSesion(salir) {
     sessionStorage.removeItem('docPinDocumento');
     sessionStorage.removeItem('docPinPin');
     if (salir === true) { sessionStorage.removeItem('operacionAutenticada'); sessionStorage.removeItem('paseSede'); }
-  } catch (_) {}
+  } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   googleAccessToken = null;
   location.reload();
 }
@@ -7961,7 +7997,7 @@ window.addEventListener('load', async () => {
       googleAccessToken = savedToken; // ahora es el pase de sesión del proxy
       usuarioRol = (sessionStorage.getItem('gRol') === 'admin') ? 'admin' : 'operario';
     }
-  } catch (_) {} // almacenamiento bloqueado: se muestra el login
+  } catch (_) { /* almacenamiento bloqueado: se muestra el login */ }
   _aplicarRolUI(); // oculta acciones de admin si el usuario es operario
 
   if (!googleAccessToken) {
@@ -8118,7 +8154,7 @@ function _rutaNavegar(ruta, { reemplazar = false } = {}) {
   try {
     if (reemplazar || _rutaPorHistorial || !location.hash) history.replaceState({ ruta }, '', _hashDeRuta(ruta));
     else history.pushState({ ruta }, '', _hashDeRuta(ruta));
-  } catch (_) {}
+  } catch (_) { /* el navegador no deja cambiar la dirección (archivo local): se sigue sin ruta */ }
 }
 /** La subpestaña va en la dirección del panel en el que se está. */
 function _rutaSubpestana(panel, sub) {
@@ -8183,7 +8219,7 @@ window.addEventListener('popstate', () => {
   if (document.getElementById('loginOverlay')) return; // en la entrada no hay a dónde volver
   if (_cerrarVentanaOMenu()) {
     // "Atrás" se usó para cerrar: la pantalla sigue siendo la misma.
-    if (_rutaActual) { try { history.pushState({ ruta: _rutaActual }, '', _hashDeRuta(_rutaActual)); } catch (_) {} }
+    if (_rutaActual) { try { history.pushState({ ruta: _rutaActual }, '', _hashDeRuta(_rutaActual)); } catch (_) { /* el navegador no deja cambiar la dirección (archivo local): se sigue sin ruta */ } }
     return;
   }
   const destino = _rutaDeHash() || 'inicio';
@@ -8198,11 +8234,11 @@ function _rutaPedidaAlAbrir() {
   try {
     if (!ruta || ruta === 'inicio') ruta = sessionStorage.getItem('rutaPendiente') || '';
     if (ruta && ruta !== 'inicio') sessionStorage.setItem('rutaPendiente', ruta);
-  } catch (_) {}
+  } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   return ruta === 'inicio' ? '' : ruta;
 }
 function _usarRutaPendiente() {
-  try { sessionStorage.removeItem('rutaPendiente'); } catch (_) {}
+  try { sessionStorage.removeItem('rutaPendiente'); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
 }
 
 async function showPanel(name) {
@@ -8238,7 +8274,7 @@ async function showPanel(name) {
   // Recordar la última pestaña abierta (de la barra superior) para volver a
   // ella la próxima vez que se entre a la app. No se guarda "inicio".
   if (name !== 'inicio' && (name in tabs)) {
-    try { localStorage.setItem('ultimoPanel', name); } catch (_) {}
+    try { localStorage.setItem('ultimoPanel', name); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   }
   _actualizarBottomNav(name);
 
@@ -8275,7 +8311,7 @@ function _mostrarOrdenesCacheFirst(render) {
  *  (o es inválida), se queda en "inicio" como siempre. */
 function _irAPanelInicialRecordado() {
   let ultimo = null;
-  try { ultimo = localStorage.getItem('ultimoPanel'); } catch (_) {}
+  try { ultimo = localStorage.getItem('ultimoPanel'); } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
   if (!ultimo || ultimo === 'inicio' || !document.getElementById('panel-' + ultimo)) return;
   if (PANELES_SOLO_ADMIN.includes(ultimo) && !esAdmin()) return; // un operario no vuelve a una sección de admin
   if (ultimo === 'pendientes') {
@@ -8422,7 +8458,7 @@ function renderAccesosInicio(pendientes) {
  *  o la próxima del turno; sin cronograma, un texto general. */
 function _textoVentanaReporteAhora() {
   let ctx = null;
-  try { ctx = _contextoCronogramaAhora(operacionActual, CRONOGRAMA_POR_SEDE[operacionActual]); } catch (_) {}
+  try { ctx = _contextoCronogramaAhora(operacionActual, CRONOGRAMA_POR_SEDE[operacionActual]); } catch (e) { _reportarError('ventana del cronograma', e); }
   if (!ctx) return 'Actividades del turno y reportes de equipos';
   const horas = (ctx.turno.checkpoints || []).map(c => c.hora).filter(Boolean);
   const abierta = horas.find(h => _estadoVentanaReporte(h) === 'abierta');
@@ -8502,13 +8538,13 @@ function _iconoTema(tema) {
 function alternarTema() {
   const nuevo = _temaActual() === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', nuevo);
-  try { localStorage.setItem('tema', nuevo); } catch (_) {}
+  try { localStorage.setItem('tema', nuevo); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
   _iconoTema(nuevo);
-  if (_mapaOperacionInstancia) { try { renderMapaOperacion(); } catch (_) {} }
+  if (_mapaOperacionInstancia) { try { renderMapaOperacion(); } catch (e) { _reportarError('mapa al cambiar el tema', e); } }
   _coloresGraficas();
   // Las gráficas de Proyectos llevan los colores de su paleta: se redibujan.
   const subProy = document.querySelector('#panel-proyectos.active .proy-subpanel.active');
-  if (subProy) { try { proyMostrarSubTab(subProy.id.replace('proySub-', '')); } catch (_) {} }
+  if (subProy) { try { proyMostrarSubTab(subProy.id.replace('proySub-', '')); } catch (e) { _reportarError('Proyectos al cambiar el tema', e); } }
 }
 /* Gráficas con nombre (auditoría V-04): cada gráfica dice qué muestra y
    sus datos principales a quien usa lector de pantalla, en vez de ser un
@@ -8557,11 +8593,11 @@ function _coloresGraficas() {
   try { if (!Chart.registry.plugins.get('graficaAccesible')) Chart.register(_COMPLEMENTO_GRAFICA_ACCESIBLE); } catch (_) { /* Chart.js viejo: sin nombre */ }
   Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text2').trim() || '#666';
   Chart.defaults.borderColor = _temaActual() === 'dark' ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)';
-  Object.values(Chart.instances || {}).forEach(g => { try { g.update('none'); } catch (_) {} });
+  Object.values(Chart.instances || {}).forEach(g => { try { g.update('none'); } catch (_) { /* la gráfica ya no está en pantalla */ } });
 }
 function _aplicarTemaGuardado() {
   let t = null;
-  try { t = localStorage.getItem('tema'); } catch (_) {}
+  try { t = localStorage.getItem('tema'); } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
   const tema = (t === 'dark') ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', tema);
   _iconoTema(tema);
@@ -8685,7 +8721,7 @@ function _montarListaIncremental(contenedor, items, htmlDeItem, opts) {
 
   // Cancela cualquier observador de un render anterior en este contenedor.
   const prev = _incrObservers.get(contenedor);
-  if (prev && prev.io) { try { prev.io.disconnect(); } catch (_) {} }
+  if (prev && prev.io) { try { prev.io.disconnect(); } catch (_) { /* ya estaba desconectado */ } }
   _incrObservers.delete(contenedor);
 
   contenedor.innerHTML = '';
@@ -8715,7 +8751,7 @@ function _montarListaIncremental(contenedor, items, htmlDeItem, opts) {
     btn.insertAdjacentHTML('beforebegin', buf);
     idx = fin;
     if (idx >= items.length) {
-      if (io) { try { io.disconnect(); } catch (_) {} }
+      if (io) { try { io.disconnect(); } catch (_) { /* ya estaba desconectado */ } }
       _incrObservers.delete(contenedor);
       btn.remove();
     } else {
@@ -8798,7 +8834,7 @@ function refrescarPanelActual() {
     if (activar) {
       getInd().style.height = '38px';
       document.getElementById('ptrTxt').textContent = 'Actualizando…';
-      try { refrescarPanelActual(); } catch (_) {}
+      try { refrescarPanelActual(); } catch (e) { _reportarError('deslizar para actualizar', e); }
       setTimeout(() => { getInd().style.height = '0'; }, 800);
     } else {
       getInd().style.height = '0';
@@ -9675,7 +9711,7 @@ function _entregarDocumentoImprimible(html, ventana) {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
   }
-  if (ventana) { try { ventana.close(); } catch (e) {} }
+  if (ventana) { try { ventana.close(); } catch (e) { /* la ventana ya se cerró */ } }
   _mostrarDocumentoEnVisor(html);
 }
 
@@ -13263,7 +13299,7 @@ async function sheetsRequest(method, range, body) {
   if (!resp.ok) {
     const txt = await resp.text();
     let msg = `Error ${resp.status}`;
-    try { const j = JSON.parse(txt); msg = j.error?.message || msg; } catch(_) {}
+    try { const j = JSON.parse(txt); msg = j.error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     if (resp.status === 401) {
       msg = 'Token expirado — cierra sesión y vuelve a entrar';
       mostrarModalSesionExpirada();
@@ -13876,7 +13912,7 @@ async function _leerEncabezadosHoja(nombre) {
   if (!r.ok) {
     const txt = await r.text();
     let msg = 'Error ' + r.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer los encabezados de ' + nombre + ': ' + msg);
   }
   const d = await r.json();
@@ -13929,7 +13965,7 @@ async function appendHoja(nombre, rows) {
     }
     const txt = await resp.text();
     let msg = 'Error ' + resp.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch(_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('Hoja ' + nombre + ': ' + msg);
   }
   _invalidarCacheHoja(nombre);
@@ -14106,7 +14142,7 @@ async function _archivoDesdeProxy(driveFileId) {
     // El proxy explica el motivo en su respuesta (p. ej. "Drive respondió
     // 404": la cuenta de servicio no tiene acceso a esa carpeta).
     let mensaje = '';
-    try { mensaje = (await resp.json()).mensaje || ''; } catch (_) {}
+    try { mensaje = (await resp.json()).mensaje || ''; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('respondió ' + resp.status + (mensaje ? ' (' + mensaje + ')' : ''));
   }
   return resp.blob();
@@ -14526,7 +14562,7 @@ async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
     if (!r.ok) {
       const t = await r.text();
       let msg = 'Error ' + r.status;
-      try { msg = JSON.parse(t).error?.message || msg; } catch (_) {}
+      try { msg = JSON.parse(t).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
       const err = new Error(msg); err.httpStatus = r.status; throw err;
     }
     const d = await r.json();
@@ -14543,7 +14579,7 @@ async function _leerVariasHojasEnUnaPeticion(nombres, colsPorHoja) {
     if (!/parse range|Unable to parse|not found/i.test(e.message) || !colsPorHoja) throw e;
     // Alguna hoja no existe todavia (sede nueva): se crean y se reintenta.
     for (const n of nombres) {
-      if (colsPorHoja[n]) { try { await asegurarHoja(n, colsPorHoja[n]); } catch (_) {} }
+      if (colsPorHoja[n]) { try { await asegurarHoja(n, colsPorHoja[n]); } catch (_) { /* si no se pudo crear, el reintento de abajo da el error real */ } }
     }
     return await pedir();
   }
@@ -14988,10 +15024,10 @@ async function _crearPinNuevo(pinActual) {
           headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ pinActual: pinActual || String(d.actual).trim(), pinNuevo: String(d.nuevo).trim() }),
         });
-        try { datos = await resp.json(); } catch (_) {}
+        try { datos = await resp.json(); } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
       } catch (e) { error = 'No se pudo guardar el PIN (' + e.message + '). Revisa la conexión e intenta de nuevo.'; continue; }
       if (resp.ok && datos.ok && datos.session) {
-        try { sessionStorage.setItem('gToken', datos.session); } catch (_) {}
+        try { sessionStorage.setItem('gToken', datos.session); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
         aviso('PIN nuevo guardado. Desde ahora entras con él.', 'exito');
         location.reload();
         return;
@@ -16539,11 +16575,11 @@ function aviso(mensaje, tipo, { guardar = true } = {}) {
   cont.appendChild(el);
 
   const marca = Date.now();
-  if (guardar) { try { sessionStorage.setItem('avisoPendiente', JSON.stringify({ mensaje, tipo, t: marca })); } catch (_) {} }
+  if (guardar) { try { sessionStorage.setItem('avisoPendiente', JSON.stringify({ mensaje, tipo, t: marca })); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ } }
   let cerrado = false, reloj = null;
   const cerrar = () => {
     if (cerrado) return; cerrado = true; clearTimeout(reloj);
-    try { const p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); if (p && p.t === marca) sessionStorage.removeItem('avisoPendiente'); } catch (_) {}
+    try { const p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); if (p && p.t === marca) sessionStorage.removeItem('avisoPendiente'); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
     el.classList.add('saliendo');
     setTimeout(() => el.remove(), 200);
   };
@@ -16621,7 +16657,7 @@ function confirmarAccion({ titulo, texto = '', aceptar = 'Aceptar', cancelar = '
     const cerrar = respuesta => {
       document.removeEventListener('keydown', teclas, true);
       fondo.remove();
-      try { if (antes && antes.isConnected) antes.focus(); } catch (_) {}
+      try { if (antes && antes.isConnected) antes.focus(); } catch (_) { /* el elemento ya no está en pantalla */ }
       resolve(respuesta);
     };
     btnNo.addEventListener('click', () => cerrar(false));
@@ -16708,7 +16744,7 @@ function pedirDatos({ titulo, texto = '', campos = [], aceptar = 'Aceptar', canc
     const cerrar = respuesta => {
       document.removeEventListener('keydown', teclas, true);
       fondo.remove();
-      try { if (antes && antes.isConnected) antes.focus(); } catch (_) {}
+      try { if (antes && antes.isConnected) antes.focus(); } catch (_) { /* el elemento ya no está en pantalla */ }
       resolve(respuesta);
     };
     form.addEventListener('submit', e => {
@@ -16737,7 +16773,7 @@ function pedirDatos({ titulo, texto = '', campos = [], aceptar = 'Aceptar', canc
 /** Un aviso que quedó a medias por una recarga se muestra otra vez. */
 function _mostrarAvisoPendiente() {
   let p = null;
-  try { p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); sessionStorage.removeItem('avisoPendiente'); } catch (_) {}
+  try { p = JSON.parse(sessionStorage.getItem('avisoPendiente') || 'null'); sessionStorage.removeItem('avisoPendiente'); } catch (_) { /* navegador sin almacenamiento: no hay nada que leer */ }
   if (p && p.mensaje && Date.now() - p.t < 15000) aviso(p.mensaje, p.tipo, { guardar: false });
 }
 
@@ -17013,7 +17049,7 @@ let _variablesCharts = [];
 // Lo usa el filtro para saber cuales volver a dimensionar al mostrarlas.
 let _variablesChartsGrupo = [];
 function _variablesDestruirCharts() {
-  _variablesCharts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _variablesCharts.forEach(c => { try { c.destroy(); } catch (_) { /* la gráfica ya no está en pantalla */ } });
   _variablesCharts = [];
   _variablesChartsGrupo = [];
   if (typeof _auxDestruirChartPromedio === 'function') _auxDestruirChartPromedio();
@@ -17042,7 +17078,7 @@ let _auxModoForzado   = null;
 let _auxChartPromedio = null;
 
 function _auxDestruirChartPromedio() {
-  if (_auxChartPromedio) { try { _auxChartPromedio.destroy(); } catch (_) {} }
+  if (_auxChartPromedio) { try { _auxChartPromedio.destroy(); } catch (_) { /* la gráfica ya no está en pantalla */ } }
   _auxChartPromedio = null;
 }
 
@@ -17724,7 +17760,7 @@ function _variablesFiltrarGrupo(grupo) {
   });
   _variablesCharts.forEach((chart, i) => {
     if (!grupo || _variablesChartsGrupo[i] === grupo) {
-      try { chart.resize(); } catch (_) {}
+      try { chart.resize(); } catch (_) { /* la gráfica ya no está en pantalla */ }
     }
   });
 }
@@ -18048,7 +18084,7 @@ async function eliminarFilasDondeCumple(hoja, predicado) {
   if (!resp.ok) {
     const txt = await resp.text();
     let msg = 'Error ' + resp.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer ' + hoja + ' antes de borrar: ' + msg);
   }
   const d = await resp.json();
@@ -19800,7 +19836,7 @@ async function eliminarFechaRacha(fecha) {
       if (resp.status === 401) { mostrarModalSesionExpirada(); throw new Error('Token expirado — cierra sesión y vuelve a entrar'); }
       const txt = await resp.text();
       let msg = 'Error ' + resp.status;
-      try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+      try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
       throw new Error(msg);
     }
     _invalidarCacheHoja(SH.rachaNovedades);
@@ -19971,7 +20007,7 @@ async function _leerHojaGenerica(nombre) {
   if (!r.ok) {
     const t = await r.text();
     let msg = 'Error ' + r.status;
-    try { msg = JSON.parse(t).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(t).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer la hoja ' + nombre + ': ' + msg);
   }
   const d = await r.json();
@@ -20439,7 +20475,7 @@ async function verInformePdf(codigo) {
     if (win) win.location.href = url; else window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (e) {
-    if (win) { try { win.close(); } catch (_) {} }
+    if (win) { try { win.close(); } catch (_) { /* la ventana ya se cerró */ } }
     alert('No se pudo abrir el PDF: ' + e.message);
   }
 }
@@ -20683,7 +20719,7 @@ function renderGraficasNovedades() {
   //    informes. Los tiempos que se digitan (TiempoTotalMin) son los que se
   //    grafican, coloreados por su rango. Las gráficas se crean dinámicas, así
   //    que se destruyen a mano en cada render. ──
-  if (Array.isArray(window._novChartsPorTipo)) window._novChartsPorTipo.forEach(c => { try { c.destroy(); } catch (_) {} });
+  if (Array.isArray(window._novChartsPorTipo)) window._novChartsPorTipo.forEach(c => { try { c.destroy(); } catch (_) { /* la gráfica ya no está en pantalla */ } });
   window._novChartsPorTipo = [];
   const wrapPorTipo = document.getElementById('novTiemposPorTipoWrap');
   if (wrapPorTipo) {
@@ -22054,7 +22090,7 @@ function _invhMarcarCompleta(n) {
 function _invhMarcarIncompleta(n) {
   _invhPintarEstado(n, 'incompleta');
   const inp = document.getElementById('invh_faltan_' + n);
-  if (inp) { try { inp.focus(); inp.select(); } catch (e) {} }
+  if (inp) { try { inp.focus(); inp.select(); } catch (e) { /* el elemento ya no está en pantalla */ } }
   _recalcularResumenInvh();
 }
 
@@ -23445,9 +23481,9 @@ async function _nombresOperariosEnRegistros() {
   };
   try {
     (await _leerHojaGenerica(SH.cronogramaRegistros)).forEach(f => String(f.OperariosRealizaron || '').split(',').forEach(sumar));
-  } catch (_) {}
+  } catch (e) { _reportarError('nombres de operarios del cronograma', e); }
   if (esAdmin()) {
-    try { (await _leerHojaGenerica(SH.observacionesOperarios)).forEach(f => sumar(f.Operario)); } catch (_) {}
+    try { (await _leerHojaGenerica(SH.observacionesOperarios)).forEach(f => sumar(f.Operario)); } catch (e) { _reportarError('nombres de operarios de las observaciones', e); }
   }
   return Array.from(nombres.values()).sort((a, b) => a.localeCompare(b, 'es'));
 }
@@ -25992,7 +26028,7 @@ async function leerHojaGenerica(nombre) {
   if (!resp.ok) {
     const txt = await resp.text();
     let msg = 'Error ' + resp.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer la hoja ' + nombre + ': ' + msg);
   }
   const d = await resp.json();
@@ -26518,7 +26554,7 @@ async function hvdRenderListaEquipos() {
   // Los extintores muestran si la recarga está vencida o por vencer.
   let ultimaRecarga = {};
   if (listaFijos.some(eq => eq.extintor)) {
-    try { ultimaRecarga = _ultimaRecargaPorEquipo(await _leerRecargasExtintores()); } catch (_) {}
+    try { ultimaRecarga = _ultimaRecargaPorEquipo(await _leerRecargasExtintores()); } catch (e) { _reportarError('recargas de extintores', e); }
   }
   const etiquetaRecarga = eq => {
     if (!eq.extintor) return '';
@@ -26812,7 +26848,7 @@ async function _actualizarFilaPorClave(hoja, cols, colClave, valorClave, datosPa
   if (!resp.ok) {
     const txt = await resp.text();
     let msg = 'Error ' + resp.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer la hoja ' + hoja + ' antes de actualizar: ' + msg);
   }
   const d = await resp.json();
@@ -26862,7 +26898,7 @@ async function _actualizarFilasPorClaveEnLote(hoja, cols, colClave, cambiosPorCl
   if (!resp.ok) {
     const txt = await resp.text();
     let msg = 'Error ' + resp.status;
-    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) {}
+    try { msg = JSON.parse(txt).error?.message || msg; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     throw new Error('No se pudo leer la hoja ' + hoja + ' antes de actualizar: ' + msg);
   }
   const d = await resp.json();
@@ -27647,7 +27683,7 @@ function _empHtmlFoto(foto) {
 async function _empCargarMiniaturas(fotos) {
   const ids = fotos.map(f => f.DriveFileId).filter(Boolean);
   if (!ids.length) return;
-  try { await _precargarFotosEnLotes(ids, null, 5); } catch (_) {}
+  try { await _precargarFotosEnLotes(ids, null, 5); } catch (e) { _reportarError('miniaturas del empalme', e); }
   ids.forEach(id => {
     const img = document.getElementById('empFotoImg_' + id);
     if (img) _cargarFotoEnImg(id, img, document.getElementById('empFotoA_' + id));
@@ -28707,7 +28743,7 @@ async function descargarActaEmpalme() {
     await _empActualizarHallazgosSegunOrdenes();
     try { bodega = await _empMovimientosBodegaInicial(operacionActual); } catch (_) { bodega = null; }
   } catch (e) {
-    if (ventana) { try { ventana.close(); } catch (_) {} }
+    if (ventana) { try { ventana.close(); } catch (_) { /* la ventana ya se cerró */ } }
     alert('No se pudo armar el acta: ' + e.message);
     return;
   }
@@ -29144,12 +29180,12 @@ function _idsNotificacionesLeidas() {
 function marcarNotificacionLeida(id) {
   const leidas = new Set(_idsNotificacionesLeidas());
   leidas.add(id);
-  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) {}
+  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
 }
 function marcarTodasNotificacionesLeidas(ids) {
   const leidas = new Set(_idsNotificacionesLeidas());
   ids.forEach(id => leidas.add(id));
-  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) {}
+  try { localStorage.setItem(_notifLeidasKey(), JSON.stringify([...leidas])); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
 }
 
 /** Revisa los planes de mantenimiento de la sede activa y genera UNA
@@ -29574,7 +29610,7 @@ async function _revisionInformesPendiente() {
 function _recordarRevisionInformes(huella, resultados) {
   if (!huella) return;
   if (!resultados.every(r => r && !r.error)) return;
-  try { localStorage.setItem(HUELLA_HORAS_CLAVE + ':' + operacionActual, huella); } catch (_) {}
+  try { localStorage.setItem(HUELLA_HORAS_CLAVE + ':' + operacionActual, huella); } catch (_) { /* navegador sin almacenamiento (modo privado o bloqueado): se sigue sin recordarlo */ }
 }
 
 function verificarInformeTrimestralYGenerar(equiposYaConOrden) {
@@ -30129,7 +30165,7 @@ async function _proyPrepararHojas() {
   // compartir la hoja con la cuenta personal ya no sirve de nada.
   if (resp.status === 403 || resp.status === 404) {
     let mensajeProxy = '';
-    try { mensajeProxy = (await resp.clone().json()).mensaje || ''; } catch (_) {}
+    try { mensajeProxy = (await resp.clone().json()).mensaje || ''; } catch (_) { /* la respuesta no trae JSON: queda el mensaje general */ }
     if (mensajeProxy) throw new Error(mensajeProxy);
     throw new Error('No se pudo abrir la hoja de Proyectos. Compártela (como editor) con la cuenta de servicio del sistema, la misma que tienen las hojas de las sedes.');
   }
@@ -30682,7 +30718,7 @@ function _proyRenderCabecera() {
 function _proyChart(id, cfg, plugins) {
   const canvas = document.getElementById(id);
   if (!canvas || typeof Chart === 'undefined') return null;
-  if (_proyGraficas[id]) { try { _proyGraficas[id].destroy(); } catch (e) {} }
+  if (_proyGraficas[id]) { try { _proyGraficas[id].destroy(); } catch (e) { /* la gráfica ya no está en pantalla */ } }
   if (plugins) cfg = Object.assign({}, cfg, { plugins: plugins });
   _proyGraficas[id] = new Chart(canvas, cfg);
   return _proyGraficas[id];

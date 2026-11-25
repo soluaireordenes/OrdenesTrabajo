@@ -45,6 +45,9 @@ const ERRORES = {
   'valid-typeof': 'error', 'no-func-assign': 'error', 'no-const-assign': 'error', 'no-sparse-arrays': 'error',
   'no-constant-binary-expression': 'error', 'no-loss-of-precision': 'error', 'no-empty-pattern': 'error',
   'no-async-promise-executor': 'error', 'getter-return': 'error', 'no-setter-return': 'error',
+  // Un catch (o cualquier bloque) vacío esconde una falla: o se maneja, o un
+  // comentario dice por qué se ignora (auditoría M-04).
+  'no-empty': ['error', { allowEmptyCatch: false }],
 };
 const AVISOS = { 'no-unused-vars': ['warn', { vars: 'local', args: 'none', caughtErrors: 'none' }] };
 

@@ -2281,6 +2281,46 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // M-04: lo que falla sin romper la pantalla no pasa en silencio: se manda
+    // al proxy (/error), una vez por mensaje y como mucho 20 por apertura;
+    // también los errores que nadie atrapó. Sin sesión no se manda nada.
+    const enviados = [];
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/error': r => { enviados.push(JSON.parse(r.request().postData() || '{}')); return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); } });
+    const errsAntes = errs.length;
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      const out = {};
+      // Sin sesión: queda en la consola, no se manda.
+      googleAccessToken = null;
+      _reportarError('antes de entrar', new Error('sin sesión'));
+      await espera(100);
+      googleAccessToken = 'SESS.x';
+      // Un lugar real: si el cronograma falla, el texto de la ventana sale general y el error se reporta.
+      const original = window._contextoCronogramaAhora;
+      window._contextoCronogramaAhora = () => { throw new Error('cronograma dañado'); };
+      out.texto = _textoVentanaReporteAhora();
+      out.texto2 = _textoVentanaReporteAhora(); // el mismo error otra vez: no se repite
+      window._contextoCronogramaAhora = original;
+      // Una promesa que nadie atrapa.
+      Promise.reject(new Error('promesa olvidada'));
+      await espera(200);
+      // El tope: muchos errores distintos.
+      for (let i = 0; i < 30; i++) _reportarError('bucle', new Error('falla ' + i));
+      await espera(300);
+      return out;
+    });
+    const donde = enviados.map(e => e.donde);
+    check('M-04: un error atrapado se reporta al proxy (una vez por mensaje) y la pantalla sigue; sin sesión no se manda nada',
+      r.texto === 'Actividades del turno y reportes de equipos' && r.texto2 === r.texto
+      && donde.filter(d => d === 'ventana del cronograma').length === 1 && enviados.find(e => e.donde === 'ventana del cronograma').mensaje === 'cronograma dañado'
+      && !donde.includes('antes de entrar') && errsAntes === 0,
+      { r, donde, errsAntes });
+    check('M-04: también los errores que nadie atrapó, y como mucho 20 por apertura',
+      enviados.some(e => e.donde === 'promesa sin atrapar' && e.mensaje === 'promesa olvidada') && enviados.length === 20,
+      { total: enviados.length, donde });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el

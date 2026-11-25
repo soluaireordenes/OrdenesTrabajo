@@ -458,6 +458,28 @@ check('Cambiar PIN: el PIN viejo ya no entra; el nuevo sí, sin pedir cambio', !
     eventos.filter(e => /890/.test(e.doc || '')));
 }
 
+// ── Errores de la app (auditoría M-04) ──
+{
+  const enviar = (cuerpo, ses) => req('/error', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(ses ? { Authorization: 'Bearer ' + ses } : {}) },
+    body: typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo) });
+  const antes = eventos.length;
+  const sinSesion = await enviar({ donde: 'x', mensaje: 'y' });
+  const bien = await enviar({ donde: 'Lista de operarios', mensaje: 'No se pudo leer la hoja\nCronograma' + 'x'.repeat(400), pantalla: '#/cronograma' }, op.session);
+  const largo = await enviar({ donde: 'x', mensaje: 'y'.repeat(5000) }, op.session);
+  const sinMensaje = await enviar({ donde: 'x', mensaje: '   ' }, op.session);
+  const noJson = await enviar('esto no es JSON', op.session);
+  const get = await req('/error', { headers: { Authorization: 'Bearer ' + op.session } });
+  const nuevos = eventos.slice(antes).filter(e => e.evento === 'error_app');
+  const e = nuevos[0] || {};
+  check('/error: sin sesión → 401; con sesión anota un evento error_app (documento oculto, texto recortado y en una línea)',
+    sinSesion.status === 401 && bien.status === 200 && nuevos.length === 1 && e.doc === '…' && e.rol === 'operario'
+    && e.donde === 'Lista de operarios' && e.mensaje.length === 300 && e.mensaje.startsWith('No se pudo leer la hoja Cronograma') && e.pantalla === '#/cronograma',
+    { sinSesion: sinSesion.status, bien: bien.status, nuevos });
+  check('/error: rechaza un reporte demasiado largo (413), sin mensaje o que no es JSON (400), y solo acepta POST',
+    largo.status === 413 && sinMensaje.status === 400 && noJson.status === 400 && get.status === 404,
+    { largo: largo.status, sinMensaje: sinMensaje.status, noJson: noJson.status, get: get.status });
+}
+
 let ok = 0;
 for (const r of resultados) { console.log((r.ok ? 'PASS ' : 'FAIL ') + r.n + (r.ok ? '' : '  → ' + JSON.stringify(r.d))); if (r.ok) ok++; }
 console.log(`\n${ok}/${resultados.length} pruebas del Worker OK`);

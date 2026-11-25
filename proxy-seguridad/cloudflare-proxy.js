@@ -103,7 +103,7 @@ const GOOGLE_SHEETS_BASE = 'https://sheets.googleapis.com';
 // Versión del proxy (fecha del cambio). /ping la devuelve: así se sabe qué
 // código está publicado en Cloudflare sin abrirlo, y el monitor lo vigila.
 // Súbela cada vez que cambie este archivo.
-const VERSION_PROXY = '2026-11-19';
+const VERSION_PROXY = '2026-11-25';
 
 // Hojas de cálculo que SOLO un admin puede abrir (ni leer ni escribir).
 // Proyectos: contratos, valores por alcance, calendario de pagos y montos.
@@ -176,6 +176,10 @@ export default {
 
       if (url.pathname === '/cambiar-pin' && peticion.method === 'POST') {
         return _cors(await _cambiarPin(peticion, entorno), entorno, origen);
+      }
+
+      if (url.pathname === '/error' && peticion.method === 'POST') {
+        return _cors(await _errorApp(peticion, entorno), entorno, origen);
       }
 
       return _cors(_json({ ok: false, mensaje: 'Ruta no encontrada.' }, 404), entorno, origen);
@@ -1225,6 +1229,34 @@ function _evento(tipo, datos = {}) {
 function _docOculto(doc) {
   const d = String(doc || '');
   return d.length > 3 ? '…' + d.slice(-3) : '…';
+}
+
+/* ── Errores de la app (auditoría M-04) ──
+   La app manda aquí lo que falla sin romper la pantalla (una lista que no
+   se pudo leer, una gráfica que no se redibujó), para que no pase en
+   silencio. Queda en el mismo registro que los eventos de seguridad, como
+   evento "error_app": Cloudflare → Workers → solucionaire-proxy →
+   Observability. Solo con sesión válida y dentro del tope por persona; el
+   texto se recorta y el documento va oculto. No se guarda nada más. */
+const ERROR_APP_MAX_BYTES = 4000;
+async function _errorApp(peticion, entorno) {
+  const sesion = await _sesionVigente(peticion, entorno);
+  if (!sesion) return _json({ ok: false, mensaje: 'Sesión inválida o vencida.' }, 401);
+  if (_excedeTope(sesion.doc)) return _json({ ok: false, mensaje: 'Demasiadas peticiones.' }, 429);
+  let cuerpo;
+  try {
+    const texto = await peticion.text();
+    if (texto.length > ERROR_APP_MAX_BYTES) return _json({ ok: false, mensaje: 'El reporte es demasiado largo.' }, 413);
+    cuerpo = JSON.parse(texto);
+  } catch { return _json({ ok: false, mensaje: 'Body inválido.' }, 400); }
+  const corto = (v, n) => String(v ?? '').replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, n);
+  const mensaje = corto(cuerpo && cuerpo.mensaje, 300);
+  if (!mensaje) return _json({ ok: false, mensaje: 'Falta el mensaje.' }, 400);
+  _evento('error_app', {
+    doc: _docOculto(sesion.doc), rol: sesion.rol,
+    donde: corto(cuerpo.donde, 80), mensaje, pantalla: corto(cuerpo.pantalla, 60),
+  });
+  return _json({ ok: true });
 }
 
 /* ── Utilidades ───────────────────────────────────────────────────────── */
