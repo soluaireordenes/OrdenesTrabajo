@@ -48,6 +48,11 @@ const ERRORES = {
   // Un catch (o cualquier bloque) vacío esconde una falla: o se maneja, o un
   // comentario dice por qué se ignora (auditoría M-04).
   'no-empty': ['error', { allowEmptyCatch: false }],
+  // html`…` es la plantilla que escapa sola (auditoría M-06): una variable
+  // local con ese nombre la taparía dentro de su función.
+  'no-restricted-syntax': ['error',
+    { selector: 'VariableDeclarator[id.name="html"]', message: 'No llames "html" a una variable: tapa la plantilla html`…` (usa htmlTexto u otro nombre).' },
+    { selector: ':function > Identifier.params[name="html"]', message: 'No llames "html" a un parámetro: tapa la plantilla html`…`.' }],
 };
 const AVISOS = { 'no-unused-vars': ['warn', { vars: 'local', args: 'none', caughtErrors: 'none' }] };
 
