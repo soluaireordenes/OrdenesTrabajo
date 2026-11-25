@@ -8603,7 +8603,13 @@ function _aplicarTemaGuardado() {
   _iconoTema(tema);
 }
 
-/* ── Buscador global: órdenes, equipos y novedades desde un solo campo ── */
+/* ── Buscador global (auditoría N-04): órdenes, novedades, equipos,
+   productos del inventario y reportes técnicos desde un solo campo, en
+   cualquier pantalla. Busca en lo que ya está cargado; al abrirse trae en
+   segundo plano el stock de la sede y los reportes recientes que falten (los
+   mismos que trae la pantalla de Reportes), y vuelve a buscar cuando
+   llegan. ── */
+let _buscarProductos = [];
 function abrirBuscadorGlobal() {
   const ov = document.getElementById('overlayBuscar');
   if (!ov) return;
@@ -8611,6 +8617,29 @@ function abrirBuscadorGlobal() {
   const inp = document.getElementById('buscarInput');
   if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 30); }
   document.getElementById('buscarResultados').innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div>';
+  _precargarParaBuscar();
+}
+
+/** Lo que el buscador necesita y quizá no se ha cargado: el stock de la
+ *  sede y los reportes técnicos recientes. Si algo falla, se busca con lo
+ *  que haya. */
+function _precargarParaBuscar() {
+  if (!googleAccessToken || !operacionAutenticada) return;
+  const sede = operacionActual;
+  const otraVez = () => {
+    const inp = document.getElementById('buscarInput');
+    if (inp && inp.value && document.getElementById('overlayBuscar')?.classList.contains('abierto')) _ejecutarBusquedaGlobal(inp.value);
+  };
+  _stockInventarioParaPantalla(sede)
+    .then(stock => { if (sede === operacionActual) { _buscarProductos = stock || []; otraVez(); } })
+    .catch(e => _reportarError('buscador: stock', e));
+  _reportesTecnicosDe(sede).pestanas.forEach(clave => {
+    const def = REPORTES_TECNICOS_DEF[clave];
+    if (!def || _reportesCubiertosDesde[def.hoja()] !== undefined || def.lista().length) return; // ya están
+    _cargarReportesTecnicos(def.prefijo, def.hoja())
+      .then(filas => { if (sede === operacionActual && !def.lista().length) { def.poner(filas); otraVez(); } })
+      .catch(e => _reportarError('buscador: ' + def.titulo, e));
+  });
 }
 function cerrarBuscadorGlobal() {
   document.getElementById('overlayBuscar')?.classList.remove('abierto');
@@ -8642,6 +8671,24 @@ function _ejecutarBusquedaGlobal(qRaw) {
   (typeof _listaEquiposPlanaSede === 'function' ? _listaEquiposPlanaSede() : []).forEach(e => {
     if (_normBuscar(e).includes(q)) res.push({ tipo: 'equipo', chip: 'Equipo', color: '#15803d', valor: e, titulo: e, sub: 'Hoja de vida' });
   });
+  // Productos del inventario de la sede (por código Siesa o nombre).
+  _buscarProductos.forEach(p => {
+    if (!_normBuscar(p.codigo + ' ' + p.nombre).includes(q)) return;
+    res.push({ tipo: 'producto', chip: 'Producto', color: '#7c3aed', valor: p.codigo, titulo: p.codigo + ' · ' + p.nombre,
+      sub: 'Stock: ' + Number(p.cantidad).toLocaleString('es-CO') + ' ' + (p.unidad || '') + (p.ubicacion ? ' — ' + p.ubicacion : '') });
+  });
+  // Reportes técnicos de la sede (por código, equipo, técnico o fecha).
+  _reportesTecnicosDe(operacionActual).pestanas.forEach(clave => {
+    const def = REPORTES_TECNICOS_DEF[clave];
+    if (!def) return;
+    def.lista().forEach(r => {
+      if (!r || !r.Codigo || r.Estado === 'Eliminada') return;
+      const equipo = def.equipo ? r[def.equipo] : '';
+      if (!_normBuscar([r.Codigo, equipo, r.Tecnico, r.Fecha].filter(Boolean).join(' ')).includes(q)) return;
+      res.push({ tipo: 'reporte', chip: 'Reporte', color: '#0e7490', valor: def.prefijo + '|' + r.Codigo,
+        titulo: r.Codigo + (equipo ? ' · ' + equipo : ''), sub: def.titulo + (r.Fecha ? ' — ' + fmtFecha(r.Fecha) : '') + (r.Tecnico ? ' — ' + r.Tecnico : '') });
+    });
+  });
 
   if (!res.length) { cont.innerHTML = '<div style="padding:18px;color:var(--text3);font-size:13px">Sin resultados para "' + esc(qRaw) + '".</div>'; return; }
   const top = res.slice(0, 40);
@@ -8668,6 +8715,17 @@ function _clicResultadoBusqueda(tipo, valor) {
       if (typeof hvdSeleccionarEquipo === 'function') hvdSeleccionarEquipo(valor);
     }, 150);
     return;
+  }
+  if (tipo === 'producto') {
+    abrirInventario(operacionActual);
+    invMostrarSubTab('stock');
+    const inp = document.getElementById('invStockBuscar');
+    if (inp) { inp.value = valor; if (_invStockCacheTabla.length) invFiltrarStock(); } // si el stock aún carga, el filtro se aplica al llegar
+    return;
+  }
+  if (tipo === 'reporte') {
+    const i = valor.indexOf('|');
+    _accionReporteTecnico(valor.slice(0, i), 'ver', valor.slice(i + 1));
   }
 }
 
@@ -31657,14 +31715,14 @@ function proyBorrarAvance(row) {
 </nav>
 
 <!-- ════════════ BUSCADOR GLOBAL ════════════ -->
-<button id="btnBuscarGlobal" onclick="abrirBuscadorGlobal()" title="Buscar (órdenes, equipos, novedades)" aria-label="Buscar">
+<button id="btnBuscarGlobal" onclick="abrirBuscadorGlobal()" title="Buscar (órdenes, equipos, novedades, productos, reportes)" aria-label="Buscar">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
 </button>
 <div id="overlayBuscar" onclick="if(event.target===this)cerrarBuscadorGlobal()">
   <div class="buscar-caja">
     <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)">
       <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input id="buscarInput" type="search" placeholder="Buscar órdenes, equipos o novedades…" oninput="_ejecutarBusquedaGlobal(this.value)" style="flex:1;border:none;outline:none;box-shadow:none;font-size:16px;background:none;color:var(--text)">
+      <input id="buscarInput" type="search" placeholder="Buscar órdenes, equipos, productos, reportes…" oninput="_ejecutarBusquedaGlobal(this.value)" style="flex:1;border:none;outline:none;box-shadow:none;font-size:16px;background:none;color:var(--text)">
       <button class="btn btn-ghost btn-sm" onclick="cerrarBuscadorGlobal()">✕</button>
     </div>
     <div id="buscarResultados"><div style="padding:18px;color:var(--text3);font-size:13px">Escribe al menos 2 letras…</div></div>
