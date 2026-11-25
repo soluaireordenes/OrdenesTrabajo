@@ -2321,6 +2321,82 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // N-04: el buscador general encuentra órdenes, equipos, productos del
+    // inventario y reportes técnicos desde cualquier pantalla. Al abrirse trae
+    // el stock y los reportes que falten, y cada resultado lleva a su lugar.
+    const fake = sheetsEnMemoria();
+    // El inventario contesta con demora, como con señal lenta.
+    let invLento = null;
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': async route => {
+      if (invLento && route.request().url().includes(invLento)) await new Promise(x => setTimeout(x, 400));
+      return fake.route(route);
+    } });
+    const invId = await p.evaluate(() => _invSpreadsheetId('zipaquira'));
+    invLento = invId;
+    fake.crear(invId, 'Productos', [['Código', 'Nombre', 'Unidad', 'Grupo', 'Stock Mínimo', 'Fecha Creación', 'Precio Unitario', 'Tipo', 'Ubicacion'],
+      ['EMP-1', 'EMPAQUE DE TAPA', 'und', 'General', '0', 't', '1000', 'Repuestos', 'Estante 3']]);
+    fake.crear(invId, 'Movimientos', [['Código', 'Fecha', 'Tipo', 'Cantidad', 'Usuario', 'Timestamp', 'Responsable', 'Equipo Destino', 'Observaciones', 'Stock Resultante', 'PrecioUnitario'],
+      ['EMP-1', '2026-01-05', 'INGRESO', '4', 'u', 't', 'Compras', '', '', '4', '1000']]);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionActual = 'zipaquira'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Prueba', email: 'ana@x' };
+      GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      document.getElementById('loginOverlay')?.remove();
+      const hoy = _isoLocal(new Date());
+      const cols = await asegurarHoja(SH.reporteSecadores, REPORTE_SECADORES_COLS);
+      const fila = (codigo, secador, tecnico, estado = 'Activo') => cols.map(c => ({ Codigo: codigo, Fecha: hoy, Secador: secador, Tecnico: tecnico, Estado: estado })[c] ?? '');
+      await appendHoja(SH.reporteSecadores, [fila('RS-0007', 'SECADOR 2', 'Pedro Gómez'), fila('RS-0008', 'SECADOR 3', 'Pedro Gómez', 'Eliminada')]);
+      _invalidarCacheHoja(SH.reporteSecadores);
+      allOrdenes = [{ id: 'O77', NumeroOrden: 'OT-77', Title: 'Cambio de rodamiento', Equipo: 'CB1', Estado: 'Pendiente' }];
+      const buscar = async q => {
+        const inp = document.getElementById('buscarInput');
+        inp.value = q; inp.dispatchEvent(new Event('input'));
+        await espera(50);
+        return [...document.querySelectorAll('#buscarResultados .buscar-item')].map(x => x.textContent.replace(/\s+/g, ' ').trim());
+      };
+      const out = {};
+      abrirBuscadorGlobal();
+      out.antes = { productos: _buscarProductos.length, reportes: allReportesSecadores.length };
+      // Se escribe antes de que llegue el stock: al llegar, la búsqueda se repite sola.
+      out.alEscribir = await buscar('empaque');
+      await espera(1200); // el stock y los reportes llegan en segundo plano
+      out.alLlegar = [...document.querySelectorAll('#buscarResultados .buscar-item')].length;
+      // Un reporte que se acaba de eliminar en pantalla no aparece.
+      allReportesSecadores.push({ Codigo: 'RS-0009', Fecha: hoy, Secador: 'SECADOR 4', Tecnico: 'Pedro Gómez', Estado: 'Eliminada' });
+      out.orden = await buscar('ot-77');
+      out.equipo = await buscar('cb1');
+      out.producto = await buscar('empaque');
+      out.porCodigo = await buscar('emp-1');
+      out.reporte = await buscar('rs-0007');
+      out.porTecnico = await buscar('pedro');
+      // Un producto lleva a Inventario → Stock, filtrado por su código.
+      await buscar('empaque');
+      document.querySelector('#buscarResultados .buscar-item[data-tipo="producto"]').click();
+      await espera(600);
+      out.alProducto = { panel: document.querySelector('.panel.active')?.id, filtro: document.getElementById('invStockBuscar').value,
+        filas: [...document.querySelectorAll('#invStockTabla tbody tr, #invStockTabla .inv-fila')].length, cerrado: !document.getElementById('overlayBuscar').classList.contains('abierto') };
+      // Un reporte abre su documento.
+      abrirBuscadorGlobal(); await buscar('rs-0007');
+      document.querySelector('#buscarResultados .buscar-item[data-tipo="reporte"]').click();
+      await espera(200);
+      out.alReporte = [...document.querySelectorAll('div[style*="fixed"] span')].map(x => x.textContent).find(t => /RS-0007/.test(t)) || '';
+      return out;
+    });
+    check('N-04: el buscador encuentra órdenes y equipos, y también productos del inventario (por nombre o código, con su stock) y reportes técnicos (por código o técnico, sin los eliminados)',
+      r.antes.productos === 0 && r.antes.reportes === 0 && r.alEscribir.length === 0 && r.alLlegar === 1
+      && r.orden.some(t => /Orden OT-77/.test(t)) && r.equipo.some(t => /Equipo CB1/.test(t))
+      && r.producto.length === 1 && /Producto EMP-1 · EMPAQUE DE TAPA\s?Stock: 4 und — Estante 3/.test(r.producto[0]) && r.porCodigo.length === 1
+      && r.reporte.length === 1 && /Reporte RS-0007 · SECADOR 2\s?Reporte de Secador/.test(r.reporte[0])
+      && r.porTecnico.length === 1 && /Pedro Gómez/.test(r.porTecnico[0]),
+      r);
+    check('N-04: un producto lleva al Stock del inventario filtrado por su código, y un reporte abre su documento',
+      r.alProducto.panel === 'panel-inventario' && r.alProducto.filtro === 'EMP-1' && r.alProducto.cerrado
+      && /Reporte de Secador — RS-0007/.test(r.alReporte) && errs.length === 0,
+      { alProducto: r.alProducto, alReporte: r.alReporte, errs: errs.slice(0, 3) });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el
