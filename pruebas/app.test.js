@@ -2486,6 +2486,124 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     await ctx.close();
   }
   {
+    // Perú: CD3 en decorado y las bombas BVS1–3 (Sullair) y BVP1–2 (antes V1 y
+    // V2, Pneumofore). "Agregar equipos a la operación" (Histórico por Equipo)
+    // pone un equipo comprado en todas las listas de la sede y queda en la hoja.
+    // El historial de V1 y V2 pasa a BVP1 y BVP2 una sola vez.
+    const fake = sheetsEnMemoria();
+    const { ctx, p, errs } = await nuevaPagina(b, { '**/sheets/v4/**': fake.route });
+    const ids = await p.evaluate(() => ({ ord: OPERACIONES.peru.spreadsheetId, inv: _invSpreadsheetId('peru'), zip: OPERACIONES.zipaquira.spreadsheetId }));
+    fake.crear(ids.ord, 'Ordenes', [['NumeroOrden', 'Title', 'Equipo'], ['OT-1', 'a', 'V1'], ['OT-2', 'b', 'V2'], ['OT-3', 'c', 'CB1'], ['OT-4', 'd', 'V10']]);
+    fake.crear(ids.ord, 'HorasEquipos', [['Equipo', 'HorasActuales', 'UltimaActualizacion', 'HoraBaseInformes'], ['V1', '1200', '', '']]);
+    fake.crear(ids.ord, 'HVDEquipos', [['Equipo', 'Descripcion'], ['V2', 'Bomba Pneumofore']]);
+    fake.crear(ids.inv, 'Movimientos', [['Código', 'Fecha', 'Tipo', 'Cantidad', 'Usuario', 'Timestamp', 'Responsable', 'Equipo Destino'], ['F1', '2026-03-01', 'SALIDA', '1', 'u', 't', 'Pedro', 'V1']]);
+    const r = await p.evaluate(async () => {
+      const espera = ms => new Promise(x => setTimeout(x, ms));
+      window.confirmarAccion = async () => true; window.alert = () => {};
+      googleAccessToken = 'SESS.x'; usuarioRol = 'admin'; operacionAutenticada = true;
+      currentUser = { name: 'Ana Admin', email: 'a@x', initials: 'AA' };
+      operacionActual = 'peru'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.peru.spreadsheetId;
+      document.getElementById('loginOverlay')?.remove();
+      const out = {};
+      const cods = g => EQUIPOS_PERU[g].map(e => e[0]);
+      out.decorado = cods('Compresores de Decorado'); out.modeloCD3 = EQUIPOS_PERU['Compresores de Decorado'][2][1];
+      out.bombas = cods('Bombas de Vacío');
+      const prog = _pmProgramaVigente(new Date('2026-06-01T12:00:00'), 'peru');
+      out.programa = { viejos: prog.actividades.filter(a => /^V\d$/.test(a.equipo)).length, bvp1: prog.actividades.filter(a => a.equipo === 'BVP1').length, bvp2: prog.actividades.filter(a => a.equipo === 'BVP2').length };
+      // El historial de V1 y V2 pasa al código nuevo (una sola vez).
+      allOrdenes = [{ id: 1, NumeroOrden: 'OT-1', Equipo: 'V1' }, { id: 4, NumeroOrden: 'OT-4', Equipo: 'V10' }];
+      await _aplicarCambiosDeCodigo();
+      out.memoria = allOrdenes.map(o => o.Equipo);
+      await _aplicarCambiosDeCodigo();
+      // Agregar un equipo desde Histórico por Equipo.
+      showPanel('historico'); await espera(200);
+      const sel = document.getElementById('histSelectorVista'); sel.value = 'agregar'; histCambiarVista();
+      out.opcionAgregar = [...sel.options].map(o => o.textContent).slice(-2);
+      const llenar = (grupo, codigo, modelo, nuevo) => {
+        document.getElementById('eqAgrGrupo').value = grupo;
+        if (nuevo) { document.getElementById('eqAgrGrupoNuevoCampo').style.display = ''; document.getElementById('eqAgrGrupoNuevo').value = nuevo; }
+        document.getElementById('eqAgrCodigo').value = codigo;
+        if (document.getElementById('eqAgrModelo')) document.getElementById('eqAgrModelo').value = modelo || '';
+      };
+      llenar('Compresores de Decorado', 'cd3', ''); await agregarEquipoOperacion();
+      out.repetidoFijo = document.getElementById('eqAgrMsg').textContent;
+      llenar('Compresores de Decorado', ' cd4 ', 'Kaeser SM15'); await agregarEquipoOperacion(); await espera(100);
+      llenar('Compresores de Decorado', 'CD4', ''); await agregarEquipoOperacion();
+      out.repetidoAgregado = document.getElementById('eqAgrMsg').textContent;
+      llenar('__nuevo', 'te1', 'Evapco', 'Torres de Enfriamiento'); await agregarEquipoOperacion(); await espera(100);
+      out.tabla = [...document.querySelectorAll('#eqAgrContenido tbody tr')].map(tr => [...tr.children].slice(0, 3).map(td => td.textContent.trim()).join('|'));
+      // En todas las listas de la sede.
+      const tiene = (lista, cod) => lista.some(x => x === cod || (Array.isArray(x) && x[0] === cod));
+      showPanel('nueva'); await espera(100);
+      out.ordenNueva = [...document.getElementById('f_equipo').options].map(o => o.textContent).filter(t => /CD4|TE1/.test(t));
+      out.inventario = tiene(Object.values(_gruposEquiposParaOrden('peru')).flat(), 'CD4');
+      out.hvd = _listaEquiposPlanaSede().filter(e => /CD4|TE1/.test(e));
+      out.plan = _pmGruposEquipos('peru').find(g => g.nombre === 'Compresores de Decorado').equipos;
+      out.planNuevo = (_pmGruposEquipos('peru').find(g => g.nombre === 'Torres de Enfriamiento') || {}).equipos;
+      out.reporte = _opcionesEquiposReporte('decorado').includes('CD4');
+      // Al volver a leer la hoja no queda doble.
+      await cargarEquiposAgregados(); await cargarEquiposAgregados();
+      out.unaVez = EQUIPOS_PERU['Compresores de Decorado'].filter(e => e[0] === 'CD4').length;
+      // Quitar y volver a agregar (la misma fila).
+      await quitarEquipoAgregado('CD4');
+      out.quitado = tiene(EQUIPOS_PERU['Compresores de Decorado'], 'CD4');
+      showPanel('historico'); sel.value = 'agregar'; histCambiarVista();
+      llenar('Compresores de Decorado', 'CD4', 'Kaeser SM15'); await agregarEquipoOperacion();
+      out.devuelta = tiene(EQUIPOS_PERU['Compresores de Decorado'], 'CD4');
+      // Un operario ve la lista pero no el formulario.
+      usuarioRol = 'operario'; renderEquiposAgregados();
+      out.operario = { form: !!document.getElementById('eqAgrCodigo'), filas: document.querySelectorAll('#eqAgrContenido tbody tr').length };
+      // Zipaquirá: lista de nombres.
+      // (Cambiar de sede recarga la página; aquí se limpia lo que la recarga limpiaría.)
+      Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
+      usuarioRol = 'admin'; operacionActual = 'zipaquira'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.zipaquira.spreadsheetId;
+      renderEquiposAgregados();
+      llenar('Bombas y Enfriamiento', 'bomba agua 3', ''); await agregarEquipoOperacion();
+      out.zipaquira = EQUIPOS_ZIPAQUIRA['Bombas y Enfriamiento'].slice(-1)[0];
+      out.peruIntacto = tiene(EQUIPOS_PERU['Compresores de Decorado'], 'CD4') && !Object.values(EQUIPOS_PERU).flat().some(e => e[0] === 'BOMBA AGUA 3');
+      // Antioquia: el equipo va dentro de su empresa y sigue ahí cuando se vuelve a cargar la lista de empresas.
+      Object.keys(_cacheEncabezadosHoja).forEach(k => delete _cacheEncabezadosHoja[k]); _hojasExistentesCache = null;
+      operacionActual = 'antioquia'; GOOGLE_CONFIG.spreadsheetId = OPERACIONES.antioquia.spreadsheetId;
+      _aplicarEquiposEmpresas('antioquia', [{ Empresa: 'Planta Uno', Equipo: 'Bomba' }, { Empresa: 'Planta Dos', Equipo: 'Compresor Kaeser' }]);
+      renderEquiposAgregados();
+      llenar('Planta Uno', 'Compresor Kaeser', ''); await agregarEquipoOperacion();
+      _aplicarEquiposEmpresas('antioquia', [{ Empresa: 'Planta Uno', Equipo: 'Bomba' }, { Empresa: 'Planta Dos', Equipo: 'Compresor Kaeser' }]);
+      out.antioquia = EQUIPOS_POR_SEDE.antioquia['Planta Uno'];
+      return out;
+    });
+    const hoja = (id, n) => fake.hoja(id, n);
+    const agregados = hoja(ids.ord, 'EquiposAgregados');
+    check('Perú: CD3 (FS Curtis V55A) en decorado; bombas BVS1, BVS2, BVS3, BVP1 y BVP2; el Programa 2026 de V1 y V2 queda en BVP1 y BVP2',
+      JSON.stringify(r.decorado) === JSON.stringify(['CD1', 'CD2', 'CD3']) && r.modeloCD3 === 'FS Curtis V55A'
+      && JSON.stringify(r.bombas) === JSON.stringify(['BVS1', 'BVS2', 'BVS3', 'BVP1', 'BVP2'])
+      && r.programa.viejos === 0 && r.programa.bvp1 === 5 && r.programa.bvp2 === 5,
+      { decorado: r.decorado, bombas: r.bombas, programa: r.programa });
+    const ord = hoja(ids.ord, 'Ordenes').map(f => f[2]), cambios = hoja(ids.ord, 'CambiosDeCodigo');
+    check('Perú: el historial de V1 y V2 (órdenes, horas, Hoja de Vida, salidas de inventario) pasa a BVP1 y BVP2 una sola vez, con constancia; V10 no se toca',
+      JSON.stringify(ord) === JSON.stringify(['Equipo', 'BVP1', 'BVP2', 'CB1', 'V10']) && hoja(ids.ord, 'HorasEquipos')[1][0] === 'BVP1'
+      && hoja(ids.ord, 'HVDEquipos')[1][0] === 'BVP2' && hoja(ids.inv, 'Movimientos')[1][7] === 'BVP1'
+      && cambios.length === 3 && cambios[1].slice(0, 3).join() === 'V1,BVP1,3' && cambios[2].slice(0, 3).join() === 'V2,BVP2,2'
+      && JSON.stringify(r.memoria) === JSON.stringify(['BVP1', 'V10']),
+      { ord, cambios, memoria: r.memoria });
+    check('Agregar equipos a la operación: está en Histórico por Equipo debajo de la Hoja de Vida; no deja repetir uno de la lista ni uno agregado; queda en la hoja con quién y cuándo, y se puede crear un grupo nuevo',
+      r.opcionAgregar[1] === 'Agregar equipos a la operación' && /CD3 ya está/.test(r.repetidoFijo) && /CD4 ya está/.test(r.repetidoAgregado)
+      && agregados.length === 3 && agregados[1].slice(0, 3).join('|') === 'Compresores de Decorado|CD4|Kaeser SM15' && agregados[1][3] === 'Ana Admin' && agregados[1][5] === 'Activo'
+      && agregados[2].slice(0, 3).join('|') === 'Torres de Enfriamiento|TE1|Evapco'
+      && JSON.stringify(r.tabla) === JSON.stringify(['Compresores de Decorado|CD4|Kaeser SM15', 'Torres de Enfriamiento|TE1|Evapco']),
+      { opcion: r.opcionAgregar, repetidoFijo: r.repetidoFijo, repetidoAgregado: r.repetidoAgregado, agregados, tabla: r.tabla });
+    check('Agregar equipos a la operación: el equipo sale en la orden nueva, el inventario, la Hoja de Vida, el Plan de Mantenimiento y el reporte de su grupo, una sola vez aunque se vuelva a leer la hoja',
+      r.ordenNueva.join() === 'CD4 — Kaeser SM15,TE1 — Evapco' && r.inventario && r.hvd.join() === 'CD4,TE1'
+      && r.plan.includes('CD4') && JSON.stringify(r.planNuevo) === JSON.stringify(['TE1']) && r.reporte && r.unaVez === 1,
+      { ordenNueva: r.ordenNueva, inventario: r.inventario, hvd: r.hvd, plan: r.plan, planNuevo: r.planNuevo, reporte: r.reporte, unaVez: r.unaVez });
+    const zip = hoja(ids.zip, 'EquiposAgregados');
+    check('Agregar equipos a la operación: quitar lo saca de las listas y volver a agregarlo usa la misma fila; un operario solo ve la lista; en Zipaquirá entra como nombre y no toca a Perú; en Antioquia va en su empresa (aunque otra empresa tenga uno igual) y sigue al recargar las empresas',
+      !r.quitado && r.devuelta && agregados.filter(f => f[1] === 'CD4').length === 1 && agregados.find(f => f[1] === 'CD4')[5] === 'Activo'
+      && !r.operario.form && r.operario.filas === 2 && r.zipaquira === 'BOMBA AGUA 3' && zip.length === 2 && r.peruIntacto
+      && JSON.stringify(r.antioquia) === JSON.stringify(['Planta Uno · Bomba', 'Planta Uno · Compresor Kaeser']) && errs.length === 0,
+      { antioquia: r.antioquia, quitado: r.quitado, devuelta: r.devuelta, operario: r.operario, zipaquira: r.zipaquira, zip, errs: errs.slice(0, 3) });
+    await ctx.close();
+  }
+  {
     // Antioquia: las empresas y sus equipos se cargan desde el Excel del
     // inventario por planta a la pestaña EquiposEmpresas de la sede (no al
     // código público). La orden nueva pide la empresa y luego su equipo; el
@@ -4693,11 +4811,11 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
     }, '(' + grupos.toString() + ')');
     const GRUPOS = 'Compresores de Alta,Compresores de Baja,Compresores de Emergencia,Compresores de Decorado,Secadores de Alta,Secadores de Baja,'
       + 'Secadores de Emergencia,Secadores de Decorado,Drycoolers,Bombas de Vacío,Sistema de Recirculación';
-    check('Perú: la orden nueva lista sus 36 equipos por grupo, con el código como valor (CA1 — Hanwha 900 HP)',
-      out.orden.grupos.join(',') === GRUPOS && out.orden.opciones === 36 && out.orden.primera === 'CA1 — Hanwha 900 HP' && out.orden.valor === 'CA1', out.orden);
+    check('Perú: la orden nueva lista sus 40 equipos por grupo, con el código como valor (CA1 — Hanwha 900 HP)',
+      out.orden.grupos.join(',') === GRUPOS && out.orden.opciones === 40 && out.orden.primera === 'CA1 — Hanwha 900 HP' && out.orden.valor === 'CA1', out.orden);
     check('Perú: la salida de inventario, la Hoja de Vida y el Plan de mantenimiento usan los mismos equipos',
       out.inv.grupos.join(',') === GRUPOS + ',Sedes' && out.inv.tieneCE1 && out.hvd === 11
-      && out.plan.length === 36 && out.plan.includes('V1') && out.plan.includes('B5') && !out.plan.includes('COMPRESOR DE EMERGENCIA NX200'),
+      && out.plan.length === 40 && out.plan.includes('BVP1') && out.plan.includes('BVS3') && !out.plan.includes('V1') && out.plan.includes('B5') && !out.plan.includes('COMPRESOR DE EMERGENCIA NX200'),
       { inv: out.inv, hvd: out.hvd, plan: out.plan.slice(0, 6).join(',') + ' … ' + out.plan.length });
     // 11 grupos + 36 equipos + 192 actividades; el Excel no trae responsable.
     check('Perú: el Plan muestra su Programa de Mantenimiento 2026 (192 actividades por equipo y mes), sin las pestañas de Zipaquirá',
@@ -4795,8 +4913,8 @@ const JPG_B64 ='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
       && r.secadores.refrigerado && /guardado/.test(r.secadores.msg) && sec.Tecnico === 'Luis Técnico' && sec.Hora === '' && sec.FHrS === '15200'
       && horasDe('SCB3') === '15200' && r.secadores.tecnicoEnLista === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Luis Técnico,Ricardo Porras,Richard Irrazabal,Otras' && /\d/.test(r.secadores.horaTabla || ''),
       { secadores: r.secadores, fila: sec, horas: horasDe('SCB3') });
-    check('Perú: Drycoolers (D1–D4), Decorado (CD1 y CD2), Emergencia (CE1 y CE2) y Presión Drycooler con sus equipos y técnicos; Decorado guarda y lleva las horas',
-      r.drycoolers === 'D1,D2,D3,D4 | Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras' && r.decorado === 'CD1,CD2 | CD1 — FS Curtis NxV55A, 55 kW' && r.emergencia === 'CE1,CE2' && r.presion === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras'
+    check('Perú: Drycoolers (D1–D4), Decorado (CD1, CD2 y CD3), Emergencia (CE1 y CE2) y Presión Drycooler con sus equipos y técnicos; Decorado guarda y lleva las horas',
+      r.drycoolers === 'D1,D2,D3,D4 | Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras' && r.decorado === 'CD1,CD2,CD3 | CD1 — FS Curtis NxV55A, 55 kW' && r.emergencia === 'CE1,CE2' && r.presion === 'Carlos Delgado,Christian Jimenez,Delmi Barreto,Deyssi Chavez,Hernando Delgado,Jhon Ramirez,Jimmy Chavarry,Ricardo Porras,Richard Irrazabal,Otras'
       && /guardado/.test(r.decoradoMsg) && dec.TecnicoOtro === 'Luis Técnico' && dec.Hora === '' && horasDe('CD1') === '5300',
       { drycoolers: r.drycoolers, decorado: r.decorado, emergencia: r.emergencia, presion: r.presion, msg: r.decoradoMsg, fila: dec, horas: horasDe('CD1') });
     check('Perú: Máquinas de Formación sin lista de máquinas (se escriben la máquina y la sección) y guarda',

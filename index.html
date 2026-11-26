@@ -2912,6 +2912,7 @@ body.rol-operario .btn-principal-operario {
           <option value="equipos">Equipos</option>
           <option value="inventario">Inventario de Equipos</option>
           <option value="hvd">HVD — Hoja de Vida</option>
+          <option value="agregar">Agregar equipos a la operación</option>
         </select>
       </div>
     </div>
@@ -3021,6 +3022,13 @@ body.rol-operario .btn-principal-operario {
     </div>
 
     <!-- ══════ VISTA: HVD — HOJA DE VIDA DE EQUIPOS (nueva) ══════ -->
+    <div id="histVistaAgregar" style="display:none">
+      <div class="card">
+        <div class="card-head">Agregar equipos a la operación</div>
+        <div class="card-body relleno-18" id="eqAgrContenido"></div>
+      </div>
+    </div>
+
     <div id="histVistaHVD" style="display:none">
       <div class="grid-lista-detalle" style="--lista-w:220px">
         <!-- Lista de equipos -->
@@ -10117,7 +10125,8 @@ const EQUIPOS_ZIPAQUIRA2 = {
 };
 
 // Lista de equipos activos exclusiva de O-I Perú, sacada del inventario de
-// equipos de su Programa de Mantenimiento 2026 (36 equipos). Va como la de
+// equipos de su Programa de Mantenimiento 2026 (36 equipos; después se
+// sumaron CD3 y las bombas BVS1 a BVS3). Va como la de
 // México: [código, marca y modelo]. En las órdenes se guarda el código, que
 // es el mismo que usa su plan de mantenimiento por horas.
 const EQUIPOS_PERU = {
@@ -10132,7 +10141,7 @@ const EQUIPOS_PERU = {
     ['CE1', 'Kaishan KRSP2-300 VSD, 300 HP'], ['CE2', 'FS Curtis NxD220A, 220 kW'],
   ],
   'Compresores de Decorado': [
-    ['CD1', 'FS Curtis NxV55A, 55 kW'], ['CD2', 'Ingersoll Rand R751-A125'],
+    ['CD1', 'FS Curtis NxV55A, 55 kW'], ['CD2', 'Ingersoll Rand R751-A125'], ['CD3', 'FS Curtis V55A'],
   ],
   'Secadores de Alta': [
     ['SCA1', 'Fusheng FR1200WP'], ['SCA2', 'Fusheng FR1200WP'],
@@ -10151,8 +10160,11 @@ const EQUIPOS_PERU = {
   'Drycoolers': [
     ['D1', 'Güntner S-GFD 090'], ['D2', 'Güntner S-GFD 090'], ['D3', 'Güntner S-GFD 090'], ['D4', 'Güntner S-GFD 090'],
   ],
+  // BVS: Sullair; BVP: Pneumofore. BVP1 y BVP2 se llamaban V1 y V2 (su
+  // historial se pasó al código nuevo, ver CAMBIOS_DE_CODIGO).
   'Bombas de Vacío': [
-    ['V1', 'Pneumofore UV50 VS90, 90 kW'], ['V2', 'Pneumofore UV50 VS90, 90 kW'],
+    ['BVS1', 'Sullair'], ['BVS2', 'Sullair'], ['BVS3', 'Sullair'],
+    ['BVP1', 'Pneumofore UV50 VS90, 90 kW'], ['BVP2', 'Pneumofore UV50 VS90, 90 kW'],
   ],
   'Sistema de Recirculación': [
     ['B1', 'Bomba WEG 30 HP'], ['B2', 'Bomba WEG 30 HP'], ['B3', 'Bomba WEG 30 HP'], ['B4', 'Bomba WEG 30 HP'], ['B5', 'Bomba WEG 30 HP'],
@@ -10343,6 +10355,7 @@ const _FICHAS_EQUIPOS_EMPRESAS = {};
 function _aplicarEquiposEmpresas(sede, filas) {
   _FICHAS_EQUIPOS_EMPRESAS[sede] = {};
   EQUIPOS_POR_SEDE[sede] = _gruposDeEquiposEmpresas(filas || [], _FICHAS_EQUIPOS_EMPRESAS[sede]);
+  _reaplicarEquiposAgregados(sede); // la lista nueva no trae los agregados a mano
 }
 
 /** Lo que la lista de la empresa sabe de un equipo, con los nombres de los
@@ -10383,10 +10396,19 @@ async function cargarEquiposEmpresas() {
   }
 }
 
-/** Lo que está en pantalla con la lista: la orden nueva y, si está abierto,
- *  el Plan de Mantenimiento (Registro o Configuración). */
+/** Lo que está en pantalla con la lista de equipos de la sede, cuando la
+ *  lista cambia: la orden nueva, el equipo destino del inventario, las
+ *  listas del Histórico y de la Hoja de Vida y, si está abierto, el Plan de
+ *  Mantenimiento (Registro o Configuración). */
 function _repintarConEquiposEmpresas() {
   inicializarCampoEquipo();
+  if (document.getElementById('panel-inventario')?.classList.contains('active')) invPoblarEquipos();
+  if (document.getElementById('panel-historico')?.classList.contains('active')) {
+    const vista = document.getElementById('histSelectorVista')?.value;
+    if (vista === 'equipos') renderListaEquiposHistorico();
+    if (vista === 'hvd') hvdRenderListaEquipos();
+    if (vista === 'agregar') renderEquiposAgregados();
+  }
   if (planMantOperacionActual !== operacionActual) return;
   const activa = document.querySelector('#panel-planmantenimiento.active .inv-subtab.active')?.dataset.pmtab;
   if (activa === 'registro') pmRenderRegistroHoras();
@@ -10554,6 +10576,275 @@ async function guardarEquiposEmpresas(boton) {
   } catch (e) {
     aviso('No se pudo guardar la lista: ' + e.message, 'error');
     if (boton) { boton.disabled = false; boton.textContent = 'Guardar esta lista'; }
+  }
+}
+
+/* ══════════════════════════════════════════════
+   EQUIPOS AGREGADOS A LA OPERACIÓN
+
+   La sede compra equipos de vez en cuando. Un admin los agrega en
+   Histórico por Equipo → "Agregar equipos a la operación": grupo, código
+   y, si quiere, marca y modelo. Quedan en la pestaña EquiposAgregados de
+   la hoja de la sede (con quién y cuándo) y entran a todas las listas de
+   equipos de la sede: orden nueva y editor, equipo destino del inventario,
+   Hoja de Vida, Histórico, Plan de Mantenimiento y reportes técnicos que
+   arman su lista por grupo, y el buscador. Un equipo agregado por error
+   se quita (queda la fila, marcada "Quitado"); sus órdenes no se tocan.
+   Se guarda una copia en el equipo para poder hacer órdenes sin señal.
+══════════════════════════════════════════════ */
+const EQUIPOS_AGREGADOS_COLS = ['Grupo', 'Codigo', 'Modelo', 'AgregadoPor', 'Fecha', 'Estado'];
+const _LS_EQUIPOS_AGREGADOS = 'equiposAgregados_';
+// var y no const: _aplicarEquiposEmpresas (más arriba) lo usa ya al arrancar.
+var _equiposAgregadosFilas = {};     // sede → filas de la hoja
+var _equiposAgregadosAplicados = {}; // sede → [{ grupo, item, grupoNuevo }] (para quitarlos al recargar)
+
+/** Cómo son los equipos en la lista de la sede: 'empresa' (Antioquia,
+ *  "Empresa · Equipo"), 'par' ([código, modelo], Perú y México) o 'texto'. */
+function _formatoListaSede(sede) {
+  if (SEDES_CON_EMPRESAS.includes(sede)) return 'empresa';
+  return Object.values(EQUIPOS_POR_SEDE[sede] || EQUIPOS_LISTADO_GENERAL).some(l => l.some(i => Array.isArray(i))) ? 'par' : 'texto';
+}
+
+/** El código de un elemento de la lista, en mayúsculas (para comparar). */
+function _codigoDeItem(item) {
+  return String(Array.isArray(item) ? item[0] : _equipoSinEmpresa(item)).trim().toUpperCase();
+}
+
+/** Los códigos que ya tiene la sede, en mayúsculas. */
+function _codigosDeSede(sede) {
+  return new Set(Object.values(EQUIPOS_POR_SEDE[sede] || EQUIPOS_LISTADO_GENERAL).flat().map(_codigoDeItem));
+}
+
+/** Si el equipo ya está en la lista de la sede. En Antioquia dos empresas
+ *  pueden tener un equipo con el mismo nombre: ahí cuenta "Empresa · Equipo". */
+function _equipoYaEnSede(sede, grupo, codigo) {
+  if (_formatoListaSede(sede) === 'empresa') {
+    const completo = _nombreEquipoEmpresa(grupo, codigo).toUpperCase();
+    return Object.values(EQUIPOS_POR_SEDE[sede] || {}).flat().some(i => String(i).toUpperCase() === completo);
+  }
+  return _codigosDeSede(sede).has(String(codigo).trim().toUpperCase());
+}
+
+function _aplicarEquiposAgregados(sede, filas) {
+  // Primero se quita lo que se había puesto (si no, al recargar quedaría doble).
+  (_equiposAgregadosAplicados[sede] || []).forEach(({ grupo, item, grupoNuevo }) => {
+    const lista = EQUIPOS_POR_SEDE[sede] && EQUIPOS_POR_SEDE[sede][grupo];
+    if (!lista) return;
+    const i = lista.indexOf(item);
+    if (i >= 0) lista.splice(i, 1);
+    if (grupoNuevo && !lista.length) delete EQUIPOS_POR_SEDE[sede][grupo];
+  });
+  _equiposAgregadosAplicados[sede] = [];
+  const activas = (filas || []).filter(f => f.Estado !== 'Quitado' && String(f.Codigo || '').trim() && String(f.Grupo || '').trim());
+  if (!activas.length) return;
+  // Una sede sin lista propia usa la general: se le hace su copia, para no
+  // tocar la de las demás.
+  if (!EQUIPOS_POR_SEDE[sede]) EQUIPOS_POR_SEDE[sede] = JSON.parse(JSON.stringify(EQUIPOS_LISTADO_GENERAL));
+  const formato = _formatoListaSede(sede);
+  activas.forEach(f => {
+    const grupo = String(f.Grupo).trim(), codigo = String(f.Codigo).trim(), modelo = String(f.Modelo || '').trim();
+    if (_equipoYaEnSede(sede, grupo, codigo)) return; // ya está (en la lista fija o agregado antes)
+    const grupoNuevo = !EQUIPOS_POR_SEDE[sede][grupo];
+    if (grupoNuevo) EQUIPOS_POR_SEDE[sede][grupo] = [];
+    const item = formato === 'par' ? [codigo, modelo] : formato === 'empresa' ? _nombreEquipoEmpresa(grupo, codigo) : codigo;
+    EQUIPOS_POR_SEDE[sede][grupo].push(item);
+    _equiposAgregadosAplicados[sede].push({ grupo, item, grupoNuevo });
+  });
+}
+
+function _reaplicarEquiposAgregados(sede) {
+  if (!_equiposAgregadosFilas || !_equiposAgregadosFilas[sede]) return;
+  _equiposAgregadosAplicados[sede] = []; // la lista se armó de nuevo: no hay nada que quitar
+  _aplicarEquiposAgregados(sede, _equiposAgregadosFilas[sede]);
+}
+
+// Al arrancar: la última lista guardada en este equipo.
+Object.keys(OPERACIONES).forEach(sede => {
+  try {
+    const guardada = JSON.parse(localStorage.getItem(_LS_EQUIPOS_AGREGADOS + sede) || 'null');
+    if (Array.isArray(guardada)) { _equiposAgregadosFilas[sede] = guardada; _aplicarEquiposAgregados(sede, guardada); }
+  } catch (_) { /* navegador sin almacenamiento: se espera a la hoja */ }
+});
+
+/** Trae los equipos agregados de la sede activa y los pone en las listas. */
+async function cargarEquiposAgregados() {
+  const sede = operacionActual;
+  if (!googleAccessToken) return;
+  try {
+    await asegurarHoja(SH.equiposAgregados, EQUIPOS_AGREGADOS_COLS);
+    const filas = (await _leerHojaGenerica(SH.equiposAgregados))
+      .map(f => Object.fromEntries(EQUIPOS_AGREGADOS_COLS.map(c => [c, String(f[c] ?? '')])));
+    if (sede !== operacionActual) return; // se cambió de sede mientras llegaba
+    _guardarEquiposAgregadosLocal(sede, filas);
+    _repintarConEquiposEmpresas();
+  } catch (e) {
+    _reportarError('equipos agregados a la operación', e);
+  }
+}
+
+function _guardarEquiposAgregadosLocal(sede, filas) {
+  _equiposAgregadosFilas[sede] = filas;
+  _aplicarEquiposAgregados(sede, filas);
+  try { localStorage.setItem(_LS_EQUIPOS_AGREGADOS + sede, JSON.stringify(filas)); } catch (_) { /* navegador sin almacenamiento */ }
+}
+
+/** Histórico por Equipo → "Agregar equipos a la operación". */
+function renderEquiposAgregados() {
+  const cont = document.getElementById('eqAgrContenido');
+  if (!cont) return;
+  const sede = operacionActual;
+  const grupos = Object.keys(EQUIPOS_POR_SEDE[sede] || EQUIPOS_LISTADO_GENERAL);
+  const formato = _formatoListaSede(sede);
+  const activas = (_equiposAgregadosFilas[sede] || []).filter(f => f.Estado !== 'Quitado' && f.Codigo);
+  const admin = esAdmin();
+  const rotuloGrupo = formato === 'empresa' ? 'Empresa' : 'Grupo';
+  const rotuloCodigo = formato === 'empresa' ? 'Equipo' : 'Código';
+  cont.innerHTML = html`
+    <p class="cap-sub" style="margin:0 0 14px">Los equipos que se agreguen aquí entran a todas las listas de equipos de ${OPERACIONES[sede]?.nombre || sede}: órdenes de trabajo, inventario, Hoja de Vida, Histórico, Plan de Mantenimiento y reportes técnicos. Queda registrado quién lo agregó y cuándo.</p>
+    ${admin ? html`
+    <div class="rejilla-campos" style="margin-bottom:12px">
+      <div class="field"><label for="eqAgrGrupo">${rotuloGrupo} *</label>
+        <select id="eqAgrGrupo" onchange="document.getElementById('eqAgrGrupoNuevoCampo').style.display = this.value === '__nuevo' ? '' : 'none'">
+          <option value="">Seleccionar…</option>
+          ${grupos.map(g => html`<option value="${g}">${g}</option>`)}
+          <option value="__nuevo">Otro ${rotuloGrupo.toLowerCase()} (nuevo)…</option>
+        </select></div>
+      <div class="field" id="eqAgrGrupoNuevoCampo" style="display:none"><label for="eqAgrGrupoNuevo">Nombre del ${rotuloGrupo.toLowerCase()} nuevo *</label><input id="eqAgrGrupoNuevo" maxlength="60"></div>
+      <div class="field"><label for="eqAgrCodigo">${rotuloCodigo} *</label><input id="eqAgrCodigo" maxlength="60" placeholder="${formato === 'empresa' ? 'Compresor Kaeser SK25' : 'CD4'}"></div>
+      ${formato === 'par' ? html`<div class="field"><label for="eqAgrModelo">Marca y modelo</label><input id="eqAgrModelo" maxlength="80" placeholder="FS Curtis V55A"></div>` : ''}
+    </div>
+    <button type="button" class="btn btn-primary" id="eqAgrBoton" onclick="agregarEquipoOperacion()">Agregar a la operación</button>
+    <div id="eqAgrMsg" class="cap-sub" style="margin-top:8px" role="status"></div>` : html`<div class="cap-sub">Solo un administrador puede agregar equipos.</div>`}
+    <div class="cap-titulo" style="margin:18px 0 8px">Equipos agregados (${activas.length})</div>
+    ${activas.length ? html`<div class="desplazable"><table class="tabla-datos" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--surface2)"><th style="padding:7px 10px;text-align:left">${rotuloGrupo}</th><th style="padding:7px 10px;text-align:left">${rotuloCodigo}</th>${formato === 'par' ? html`<th style="padding:7px 10px;text-align:left">Marca y modelo</th>` : ''}<th style="padding:7px 10px;text-align:left">Agregado por</th><th style="padding:7px 10px;text-align:left">Fecha</th>${admin ? html`<th style="padding:7px 10px;text-align:right">Acciones</th>` : ''}</tr></thead>
+      <tbody>${activas.map(f => html`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px">${f.Grupo}</td><td style="padding:7px 10px;font-weight:600">${f.Codigo}</td>${formato === 'par' ? html`<td style="padding:7px 10px">${f.Modelo || '—'}</td>` : ''}
+        <td style="padding:7px 10px">${f.AgregadoPor}</td><td style="padding:7px 10px">${fmtFecha(f.Fecha)}</td>
+        ${admin ? html`<td style="padding:7px 10px;text-align:right"><button type="button" class="btn btn-ghost btn-sm" onclick="quitarEquipoAgregado(${html.arg(f.Codigo)})">Quitar</button></td>` : ''}
+      </tr>`)}</tbody></table></div>` : html`<div class="cap-sub">Todavía no se ha agregado ningún equipo a esta operación.</div>`}`;
+}
+
+async function agregarEquipoOperacion() {
+  if (!esAdmin()) { alert('Solo un administrador puede agregar equipos.'); return; }
+  const sede = operacionActual;
+  const msg = document.getElementById('eqAgrMsg');
+  const formato = _formatoListaSede(sede);
+  let grupo = document.getElementById('eqAgrGrupo').value;
+  if (grupo === '__nuevo') grupo = document.getElementById('eqAgrGrupoNuevo').value.trim();
+  let codigo = document.getElementById('eqAgrCodigo').value.trim().replace(/\s+/g, ' ');
+  if (formato !== 'empresa') codigo = codigo.toUpperCase();
+  const modelo = (document.getElementById('eqAgrModelo')?.value || '').trim();
+  msg.style.color = 'var(--danger)';
+  if (!grupo) { msg.textContent = 'Elige el grupo del equipo (o escribe el nombre del grupo nuevo).'; return; }
+  if (!codigo) { msg.textContent = 'Escribe el código del equipo.'; return; }
+  if (formato === 'empresa' && codigo.includes(_SEP_EMPRESA.trim())) { msg.textContent = 'El nombre del equipo no puede llevar el punto medio (·).'; return; }
+  if (_equipoYaEnSede(sede, grupo, codigo)) {
+    msg.textContent = `${codigo} ya está en la lista de equipos de la operación.`;
+    return;
+  }
+  const boton = document.getElementById('eqAgrBoton');
+  boton.disabled = true; msg.style.color = 'var(--text3)'; msg.textContent = 'Guardando…';
+  const fila = { Grupo: grupo, Codigo: codigo, Modelo: formato === 'par' ? modelo : '', AgregadoPor: currentUser?.name || currentUser?.email || '', Fecha: _isoLocal(new Date()), Estado: 'Activo' };
+  try {
+    const cols = await asegurarHoja(SH.equiposAgregados, EQUIPOS_AGREGADOS_COLS);
+    const antes = (_equiposAgregadosFilas[sede] || []).find(f => f.Codigo.toUpperCase() === codigo.toUpperCase() && (formato !== 'empresa' || f.Grupo === grupo));
+    // Si se había quitado, vuelve la misma fila (no queda repetido en la hoja).
+    if (antes) await _actualizarFilaPorClave(SH.equiposAgregados, EQUIPOS_AGREGADOS_COLS, 'Codigo', antes.Codigo, { ...fila, Codigo: antes.Codigo });
+    else await appendHoja(SH.equiposAgregados, [cols.map(c => fila[c] ?? '')]);
+    _invalidarCacheHoja(SH.equiposAgregados);
+    const filas = (_equiposAgregadosFilas[sede] || []).filter(f => f !== antes).concat([{ ...fila, Codigo: antes ? antes.Codigo : codigo }]);
+    _guardarEquiposAgregadosLocal(sede, filas);
+    _repintarConEquiposEmpresas();
+    aviso(`${codigo} quedó en todas las listas de equipos de la operación.`, 'exito');
+  } catch (e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo agregar: ' + e.message;
+    boton.disabled = false;
+  }
+}
+
+async function quitarEquipoAgregado(codigo) {
+  if (!esAdmin()) { alert('Solo un administrador puede quitar equipos.'); return; }
+  const sede = operacionActual;
+  if (!(await confirmarAccion({ titulo: `¿Quitar ${codigo} de las listas?`,
+    texto: 'Deja de aparecer en las listas de equipos de la operación. Sus órdenes y su Hoja de Vida no se borran, y se puede volver a agregar.',
+    aceptar: 'Quitar', peligro: true }))) return;
+  try {
+    await _actualizarFilaPorClave(SH.equiposAgregados, EQUIPOS_AGREGADOS_COLS, 'Codigo', codigo, { Estado: 'Quitado' });
+    _invalidarCacheHoja(SH.equiposAgregados);
+    _guardarEquiposAgregadosLocal(sede, (_equiposAgregadosFilas[sede] || []).map(f => f.Codigo === codigo ? { ...f, Estado: 'Quitado' } : f));
+    _repintarConEquiposEmpresas();
+    aviso(`${codigo} ya no aparece en las listas.`, 'exito');
+  } catch (e) {
+    aviso('No se pudo quitar: ' + e.message, 'error');
+  }
+}
+
+/* ── Cambios de código de equipos ─────────────────────────────────────
+   Cuando un equipo cambia de código (Perú: las bombas V1 y V2 pasaron a
+   llamarse BVP1 y BVP2), su historial tiene que seguirlo: las órdenes,
+   las horas, la Hoja de Vida, el plan y las salidas de inventario que
+   decían el código viejo pasan al nuevo. Lo hace una vez la primera sesión
+   de admin en esa sede, y deja constancia en la pestaña CambiosDeCodigo
+   (qué, cuántas celdas, quién y cuándo); con la constancia ya no se repite. */
+const CAMBIOS_DE_CODIGO = {
+  peru: [['V1', 'BVP1'], ['V2', 'BVP2']],
+};
+const CAMBIOS_DE_CODIGO_COLS = ['Antes', 'Despues', 'Celdas', 'Por', 'Fecha'];
+// Las pestañas (de la hoja de la sede) donde hay una columna con el equipo.
+const _HOJAS_CON_EQUIPO = () => [
+  [SH.ordenes, 'Equipo'], [SH.horasEquipos, 'Equipo'], [SH.planesMantenimiento, 'Equipo'], [SH.notificaciones, 'Equipo'],
+  [SH.informeTrimestralEstado, 'Equipo'], [SH.informeSemestralEstado, 'Equipo'], [SH.informeAnualEstado, 'Equipo'],
+  [SH.hvdEquipos, 'Equipo'], [SH.hvdRepuestos, 'Equipo'],
+];
+
+/** Cambia en una pestaña las celdas de la columna que dicen exactamente un
+ *  código viejo. Devuelve cuántas cambió (0 si la pestaña no existe). */
+async function _cambiarCodigosEnHoja(spreadsheetId, hoja, columna, cambios) {
+  const base = SHEETS_API + '/v4/spreadsheets/' + spreadsheetId;
+  const hdrs = { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' };
+  const r = await fetch(base + '/values/' + encodeURIComponent(hoja + '!A:ZZ'), { headers: hdrs });
+  if (r.status === 400) return 0; // la pestaña no existe en esta sede
+  if (!r.ok) throw new Error('No se pudo leer ' + hoja + ' (HTTP ' + r.status + ')');
+  const valores = (await r.json()).values || [];
+  const col = (valores[0] || []).indexOf(columna);
+  if (col < 0) return 0;
+  const nuevo = Object.fromEntries(cambios);
+  const datos = [];
+  for (let i = 1; i < valores.length; i++) {
+    const v = String((valores[i] || [])[col] ?? '').trim();
+    if (nuevo[v]) datos.push({ range: hoja + '!' + numToCol(col) + (i + 1), values: [[nuevo[v]]] });
+  }
+  if (!datos.length) return 0;
+  const w = await fetch(base + '/values:batchUpdate', { method: 'POST', headers: hdrs, body: JSON.stringify({ valueInputOption: 'RAW', data: datos }) });
+  if (!w.ok) throw new Error('No se pudo escribir en ' + hoja + ' (HTTP ' + w.status + ')');
+  return datos.length;
+}
+
+async function _aplicarCambiosDeCodigo() {
+  const sede = operacionActual;
+  const cambios = CAMBIOS_DE_CODIGO[sede];
+  if (!cambios || !esAdmin() || !googleAccessToken || !operacionAutenticada) return;
+  try {
+    await asegurarHoja(SH.cambiosDeCodigo, CAMBIOS_DE_CODIGO_COLS);
+    const hechos = new Set((await _leerHojaGenerica(SH.cambiosDeCodigo)).map(f => f.Antes + '→' + f.Despues));
+    const pendientes = cambios.filter(([a, d]) => !hechos.has(a + '→' + d));
+    if (!pendientes.length) return;
+    const porCambio = Object.fromEntries(pendientes.map(([a]) => [a, 0]));
+    const contar = async (id, hoja, col) => {
+      for (const par of pendientes) porCambio[par[0]] += await _cambiarCodigosEnHoja(id, hoja, col, [par]);
+    };
+    for (const [hoja, col] of _HOJAS_CON_EQUIPO()) await contar(GOOGLE_CONFIG.spreadsheetId, hoja, col);
+    await contar(_invSpreadsheetId(sede), 'Movimientos', 'Equipo Destino');
+    if (sede !== operacionActual) return;
+    // La copia de este equipo también.
+    const nuevo = Object.fromEntries(pendientes);
+    (allOrdenes || []).forEach(o => { if (o && nuevo[String(o.Equipo || '').trim()]) o.Equipo = nuevo[String(o.Equipo).trim()]; });
+    _HOJAS_CON_EQUIPO().forEach(([h]) => _invalidarCacheHoja(h));
+    const quien = currentUser?.name || currentUser?.email || '';
+    await appendHoja(SH.cambiosDeCodigo, pendientes.map(([a, d]) => [a, d, porCambio[a], quien, new Date().toISOString()]));
+  } catch (e) {
+    _reportarError('cambio de códigos de equipos', e);
   }
 }
 
@@ -11801,16 +12092,16 @@ const PROGRAMA_2026_PERU = [
   { categoria:"Drycoolers", equipo:"D4", actividad:"Lavado de rediador con quimico desincrustante.", documento:"hoja de vida de equipos", frecuencia:"Anual", meses:["NOV"] },
   { categoria:"Drycoolers", equipo:"D4", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
   { categoria:"Drycoolers", equipo:"D4", actividad:"Instrumentacion (Revisión y ajuste de instrumentos)", documento:"hoja de vida de equipos", frecuencia:"Semestral", meses:["FEB", "AGO"] },
-  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
-  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
-  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
-  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
-  { categoria:"Bombas de Vacío", equipo:"V1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
-  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
-  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
-  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
-  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
-  { categoria:"Bombas de Vacío", equipo:"V2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP1", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP1", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP1", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP1", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP2", actividad:"Inspeccion de niveles de Aceite", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP2", actividad:"Cambio de Filtro de Aire", documento:"", frecuencia:"4.000 horas", meses:["FEB", "JUL"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP2", actividad:"Cambio de Filtro de Aceite", documento:"", frecuencia:"6.000 horas", meses:["JUN"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP2", actividad:"Cambio de Elemento Separador de Aceite y de Aceite", documento:"", frecuencia:"8.000 horas", meses:["SEP"] },
+  { categoria:"Bombas de Vacío", equipo:"BVP2", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"", frecuencia:"Trimestral", meses:["ABR", "AGO", "DIC"] },
   { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Limpieza de Bomba", documento:"informe consolidado de forma mensual en power BI.", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
   { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Tableros (Inspección visual, ajuste, limpieza, medición V, I y Tierra)", documento:"hoja de vida de equipos", frecuencia:"Mensual", meses:["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"] },
   { categoria:"Sistema de Recirculación", equipo:"B1", actividad:"Mantenimiento de motor electrico", documento:"hoja de vida de equipos", frecuencia:"Anual o según monitoreo vibracional", meses:["NOV"] },
@@ -12039,9 +12330,13 @@ const PM_GRUPOS_POR_SEDE = {
   // Perú lleva horas de todos sus equipos (hoja "MTTO HRS" de su plan), con
   // los mismos grupos y códigos de su lista de equipos. Solo los compresores
   // llevarían la evaluación técnica de un empalme.
-  peru: Object.entries(EQUIPOS_PERU).map(([nombre, items]) => ({
-    nombre, equipos: items.map(i => i[0]), ...(nombre.startsWith('Compresores') ? {} : { sinEvaluacionTecnica: true }),
-  })),
+  // Se arma cada vez que se pide, para que entren los equipos agregados a la
+  // operación (ver EQUIPOS AGREGADOS A LA OPERACIÓN).
+  get peru() {
+    return Object.entries(EQUIPOS_PERU).map(([nombre, items]) => ({
+      nombre, equipos: items.map(i => i[0]), ...(nombre.startsWith('Compresores') ? {} : { sinEvaluacionTecnica: true }),
+    }));
+  },
 };
 function _pmGruposEquipos(sede) {
   // Antioquia: los equipos de sus empresas (la lista de Equipos de las
@@ -12110,6 +12405,8 @@ const SH = {
   fotosNovedades: 'FotosNovedades',
   inventarioEquiposBase: 'InventarioEquiposBase',
   equiposEmpresas: 'EquiposEmpresas',
+  equiposAgregados: 'EquiposAgregados',
+  cambiosDeCodigo: 'CambiosDeCodigo',
   inventarioEquiposObs:  'InventarioEquiposObs',
   hvdEquipos: 'HVDEquipos',
   hvdRepuestos: 'HVDRepuestos',
@@ -15572,6 +15869,8 @@ async function guardarOrden() {
 ══════════════════════════════════════════════ */
 async function cargarOrdenes() {
   cargarEquiposEmpresas(); // Antioquia: sus empresas y equipos (en paralelo)
+  cargarEquiposAgregados(); // los equipos que la sede agregó (en paralelo)
+  _aplicarCambiosDeCodigo(); // una sola vez: el historial con los códigos nuevos
   document.getElementById('spinnerLista')?.classList.add('show');
   // Mientras llegan los datos, mostrar skeletons en los contenedores de lista
   // (se reemplazan al terminar por el render real). Da sensación de rapidez.
@@ -26106,6 +26405,8 @@ function histCambiarVista() {
   document.getElementById('histVistaEquipos').style.display     = vista === 'equipos' ? 'block' : 'none';
   document.getElementById('histVistaInventario').style.display  = vista === 'inventario' ? 'block' : 'none';
   document.getElementById('histVistaHVD').style.display         = vista === 'hvd' ? 'block' : 'none';
+  document.getElementById('histVistaAgregar').style.display     = vista === 'agregar' ? 'block' : 'none';
+  if (vista === 'agregar') renderEquiposAgregados();
   if (vista === 'inventario') {
     _poblarSelectAnioInventarioEquipos();
     cargarInventarioEquipos();
